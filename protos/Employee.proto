@@ -1,0 +1,102 @@
+
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package Employee;
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "Pager.proto";
+service EmployeeService {
+  rpc GetListEmployees (GetListEmployeesRequest) returns (GetListEmployeesResponse);
+  rpc GetEmployee (GetEmployeeRequest) returns (GetEmployeeResponse);
+  rpc SaveEmployee (SaveEmployeeRequest) returns (SaveEmployeeResponse);
+  
+  rpc DeleteEmployee (DeleteEmployeeRequest) returns (DeleteEmployeeResponse);
+}
+
+message GetListEmployeesRequest {
+    EmployeeSearch search_item = 1;
+}
+
+message GetListEmployeesResponse {
+  repeated Employee items = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+  Pager.PagerSettings pager_settings = 5;
+}
+
+message GetEmployeeRequest {
+  string id = 1;
+}
+message GetEmployeeResponse {
+  Employee item = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message SaveEmployeeRequest {
+  Employee item = 1;
+  bool is_new = 2;
+  string old_id = 3;
+}
+message SaveEmployeeResponse {
+  Employee item = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+
+}
+
+
+message DeleteEmployeeRequest {
+  repeated string ids = 1;
+  string id = 2;
+}
+
+message DeleteEmployeeResponse {
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+
+message Employee {
+	string id = 1;
+	string ten_tai_khoan = 2;
+	string mat_khau = 3;
+	string ho_va_ten = 4;
+	string id_don_vi = 5;
+	string id_quan_tri_don_vi = 6;
+	string id_cap_bac = 7;
+	string chuc_vu = 8;
+	string dien_thoai = 9;
+	string hinh_anh  = 10;
+  string email  = 11;
+	bool delete = 12;   
+  google.protobuf.Timestamp ngay_sinh  = 13;  
+	google.protobuf.Timestamp ngay_thiet_lap_mat_khau = 16;
+	google.protobuf.Timestamp dang_nhap_cuoi = 17;
+	
+	google.protobuf.Timestamp truy_cap_cuoi = 19;
+  bool kich_hoat  = 20;
+    
+  google.protobuf.StringValue hash_key  = 23; 
+	google.protobuf.StringValue create_by = 30;
+	google.protobuf.Timestamp create_date = 31;
+	google.protobuf.StringValue modify_by = 32;
+	google.protobuf.Timestamp modify_date = 33;
+	google.protobuf.Timestamp delete_date = 34;
+	google.protobuf.StringValue delete_by = 35;
+
+  google.protobuf.Int32Value access_level = 37;
+}
+
+
+message EmployeeSearch{
+  Employee employee = 1;
+  Pager.PagerSettings pager_settings = 2;
+  string search_text = 6;
+}

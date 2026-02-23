@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos"; 
+ package RelationshipObject;
+import "google/protobuf/wrappers.proto"; 
+import "google/protobuf/timestamp.proto"; 
+service RelationShipObjectService {   
+  rpc GetListRelationShipObject (ListRelationShipObjectRequest) returns (ListRelationShipObjectResponse); 
+  rpc GetRelationShipObject (RelationShipObjectRequest) returns (RelationShipObjectResponse);
+  rpc DeleteRelationShipObject (RelationShipObjectRequest) returns (DeleteRelationShipObjectResponse);
+  rpc SaveRelationShipObject (SaveRelationShipObjectRequest) returns (SaveRelationShipObjectResponse); 
+}
+  
+message ListRelationShipObjectRequest {  
+}
+ 
+message ListRelationShipObjectResponse {
+  repeated RelationShipObject Items = 1;
+  bool Success = 2;
+  string message = 3;
+  string messageException = 4;
+}
+
+message RelationShipObjectRequest {
+  google.protobuf.StringValue id = 1;
+}
+ 
+message RelationShipObjectResponse {
+  RelationShipObject Item = 1;
+  bool Success = 2;
+  string message = 3;
+  string messageException = 4;
+}
+
+message DeleteRelationShipObjectResponse {
+  bool Success = 1;
+  string message = 2;
+  string messageException = 3;
+}
+
+message SaveRelationShipObjectRequest {
+  RelationShipObject item = 1; 
+  bool is_new = 2;
+  google.protobuf.StringValue old_id = 4;
+}
+message SaveRelationShipObjectResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+  
+
+message RelationShipObject{
+	string id = 1;
+	google.protobuf.StringValue origin_name = 2; 
+	google.protobuf.StringValue origin_caption = 4;
+	google.protobuf.StringValue relative_name = 5;
+	google.protobuf.StringValue relative_key_field = 6;
+	google.protobuf.StringValue relative_caption = 7;
+	bool delete_alway = 8;
+  string component_name = 9;
+  google.protobuf.StringValue nguoi_tao = 10;
+	google.protobuf.StringValue nguoi_sua = 11;
+	google.protobuf.Timestamp ngay_tao = 12;
+	google.protobuf.Timestamp ngay_sua = 13; 
+}  
