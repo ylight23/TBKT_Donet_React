@@ -117,7 +117,7 @@ const officeApi = {
     },
 
     // ===== UPDATE =====
-    async update(body: Office){
+    async update(body: Office) {
         try {
             const res = await officeClient.saveOffice(
                 create(SaveOfficeRequestSchema, {

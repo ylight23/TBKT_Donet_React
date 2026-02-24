@@ -560,3 +560,4 @@ D:\TBKT_Donet_React\Backend\src\obj\Debug\net9.0\staticwebassets.build.endpoints
 D:\TBKT_Donet_React\Backend\src\obj\Debug\net9.0\src.csproj.Up2Date
 D:\TBKT_Donet_React\Backend\src\obj\Debug\net9.0\src.genruntimeconfig.cache
 D:\TBKT_Donet_React\Backend\src\obj\Debug\net9.0\ref\src.dll
+D:\TBKT_Donet_React\Backend\src\obj\Debug\net9.0\src.sourcelink.json
