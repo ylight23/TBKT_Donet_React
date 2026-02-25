@@ -1,9 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useTheme } from '@mui/material';
+
+import { useTheme }      from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
+
 import { tokens } from '../theme';
 import { fetchEmployee, create, update, deleteApi } from '../store/reducer/employee';
-import officeApi from '../apis/officeApi';
+import { fetchOffice } from '../store/reducer/office';
 import employeeApi from '../apis/employeeApi';
 import catalogApi from '../apis/catalogApi';
 import { AppDispatch } from '../store';
@@ -84,8 +87,10 @@ interface EmployeeContextValue {
 }
 
 // ── Module-level cache & init guard ───────────────────────────────────────────
-const filterCache    = new Map<string, EmployeeItem[]>();
-let didInitEmployee  = false;   // ← Rule: init-once
+const filterCache   = new Map<string, EmployeeItem[]>();
+let didInitEmployee = false;   // Rule: init-once
+const EXCEL_DATE_ORIGIN_MS = new Date(1900, 0, 1).getTime();  // Rule: cache-property-access
+const ACTIVE_STATUS_SET    = new Set(['hoạt động', 'có', 'active', 'yes', '1', 'true']);  // Rule: set-map-lookups
 
 // ── Context ────────────────────────────────────────────────────────────────────
 
@@ -103,72 +108,75 @@ export const useEmployee = (): EmployeeContextValue => {
 
 export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const theme    = useTheme();
-    const colors   = tokens(theme.palette.mode);
+    const colors   = tokens(theme.palette.mode);     // colors từ theme
     const dispatch = useDispatch<AppDispatch>();
 
     const employees: EmployeeItem[] = useSelector(
         (s: any) => s.employeeReducer.employeeApi || []
     );
+    const officeListRaw: OfficeNode[] = useSelector(
+        (s: any) => s.officeReducer.officeApi || []
+    );
 
-    const [officeList,        setOfficeList]        = useState<OfficeNode[]>([]);
-    const [officeMap,         setOfficeMap]         = useState<Record<string, string>>({});
-    const [capBacList,        setCapBacList]        = useState<CatalogItem[]>([]);
-    const [capBacMap,         setCapBacMap]         = useState<Record<string, string>>({});
+    // ── States ────────────────────────────────────────────────────────────────
+    const [capBacList, setCapBacList]        = useState<CatalogItem[]>([]);
+    const [capBacMap,  setCapBacMap]         = useState<Record<string, string>>({});
     const [filteredEmployees, setFilteredEmployees] = useState<EmployeeItem[]>([]);
-    const [isFiltered,        setIsFiltered]        = useState(false);
-    const [loading,           setLoading]           = useState(false);
+    const [isFiltered, setIsFiltered]        = useState(false);
+    const [loading,    setLoading]           = useState(true);   // ← bắt đầu true, không phải false
 
-    // ── Rule: init-once + waterfall prevention ────────────────────────────────
+    // ── officeList + officeMap từ Redux selector (không dùng useState) ────────
+    const officeList = officeListRaw;
+
+    const officeMap = useMemo<Record<string, string>>(() => {
+        const map: Record<string, string> = {};
+        officeListRaw.forEach((o: OfficeNode) => {
+            map[String(o.id)] = String(o.ten || o.tenDayDu || o.id);
+        });
+        return map;
+    }, [officeListRaw]);
+
+    // ── Init once ─────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (didInitEmployee) return;    // ← tránh chạy 2 lần trong StrictMode
+        if (didInitEmployee) return;
         didInitEmployee = true;
 
         const loadInitialData = async () => {
-            // ── Rule: waterfall prevention - tất cả 3 bắt đầu song song ──────
-            const employeePromise = dispatch(fetchEmployee());          // ← start ngay
-            const officePromise   = officeApi                          // ← start ngay
-                .getListOffices({ loadAll: true })
-                .catch(() => [] as OfficeNode[]);
-            const capBacPromise   = catalogApi                         // ← start ngay
-                .getListCatalog('CapBac')
-                .catch(() => [] as any[]);
+            setLoading(true);
 
-            // await tất cả cùng lúc
-            const [, offices, capBac] = await Promise.all([
-                employeePromise,
-                officePromise,
-                capBacPromise,
+            // ── Tách capBac ra khỏi Promise.all để đảm bảo map có data trước khi render
+            const [[,], capBac] = await Promise.all([
+                Promise.all([
+                    dispatch(fetchEmployee()),
+                    dispatch(fetchOffice()),
+                ]),
+                catalogApi.getListCatalog('CapBac').catch(() => [] as any[]),
             ]);
 
-            // build officeMap
-            const officeMapData: Record<string, string> = {};
-            offices.forEach((o: OfficeNode) => {
-                officeMapData[String(o.id)] = String(o.ten || o.tenDayDu || o.id);
-            });
-            setOfficeList(offices);
-            setOfficeMap(officeMapData);
-
-            // build capBacMap
-            const validCapBac = capBac
-                .filter((i: any) => i.id !== undefined)
-                .map((i: any)    => ({ ...i, id: i.id as string }));
-            setCapBacList(validCapBac);
-
+            // ✅ 1 lần duyệt thay vì filter → map → forEach (3 lần)
+            const validCapBac: CatalogItem[] = [];
             const capBacMapData: Record<string, string> = {};
-            validCapBac.forEach((i: CatalogItem) => {
-                capBacMapData[i.id] = String(i.ten || i.tenDayDu || i.id);
-            });
+            for (const i of (capBac || [])) {
+                if (i.id === undefined) continue;
+                const item: CatalogItem = { ...i, id: i.id as string };
+                validCapBac.push(item);
+                capBacMapData[String(item.id)] = String(item.ten || item.tenDayDu || item.id);
+            }
+
+            setCapBacList(validCapBac);
             setCapBacMap(capBacMapData);
+            setLoading(false);   // ← chỉ false sau khi capBacMap đã fill xong
         };
 
         loadInitialData();
+
+        return () => { didInitEmployee = false; };
     }, [dispatch]);
 
     // ── Xóa cache khi employees thay đổi ──────────────────────────────────────
     useEffect(() => { filterCache.clear(); }, [employees]);
 
     // ── Actions ────────────────────────────────────────────────────────────────
-
     const createEmployee = useCallback(async (data: Partial<EmployeeItem>) => {
         await dispatch(create(data as any));
         await dispatch(fetchEmployee());
@@ -189,28 +197,26 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         filterCache.clear();
     }, [dispatch]);
 
-    // ── Rule: event-handler-refs - filterEmployees stable ref ─────────────────
+    // ── Rule: event-handler-refs ───────────────────────────────────────────────
     const filterEmployeesRef = useRef<(filters: FilterValues) => Promise<void>>(async () => {});
 
     const filterEmployees = useCallback(async (filters: FilterValues) => {
         const { searchText, idCapBac, chucVu, idDonVi, idQuanTriDonVi } = filters;
         const hasActiveFilter = searchText || idCapBac || chucVu || idDonVi || idQuanTriDonVi;
 
-        // ── Rule: defer-await - early return trước khi fetch ──────────────────
         if (!hasActiveFilter) {
             setIsFiltered(false);
             setFilteredEmployees([]);
-            return;   // ← thoát sớm, không await gì cả
+            return;
         }
 
         const cacheKey = JSON.stringify(filters);
         if (filterCache.has(cacheKey)) {
             setIsFiltered(true);
             setFilteredEmployees(filterCache.get(cacheKey)!);
-            return;   // ← thoát sớm từ cache, không fetch API
+            return;
         }
 
-        // ── Chỉ await khi thực sự cần fetch ───────────────────────────────────
         setLoading(true);
         try {
             const data = await employeeApi.getListEmployees({
@@ -238,53 +244,68 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     }, []);
 
-    // ── Rule: event-handler-refs - cập nhật ref khi filterEmployees thay đổi ──
     useEffect(() => {
         filterEmployeesRef.current = filterEmployees;
     }, [filterEmployees]);
 
     const selectOffice = useCallback((office: OfficeNode | null) => {
-        // ── Rule: defer-await - early return ──────────────────────────────────
-        if (!office) return;   // ← thoát sớm, không gọi filterEmployees
+        if (!office) return;
 
-        filterEmployeesRef.current({   // ← gọi qua ref, luôn stable
+        const idDonVi  = String(office.id ?? '');
+        const cacheKey = JSON.stringify({
             searchText: '', idCapBac: '', chucVu: '',
-            idDonVi:        String(office.id ?? ''),
+            idDonVi,
             idQuanTriDonVi: '',
         });
-    }, []); // ← [] vì dùng ref thay vì filterEmployees trực tiếp
+
+        if (filterCache.has(cacheKey)) {
+            setIsFiltered(true);
+            setFilteredEmployees(filterCache.get(cacheKey)!);
+            return;
+        }
+
+        filterEmployeesRef.current({
+            searchText: '', idCapBac: '', chucVu: '',
+            idDonVi,
+            idQuanTriDonVi: '',
+        });
+    }, []);
 
     const importEmployees = useCallback(async (excelData: Record<string, unknown>[]) => {
         try {
             const normalizeText = (text: unknown) => String(text ?? '').trim().toLowerCase();
-            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const uuidPattern   = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+            // ✅ Rule: index-maps — build maps O(n) 1 lần, tránh O(n²) .find() per row
+            const officeNormMap = new Map<string, string>();
+            for (const o of officeList) {
+                const id = String(o.id);
+                if (o.ten)      officeNormMap.set(normalizeText(o.ten),      id);
+                if (o.tenDayDu) officeNormMap.set(normalizeText(o.tenDayDu), id);
+                officeNormMap.set(id, id);  // lookup by id
+            }
+            const capBacNormMap = new Map<string, string>();
+            for (const cb of capBacList) {
+                if (cb.ten) capBacNormMap.set(normalizeText(cb.ten), String(cb.id));
+                capBacNormMap.set(String(cb.id), String(cb.id));
+            }
 
             const findOfficeId = (value: unknown): string => {
                 if (!value) return '';
                 const str = String(value).trim();
                 if (uuidPattern.test(str)) return str;
-                const normalized = normalizeText(str);
-                const found = officeList.find(o =>
-                    normalizeText(o.ten) === normalized ||
-                    normalizeText(o.tenDayDu) === normalized ||
-                    String(o.id) === str
-                );
-                return String(found?.id ?? '');
+                return officeNormMap.get(normalizeText(str)) ?? officeNormMap.get(str) ?? '';
             };
 
             const findCapBacId = (value: unknown): string => {
                 if (!value) return '';
                 const str = String(value).trim();
                 if (uuidPattern.test(str)) return str;
-                const found = capBacList.find(cb =>
-                    normalizeText(cb.ten) === normalizeText(str) || cb.id === str
-                );
-                return found?.id ?? '';
+                return capBacNormMap.get(normalizeText(str)) ?? capBacNormMap.get(str) ?? '';
             };
 
             const parseStatus = (value: unknown): boolean =>
-                ['hoạt động', 'có', 'active', 'yes', '1', 'true']
-                    .includes(normalizeText(String(value ?? '')));
+                ACTIVE_STATUS_SET.has(normalizeText(String(value ?? '')));
 
             const parsedData = excelData.map((row, index) => {
                 let ngaySinh = '';
@@ -295,11 +316,11 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     const p = dv.split('/');
                     if (p.length === 3) ngaySinh = `${p[2]}-${p[1]}-${p[0]}`;
                 } else if (typeof dv === 'number') {
-                    const d = new Date(new Date(1900, 0, 1).getTime() + (dv - 2) * 86400000);
+                    const d = new Date(EXCEL_DATE_ORIGIN_MS + (dv - 2) * 86400000);
                     ngaySinh = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 }
                 return {
-                    rowIndex: index + 1,
+                    rowIndex:       index + 1,
                     hoVaTen:        String(row['Họ và tên']        ?? '').trim(),
                     ngaySinh,
                     idCapBac:       findCapBacId(row['Cấp bậc']),
@@ -310,17 +331,22 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 };
             });
 
+            // ✅ Rule: index-maps — build employee map 1 lần trước batch loop
+            const employeeByHoVaTen = new Map<string, EmployeeItem>();
+            for (const e of employees) {
+                if (e.hoVaTen) employeeByHoVaTen.set(e.hoVaTen.trim().toLowerCase(), e);
+            }
+
             const BATCH_SIZE = 50;
             const results: PromiseSettledResult<unknown>[] = [];
             for (let i = 0; i < parsedData.length; i += BATCH_SIZE) {
-                const batch = parsedData.slice(i, i + BATCH_SIZE);
+                const batch        = parsedData.slice(i, i + BATCH_SIZE);
                 const batchResults = await Promise.allSettled(
                     batch.map(async (ed) => {
                         const { rowIndex, ...cleanData } = ed;
                         if (!cleanData.hoVaTen) throw new Error('Thiếu họ và tên');
-                        const exists = employees.find(e =>
-                            e.hoVaTen?.trim().toLowerCase() === cleanData.hoVaTen.trim().toLowerCase()
-                        );
+                        const hoVaTenNorm = cleanData.hoVaTen.trim().toLowerCase();
+                        const exists = employeeByHoVaTen.get(hoVaTenNorm);
                         return exists
                             ? await employeeApi.update({ ...cleanData, id: exists.id })
                             : await employeeApi.create(cleanData);
@@ -330,8 +356,10 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 if (i + BATCH_SIZE < parsedData.length) await new Promise(r => setTimeout(r, 100));
             }
 
-            const succeeded = results.filter(r => r.status === 'fulfilled').length;
-            const failed    = results.filter(r => r.status === 'rejected').length;
+            // ✅ 1 lần duyệt thay vì 2 lần filter
+            let succeeded = 0;
+            for (const r of results) { if (r.status === 'fulfilled') succeeded++; }
+            const failed = results.length - succeeded;
             return {
                 success: failed === 0,
                 message: failed > 0
@@ -345,14 +373,14 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 message: 'Lỗi khi import: ' + (error instanceof Error ? error.message : String(error)),
             };
         }
-    }, [officeList, capBacList, employees]);
+    }, [officeListRaw, capBacList, employees]);
 
     const onImportSuccess = useCallback(async () => {
         filterCache.clear();
         await dispatch(fetchEmployee());
     }, [dispatch]);
 
-    // ── Computed: dùng useMemo tránh recreate mỗi render ──────────────────────
+    // ── Computed ───────────────────────────────────────────────────────────────
     const employeeColumnMapping = useMemo<Record<string, string>>(() => ({
         'STT':               'index',
         'Họ và tên':         'hoVaTen',
@@ -362,9 +390,9 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         'Đơn vị':            'idDonVi',
         'Phạm vi quản trị':  'idQuanTriDonVi',
         'Trạng thái':        'kichHoat',
-    }), []); // ← [] vì không phụ thuộc state nào
+    }), []);
 
-    // ── Context Value: dùng useMemo tránh re-render toàn bộ consumers ─────────
+    // ── Context Value ──────────────────────────────────────────────────────────
     const value = useMemo<EmployeeContextValue>(() => ({
         state: {
             employees,
@@ -405,3 +433,11 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 };
 
 export default EmployeeContext;
+
+// ❌ Xóa toàn bộ các stub functions bên dưới
+// function setOfficeMap(...)  { throw new Error(...) }  ← XÓA
+// function setCapBacList(...) { throw new Error(...) }  ← XÓA
+// function setIsFiltered(...) { throw new Error(...) }  ← XÓA
+// function setCapBacMap(...)  { throw new Error(...) }  ← XÓA
+// function setLoading(...)    { throw new Error(...) }  ← XÓA
+

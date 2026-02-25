@@ -1,88 +1,87 @@
-import { useEffect } from 'react';
-import { useAuth } from "react-oidc-context";
+import React, { useEffect, useRef } from 'react';
+import { useAuth }     from "react-oidc-context";
 import { useDispatch } from 'react-redux';
 import { setAuth, logout } from '../../store/authReducer/auth';
-import { AppDispatch } from '../../store';
+import { AppDispatch }     from '../../store';
+import { safeSessionGet, safeSessionRemove } from '../../utils';
 
 const AuthSync: React.FC = () => {
-    const auth = useAuth();
+    const auth     = useAuth();
     const dispatch = useDispatch<AppDispatch>();
 
-    // Check for force logout flag (set by gRPC interceptor when session revoked)
+    // ── Ref tránh dispatch logout khi OIDC đang loading ──────────────────────
+    const hasAuthenticatedRef = useRef(false);
+
+    // ── Force logout flag ─────────────────────────────────────────────────────
     useEffect(() => {
-        const forceLogoutFlag = sessionStorage.getItem('force_logout');
+        const forceLogoutFlag = safeSessionGet<string>('force_logout');
         if (forceLogoutFlag === 'true') {
-            console.warn('[AuthSync] 🚨 Detected force_logout flag - session was revoked by backend');
-            sessionStorage.removeItem('force_logout');
+            safeSessionRemove('force_logout');
             dispatch(logout());
-            
-            console.log('[AuthSync] Calling signOut() to redirect through WSO2 SSO logout...');
-            auth.signoutRedirect().catch((err: unknown) => {
-                console.error('[AuthSync] Error during signOut():', err);
-                // Fallback to direct redirect if signOut fails
+            auth.signoutRedirect().catch(() => {
                 window.location.href = '/login?reason=revoked';
             });
         }
-    }, [auth, dispatch]); // Run when auth or dispatch changes
+    }, [auth, dispatch]);
 
+    // ── Sync auth state ───────────────────────────────────────────────────────
     useEffect(() => {
+        // ✅ Bỏ qua khi đang loading
         if (auth.isLoading) return;
+
         const sync = async () => {
             try {
                 if (auth.isAuthenticated && auth.user) {
-                    console.log("[AuthSync] User is authenticated, syncing tokens...");
+                    hasAuthenticatedRef.current = true;  // ← đánh dấu đã auth thành công
+
                     const accessToken = auth.user.access_token;
-                    const idToken = auth.user.id_token;
+                    const idToken     = auth.user.id_token;
 
-                    console.log("[AuthSync] Access token length:", accessToken?.length);
-                    console.log("[AuthSync] Access token (first 50 chars):", accessToken?.substring(0, 50));
-                    console.log("[AuthSync] User profile:", auth.user.profile);
-
-                    // Check if access token is a valid JWT (has 3 parts separated by dots)
-                    const isValidJwt = typeof accessToken === "string" && 
-                                      accessToken.trim().length > 0 && 
-                                      accessToken.split(".").length === 3;
-
-                    console.log("[AuthSync] Is access token a valid JWT?", isValidJwt);
+                    const isValidJwt =
+                        typeof accessToken === "string" &&
+                        accessToken.trim().length > 0 &&
+                        accessToken.split(".").length === 3;
 
                     if (!isValidJwt) {
-                        console.error("❌ ACCESS TOKEN IS NOT A VALID JWT!");
-                        console.error("Backend authentication will FAIL with 401.");
-                        console.error("SOLUTION: Configure WSO2 to issue JWT access tokens:");
-                        console.error("  1. Go to WSO2 Console → Applications → Your App");
-                        console.error("  2. Protocol tab → Access Token → Token Type: JWT");
-                    } else {
-                        console.log("✅ Access token is a valid JWT");
+                        console.warn("[AuthSync] ⚠️ Access token không phải JWT hợp lệ");
                     }
+
+                    const { sub, preferred_username, name } = auth.user.profile;
 
                     dispatch(setAuth({
                         isAuthenticated: true,
-                        accessToken: accessToken || null,
-                        idToken: idToken || null,
-                        user: auth.user.profile?.preferred_username || auth.user.profile?.email || null,
-                        currentUser: auth.user.profile
+                        accessToken:     accessToken || null,
+                        idToken:         idToken     || null,
+                        user:            preferred_username || sub || null,
+                        currentUser:     { id: sub, name, username: preferred_username }
                     }));
-                    console.log("[AuthSync] ✅ Dispatched setAuth with authenticated state");
-                } else {
-                    console.log("[AuthSync] User not authenticated, dispatching logout state");
+
+                } else if (!auth.isAuthenticated && !auth.isLoading) {
+                    // ✅ Chỉ dispatch logout khi:
+                    // 1. OIDC xác nhận không authenticated (không phải đang loading)
+                    // 2. Chưa từng authenticated trong session này (tránh false positive khi navigate)
+                    if (!hasAuthenticatedRef.current) {
+                        dispatch(setAuth({
+                            isAuthenticated: false,
+                            accessToken:     null,
+                            idToken:         null,
+                            user:            null,
+                            currentUser:     null,
+                        }));
+                    }
+                    // ✅ Nếu đã từng authenticated → OIDC đang refresh token → không dispatch logout
+                }
+            } catch {
+                // ✅ Chỉ dispatch logout khi chưa từng authenticated
+                if (!hasAuthenticatedRef.current) {
                     dispatch(setAuth({
                         isAuthenticated: false,
-                        accessToken: null,
-                        idToken: null,
-                        user: null,
-                        currentUser: null
+                        accessToken:     null,
+                        idToken:         null,
+                        user:            null,
+                        currentUser:     null,
                     }));
                 }
-            } catch (error) {
-                console.error("AuthSync failed to sync tokens:", error);
-                // Clear state if token sync fails to prevent ghost login
-                dispatch(setAuth({
-                    isAuthenticated: false,
-                    accessToken: null,
-                    idToken: null,
-                    user: null,
-                    currentUser: null
-                }));
             }
         };
 

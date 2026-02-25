@@ -42,8 +42,8 @@ root.render(
         />
         <AuthSync />
         {/* <CustomSessionMonitor /> */}
-        <FrontChannelLogoutMonitor />
-        <FrontChannelLogoutStatus />
+        {/* <FrontChannelLogoutMonitor />
+        <FrontChannelLogoutStatus /> */}
         <App />
       </Provider>
     </AuthProvider>

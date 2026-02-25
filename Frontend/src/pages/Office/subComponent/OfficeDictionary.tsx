@@ -1,22 +1,27 @@
 import React, {
-    useEffect,
-    useMemo,
-    useState,
-    useCallback,
-    useRef,
-    useTransition,
-    startTransition,
-    CSSProperties,
-    useContext,
+    useEffect, useMemo, useState, useCallback, useRef,
+    useTransition, startTransition, CSSProperties, useContext,
 } from 'react';
-import { Box, Typography, CircularProgress, Alert, TextField, InputAdornment, IconButton } from '@mui/material';
-import { ExpandMore, ChevronRight, Search, Clear } from '@mui/icons-material';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import officeApi from '../../../apis/officeApi';
-import { serializeProtoObject } from '../../../utils/serializeProto';
 
-// ── Import OfficeContext (optional - không throw nếu không có Provider) ────────
-import OfficeContext from '../../../context/OfficeContext';
+
+import Box            from '@mui/material/Box';
+import Typography     from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert          from '@mui/material/Alert';
+import TextField      from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton     from '@mui/material/IconButton';
+import ExpandMore     from '@mui/icons-material/ExpandMore';
+import ChevronRight   from '@mui/icons-material/ChevronRight';
+import Search         from '@mui/icons-material/Search';
+import Clear          from '@mui/icons-material/Clear';
+
+import { useVirtualizer }        from '@tanstack/react-virtual';
+import officeApi                 from '../../../apis/officeApi';
+import { serializeProtoObject }  from '../../../utils/serializeProto';
+import OfficeContext             from '../../../context/OfficeContext';
+
+
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -417,8 +422,9 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             const parentId = (n.idCapTren || n.idcaptren || n.IDCapTren) as string | undefined;
             if (parentId) {
                 if (!byParent[parentId]) byParent[parentId] = [];
-                if (!byParent[parentId].find(x => x.id === n.id)) {
-                    byParent[parentId].push(n);
+                const siblings = byParent[parentId];   // cache ref, tránh 3 lần lookup
+                if (!siblings.find(x => x.id === n.id)) {
+                    siblings.push(n);
                 }
             }
         });

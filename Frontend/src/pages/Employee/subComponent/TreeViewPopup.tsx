@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Box,
-    Typography,
-    TextField,
-    CircularProgress,
-    Alert,
-    InputAdornment,
-} from '@mui/material';
+
+// ✅ Direct imports
+import Dialog           from '@mui/material/Dialog';
+import DialogTitle      from '@mui/material/DialogTitle';
+import DialogContent    from '@mui/material/DialogContent';
+import DialogActions    from '@mui/material/DialogActions';
+import Button           from '@mui/material/Button';
+import Box              from '@mui/material/Box';
+import Typography       from '@mui/material/Typography';
+import TextField        from '@mui/material/TextField';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert            from '@mui/material/Alert';
+import InputAdornment   from '@mui/material/InputAdornment';
+import ExpandMore       from '@mui/icons-material/ExpandMore';
+import ChevronRight     from '@mui/icons-material/ChevronRight';
+import Search           from '@mui/icons-material/Search';
+import Close            from '@mui/icons-material/Close';
+
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
-import { ExpandMore, ChevronRight, Search, Close } from '@mui/icons-material';
+
+
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

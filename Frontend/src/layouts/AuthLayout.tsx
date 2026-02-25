@@ -1,6 +1,9 @@
 import React from 'react';
 import { ColorModeContext, useMode } from "../theme";
-import { CssBaseline, ThemeProvider } from "@mui/material";
+
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline       from '@mui/material/CssBaseline';
+
 import { Outlet } from "react-router-dom";
 
 export default function AuthLayout(): React.ReactElement {

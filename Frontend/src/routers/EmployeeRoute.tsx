@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { RouteObject } from 'react-router-dom';
-import Employee from "../pages/Employee";
 import MainLayout from "../layouts/MainLayout";
+import { PageSkeleton } from '../components/Skeletons';
+
+// ── Lazy load ──────────────────────────────────────────────────────────────────
+const Employee = React.lazy(() => import('../pages/Employee'));
 
 const EmployeeRoute: RouteObject = {
     path: "/employee",
@@ -9,7 +12,11 @@ const EmployeeRoute: RouteObject = {
     children: [
         {
             path: "",
-            element: <Employee />
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <Employee />
+                </Suspense>
+            )
         }
     ]
 };

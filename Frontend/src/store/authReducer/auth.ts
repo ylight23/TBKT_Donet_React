@@ -1,65 +1,62 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { getLocalStorage, removeLocalStorage } from '../../utils';
-
-
+import {
+    safeSessionGet,
+    safeSessionSet,
+    safeSessionRemove,
+    removeLocalStorage,
+    STORAGE_KEYS,
+    MinimalUser,
+} from '../../utils';
 
 const initialState = {
-  currentUser: getLocalStorage('currentUser'),
-  permission: getLocalStorage('permission'),
-  message: null as string | null,
-
-  isAuthenticated: !!getLocalStorage('isAuthenticated'),
-  accessToken: getLocalStorage('_token'),
-  idToken: null,
-  user: null,
-
-}
-
+    isAuthenticated: safeSessionGet<boolean>(STORAGE_KEYS.IS_AUTHENTICATED) === true,
+    currentUser:     safeSessionGet<MinimalUser>(STORAGE_KEYS.CURRENT_USER),
+    // KHÔNG load token từ storage → OIDC tự quản lý
+    accessToken:     null as string | null,
+    idToken:         null as string | null,
+    user:            null as any,
+    message:         null as string | null,
+};
 
 const authSlice = createSlice({
-  name: "auth",
-  initialState: initialState,
-  reducers: {
-    setAuth: (state, action) => {
-      console.log('[authReducer] setAuth called with:', {
-        isAuthenticated: action.payload.isAuthenticated,
-        hasAccessToken: !!action.payload.accessToken,
-        accessTokenLength: action.payload.accessToken?.length,
-        user: action.payload.user
-      });
+    name: "auth",
+    initialState,
+    reducers: {
+        setAuth: (state, action) => {
+            
+            state.isAuthenticated = action.payload.isAuthenticated;
+            state.accessToken     = action.payload.accessToken;
+            state.idToken         = action.payload.idToken;
+            state.user            = action.payload.user;
 
-      state.isAuthenticated = action.payload.isAuthenticated;
-      state.accessToken = action.payload.accessToken;
-      state.idToken = action.payload.idToken;
-      state.user = action.payload.user;
-      state.currentUser = action.payload.currentUser;
+            // Store minimal fields từ currentUser
+            if (action.payload.currentUser) {
+                const { id, name, username, is_admin } = action.payload.currentUser;
+                state.currentUser = { id, name, username, is_admin };
+            }
 
-      if (state.isAuthenticated) {
-        console.log('[authReducer] Saving to sessionStorage...');
-        sessionStorage.setItem('isAuthenticated', 'true');
-        if (state.accessToken) {
-          sessionStorage.setItem('_token', state.accessToken as string);
-          console.log('[authReducer] ✅ Token saved to sessionStorage, length:', (state.accessToken as string).length);
-        } else {
-          console.warn('[authReducer] ⚠️ No accessToken to save!');
-        }
-        if (state.currentUser) sessionStorage.setItem('currentUser', JSON.stringify(state.currentUser));
-      } else {
-        console.log('[authReducer] Not authenticated, removing from sessionStorage');
-        sessionStorage.removeItem('isAuthenticated');
-        sessionStorage.removeItem('_token');
-        sessionStorage.removeItem('currentUser');
-      }
+            if (state.isAuthenticated) {
+                safeSessionSet(STORAGE_KEYS.IS_AUTHENTICATED, JSON.stringify(true));
+                if (state.currentUser) {
+                    safeSessionSet(STORAGE_KEYS.CURRENT_USER, JSON.stringify(state.currentUser));
+                }
+                // KHÔNG lưu accessToken vào storage
+            } else {
+                safeSessionRemove(STORAGE_KEYS.IS_AUTHENTICATED);
+                safeSessionRemove(STORAGE_KEYS.CURRENT_USER);
+            }
+        },
+
+        logout: (state) => {
+            state.isAuthenticated = false;
+            state.currentUser     = null;
+            state.accessToken     = null;
+            state.idToken         = null;
+            state.user            = null;
+            state.message         = null;
+            removeLocalStorage();   // Chỉ xóa keys của app
+        },
     },
-    logout: (state) => {
-      state.isAuthenticated = false;
-      state.currentUser = null;
-      state.accessToken = null;
-      state.idToken = null;
-      state.user = null;
-      removeLocalStorage();
-    }
-  },
 });
 
 export const { logout, setAuth } = authSlice.actions;

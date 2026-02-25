@@ -1,5 +1,11 @@
 import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { Box, useTheme, Typography, IconButton, PaletteMode } from "@mui/material";
+
+import Box        from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import { useTheme }         from '@mui/material/styles';
+import type { PaletteMode } from '@mui/material';
+
 import {
     Sidebar as SideBarLibrary,
     Menu,
@@ -7,39 +13,59 @@ import {
     useProSidebar,
 } from "react-pro-sidebar";
 import ReorderIcon from "@mui/icons-material/Reorder";
-import { tokens } from "../../theme";
-import userImage from "../../assets/user.png";
+import { tokens }  from "../../theme";
+import userImage   from "../../assets/user.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import menu from "../../constants/menu";
+import menu        from "../../constants/menu";
 import { getActiveMenuName } from "../../utils";
 
+// ── Preload map: path → lazy import ───────────────────────────────────────────
+const preloadMap: Record<string, () => Promise<unknown>> = {
+    '/office':   () => import('../../pages/Office'),
+    '/employee': () => import('../../pages/Employee'),
+};
+
+const preloadRoute = (path: string): void => {
+    if (typeof window === 'undefined') return;
+    const loader = preloadMap[path];
+    if (loader) void loader();   // ← xóa console.log tạm
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface ItemProps {
-    path: string;
-    title: string;
-    icon: React.ReactNode;
-    selected: string;
+    path:        string;
+    title:       string;
+    icon:        React.ReactNode;
+    selected:    string;
     setSelected: Dispatch<SetStateAction<string>>;
-    active: string;
+    active:      string;
 }
 
 const Item: React.FC<ItemProps> = ({ path, title, icon, selected, setSelected, active }) => {
-    const theme = useTheme();
-    const colors = tokens(theme.palette.mode as PaletteMode);
+    const theme    = useTheme();
+    const colors   = tokens(theme.palette.mode as PaletteMode);
     const navigate = useNavigate();
 
     return (
-        <MenuItem
-            component={<Link to={path} />}
-            active={selected === active}
-            icon={icon}
-            style={{ color: colors.grey[100] }}
-            onClick={() => {
-                setSelected(active);
-                navigate(path);
-            }}
+        // ✅ div nhận event trực tiếp, không phụ thuộc react-pro-sidebar forward
+        <div
+            onMouseEnter={() => preloadRoute(path)}
+            onFocus={()      => preloadRoute(path)}
         >
-            <Typography>{title}</Typography>
-        </MenuItem>
+            <MenuItem
+                component={<Link to={path} />}
+                active={selected === active}
+                icon={icon}
+                style={{ color: colors.grey[100] }}
+                onClick={() => {
+                    setSelected(active);
+                    navigate(path);
+                }}
+            >
+                <Typography>{title}</Typography>
+            </MenuItem>
+        </div>
     );
 };
 

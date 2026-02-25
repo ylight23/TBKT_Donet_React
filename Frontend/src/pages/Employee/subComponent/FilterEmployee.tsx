@@ -1,24 +1,32 @@
 import React, { useState, useMemo } from 'react';
-import {
-    Box,
-    TextField,
-    Button,
-    Typography,
-    InputAdornment,
-    IconButton,
-    Chip,
-    Stack,
-    Popover,
-    List,
-    ListItem,
-    ListItemButton,
-    ListItemText,
-    Divider,
-} from '@mui/material';
-import { Search, Clear, Business, Close, Badge, Work, AccountTree } from '@mui/icons-material';
-import OfficeDictionaryDialog from './OfficeDictionaryDialog';
-import { OfficeNode } from '../../Office/subComponent/OfficeDictionary';
-import { useEmployee } from '../../../context/EmployeeContext';
+
+// ✅ Direct imports
+import Box              from '@mui/material/Box';
+import TextField        from '@mui/material/TextField';
+import Button           from '@mui/material/Button';
+import Typography       from '@mui/material/Typography';
+import InputAdornment   from '@mui/material/InputAdornment';
+import IconButton       from '@mui/material/IconButton';
+import Chip             from '@mui/material/Chip';
+import Stack            from '@mui/material/Stack';
+import Popover          from '@mui/material/Popover';
+import List             from '@mui/material/List';
+import ListItem         from '@mui/material/ListItem';
+import ListItemButton   from '@mui/material/ListItemButton';
+import ListItemText     from '@mui/material/ListItemText';
+import Divider          from '@mui/material/Divider';
+import Search           from '@mui/icons-material/Search';
+import Clear            from '@mui/icons-material/Clear';
+import Business         from '@mui/icons-material/Business';
+import Close            from '@mui/icons-material/Close';
+import Badge            from '@mui/icons-material/Badge';
+import Work             from '@mui/icons-material/Work';
+import AccountTree      from '@mui/icons-material/AccountTree';
+
+import OfficeDictionaryDialog     from './OfficeDictionaryDialog';
+import { OfficeNode }             from '../../Office/subComponent/OfficeDictionary';
+import { useEmployee }            from '../../../context/EmployeeContext';
+
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

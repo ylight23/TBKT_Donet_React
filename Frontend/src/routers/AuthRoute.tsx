@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { RouteObject } from 'react-router-dom';
 import AuthLayout from "../layouts/AuthLayout";
-import Login from "../pages/auth/login";
-import FrontChannelLogout from "../pages/auth/frontchannel-logout";
+import { PageSkeleton } from '../components/Skeletons';
+
+// ── Lazy load ──────────────────────────────────────────────────────────────────
+const Login              = React.lazy(() => import('../pages/auth/login'));
+const FrontChannelLogout = React.lazy(() => import('../pages/auth/frontchannel-logout'));
 
 const AuthRoute: RouteObject = {
     path: '/',
@@ -10,11 +13,19 @@ const AuthRoute: RouteObject = {
     children: [
         {
             path: "login",
-            element: <Login />
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <Login />
+                </Suspense>
+            )
         },
         {
             path: "frontchannel-logout",
-            element: <FrontChannelLogout />
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <FrontChannelLogout />
+                </Suspense>
+            )
         }
     ]
 };

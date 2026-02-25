@@ -1,13 +1,23 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    Box, Typography, Breadcrumbs, Link, Chip,
-    CircularProgress, Stack, Paper,
-} from '@mui/material';
-import { NavigateNext, FolderOutlined } from '@mui/icons-material';
-import moment from 'moment';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+
+import Box              from '@mui/material/Box';
+import Typography       from '@mui/material/Typography';
+import Breadcrumbs      from '@mui/material/Breadcrumbs';
+import Link             from '@mui/material/Link';
+import Chip             from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
+import Stack            from '@mui/material/Stack';
+import Paper            from '@mui/material/Paper';
+import NavigateNext     from '@mui/icons-material/NavigateNext';
+import FolderOutlined   from '@mui/icons-material/FolderOutlined';
+
+import moment      from 'moment';
 import ModalOffice from './ModalOffice';
-import { OfficeNode } from './OfficeDictionary';
-import { useOffice } from '../../../context/OfficeContext';
+import { OfficeNode }  from './OfficeDictionary';
+import { useOffice }   from '../../../context/OfficeContext';
+
+
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -114,6 +124,12 @@ const OfficeDataGrid: React.FC = () => {
     const { selectOffice }              = actions;
     const { treeRef }                   = meta;
 
+    // ✅ Rule: index-maps — O(1) lookup thay vì O(n) .find() per traversal step
+    const allOfficesById = useMemo(
+        () => new Map(allOffices.map(o => [String(o.id), o])),
+        [allOffices]
+    );
+
     const [displayedOffice, setDisplayedOffice] = useState<OfficeNode | null>(selectedOffice);
     const [children,        setChildren]        = useState<OfficeNode[]>([]);
     const [breadcrumbPath,  setBreadcrumbPath]  = useState<BreadcrumbItem[]>([]);
@@ -143,13 +159,14 @@ const OfficeDataGrid: React.FC = () => {
                 name:    String(cur.ten || cur.tenDayDu || cur.id || 'Đơn vị'),
                 vietTat: cur.vietTat as string | undefined,
             });
+            // ← Fix: thêm type annotation rõ ràng
             const parentId: string | undefined =
-                String(cur.idcaptren ?? cur.idCapTren ?? cur.IDCapTren ?? '') || undefined;
+                (String(cur.idcaptren ?? cur.idCapTren ?? cur.IDCapTren ?? '') || undefined) as string | undefined;
             if (!parentId) break;
-            cur = allOffices.find(o => String(o.id) === parentId) ?? null;
+            cur = allOfficesById.get(parentId) ?? null;
         }
         setBreadcrumbPath(path);
-    }, [allOffices]);
+    }, [allOfficesById]);
 
     // ── Load 1 node ───────────────────────────────────────────────────────────
     const loadNode = useCallback((node: OfficeNode | null) => {
@@ -170,18 +187,18 @@ const OfficeDataGrid: React.FC = () => {
         if (newId === lastLoadedIdRef.current) return;
 
         const fullNode: OfficeNode =
-            allOffices.find(o => String(o.id) === newId) ??
+            allOfficesById.get(newId) ??
             ({ id: item.id, ten: item.name, vietTat: item.vietTat } as OfficeNode);
 
         // Set flag TRƯỚC selectOffice để useEffect skip
         skipNextEffect.current = true;
         treeRef?.current?.selectNode?.(newId);
 
-        // ── actions.selectOffice thay vì handleSelectOffice ───────────────────
+        // ── actions.selectOffice thay vì handleSelectOffice ─────────────────────
         selectOffice(fullNode);
         loadNode(fullNode);
 
-    }, [allOffices, loadNode, selectOffice, treeRef]);
+    }, [allOfficesById, loadNode, selectOffice, treeRef]);
 
     // ── Sync khi selectedOffice thay đổi từ tree ──────────────────────────────
     useEffect(() => {

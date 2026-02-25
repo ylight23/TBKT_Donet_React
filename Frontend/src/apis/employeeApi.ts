@@ -13,16 +13,24 @@ import {
 import { PagerSettingsSchema } from '../grpc/generated/Pager_pb';
 import { employeeClient } from '../grpc/grpcClient';
 
+// Module-level cache: key = "<seconds>_<nanos>_<locale>"
+const formatDateCache = new Map<string, string>();
+
 export function formatDate(
     ts?: Timestamp | null,
     locale = "vi-VN"
 ): string {
     if (!ts || ts.seconds === undefined) return "-";
 
+    const cacheKey = `${ts.seconds}_${ts.nanos ?? 0}_${locale}`;
+    if (formatDateCache.has(cacheKey)) return formatDateCache.get(cacheKey)!;
+
     const ms =
         Number(ts.seconds) * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000);
 
-    return new Date(ms).toLocaleDateString(locale);
+    const result = new Date(ms).toLocaleDateString(locale);
+    formatDateCache.set(cacheKey, result);
+    return result;
 }
 
 

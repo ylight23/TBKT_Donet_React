@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useTheme } from '@mui/material';
+
+import { useTheme } from '@mui/material/styles';
+
 import { tokens } from '../theme';
 import { fetchOffice, create, update, deleteApi } from '../store/reducer/office';
 import officeApi from '../apis/officeApi';
@@ -17,9 +19,10 @@ interface OfficeReduxState {
 // ── State Interface ────────────────────────────────────────────────────────────
 
 interface OfficeStateValue {
-    selectedOffice: OfficeNode | null;
-    allOffices:     OfficeNode[];
-    isTreeEmpty:    boolean;
+    selectedOffice:  OfficeNode | null;
+    allOffices:      OfficeNode[];
+    isTreeEmpty:     boolean;
+    loading:         boolean;          // ← thêm vào interface
 }
 
 // ── Actions Interface (UI không biết Redux) ────────────────────────────────────
@@ -83,6 +86,8 @@ export const OfficeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const allOffices = allOfficesRaw || [];
 
     const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+    const [loading, setLoading] = useState(true);   // ← thêm state
+
     const treeRef = useRef<OfficeDictionaryRef>(null);
 
     // ── Rule: init-once - tránh chạy 2 lần trong StrictMode ───────────────────
@@ -90,7 +95,19 @@ export const OfficeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         if (didInitOffice) return;      // ← bỏ hasFetched.current, dùng module-level
         didInitOffice = true;
-        dispatch(fetchOffice());
+
+        const loadInitialData = async () => {
+            setLoading(true);
+            await dispatch(fetchOffice());
+            setLoading(false);
+        };
+
+        loadInitialData();
+
+        // ✅ Reset khi Provider unmount → lần sau vào lại sẽ fetch bình thường
+        return () => {
+            didInitOffice = false;
+        };
     }, [dispatch]);
 
     // ── Actions ────────────────────────────────────────────────────────────────
@@ -169,6 +186,9 @@ export const OfficeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const importOffices = useCallback(async (excelData: Record<string, unknown>[]) => {
         // ── Rule: waterfall - tất cả rows chạy song song với Promise.allSettled ──
         try {
+            // ✅ Rule: index-maps — build O(n) map 1 lần, tránh O(n²) .find() per row
+            const allOfficesById = new Map(allOffices.map(o => [String(o.id), o]));
+
             const results = await Promise.allSettled(
                 excelData.map(async (row) => {
                     const officeData: Partial<Office> = {
@@ -181,14 +201,16 @@ export const OfficeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         coCapDuoi: row['Có cấp dưới'] === 'Có',
                     };
                     // ── Rule: defer-await - chỉ await call cần thiết ──────────
-                    const exists = allOffices.find(o => o.id === officeData.id);
+                    const exists = allOfficesById.get(String(officeData.id));
                     return exists
                         ? await officeApi.update(officeData as Office)
                         : await officeApi.create(officeData as Office);
                 })
             );
-            const succeeded = results.filter(r => r.status === 'fulfilled').length;
-            const failed    = results.filter(r => r.status === 'rejected').length;
+            // 1 lần duyệt thay vì 2 lần filter
+            let succeeded = 0;
+            for (const r of results) { if (r.status === 'fulfilled') succeeded++; }
+            const failed = results.length - succeeded;
             return {
                 success: failed === 0,
                 message: failed > 0
@@ -229,6 +251,7 @@ export const OfficeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             selectedOffice,
             allOffices,
             isTreeEmpty: allOffices.length === 0,
+            loading,                                // ← thêm vào value
         },
         actions: {
             selectOffice,
@@ -246,7 +269,9 @@ export const OfficeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             officeColumnMapping,
         },
     }), [
-        selectedOffice, allOffices,
+        selectedOffice,
+        allOffices,
+        loading,                                    // ← thêm vào deps
         selectOffice, createOffice, updateOffice, deleteOffice,
         refreshTree, refreshNode, importOffices, onImportSuccess,
         colors, officeColumnMapping,

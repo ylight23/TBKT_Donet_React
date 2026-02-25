@@ -1,19 +1,26 @@
 import React, { useContext } from "react";
 import { tokens, ColorModeContext } from "../../theme";
-import { Box, IconButton, Breadcrumbs, Link, Typography, useTheme, PaletteMode } from "@mui/material";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import HomeIcon from "@mui/icons-material/Home";
-import {
-    DarkModeOutlined,
-    ExitToApp,
-    LightModeOutlined,
-} from "@mui/icons-material";
 
-import { useDispatch } from 'react-redux';
-import { logout } from "../../store/authReducer/auth";
+
+import Box          from '@mui/material/Box';
+import IconButton   from '@mui/material/IconButton';
+import Breadcrumbs  from '@mui/material/Breadcrumbs';
+import Link         from '@mui/material/Link';
+import Typography   from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';   // ← named export từ styles/index.js
+import type { PaletteMode } from '@mui/material';
+
+import NavigateNextIcon   from "@mui/icons-material/NavigateNext";
+import HomeIcon           from "@mui/icons-material/Home";
+import DarkModeOutlined   from "@mui/icons-material/DarkModeOutlined";
+import ExitToApp          from "@mui/icons-material/ExitToApp";
+import LightModeOutlined  from "@mui/icons-material/LightModeOutlined";
+
+import { useDispatch }        from 'react-redux';
+import { logout }             from "../../store/authReducer/auth";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "react-oidc-context";
-import { AppDispatch } from '../../store';
+import { useAuth }            from "react-oidc-context";
+import { AppDispatch }        from '../../store';
 
 interface RouteNameMap {
     [key: string]: string;
