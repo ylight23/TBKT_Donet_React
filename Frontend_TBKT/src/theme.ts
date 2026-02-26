@@ -257,25 +257,25 @@ export const militaryColors = {
 
 /**
  * ─── GRADIENT GREEN (30% Secondary Rule) ─────────────────────────────────────
- * Light: pure fresh green → emerald (bright, energetic, daytime)
- * Dark : deep forest green → dark emerald (rich, tactical, nighttime)
- * Angle: 90deg (horizontal flow)
+ * 2 màu stop duy nhất — 90deg — green base thuần
+ * Light: xanh sáng  → xanh đậm
+ * Dark : xanh đậm   → xanh rất tối
  */
 export const gradientGreen = {
-  /** Light mode — pure green, bright & fresh */
-  light: 'linear-gradient(90deg, #43A047 0%, #2E7D32 50%, #1B8A4E 100%)',
-  lightSubtle: 'linear-gradient(90deg, #E8F5E9 0%, #C8E6C9 50%, #DCEDC8 100%)',
-  lightBtn: 'linear-gradient(90deg, #4CAF50 0%, #2E7D32 100%)',
-  lightBtnHov: 'linear-gradient(90deg, #388E3C 0%, #1B5E20 100%)',
-  lightHeader: 'linear-gradient(90deg, #66BB6A 0%, #43A047 40%, #2E7D32 100%)',
-  lightSidebar: 'linear-gradient(180deg, #4CAF50 0%, #43A047 35%, #2E7D32 70%, #1B5E20 100%)',
-  /** Dark mode — pure deep green, no olive */
-  dark: 'linear-gradient(90deg, #1B5E20 0%, #145214 50%, #0A3D20 100%)',
-  darkSubtle: 'linear-gradient(90deg, #071A0A 0%, #0D2610 50%, #091E0C 100%)',
-  darkBtn: 'linear-gradient(90deg, #2E7D32 0%, #1B5E20 100%)',
-  darkBtnHov: 'linear-gradient(90deg, #1B5E20 0%, #0D3B12 100%)',
-  darkHeader: 'linear-gradient(90deg, #1E5C22 0%, #145214 40%, #0A3D20 100%)',
-  darkSidebar: 'linear-gradient(180deg, #1B5E20 0%, #145214 40%, #0A3D20 70%, #071408 100%)',
+  // ── Light (tông sáng) ──────────────────────────────────────────────────
+  light: 'linear-gradient(90deg, #66BB6A, #2E7D32)',   // bright → forest
+  lightSubtle: 'linear-gradient(90deg, #E8F5E9, #C8E6C9)',   // pale mint → soft green
+  lightBtn: 'linear-gradient(90deg, #4CAF50, #2E7D32)',   // medium → forest
+  lightBtnHov: 'linear-gradient(90deg, #388E3C, #1B5E20)',   // forest → deep
+  lightHeader: 'linear-gradient(90deg, #4CAF50, #1B5E20)',   // medium → deep
+  lightSidebar: 'linear-gradient(180deg, #4CAF50, #1B5E20)',  // top bright → bottom deep
+  // ── Dark (tông tối) ──────────────────────────────────────────────────
+  dark: 'linear-gradient(90deg, #2E7D32, #071A0A)',   // forest → near-black
+  darkSubtle: 'linear-gradient(90deg, #1B5E20, #071A0A)',   // deep → near-black
+  darkBtn: 'linear-gradient(90deg, #388E3C, #1B5E20)',   // forest → deep
+  darkBtnHov: 'linear-gradient(90deg, #2E7D32, #0D3B12)',   // forest → very dark
+  darkHeader: 'linear-gradient(90deg, #2E7D32, #071A0A)',   // forest → near-black
+  darkSidebar: 'linear-gradient(180deg, #2E7D32, #071A0A)',  // top forest → bottom dark
 } as const;
 
 export const dashboardTokensLight = {
