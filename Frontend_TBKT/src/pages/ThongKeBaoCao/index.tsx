@@ -156,7 +156,7 @@ const ThongKeBaoCao: React.FC = () => {
       <Box mb={3}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
           <Box>
-            <Typography variant="h4" fontWeight={700} color="primary.main">THỐNG KÊ BÁO CÁO</Typography>
+            <Typography variant="h4" fontWeight={700} color="text.primary">THỐNG KÊ BÁO CÁO</Typography>
             <Typography variant="body2" color="text.secondary">
               Tổng hợp số liệu thống kê trang bị kỹ thuật theo nhiều tiêu chí
             </Typography>

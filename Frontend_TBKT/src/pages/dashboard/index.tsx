@@ -356,7 +356,7 @@ const Dashboard: React.FC = () => {
     <Box sx={{ p: 3 }}>
       {/* Tiêu đề */}
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">
+        <Typography variant="h4" fontWeight={700} color="text.primary">
           BẢNG ĐIỀU HÀNH
         </Typography>
         <Typography variant="body2" color="text.secondary">

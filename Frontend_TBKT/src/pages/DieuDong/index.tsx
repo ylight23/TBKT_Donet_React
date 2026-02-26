@@ -82,7 +82,7 @@ const DieuDong: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">ĐIỀU ĐỘNG TRANG BỊ</Typography>
+        <Typography variant="h4" fontWeight={700} color="text.primary">ĐIỀU ĐỘNG TRANG BỊ</Typography>
         <Typography variant="body2" color="text.secondary">
           Quản lý điều chuyển, điều động trang bị kỹ thuật giữa các đơn vị
         </Typography>

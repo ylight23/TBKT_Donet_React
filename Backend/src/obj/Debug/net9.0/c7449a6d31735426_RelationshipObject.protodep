@@ -1,4 +1,0 @@
-obj\Debug\net9.0/RelationshipObject.cs \
-obj\Debug\net9.0/RelationshipObjectGrpc.cs: C:/Users/dungp/.nuget/packages/grpc.tools/2.76.0/build/native/include/google/protobuf/wrappers.proto\
- C:/Users/dungp/.nuget/packages/grpc.tools/2.76.0/build/native/include/google/protobuf/timestamp.proto\
- ../../protos/RelationshipObject.proto

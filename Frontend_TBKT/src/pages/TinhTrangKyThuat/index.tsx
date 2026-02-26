@@ -141,7 +141,7 @@ const TinhTrangKyThuat: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">TÌNH TRẠNG KỸ THUẬT</Typography>
+        <Typography variant="h4" fontWeight={700} color="text.primary">TÌNH TRẠNG KỸ THUẬT</Typography>
         <Typography variant="body2" color="text.secondary">
           Tổng hợp chất lượng trang bị kỹ thuật theo cấp độ
         </Typography>

@@ -90,7 +90,7 @@ const BaoQuan: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">BẢO QUẢN TRANG BỊ</Typography>
+        <Typography variant="h4" fontWeight={700} color="text.primary">BẢO QUẢN TRANG BỊ</Typography>
         <Typography variant="body2" color="text.secondary">
           Quản lý công tác bảo quản định kỳ trang bị kỹ thuật
         </Typography>

@@ -126,7 +126,7 @@ const SuaChua: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">SỬA CHỮA TRANG BỊ</Typography>
+        <Typography variant="h4" fontWeight={700} color="text.primary">SỬA CHỮA TRANG BỊ</Typography>
         <Typography variant="body2" color="text.secondary">
           Quản lý công tác sửa chữa trang bị kỹ thuật các cấp
         </Typography>

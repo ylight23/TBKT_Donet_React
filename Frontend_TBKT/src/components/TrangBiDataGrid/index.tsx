@@ -181,7 +181,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
     <Box sx={{ p: 3 }}>
       {/* Tiêu đề */}
       <Box mb={2}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">
+        <Typography variant="h4" fontWeight={700} color="text.primary">
           {title}
         </Typography>
         <Typography variant="body2" color="text.secondary">{subtitle}</Typography>

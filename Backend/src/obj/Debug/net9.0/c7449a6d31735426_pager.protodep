@@ -1,5 +1,0 @@
-obj\Debug\net9.0/Pager.cs: C:/Users/dungp/.nuget/packages/grpc.tools/2.76.0/build/native/include/google/protobuf/wrappers.proto\
- C:/Users/dungp/.nuget/packages/grpc.tools/2.76.0/build/native/include/google/protobuf/timestamp.proto\
- ../../protos/Enum.proto\
- ../../protos/Base.proto\
- ../../protos/Pager.proto

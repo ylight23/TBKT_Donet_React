@@ -126,7 +126,7 @@ const NiemCat: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">
+        <Typography variant="h4" fontWeight={700} color="text.primary">
           NIÊM CẤT TRANG BỊ
         </Typography>
         <Typography variant="body2" color="text.secondary">

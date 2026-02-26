@@ -115,7 +115,7 @@ const ChuyenCapChatLuong: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="primary.main">CHUYỂN CẤP CHẤT LƯỢNG</Typography>
+        <Typography variant="h4" fontWeight={700} color="text.primary">CHUYỂN CẤP CHẤT LƯỢNG</Typography>
         <Typography variant="body2" color="text.secondary">
           Quản lý việc điều chỉnh cấp chất lượng trang bị kỹ thuật
         </Typography>
