@@ -13,21 +13,24 @@ const Dashboard = React.lazy(() => import('../pages/dashboard'));
 const Employee  = React.lazy(() => import('../pages/Employee'));
 const Office    = React.lazy(() => import('../pages/Office'));
 
+// ── Hoisted static JSX (Rule: hoist-jsx) ──────────────────────────────────────
+const loadingSpinner = (
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+    </Box>
+);
+
 // ── Auth guard ─────────────────────────────────────────────────────────────────
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const auth            = useAuth();
     const isAuthenticated = useSelector((s: RootState) => s.authReducer.isAuthenticated);
 
-    // ✅ Đang loading hoặc OIDC đang xử lý (silent renew, ...) → spinner, không redirect
+    // Đang loading hoặc OIDC đang xử lý (silent renew, ...) → spinner, không redirect
     if (auth.isLoading || auth.activeNavigator) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-                <CircularProgress />
-            </Box>
-        );
+        return loadingSpinner;
     }
 
-    // ✅ Chỉ redirect khi CẢ HAI đều false
+    // Chỉ redirect khi CẢ HAI đều false
     if (!auth.isAuthenticated && !isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
@@ -38,7 +41,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 const MainRoute: RouteObject = {
     path: "/",
-    // ✅ Wrap MainLayout bằng PrivateRoute
+    // Wrap MainLayout bằng PrivateRoute
     element: (
         <PrivateRoute>
             <MainLayout />

@@ -1,0 +1,3 @@
+version: v2
+modules:
+  - path: Dotnet_ReactJs_CanBo/protos
