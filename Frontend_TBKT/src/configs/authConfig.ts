@@ -6,7 +6,7 @@ export const authConfig: AuthProviderProps = {
   authority: "https://localhost:9443/oauth2/token/.well-known/openid-configuration",
 
   // Client ID registered in WSO2
-  client_id: "9yGgAMZms7tegx5WJRsYiOvtWK0a",
+  client_id: "WFhffPHFgieZhvY8421q0fdG7tga",
 
   // Redirect URIs
   redirect_uri: "http://localhost:3001",
@@ -35,7 +35,7 @@ export const authConfig: AuthProviderProps = {
     token_endpoint: "https://localhost:9443/oauth2/token",
     userinfo_endpoint: "https://localhost:9443/oauth2/userinfo",
     end_session_endpoint: "https://localhost:9443/oidc/logout",
-    check_session_iframe: "https://localhost:9443/oidc/checksession?client_id=9yGgAMZms7tegx5WJRsYiOvtWK0a&redirect_uri=http%3A%2F%2Flocalhost%3A3001",
+    check_session_iframe: "https://localhost:9443/oidc/checksession?client_id=WFhffPHFgieZhvY8421q0fdG7tga&redirect_uri=http%3A%2F%2Flocalhost%3A3001",
   },
 
   // Automatic silent renew (refresh tokens)

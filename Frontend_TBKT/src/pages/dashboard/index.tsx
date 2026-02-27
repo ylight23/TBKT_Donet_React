@@ -2,25 +2,25 @@
 // Dashboard – Bảng điều hành
 // Hệ thống Quản lý Trang bị Kỹ thuật Thông tin
 // ============================================================
-import React, { useMemo }    from 'react';
-import Box                   from '@mui/material/Box';
-import Grid                  from '@mui/material/GridLegacy';
-import Card                  from '@mui/material/Card';
-import CardContent           from '@mui/material/CardContent';
-import Typography            from '@mui/material/Typography';
-import Divider               from '@mui/material/Divider';
-import Tooltip               from '@mui/material/Tooltip';
-import { useTheme }          from '@mui/material/styles';
-import { ResponsivePie }     from '@nivo/pie';
+import React, { useMemo } from 'react';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/GridLegacy';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
+import { useTheme } from '@mui/material/styles';
+import { ResponsivePie } from '@nivo/pie';
 
 // Icons
-import ComputerIcon          from '@mui/icons-material/Computer';
-import BuildIcon             from '@mui/icons-material/Build';
-import InventoryIcon         from '@mui/icons-material/Inventory';
-import CheckCircleIcon       from '@mui/icons-material/CheckCircle';
-import HourglassEmptyIcon    from '@mui/icons-material/HourglassEmpty';
-import DeleteSweepIcon       from '@mui/icons-material/DeleteSweep';
-import PercentIcon           from '@mui/icons-material/Percent';
+import ComputerIcon from '@mui/icons-material/Computer';
+import BuildIcon from '@mui/icons-material/Build';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import PercentIcon from '@mui/icons-material/Percent';
 
 import {
   dashboardStats,
@@ -28,14 +28,14 @@ import {
   nienHanNamData,
   thongKeTheoLoai,
 } from '../../data/mockTBData';
-import { militaryColors }    from '../../theme';
+import { militaryColors } from '../../theme';
 
 // ── StatCard props ───────────────────────────────────────────
 interface StatCardProps {
-  title:    string;
-  value:    string | number;
-  icon:     React.ReactNode;
-  color:    string;
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
   subtitle?: string;
 }
 
@@ -45,10 +45,10 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, subtitle
     elevation={3}
     sx={{
       borderRadius: 2,
-      borderTop:    `4px solid ${color}`,
-      height:       '100%',
-      transition:   'transform 0.2s, box-shadow 0.2s',
-      '&:hover':    { transform: 'translateY(-3px)', boxShadow: 6 },
+      borderTop: `4px solid ${color}`,
+      height: '100%',
+      transition: 'transform 0.2s, box-shadow 0.2s',
+      '&:hover': { transform: 'translateY(-3px)', boxShadow: 6 },
     }}
   >
     <CardContent>
@@ -68,13 +68,13 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, subtitle
         </Box>
         <Box
           sx={{
-            bgcolor:        `${color}22`,
-            borderRadius:   2,
-            p:              1.2,
-            display:        'flex',
-            alignItems:     'center',
+            bgcolor: `${color}22`,
+            borderRadius: 2,
+            p: 1.2,
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            flexShrink:     0,
+            flexShrink: 0,
           }}
         >
           {React.cloneElement(icon as React.ReactElement<{ sx?: object }>, {
@@ -88,16 +88,16 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, subtitle
 
 // ── Component: Biểu đồ Niên hạn (Bar) ───────────────────────
 const NienHanBarChart: React.FC = () => {
-  const max     = Math.max(...nienHanNamData.map(d => d.soLuong));
+  const max = Math.max(...nienHanNamData.map(d => d.soLuong));
   const BAR_MAX = 180; // px tối đa
 
   return (
     <Box sx={{ height: 270, display: 'flex', alignItems: 'flex-end', gap: 1.5, pt: 2, pb: 1 }}>
       {nienHanNamData.map(item => {
         // sqrt scale: giữ sự tương đối nhưng rút khoảng cách giữa cột lớn/nhỏ
-        const ratio  = Math.sqrt(item.soLuong / max);
-        const h      = Math.max(ratio * BAR_MAX, 22);
-        const hHet   = Math.max((item.hetNienHan / item.soLuong) * h, 0);
+        const ratio = Math.sqrt(item.soLuong / max);
+        const h = Math.max(ratio * BAR_MAX, 22);
+        const hHet = Math.max((item.hetNienHan / item.soLuong) * h, 0);
         const pctHet = Math.round((item.hetNienHan / item.soLuong) * 100);
         return (
           <Tooltip
@@ -113,13 +113,13 @@ const NienHanBarChart: React.FC = () => {
 
               <Box
                 sx={{
-                  width:        '72%',
-                  height:       h,
-                  bgcolor:      militaryColors.navy,
+                  width: '72%',
+                  height: h,
+                  bgcolor: militaryColors.navy,
                   borderRadius: '4px 4px 0 0',
-                  position:     'relative',
-                  transition:   'opacity 0.2s',
-                  '&:hover':    { opacity: 0.8 },
+                  position: 'relative',
+                  transition: 'opacity 0.2s',
+                  '&:hover': { opacity: 0.8 },
                 }}
               >
                 {/* Phần đỏ = hết niên hạn */}
@@ -127,8 +127,8 @@ const NienHanBarChart: React.FC = () => {
                   <Box
                     sx={{
                       position: 'absolute', bottom: 0, left: 0, right: 0,
-                      height:   hHet,
-                      bgcolor:  militaryColors.error,
+                      height: hHet,
+                      bgcolor: militaryColors.error,
                     }}
                   />
                 )}
@@ -163,13 +163,15 @@ const NienHanBarChart: React.FC = () => {
 
 // ── Component: Biểu đồ tổng số lượng trang bị theo loại ────────
 const TongSoLuongChart: React.FC = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const maxVal = Math.max(...thongKeTheoLoai.map(d => d.soLuong), 1);
 
   const segments = [
-    { key: 'hoatDong' as const, label: 'Hoạt động',  color: '#2e7d32' },
-    { key: 'suaChua'  as const, label: 'Sửa chữa',   color: '#ed6c02' },
-    { key: 'niemCat'  as const, label: 'Niêm cất',   color: '#415A77' },
-    { key: 'thanhLy'  as const, label: 'Đã thanh lý', color: '#d32f2f' },
+    { key: 'hoatDong' as const, label: 'Hoạt động', color: isDark ? '#66BB6A' : '#2e7d32' },
+    { key: 'suaChua' as const, label: 'Sửa chữa', color: isDark ? '#FFB74D' : '#ed6c02' },
+    { key: 'niemCat' as const, label: 'Niêm cất', color: isDark ? '#90CAF9' : '#415A77' },
+    { key: 'thanhLy' as const, label: 'Đã thanh lý', color: isDark ? '#EF9A9A' : '#d32f2f' },
   ];
 
   // Thân cột: tṿ lệ thực nhưng khóa tối thiểu 18%
@@ -191,7 +193,7 @@ const TongSoLuongChart: React.FC = () => {
       {/* Các hàng */}
       {thongKeTheoLoai.map(row => {
         const total = row.soLuong;
-        const pct   = clampedPct(total);
+        const pct = clampedPct(total);
         return (
           <Box key={row.loai} sx={{ mb: 1.4 }}>
             <Box display="flex" alignItems="center" gap={1}>
@@ -216,9 +218,9 @@ const TongSoLuongChart: React.FC = () => {
                   {/* Phần tô màu — rộng = clampedPct, nội dung là segments */}
                   <Box
                     sx={{
-                      width:      `${pct}%`,
-                      height:     '100%',
-                      display:    'flex',
+                      width: `${pct}%`,
+                      height: '100%',
+                      display: 'flex',
                       transition: 'width 0.4s ease',
                     }}
                   >
@@ -228,12 +230,12 @@ const TongSoLuongChart: React.FC = () => {
                         <Box
                           key={s.key}
                           sx={{
-                            flex:       val,          // tỷ lệ thực giữa các segment
-                            minWidth:   '4px',        // segment rất nhỏ vẫn thấy
-                            height:     '100%',
-                            bgcolor:    s.color,
+                            flex: val,          // tỷ lệ thực giữa các segment
+                            minWidth: '4px',        // segment rất nhỏ vẫn thấy
+                            height: '100%',
+                            bgcolor: s.color,
                             transition: 'opacity 0.2s',
-                            '&:hover':  { opacity: 0.7 },
+                            '&:hover': { opacity: 0.7 },
                           }}
                         />
                       ) : null;
@@ -246,12 +248,12 @@ const TongSoLuongChart: React.FC = () => {
                       fontSize={9}
                       fontWeight={700}
                       sx={{
-                        position:    'absolute',
-                        right:       4,
-                        top:         '50%',
-                        transform:   'translateY(-50%)',
-                        color:       'rgba(255,255,255,0.9)',
-                        lineHeight:  1,
+                        position: 'absolute',
+                        right: 4,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'rgba(255,255,255,0.9)',
+                        lineHeight: 1,
                         pointerEvents: 'none',
                       }}
                     >
@@ -264,12 +266,12 @@ const TongSoLuongChart: React.FC = () => {
               {/* Tổng số — badge nổi bật */}
               <Box
                 sx={{
-                  minWidth:        36,
-                  flexShrink:      0,
-                  textAlign:       'right',
-                  fontWeight:      700,
-                  fontSize:        12,
-                  color:           'text.primary',
+                  minWidth: 36,
+                  flexShrink: 0,
+                  textAlign: 'right',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  color: 'text.primary',
                 }}
               >
                 {total}
@@ -283,71 +285,78 @@ const TongSoLuongChart: React.FC = () => {
   );
 };
 
-// ── Màu biểu đồ tròn ─────────────────────────────────────────
-const PIE_COLORS = [
+// ── Màu biểu đồ tròn — 2 bộ: light (tối) và dark (sáng) ────────
+const PIE_COLORS_LIGHT = [
   '#0D1B2A', '#1B263B', '#415A77', '#778DA9',
   '#C9A84C', '#2e7d32', '#ed6c02', '#d32f2f',
   '#0288d1', '#7b1fa2',
 ];
+const PIE_COLORS_DARK = [
+  '#90CAF9', '#64B5F6', '#80DEEA', '#B0BEC5',
+  '#FFD54F', '#66BB6A', '#FFB74D', '#EF9A9A',
+  '#4FC3F7', '#CE93D8',
+];
 
 // ── Dashboard chính ──────────────────────────────────────────
 const Dashboard: React.FC = () => {
-  const theme  = useTheme();
+  const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+
+  const PIE_COLORS = isDark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
 
   const pieData = useMemo(
     () => phanVungDonViData.map((d, i) => ({ ...d, color: PIE_COLORS[i % PIE_COLORS.length] })),
-    [],
+    [PIE_COLORS],
   );
 
   const statCards: StatCardProps[] = [
     {
-      title:    'Tổng số lượng trang bị',
-      value:    dashboardStats.tongSoLuong,
-      icon:     <ComputerIcon />,
-      color:    militaryColors.darkBlue,
+      title: 'Tổng số lượng trang bị',
+      value: dashboardStats.tongSoLuong,
+      icon: <ComputerIcon />,
+      color: militaryColors.armyGreen,
       subtitle: 'Nhóm 1 + Nhóm 2',
     },
     {
-      title:    'Trang bị đang hoạt động',
-      value:    dashboardStats.dangHoatDong,
-      icon:     <CheckCircleIcon />,
-      color:    militaryColors.success,
+      title: 'Trang bị đang hoạt động',
+      value: dashboardStats.dangHoatDong,
+      icon: <CheckCircleIcon />,
+      color: militaryColors.success,
       subtitle: 'Sẵn sàng chiến đấu',
     },
     {
-      title:    'Trang bị sửa chữa',
-      value:    dashboardStats.suaChua,
-      icon:     <BuildIcon />,
-      color:    militaryColors.warning,
+      title: 'Trang bị sửa chữa',
+      value: dashboardStats.suaChua,
+      icon: <BuildIcon />,
+      color: militaryColors.warning,
       subtitle: 'Đang trong quá trình SC',
     },
     {
-      title:    'Trang bị niêm cất',
-      value:    dashboardStats.niemCat,
-      icon:     <InventoryIcon />,
-      color:    militaryColors.navy,
+      title: 'Trang bị niêm cất',
+      value: dashboardStats.niemCat,
+      icon: <InventoryIcon />,
+      color: militaryColors.navy,
       subtitle: 'Đang được bảo quản',
     },
     {
-      title:    'Trang bị chờ thanh lý',
-      value:    dashboardStats.choThanhLy,
-      icon:     <HourglassEmptyIcon />,
-      color:    '#f57c00',
+      title: 'Trang bị chờ thanh lý',
+      value: dashboardStats.choThanhLy,
+      icon: <HourglassEmptyIcon />,
+      color: '#f57c00',
       subtitle: 'Chờ phê duyệt',
     },
     {
-      title:    'Trang bị đã thanh lý',
-      value:    dashboardStats.daThanhLy,
-      icon:     <DeleteSweepIcon />,
-      color:    militaryColors.error,
+      title: 'Trang bị đã thanh lý',
+      value: dashboardStats.daThanhLy,
+      icon: <DeleteSweepIcon />,
+      color: militaryColors.error,
       subtitle: 'Đã hoàn thành thủ tục',
     },
     {
-      title:    'Hệ số kỹ thuật (Kkt)',
-      value:    `${(dashboardStats.heSoKyThuat * 100).toFixed(1)}%`,
-      icon:     <PercentIcon />,
-      color:    '#1565c0',
+      title: 'Hệ số kỹ thuật (Kkt)',
+      value: `${(dashboardStats.heSoKyThuat * 100).toFixed(1)}%`,
+      icon: <PercentIcon />,
+      color: '#1565c0',
       subtitle: 'Tỷ lệ sẵn sàng kỹ thuật',
     },
   ];
@@ -405,26 +414,26 @@ const Dashboard: React.FC = () => {
                   arcLabelsTextColor={{ from: 'color', modifiers: [['darker', 2.5]] }}
                   legends={[
                     {
-                      anchor:        'right',
-                      direction:     'column',
-                      justify:       false,
-                      translateX:    140,
-                      translateY:    0,
-                      itemsSpacing:  4,
-                      itemWidth:     130,
-                      itemHeight:    18,
+                      anchor: 'right',
+                      direction: 'column',
+                      justify: false,
+                      translateX: 140,
+                      translateY: 0,
+                      itemsSpacing: 4,
+                      itemWidth: 130,
+                      itemHeight: 18,
                       itemTextColor: isDark ? '#ccc' : '#444',
                       itemDirection: 'left-to-right',
-                      symbolSize:    12,
-                      symbolShape:   'circle',
+                      symbolSize: 12,
+                      symbolShape: 'circle',
                     },
                   ]}
                   theme={{
                     tooltip: {
                       container: {
                         background: isDark ? '#1B263B' : '#fff',
-                        color:      isDark ? '#e0e0e0' : '#333',
-                        fontSize:   12,
+                        color: isDark ? '#e0e0e0' : '#333',
+                        fontSize: 12,
                         borderRadius: 6,
                       },
                     },
@@ -466,7 +475,7 @@ const Dashboard: React.FC = () => {
       <Box mt={2}>
         <Card elevation={3} sx={{ borderRadius: 2 }}>
           <CardContent>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
+            <Typography variant="h6" fontWeight={700} gutterBottom color="text.primary">
               Tổng số lượng trang bị theo loại
             </Typography>
             <Typography variant="caption" color="text.secondary">

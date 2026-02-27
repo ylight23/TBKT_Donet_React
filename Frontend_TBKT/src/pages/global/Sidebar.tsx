@@ -62,8 +62,8 @@ interface ItemProps {
 
 const Item: React.FC<ItemProps> = ({ path, title, icon, selected, setSelected, active }) => {
     const theme = useTheme();
-    const dt = theme.palette.mode === 'dark' ? dashboardTokensDark : dashboardTokensLight;
     const navigate = useNavigate();
+    const isDark = theme.palette.mode === 'dark';
 
     return (
         <div
@@ -74,7 +74,9 @@ const Item: React.FC<ItemProps> = ({ path, title, icon, selected, setSelected, a
                 component={<Link to={path} />}
                 active={selected === active}
                 icon={icon}
-                style={{ color: '#FFFFFF' }}
+                style={{
+                    color: isDark ? 'rgba(255,255,255,0.87)' : '#1B2A1C'
+                }}
                 onClick={() => {
                     setSelected(active);
                     navigate(path);
@@ -98,14 +100,6 @@ const Sidebar: React.FC = () => {
     const [selected, setSelected] = useState<string>("dashboard");
     const { collapseSidebar } = useProSidebar();
 
-    // ── Pure green palette cho sidebar ──────────────────────────────────────
-    //  Light: hover = #388E3C26, active = #1B5E2030
-    //  Dark : hover = #4CAF5022, active = #66BB6A28
-    const hoverBg = isDark ? 'rgba(76,175,80,0.14)' : 'rgba(56,142,60,0.18)';
-    const activeBg = isDark ? 'rgba(102,187,106,0.20)' : 'rgba(27,94,32,0.22)';
-    const activeColor = isDark ? '#A5D6A7' : '#E8F5E9';  // nhạt hơn nền green
-    const hoverColor = isDark ? '#C8E6C9' : '#F1F8E9';  // rất nhạt
-
     const handleCollapse = (): void => {
         collapseSidebar();
         setIsCollapse((prev) => !prev);
@@ -121,41 +115,40 @@ const Sidebar: React.FC = () => {
             sx={{
                 display: "flex",
                 height: "100%",
-                // ── Gradient sidebar background (30%) ──
+                // ── Sidebar background = nền chính (trắng light / tối dark) ──
                 "& .ps-sidebar-container": {
-                    background: `${isDark ? gradientGreen.darkSidebar : gradientGreen.lightSidebar} !important`,
+                    background: `${dt.pageBg} !important`,
                     borderRight: `1px solid ${dt.sidebarBorder} !important`,
                     transition: 'background 0.3s ease',
                 },
                 "& .pro-icon-wrapper": {
                     backgroundColor: "transparent !important",
                 },
-                // ── Menu item text ──
+                // ── Menu item text — màu theo mode ──
                 ".ps-menuitem-root .ps-menu-button": {
                     backgroundColor: "transparent !important",
-                    color: "#FFFFFF !important",
+                    color: `${isDark ? 'rgba(255,255,255,0.87)' : '#1B2A1C'} !important`,
                     transition: "background-color 0.2s ease, color 0.2s ease",
                 },
-                // ── Hover state ──
+                // ── Hover state — overlay nhẹ ──
                 ".ps-menuitem-root:hover > .ps-menu-button": {
-                    backgroundColor: `${hoverBg} !important`,
-                    color: `${hoverColor} !important`,
+                    backgroundColor: `${isDark ? 'rgba(76,175,80,0.12)' : 'rgba(46,125,50,0.08)'} !important`,
+                    color: `${isDark ? '#FFFFFF' : '#1B5E20'} !important`,
                 },
-                // ── Active state ──
+                // ── Active state — CHỈ active dùng gradient 90° ──
                 ".ps-menuitem-root.ps-active > .ps-menu-button": {
-                    color: `${activeColor} !important`,
-                    backgroundColor: `${activeBg} !important`,
-                    borderLeft: isDark
-                        ? '3px solid #4CAF50'
-                        : '3px solid #A5D6A7',
+                    background: `${gradientGreen.lightBtn} !important`,   // gradient xanh 90°
+                    color: '#FFFFFF !important',
+                    borderLeft: `3px solid ${isDark ? '#4CAF50' : '#1B5E20'}`,
                     fontWeight: 700,
+                    boxShadow: isDark
+                        ? '0 2px 8px rgba(76,175,80,0.25)'
+                        : '0 2px 8px rgba(46,125,50,0.20)',
                 },
-                // ── SubMenu dropdown: kế thừa gradient tông tối hơn ──
+                // ── SubMenu dropdown — cùng màu pageBg ──
                 ".ps-submenu-content": {
-                    background: isDark
-                        ? 'rgba(5,15,6,0.85) !important'
-                        : 'rgba(27,94,32,0.10) !important',
-                    backdropFilter: 'blur(4px)',
+                    background: `${dt.contentBg} !important`,
+                    borderLeft: `2px solid ${isDark ? 'rgba(76,175,80,0.25)' : 'rgba(46,125,50,0.15)'}`,
                 },
             }}
         >
@@ -172,7 +165,7 @@ const Sidebar: React.FC = () => {
                             >
                                 <IconButton
                                     onClick={handleCollapse}
-                                    sx={{ color: '#FFFFFF', '&:hover': { bgcolor: hoverBg } }}
+                                    sx={{ color: theme.palette.mode === 'dark' ? '#FFFFFF' : '#1B2A1C', '&:hover': { bgcolor: theme.palette.mode === 'dark' ? '#4CAF50' : '#1B5E20' } }}
                                 >
                                     <ReorderIcon />
                                 </IconButton>
@@ -193,10 +186,10 @@ const Sidebar: React.FC = () => {
                                 <img src={userImage} alt="user" />
                             </Box>
                             <Box display="flex" justifyContent="center" alignContent="center">
-                                <Typography variant="h3" color="#FFFFFF" fontWeight="bold" />
+                                <Typography variant="h3" color="text.primary" fontWeight="bold" />
                             </Box>
                             <Box display="flex" justifyContent="center" alignContent="center">
-                                <Typography variant="h5" color="rgba(255,255,255,0.72)" />
+                                <Typography variant="h5" color="text.secondary" />
                             </Box>
                         </>
                     ) : (
@@ -208,7 +201,10 @@ const Sidebar: React.FC = () => {
                         >
                             <IconButton
                                 onClick={handleCollapse}
-                                sx={{ color: '#FFFFFF', '&:hover': { bgcolor: hoverBg } }}
+                                sx={{
+                                    color: theme.palette.mode === 'dark' ? '#FFFFFF' : '#1B2A1C',
+                                    '&:hover': { bgcolor: theme.palette.mode === 'dark' ? '#4CAF50' : '#1B5E20' }
+                                }}
                             >
                                 <ReorderIcon />
                             </IconButton>
@@ -228,21 +224,20 @@ const Sidebar: React.FC = () => {
                                     defaultOpen={isChildActive}
                                     rootStyles={{
                                         ['& > .ps-menu-button']: {
-                                            color: '#FFFFFF !important',
+                                            color: `${isDark ? 'rgba(255,255,255,0.87)' : '#1B2A1C'} !important`,
                                             backgroundColor: 'transparent !important',
                                             transition: 'background-color 0.2s ease, color 0.2s ease',
                                         },
                                         ['& > .ps-menu-button:hover']: {
-                                            color: `${hoverColor} !important`,
-                                            backgroundColor: `${hoverBg} !important`,
+                                            color: `${isDark ? '#FFFFFF' : '#1B5E20'} !important`,
+                                            backgroundColor: `${isDark ? 'rgba(76,175,80,0.12)' : 'rgba(46,125,50,0.08)'} !important`,
                                         },
                                         ...(isChildActive && {
                                             ['& > .ps-menu-button']: {
-                                                color: `${activeColor} !important`,
-                                                backgroundColor: `${activeBg} !important`,
-                                                borderLeft: isDark
-                                                    ? '3px solid #4CAF50'
-                                                    : '3px solid #A5D6A7',
+                                                color: '#FFFFFF !important',
+                                                background: `${gradientGreen.lightBtn} !important`,
+                                                borderLeft: `3px solid ${isDark ? '#4CAF50' : '#1B5E20'}`,
+                                                fontWeight: 700,
                                             },
                                         }),
                                     }}

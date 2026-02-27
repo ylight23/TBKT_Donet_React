@@ -19,10 +19,11 @@ const AppHeader: React.FC = () => {
                 px: 3,
                 py: 1.25,
                 // ── 30% gradient green đổi theo mode ──
-                background: isDark
-                    ? gradientGreen.darkHeader
-                    : gradientGreen.lightHeader,
-                borderBottom: `2px solid ${militaryGold[500]}`,
+                // background: isDark
+                //     ? gradientGreen.darkHeader
+                //     : gradientGreen.lightHeader,
+                background: '#2E7D32',
+                // borderBottom: `2px solid ${militaryGold[500]}`,
                 boxShadow: isDark
                     ? '0 2px 16px rgba(0,0,0,0.50)'
                     : '0 2px 12px rgba(46,125,50,0.25)',
