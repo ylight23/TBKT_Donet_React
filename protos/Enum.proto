@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+ 
+package Enum; 
+
+enum Status{
+  NONE = 0;
+  OFF = 1;
+  ON = 2;  
+}
+
+enum FilterOperator{
+  EQUALS = 0;
+  NOT_EQUALS = 1;
+  LESS_THAN = 2;
+  LESS_THAN_OR_EQUALS = 3;
+  GREATER_THAN = 4;
+  GREATER_THAN_OR_EQUALS = 5;
+  CONTAINS = 6;
+  STARTS_WITH = 7;
+  ENDS_WITH = 8;
+  DOES_NOT_CONTAIN = 9;
+  IN = 10;
+  NOT_IN = 11;
+  IS_NULL = 12;
+  IS_EMPTY = 13;
+  IS_NOT_NULL = 14;
+  IS_NOT_EMPTY = 15;
+}
+
+enum LogicalFilterOperator{
+  AND = 0;
+  OR = 1;
+}
+
+enum Orientation{
+  VERTICAL = 0;
+  HORIZONTAL = 1;
+}
+
+enum Variant{
+  FILLED = 0;
+  FLAT = 1;
+  TEXT = 2;
+  OUTLINED = 3;
+}
