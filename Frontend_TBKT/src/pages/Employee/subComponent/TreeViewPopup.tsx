@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 // ✅ Direct imports
-import Dialog           from '@mui/material/Dialog';
-import DialogTitle      from '@mui/material/DialogTitle';
-import DialogContent    from '@mui/material/DialogContent';
-import DialogActions    from '@mui/material/DialogActions';
-import Button           from '@mui/material/Button';
-import Box              from '@mui/material/Box';
-import Typography       from '@mui/material/Typography';
-import TextField        from '@mui/material/TextField';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert            from '@mui/material/Alert';
-import InputAdornment   from '@mui/material/InputAdornment';
-import ExpandMore       from '@mui/icons-material/ExpandMore';
-import ChevronRight     from '@mui/icons-material/ChevronRight';
-import Search           from '@mui/icons-material/Search';
-import Close            from '@mui/icons-material/Close';
+import Alert from '@mui/material/Alert';
+import InputAdornment from '@mui/material/InputAdornment';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import Search from '@mui/icons-material/Search';
+import Close from '@mui/icons-material/Close';
 
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 
@@ -208,7 +208,7 @@ const TreeViewPopup: React.FC<TreeViewPopupProps> = ({
                     {loading && (
                         <Box sx={{ display: 'flex', alignItems: 'center', pl: 2, py: 0.5 }}>
                             <CircularProgress size={16} />
-                            <Typography variant="caption" sx={{ ml: 1 }}>Đang tải...</Typography>
+                            <Typography variant="caption" sx={{ ml: 1 }}>Đang tải…</Typography>
                         </Box>
                     )}
                     {!loading && children.length > 0 && renderTree(children)}
@@ -242,7 +242,7 @@ const TreeViewPopup: React.FC<TreeViewPopupProps> = ({
                     <TextField
                         size="small"
                         fullWidth
-                        placeholder="Tìm kiếm..."
+                        placeholder="Tìm kiếm…"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         InputProps={{

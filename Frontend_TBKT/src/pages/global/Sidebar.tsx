@@ -137,9 +137,9 @@ const Sidebar: React.FC = () => {
                 },
                 // ── Active state — CHỈ active dùng gradient 90° ──
                 ".ps-menuitem-root.ps-active > .ps-menu-button": {
-                    background: `${gradientGreen.lightBtn} !important`,   // gradient xanh 90°
+                    background: `${gradientGreen.darkBtn} !important`,   // gradient xanh 90°
                     color: '#FFFFFF !important',
-                    borderLeft: `3px solid ${isDark ? '#4CAF50' : '#1B5E20'}`,
+                    borderLeft: `6px solid ${isDark ? '#b7cab7ff' : '#08440eff'}`,
                     fontWeight: 700,
                     boxShadow: isDark
                         ? '0 2px 8px rgba(76,175,80,0.25)'

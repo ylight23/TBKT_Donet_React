@@ -103,7 +103,7 @@ const Topbar: React.FC = () => {
             px={2}
             py={1.25}
             sx={{
-                bgcolor: dt.topbarBg,
+                bgcolor: dt.topbarBg, // Removed invalid 'brightness(1.2)' concatenation
                 borderBottom: `1px solid ${dt.topbarBorder}`,
                 transition: 'background-color 0.3s ease',
                 minHeight: 56,
@@ -211,6 +211,7 @@ const Topbar: React.FC = () => {
                 <Tooltip title={isDark ? "Chuyển Light Mode" : "Chuyển Dark Mode"} arrow>
                     <IconButton
                         onClick={colorMode.toggleColorMode}
+                        aria-label={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
                         sx={{
                             color: iconColor,
                             transition: 'background-color 0.2s ease',
@@ -223,6 +224,7 @@ const Topbar: React.FC = () => {
                 <Tooltip title="Đăng xuất" arrow>
                     <IconButton
                         onClick={handleLogout}
+                        aria-label="Đăng xuất khỏi hệ thống"
                         sx={{
                             color: iconColor,
                             transition: 'background-color 0.2s ease',

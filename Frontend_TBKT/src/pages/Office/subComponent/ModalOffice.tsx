@@ -1,65 +1,65 @@
 import React, { useState, useEffect } from "react";
 
 // ✅ Direct imports
-import Button             from '@mui/material/Button';
-import TextField          from '@mui/material/TextField';
-import FormControlLabel   from '@mui/material/FormControlLabel';
-import Switch             from '@mui/material/Switch';
-import Dialog             from '@mui/material/Dialog';
-import Box                from '@mui/material/Box';
-import Typography         from '@mui/material/Typography';
-import Divider            from '@mui/material/Divider';
-import Select             from '@mui/material/Select';
-import MenuItem           from '@mui/material/MenuItem';
-import FormControl        from '@mui/material/FormControl';
-import InputLabel         from '@mui/material/InputLabel';
-import Grid               from '@mui/material/GridLegacy';
-import DialogActions      from '@mui/material/DialogActions';
-import DialogContent      from '@mui/material/DialogContent';
-import DialogTitle        from '@mui/material/DialogTitle';
-import Delete             from '@mui/icons-material/Delete';
-import Edit               from '@mui/icons-material/Edit';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
+import Dialog from '@mui/material/Dialog';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Grid from '@mui/material/GridLegacy';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Delete from '@mui/icons-material/Delete';
+import Edit from '@mui/icons-material/Edit';
 
-import { useForm, Controller }    from "react-hook-form";
-import * as Yup                   from "yup";
-import { yupResolver }            from '@hookform/resolvers/yup';
-import Create                     from '../../../components/Buttons/Create';
-import ConfirmDialog              from "../../../components/Dialog";
-import officeApi                  from '../../../apis/officeApi';
-import { OfficeNode }             from './OfficeDictionary';
-import { useOffice }              from '../../../context/OfficeContext';
+import { useForm, Controller } from "react-hook-form";
+import * as Yup from "yup";
+import { yupResolver } from '@hookform/resolvers/yup';
+import Create from '../../../components/Buttons/Create';
+import ConfirmDialog from "../../../components/Dialog";
+import officeApi from '../../../apis/officeApi';
+import { OfficeNode } from './OfficeDictionary';
+import { useOffice } from '../../../context/OfficeContext';
 
 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface OfficeFormData {
-    ten:         string;
-    tenDayDu:    string;
-    vietTat:     string;
-    idCapTren:   string;
-    thuTu:       number | null;
+    ten: string;
+    tenDayDu: string;
+    vietTat: string;
+    idCapTren: string;
+    thuTu: number | null;
     thuTuSapXep: string;
-    coCapDuoi:   boolean;
+    coCapDuoi: boolean;
 }
 
 interface ModalOfficeProps {
-    data?:            OfficeNode;
+    data?: OfficeNode;
     defaultParentId?: string;
-    createLabel?:     string;
+    createLabel?: string;
 }
 
 // ── Validation ─────────────────────────────────────────────────────────────────
 
 const validationSchema = Yup.object().shape({
-    ten:         Yup.string().required("Tên đơn vị là bắt buộc").max(500),
-    tenDayDu:    Yup.string().max(500),
-    vietTat:     Yup.string().max(100),
-    idCapTren:   Yup.string().max(255),
+    ten: Yup.string().required("Tên đơn vị là bắt buộc").max(500),
+    tenDayDu: Yup.string().max(500),
+    vietTat: Yup.string().max(100),
+    idCapTren: Yup.string().max(255),
     thuTuSapXep: Yup.string().max(100),
-    thuTu:       Yup.number().integer().min(0).nullable()
+    thuTu: Yup.number().integer().min(0).nullable()
         .transform((v, orig) => (orig === '' ? null : v)),
-    coCapDuoi:   Yup.boolean(),
+    coCapDuoi: Yup.boolean(),
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -87,15 +87,15 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
 }) => {
     // ── Dùng { state, actions, meta } thay vì flat ────────────────────────────
     const { state, actions, meta } = useOffice();
-    const { allOffices }           = state;
+    const { allOffices } = state;
     const { createOffice, updateOffice, deleteOffice } = actions;
-    const { colors }               = meta;
+    const { colors } = meta;
 
     const isUpdate = !!data;
-    const [isOpen,             setIsOpen]             = useState(false);
-    const [isLoading,          setIsLoading]          = useState(false);
-    const [currentData,        setCurrentData]        = useState<OfficeNode | null>(null);
-    const [confirmDeleteOpen,  setConfirmDeleteOpen]  = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [currentData, setCurrentData] = useState<OfficeNode | null>(null);
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
     const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<OfficeFormData>({
         resolver: yupResolver(validationSchema) as any,
@@ -121,20 +121,20 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
             }
             try {
                 setIsLoading(true);
-                const result     = await officeApi.getOffice(String(data.id));
+                const result = await officeApi.getOffice(String(data.id));
                 if (!result) { setIsLoading(false); return; }
-                const freshData  = result as unknown as OfficeNode;
+                const freshData = result as unknown as OfficeNode;
                 setCurrentData(freshData);
-                const coCapDuoi  = convertToBoolean(
+                const coCapDuoi = convertToBoolean(
                     freshData.coCapDuoi ?? freshData.cocapduoi ?? freshData.CoCapDuoi ?? false
                 );
                 reset({
-                    ten:        (freshData.ten as string)                                       || '',
-                    tenDayDu:   (getFieldValue(freshData, 'tendaydu', 'tenDayDu', 'TenDayDu')  as string) || '',
-                    vietTat:    (getFieldValue(freshData, 'vietTat', 'VietTat')                as string) || '',
-                    idCapTren:  (getFieldValue(freshData, 'idcaptren', 'idCapTren', 'IdCapTren') as string) || '',
-                    thuTu:      (getFieldValue(freshData, 'thutu', 'thuTu', 'ThuTu')           as number) || 0,
-                    thuTuSapXep:(getFieldValue(freshData, 'thutusapxep', 'thuTuSapXep', 'ThuTuSapXep') as string) || '',
+                    ten: (freshData.ten as string) || '',
+                    tenDayDu: (getFieldValue(freshData, 'tendaydu', 'tenDayDu', 'TenDayDu') as string) || '',
+                    vietTat: (getFieldValue(freshData, 'vietTat', 'VietTat') as string) || '',
+                    idCapTren: (getFieldValue(freshData, 'idcaptren', 'idCapTren', 'IdCapTren') as string) || '',
+                    thuTu: (getFieldValue(freshData, 'thutu', 'thuTu', 'ThuTu') as number) || 0,
+                    thuTuSapXep: (getFieldValue(freshData, 'thutusapxep', 'thuTuSapXep', 'ThuTuSapXep') as string) || '',
                     coCapDuoi,
                 }, { keepDefaultValues: false, keepDirty: false, keepValues: false });
             } catch (err) {
@@ -154,17 +154,17 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
             setIsLoading(true);
             const finalData = {
                 ...formData,
-                coCapDuoi:       convertToBoolean(formData.coCapDuoi),
-                idCapTren:       formData.idCapTren || defaultParentId || '',
+                coCapDuoi: convertToBoolean(formData.coCapDuoi),
+                idCapTren: formData.idCapTren || defaultParentId || '',
                 danhSachCapDuoi: (currentData as any)?.danhSachCapDuoi ?? [],
-                parameters:      (currentData as any)?.parameters      ?? [],
+                parameters: (currentData as any)?.parameters ?? [],
             };
 
             if (isUpdate) {
                 const oldParentId = getFieldValue(data, 'idCapTren', 'IdCapTren') as string | null;
                 await updateOffice({
                     ...finalData,
-                    id:           String(data!.id),
+                    id: String(data!.id),
                     _oldParentId: oldParentId,  // truyền để OfficeContext biết refresh
                 } as any);
             } else {
@@ -205,7 +205,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
             ) : (
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button variant="contained" color="warning" onClick={() => setIsOpen(true)} startIcon={<Edit />}>Sửa</Button>
-                    <Button variant="contained" color="error"   onClick={() => setConfirmDeleteOpen(true)} startIcon={<Delete />}>Xóa</Button>
+                    <Button variant="contained" color="error" onClick={() => setConfirmDeleteOpen(true)} startIcon={<Delete />}>Xóa</Button>
                 </Box>
             )}
 
@@ -224,7 +224,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                 <DialogContent dividers>
                     {isLoading && isOpen ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-                            <Typography>Đang tải dữ liệu...</Typography>
+                            <Typography>Đang tải dữ liệu…</Typography>
                         </Box>
                     ) : (
                         <Box component="form" autoComplete="off" sx={{ py: 2 }}>
@@ -287,7 +287,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                 <DialogActions sx={{ p: 2 }}>
                     <Button variant="outlined" color="inherit" onClick={handleClose} disabled={isLoading}>Hủy</Button>
                     <Button variant="contained" color="success" onClick={handleSubmit(handleSubmitForm)} disabled={isLoading}>
-                        {isLoading ? 'Đang lưu...' : 'Lưu'}
+                        {isLoading ? 'Đang lưu…' : 'Lưu'}
                     </Button>
                 </DialogActions>
             </Dialog>

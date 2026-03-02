@@ -3,95 +3,117 @@
 // Dùng cho cả Nhóm 1 và Nhóm 2
 // ============================================================
 import React, { useState, useMemo, useCallback } from 'react';
-import Box                      from '@mui/material/Box';
-import Button                   from '@mui/material/Button';
-import Chip                     from '@mui/material/Chip';
-import Divider                  from '@mui/material/Divider';
-import FormControl              from '@mui/material/FormControl';
-import Grid                     from '@mui/material/GridLegacy';
-import IconButton               from '@mui/material/IconButton';
-import InputAdornment           from '@mui/material/InputAdornment';
-import MenuItem                 from '@mui/material/MenuItem';
-import Select                   from '@mui/material/Select';
-import TextField                from '@mui/material/TextField';
-import Tooltip                  from '@mui/material/Tooltip';
-import Typography               from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/GridLegacy';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { useTheme }             from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 
 // Icons
-import SearchIcon               from '@mui/icons-material/Search';
-import FileDownloadIcon         from '@mui/icons-material/FileDownload';
-import VisibilityIcon           from '@mui/icons-material/Visibility';
-import EditIcon                 from '@mui/icons-material/Edit';
-import FilterAltIcon            from '@mui/icons-material/FilterAlt';
-import ClearIcon                from '@mui/icons-material/Clear';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 
-import { ITrangBi, TrangThaiTrangBi, ChatLuong, donViList } from '../../data/mockTBData';
-import { militaryColors }       from '../../theme';
+import { ITrangBi, TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
+import { militaryColors } from '../../theme';
+import FilterTrangBi, { FilterTrangBiValues } from './FilterTrangBi';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
-const trangThaiColor: Record<TrangThaiTrangBi, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
-  [TrangThaiTrangBi.HoatDong]:   'success',
-  [TrangThaiTrangBi.SuaChua]:    'warning',
-  [TrangThaiTrangBi.NiemCat]:    'info',
+const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
+  [TrangThaiTrangBi.HoatDong]: 'success',
+  [TrangThaiTrangBi.SuaChua]: 'warning',
+  [TrangThaiTrangBi.NiemCat]: 'info',
   [TrangThaiTrangBi.ChoThanhLy]: 'error',
-  [TrangThaiTrangBi.DaThanhLy]:  'default',
+  [TrangThaiTrangBi.DaThanhLy]: 'default',
 };
 
 // ── Màu chất lượng ───────────────────────────────────────────
-const chatLuongColor: Record<ChatLuong, string> = {
-  [ChatLuong.Tot]:       '#2e7d32',
-  [ChatLuong.Kha]:       '#1565c0',
+const chatLuongColor: Record<string, string> = {
+  [ChatLuong.Tot]: '#2e7d32',
+  [ChatLuong.Kha]: '#1565c0',
   [ChatLuong.TrungBinh]: '#ef6c00',
-  [ChatLuong.Xau]:       '#c62828',
-  [ChatLuong.HỏngHoc]:   '#6a1b9a',
+  [ChatLuong.Xau]: '#c62828',
+  [ChatLuong.HỏngHoc]: '#6a1b9a',
 };
 
 // ── Props component ──────────────────────────────────────────
 interface TrangBiDataGridProps {
-  title:    string;
+  title: string;
   subtitle: string;
-  data:     ITrangBi[];
+  data: ITrangBi[];
 }
 
 // ── TrangBiDataGrid ──────────────────────────────────────────
 const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data }) => {
   const theme = useTheme();
 
-  // State bộ lọc
-  const [search,     setSearch]     = useState('');
-  const [filterLoai, setFilterLoai] = useState('');
-  const [filterTT,   setFilterTT]   = useState('');
-  const [filterDV,   setFilterDV]   = useState('');
-
-  // Lấy danh sách loại duy nhất từ data
-  const loaiList = useMemo(
-    () => Array.from(new Set(data.map(d => d.loai))).sort(),
-    [data],
-  );
+  // State bộ lọc nâng cao
+  const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
 
   // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
-    setSearch('');
-    setFilterLoai('');
-    setFilterTT('');
-    setFilterDV('');
+    setFilterValues(null);
+  }, []);
+
+  const handleSearch = useCallback((values: FilterTrangBiValues) => {
+    setFilterValues(values);
   }, []);
 
   // Lọc dữ liệu theo các điều kiện
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    if (!filterValues) return data;
+
+    const {
+      fullTextSearch,
+      donVi,
+      maTrangBi,
+      tenTrangBi,
+      capChatLuong,
+      tinhTrangSuDung,
+      soHieu,
+      nhom,
+      phanNganh,
+      tinhTrangKyThuat,
+      donViQuanLy,
+      namSanXuat,
+      namSuDung
+    } = filterValues;
+
+    const q = fullTextSearch.toLowerCase();
+
     return data.filter(row => {
+      // 1. Tìm kiếm tổng hợp (Full text từ ô tìm kiếm nhanh)
       const matchSearch = !q || [
         row.maTrangBi, row.ten, row.loai, row.serial, row.mac, row.donVi,
-      ].some(v => v.toLowerCase().includes(q));
-      const matchLoai = !filterLoai || row.loai       === filterLoai;
-      const matchTT   = !filterTT   || row.trangThai  === filterTT;
-      const matchDV   = !filterDV   || row.donVi      === filterDV;
-      return matchSearch && matchLoai && matchTT && matchDV;
+      ].some(v => v && v.toLowerCase().includes(q));
+
+      if (!matchSearch) return false;
+
+      // 2. Lọc chi tiết (Advanced filters)
+      if (donVi && !row.donVi.toLowerCase().includes(donVi.toLowerCase())) return false;
+      if (maTrangBi && !row.maTrangBi.toLowerCase().includes(maTrangBi.toLowerCase())) return false;
+      if (tenTrangBi && !row.ten.toLowerCase().includes(tenTrangBi.toLowerCase())) return false;
+      if (capChatLuong && row.chatLuong !== capChatLuong) return false;
+      if (tinhTrangSuDung && row.trangThai !== tinhTrangSuDung) return false;
+      if (soHieu && row.serial && !row.serial.toLowerCase().includes(soHieu.toLowerCase())) return false;
+
+      // Các trường nâng cao (nếu mock data có hoặc ép kiểu để check)
+      const r = row as any;
+      if (nhom && r.nhom !== nhom) return false;
+      if (phanNganh && r.phanNganh !== phanNganh) return false;
+      if (tinhTrangKyThuat && r.tinhTrangKyThuat !== tinhTrangKyThuat) return false;
+      if (donViQuanLy && r.donViQuanLy !== donViQuanLy) return false;
+      if (namSanXuat && r.namSanXuat !== Number(namSanXuat)) return false;
+      if (namSuDung && r.namSuDung !== Number(namSuDung)) return false;
+
+      return true;
     });
-  }, [data, search, filterLoai, filterTT, filterDV]);
+  }, [data, filterValues]);
 
   // Giả lập export Excel
   const handleExport = useCallback(() => {
@@ -103,23 +125,17 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
     {
       field: 'maTrangBi', headerName: 'Mã trang bị', width: 140,
       renderCell: (p) => (
-        <Typography variant="body2" fontWeight={600} color="primary">
+        <Typography variant="body2" fontWeight={600} sx={{ color: 'var(--mil-text-primary)' }}>
           {p.value}
         </Typography>
       ),
     },
-    { field: 'ten',   headerName: 'Tên trang bị',  flex: 1, minWidth: 160 },
-    { field: 'loai',  headerName: 'Loại',           width: 190 },
-    { field: 'serial',headerName: 'Serial',         width: 160 },
+    { field: 'ten', headerName: 'Tên trang bị', flex: 1, minWidth: 200 },
+    { field: 'loai', headerName: 'Loại', width: 150 },
+    { field: 'serial', headerName: 'Số hiệu / Serial', width: 160 },
     {
-      field: 'mac', headerName: 'MAC Address', width: 155,
-      renderCell: (p) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-          {p.value}
-        </Typography>
-      ),
+      field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 160,
     },
-    { field: 'donVi', headerName: 'Đơn vị',         flex: 1, minWidth: 160 },
     {
       field: 'trangThai', headerName: 'Trạng thái', width: 150,
       renderCell: (p: GridRenderCellParams<ITrangBi, TrangThaiTrangBi>) => (
@@ -138,20 +154,20 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
           label={p.value}
           size="small"
           sx={{
-            bgcolor:    `${chatLuongColor[p.value!]}22`,
-            color:      chatLuongColor[p.value!],
+            bgcolor: `${chatLuongColor[p.value!]}22`,
+            color: chatLuongColor[p.value!],
             fontWeight: 600,
-            fontSize:   11,
-            border:     `1px solid ${chatLuongColor[p.value!]}44`,
+            fontSize: 11,
+            border: `1px solid ${chatLuongColor[p.value!]}44`,
           }}
         />
       ),
     },
-    { field: 'nienHan',    headerName: 'Niên hạn (năm)', type: 'number', width: 130 },
+    { field: 'namSuDung', headerName: 'Năm sử dụng', width: 130, type: 'number' },
     {
       field: 'actions', headerName: 'Thao tác', width: 110, sortable: false, filterable: false,
       renderCell: (p: GridRenderCellParams<ITrangBi>) => (
-        <Box display="flex" gap={0.5}>
+        <Box display="flex" gap={0.5} justifyContent="center" width="100%">
           <Tooltip title="Xem chi tiết">
             <IconButton
               size="small"
@@ -175,166 +191,82 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
     },
   ];
 
-  const hasFilters = !!(search || filterLoai || filterTT || filterDV);
-
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Tiêu đề */}
-      <Box mb={2}>
-        <Typography variant="h4" fontWeight={700} color="text.primary">
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">{subtitle}</Typography>
-        <Divider sx={{ mt: 1.5 }} />
-      </Box>
-
-      {/* ── Bộ lọc ──────────────────────────────────────────── */}
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
+      {/* Header Section */}
       <Box
-        sx={{
-          bgcolor:      'background.paper',
-          borderRadius: 2,
-          p:            2,
-          mb:           2,
-          border:       `1px solid ${theme.palette.divider}`,
-        }}
+        mb={2}
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-end"
+        sx={{ flexWrap: 'wrap', gap: 2 }}
       >
-        <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-          <FilterAltIcon fontSize="small" color="action" />
-          <Typography variant="subtitle2" fontWeight={600}>Bộ lọc & Tìm kiếm</Typography>
-          {hasFilters && (
-            <Button
-              size="small"
-              startIcon={<ClearIcon />}
-              onClick={handleClearFilter}
-              sx={{ ml: 'auto', textTransform: 'none' }}
-            >
-              Xóa bộ lọc
-            </Button>
-          )}
-        </Box>
-
-        <Grid container spacing={1.5}>
-          {/* Ô tìm kiếm */}
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="Tìm kiếm mã, tên, serial, MAC, đơn vị..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-                endAdornment: search ? (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setSearch('')}>
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              }}
-            />
-          </Grid>
-
-          {/* Lọc theo loại */}
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl size="small" fullWidth>
-              <Select
-                displayEmpty
-                value={filterLoai}
-                onChange={e => setFilterLoai(e.target.value)}
-              >
-                <MenuItem value=""><em>Tất cả loại</em></MenuItem>
-                {loaiList.map(l => (
-                  <MenuItem key={l} value={l}>{l}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* Lọc theo trạng thái */}
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl size="small" fullWidth>
-              <Select
-                displayEmpty
-                value={filterTT}
-                onChange={e => setFilterTT(e.target.value)}
-              >
-                <MenuItem value=""><em>Tất cả trạng thái</em></MenuItem>
-                {Object.values(TrangThaiTrangBi).map(tt => (
-                  <MenuItem key={tt} value={tt}>{tt}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* Lọc theo đơn vị */}
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl size="small" fullWidth>
-              <Select
-                displayEmpty
-                value={filterDV}
-                onChange={e => setFilterDV(e.target.value)}
-              >
-                <MenuItem value=""><em>Tất cả đơn vị</em></MenuItem>
-                {donViList.slice(0, 15).map(d => (
-                  <MenuItem key={d} value={d}>{d}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
-
-        {/* Dòng tóm tắt kết quả */}
-        <Box mt={1.2} display="flex" alignItems="center" gap={1}>
-          <Typography variant="caption" color="text.secondary">
-            Hiển thị <strong>{filtered.length}</strong> / <strong>{data.length}</strong> bản ghi
+        <Box>
+          <Typography
+            variant="h4"
+            fontWeight={800}
+            color="primary"
+            gutterBottom
+            sx={{
+              fontSize: { xs: '1.5rem', sm: '1.8rem', md: '2.125rem' },
+              letterSpacing: '-0.02em'
+            }}
+          >
+            {title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.8 }}>
+            {subtitle} • Hiển thị <strong>{filtered.length}</strong> / <strong>{data.length}</strong> bản ghi
           </Typography>
         </Box>
-      </Box>
-
-      {/* ── Toolbar: Export ─────────────────────────────────── */}
-      <Box display="flex" justifyContent="flex-end" mb={1}>
         <Button
           variant="contained"
           startIcon={<FileDownloadIcon />}
           onClick={handleExport}
           sx={{
-            bgcolor: militaryColors.darkBlue,
-            '&:hover': { bgcolor: militaryColors.midBlue },
+            bgcolor: militaryColors.deepOlive,
+            '&:hover': { bgcolor: militaryColors.midOlive },
             textTransform: 'none',
+
+            fontWeight: 700,
+            px: 3,
+            height: 40,
+            boxShadow: `0 4px 12px ${militaryColors.deepOlive}44`
           }}
         >
           Xuất Excel
         </Button>
       </Box>
 
-      {/* ── DataGrid ─────────────────────────────────────────── */}
-      <Box sx={{ height: 520, width: '100%' }}>
+      {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}
+      <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />
+
+      {/* ── DataGrid Container ───────────────────────────────── */}
+      <Box
+        sx={{
+          height: {
+            xs: 500,
+            sm: 550,
+            md: 'calc(100vh - 300px)', // Co giãn theo chiều cao màn hình cho laptop 12-14 inch
+          },
+          minHeight: 450,
+          width: '100%',
+          bgcolor: 'background.paper',
+          borderRadius: 0,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0,0,0,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+          border: `1px solid ${theme.palette.divider}`,
+          transition: 'all 0.3s ease',
+        }}
+      >
         <DataGrid
           rows={filtered}
           columns={columns}
           getRowId={row => row.id}
           pageSizeOptions={[10, 25, 50, 100]}
           initialState={{ pagination: { paginationModel: { page: 0, pageSize: 25 } } }}
-          disableRowSelectionOnClick
-          sx={{
-            borderRadius: 2,
-            '& .MuiDataGrid-columnHeaders': {
-              bgcolor:    militaryColors.darkBlue,
-              color:      '#ffffff',
-              fontWeight: 700,
-            },
-            '& .MuiDataGrid-row:hover': {
-              bgcolor: `${militaryColors.navy}11`,
-            },
-            '& .MuiDataGrid-row:nth-of-type(even)': {
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-            },
-          }}
+        // density, rowHeight, columnHeaderHeight, disableRowSelectionOnClick được lấy từ theme.ts
         />
       </Box>
     </Box>

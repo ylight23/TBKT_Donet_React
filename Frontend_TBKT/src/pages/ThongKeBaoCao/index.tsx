@@ -1,28 +1,39 @@
 // ============================================================
 // Thống kê Báo cáo – Statistics & Reports
 // ============================================================
-import React, { useState }   from 'react';
-import Box                   from '@mui/material/Box';
-import Button                from '@mui/material/Button';
-import Card                  from '@mui/material/Card';
-import CardContent           from '@mui/material/CardContent';
-import Chip                  from '@mui/material/Chip';
-import Divider               from '@mui/material/Divider';
-import Grid                  from '@mui/material/GridLegacy';
-import LinearProgress        from '@mui/material/LinearProgress';
-import Tab                   from '@mui/material/Tab';
-import Tabs                  from '@mui/material/Tabs';
-import Tooltip               from '@mui/material/Tooltip';
-import Typography            from '@mui/material/Typography';
-import { useTheme }          from '@mui/material/styles';
+import React, { useState, useMemo } from 'react';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
+import Grid from '@mui/material/GridLegacy';
+import LinearProgress from '@mui/material/LinearProgress';
+import MenuItem from '@mui/material/MenuItem';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import Popover from '@mui/material/Popover';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { ResponsivePie }     from '@nivo/pie';
+import { ResponsivePie } from '@nivo/pie';
 
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import PrintIcon        from '@mui/icons-material/Print';
+import PrintIcon from '@mui/icons-material/Print';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import BarChartIcon     from '@mui/icons-material/BarChart';
-import TableChartIcon   from '@mui/icons-material/TableChart';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import BusinessIcon from '@mui/icons-material/Business';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 import {
   thongKeTheoLoai,
@@ -70,24 +81,26 @@ const SimpleBar: React.FC<{ rows: BarRow[]; unit?: string }> = ({ rows, unit = '
 
 // ── Columns thống kê theo loại ───────────────────────────────
 const colsLoai: GridColDef[] = [
-  { field: 'loai',     headerName: 'Loại trang bị',   flex: 1, minWidth: 200 },
-  { field: 'soLuong',  headerName: 'Tổng số lượng',  width: 130, type: 'number' },
-  { field: 'hoatDong', headerName: 'Hoạt động',       width: 110, type: 'number' },
-  { field: 'suaChua',  headerName: 'Sửa chữa',        width: 100, type: 'number' },
-  { field: 'niemCat',  headerName: 'Niêm cất',        width: 100, type: 'number' },
-  { field: 'thanhLy',  headerName: 'Thanh lý',        width: 100, type: 'number' },
+  { field: 'loai', headerName: 'Loại trang bị', flex: 1, minWidth: 200, align: 'center', headerAlign: 'center' },
+  { field: 'soLuong', headerName: 'Tổng số lượng', width: 130, type: 'number', align: 'center', headerAlign: 'center' },
+  { field: 'hoatDong', headerName: 'Hoạt động', width: 110, type: 'number', align: 'center', headerAlign: 'center' },
+  { field: 'suaChua', headerName: 'Sửa chữa', width: 100, type: 'number', align: 'center', headerAlign: 'center' },
+  { field: 'niemCat', headerName: 'Niêm cất', width: 100, type: 'number', align: 'center', headerAlign: 'center' },
+  { field: 'thanhLy', headerName: 'Thanh lý', width: 100, type: 'number', align: 'center', headerAlign: 'center' },
   {
-    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động', width: 160,
+    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động', width: 160, align: 'center', headerAlign: 'center',
     renderCell: p => {
-      const row  = p.row as typeof thongKeTheoLoai[0];
-      const pct  = Math.round((row.hoatDong / row.soLuong) * 100);
+      const row = p.row as typeof thongKeTheoLoai[0];
+      const pct = Math.round((row.hoatDong / row.soLuong) * 100);
       return (
         <Box display="flex" alignItems="center" gap={1} width="100%">
           <LinearProgress
             variant="determinate" value={pct}
-            sx={{ flex: 1, height: 8, borderRadius: 4,
+            sx={{
+              flex: 1, height: 8, borderRadius: 4,
               bgcolor: `${militaryColors.success}33`,
-              '& .MuiLinearProgress-bar': { bgcolor: militaryColors.success } }}
+              '& .MuiLinearProgress-bar': { bgcolor: militaryColors.success }
+            }}
           />
           <Typography variant="caption" fontWeight={700}>{pct}%</Typography>
         </Box>
@@ -98,10 +111,10 @@ const colsLoai: GridColDef[] = [
 
 // ── Columns thống kê theo đơn vị ─────────────────────────────
 const colsDonVi: GridColDef[] = [
-  { field: 'donVi',   headerName: 'Đơn vị',          flex: 1, minWidth: 200 },
-  { field: 'soLuong', headerName: 'Tổng trang bị',   width: 140, type: 'number' },
+  { field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 200, align: 'center', headerAlign: 'center' },
+  { field: 'soLuong', headerName: 'Tổng trang bị', width: 140, type: 'number', align: 'center', headerAlign: 'center' },
   {
-    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động (%)', width: 200,
+    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động (%)', width: 200, align: 'center', headerAlign: 'center',
     renderCell: p => {
       const pct = Math.round((p.row as typeof thongKeTheoDonVi[0]).tyLeHD * 100);
       const color = pct >= 80 ? militaryColors.success : pct >= 60 ? militaryColors.warning : militaryColors.error;
@@ -109,13 +122,17 @@ const colsDonVi: GridColDef[] = [
         <Box display="flex" alignItems="center" gap={1} width="100%">
           <LinearProgress
             variant="determinate" value={pct}
-            sx={{ flex: 1, height: 8, borderRadius: 4,
+            sx={{
+              flex: 1, height: 8, borderRadius: 4,
               bgcolor: `${color}33`,
-              '& .MuiLinearProgress-bar': { bgcolor: color } }}
+              '& .MuiLinearProgress-bar': { bgcolor: color }
+            }}
           />
           <Chip label={`${pct}%`} size="small"
-            sx={{ bgcolor: `${color}22`, color, fontWeight: 700, fontSize: 11,
-                  border: `1px solid ${color}44` }} />
+            sx={{
+              bgcolor: `${color}22`, color, fontWeight: 700, fontSize: 11,
+              border: `1px solid ${color}44`
+            }} />
         </Box>
       );
     },
@@ -124,10 +141,60 @@ const colsDonVi: GridColDef[] = [
 
 // ── Thống kê Báo cáo ─────────────────────────────────────────
 const ThongKeBaoCao: React.FC = () => {
-  const theme  = useTheme();
+  const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const [tab,  setTab]  = useState(0);
+  const [tab, setTab] = useState(0);
   const [view, setView] = useState<'chart' | 'table'>('chart');
+
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterUnit, setFilterUnit] = useState('');
+  const [filterGroup, setFilterGroup] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const handleOpenPopover = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClosePopover = () => {
+    setAnchorEl(null);
+  };
+
+  const isPopoverOpen = Boolean(anchorEl);
+  const idOpen = isPopoverOpen ? 'thongke-filter-popover' : undefined;
+
+  const activeFilters = useMemo(() => {
+    const chips = [];
+    if (filterUnit) {
+      const units: Record<string, string> = { '1': 'Lữ đoàn 1', '2': 'Lữ đoàn 2' };
+      chips.push({ key: 'unit', label: `Đơn vị: ${units[filterUnit] || filterUnit}`, icon: <BusinessIcon fontSize="small" /> });
+    }
+    if (filterGroup) {
+      const groups: Record<string, string> = { '1': 'Thông tin', '2': 'Khí tài' };
+      chips.push({ key: 'group', label: `Nhóm: ${groups[filterGroup] || filterGroup}`, icon: <FilterAltIcon fontSize="small" /> });
+    }
+    if (startDate) chips.push({ key: 'start', label: `Từ: ${startDate}`, icon: <CalendarTodayIcon fontSize="small" /> });
+    if (endDate) chips.push({ key: 'end', label: `Đến: ${endDate}`, icon: <CalendarTodayIcon fontSize="small" /> });
+    return chips;
+  }, [filterUnit, filterGroup, startDate, endDate]);
+
+  const handleRemoveFilter = (key: string) => {
+    if (key === 'unit') setFilterUnit('');
+    if (key === 'group') setFilterGroup('');
+    if (key === 'start') setStartDate('');
+    if (key === 'end') setEndDate('');
+  };
+
+  const activeFilterCount = activeFilters.length;
+
+  const handleClearFilters = () => {
+    setFilterUnit('');
+    setFilterGroup('');
+    setStartDate('');
+    setEndDate('');
+    setSearchQuery('');
+  };
 
   const maxSL = Math.max(...thongKeTheoLoai.map(r => r.soLuong));
   const maxDV = Math.max(...thongKeTheoDonVi.map(r => r.soLuong));
@@ -137,256 +204,321 @@ const ThongKeBaoCao: React.FC = () => {
   }));
 
   const loaiRows = thongKeTheoLoai.map((r, i) => ({ ...r, id: i + 1 }));
-  const dvRows   = thongKeTheoDonVi.map((r, i) => ({ ...r, id: i + 1 }));
+  const dvRows = thongKeTheoDonVi.map((r, i) => ({ ...r, id: i + 1 }));
 
   const summaryItems = [
-    { label: 'Tổng trang bị',    value: dashboardStats.tongSoLuong,                      color: militaryColors.darkBlue },
-    { label: 'Hoạt động',        value: dashboardStats.dangHoatDong,                      color: militaryColors.success  },
-    { label: 'Sửa chữa',         value: dashboardStats.suaChua,                           color: militaryColors.warning  },
-    { label: 'Niêm cất',         value: dashboardStats.niemCat,                           color: militaryColors.navy     },
-    { label: 'Chờ thanh lý',     value: dashboardStats.choThanhLy,                        color: '#f57c00'               },
-    { label: 'Đã thanh lý',      value: dashboardStats.daThanhLy,                         color: militaryColors.error    },
-    { label: 'Hệ số kỹ thuật',   value: `${(dashboardStats.heSoKyThuat * 100).toFixed(1)}%`, color: '#1565c0'           },
-    { label: 'Tổng phiếu SC',    value: mockSuaChua.length,                               color: '#6a1b9a'               },
-    { label: 'Tổng phiếu BD',    value: mockBaoDuong.length,                              color: '#00695c'               },
+    { label: 'Tổng trang bị', value: dashboardStats.tongSoLuong, color: militaryColors.deepOlive },
+    { label: 'Hoạt động', value: dashboardStats.dangHoatDong, color: militaryColors.success },
+    { label: 'Sửa chữa', value: dashboardStats.suaChua, color: militaryColors.warning },
+    { label: 'Niêm cất', value: dashboardStats.niemCat, color: militaryColors.navy },
+    { label: 'Chờ thanh lý', value: dashboardStats.choThanhLy, color: '#f57c00' },
+    { label: 'Đã thanh lý', value: dashboardStats.daThanhLy, color: militaryColors.error },
+    { label: 'Hệ số kỹ thuật', value: `${(dashboardStats.heSoKyThuat * 100).toFixed(1)}%`, color: '#1565c0' },
+    { label: 'Tổng phiếu SC', value: mockSuaChua.length, color: '#6a1b9a' },
+    { label: 'Tổng phiếu BD', value: mockBaoDuong.length, color: '#00695c' },
   ];
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box mb={3}>
+      <Box mb={4}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
           <Box>
-            <Typography variant="h4" fontWeight={700} color="text.primary">THỐNG KÊ BÁO CÁO</Typography>
+            <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
+              THỐNG KÊ BÁO CÁO
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Tổng hợp số liệu thống kê trang bị kỹ thuật theo nhiều tiêu chí
+              Phân tích và tổng hợp số liệu trang bị kỹ thuật thông tin toàn quân
             </Typography>
           </Box>
-          <Box display="flex" gap={1}>
-            <Button variant="outlined" startIcon={<PrintIcon />} size="small"
-              sx={{ textTransform: 'none' }}
+          <Box display="flex" gap={1.5}>
+            <Button
+              variant="outlined" startIcon={<PrintIcon />} size="medium"
+              sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600 }}
               onClick={() => alert('[Giả lập] In báo cáo')}
-            >
-              In
-            </Button>
-            <Button variant="outlined" startIcon={<PictureAsPdfIcon />} size="small"
-              sx={{ textTransform: 'none', color: militaryColors.error, borderColor: militaryColors.error }}
+            >In</Button>
+            <Button
+              variant="outlined" startIcon={<PictureAsPdfIcon />} size="medium"
+              sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, color: militaryColors.error }}
               onClick={() => alert('[Giả lập] Xuất PDF')}
-            >
-              PDF
-            </Button>
-            <Button variant="contained" startIcon={<FileDownloadIcon />} size="small"
-              sx={{ textTransform: 'none', bgcolor: militaryColors.darkBlue, '&:hover': { bgcolor: militaryColors.midBlue } }}
+            >PDF</Button>
+            <Button
+              variant="contained" startIcon={<FileDownloadIcon />} size="medium"
+              sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 700, bgcolor: militaryColors.deepOlive }}
               onClick={() => alert('[Giả lập] Xuất Excel')}
-            >
-              Excel
-            </Button>
+            >Excel</Button>
           </Box>
         </Box>
-        <Divider sx={{ mt: 1.5 }} />
+        <Divider sx={{ mt: 2 }} />
       </Box>
 
-      {/* Tổng quan nhanh */}
-      <Grid container spacing={1.5} mb={3}>
+      {/* Summary Cards */}
+      <Grid container spacing={2} mb={4}>
         {summaryItems.map((s, i) => (
           <Grid item xs={6} sm={4} md={3} lg key={i}>
-            <Card elevation={1} sx={{ borderRadius: 2, borderLeft: `4px solid ${s.color}`, py: 0.5 }}>
-              <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-                <Typography variant="caption" color="text.secondary" display="block">{s.label}</Typography>
-                <Typography variant="h6" fontWeight={700} color={s.color}>{s.value}</Typography>
+            <Card elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
+              <CardContent sx={{ py: 2 }}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase' }}>{s.label}</Typography>
+                <Typography variant="h5" fontWeight={800} color={s.color}>{s.value}</Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
+      {/* Filter Panel */}
+      <Card elevation={0} sx={{ mb: 4, borderRadius: 4, border: `1px solid ${theme.palette.divider}` }}>
+        <CardContent sx={{ p: 2 }}>
+          <Box display="flex" gap={2} alignItems="center">
+            <TextField
+              fullWidth size="small" placeholder="Tìm kiếm nhanh trong thống kê..."
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title="Lọc nâng cao">
+                      <Button
+                        size="small"
+                        onClick={handleOpenPopover}
+                        variant="text"
+                        color={activeFilterCount > 0 ? "primary" : "inherit"}
+                        startIcon={<FilterAltIcon fontSize="small" />}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          borderRadius: 2,
+                          px: 1.5,
+                          minWidth: 'auto',
+                          position: 'relative',
+                          bgcolor: activeFilterCount > 0 ? `${theme.palette.primary.main}15` : 'transparent',
+                          '&:hover': {
+                            bgcolor: activeFilterCount > 0 ? `${theme.palette.primary.main}25` : 'action.hover',
+                          }
+                        }}
+                      >
+                        Nhấn bộ lọc tìm kiếm
+                        {activeFilterCount > 0 && (
+                          <Box sx={{
+                            position: 'absolute', top: 4, right: 4,
+                            width: 6, height: 6, bgcolor: 'error.main',
+                            borderRadius: '50%', border: `1px solid ${theme.palette.background.paper}`
+                          }} />
+                        )}
+                      </Button>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 3 }
+              }}
+            />
+            <Button variant="contained" startIcon={<BarChartIcon />} sx={{ borderRadius: 3, px: 3, height: 40 }} onClick={() => alert('Cập nhật báo cáo')}>
+              Cập nhật
+            </Button>
+          </Box>
+
+          {activeFilters.length > 0 && (
+            <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+              {activeFilters.map((f) => (
+                <Chip
+                  key={f.key}
+                  icon={React.cloneElement(f.icon as React.ReactElement<any>, { sx: { fontSize: '14px !important' } })}
+                  label={f.label}
+                  size="small"
+                  variant="outlined"
+                  onDelete={() => handleRemoveFilter(f.key)}
+                  sx={{ borderRadius: 1.5, fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                />
+              ))}
+              <Button
+                variant="text"
+                size="small"
+                onClick={handleClearFilters}
+                sx={{ ml: 0.5, textTransform: 'none', fontWeight: 700, p: 0, height: 24, minWidth: 'auto', fontSize: '0.75rem' }}
+              >
+                Xóa tất cả
+              </Button>
+            </Box>
+          )}
+
+          <Popover
+            id={idOpen} open={isPopoverOpen} anchorEl={anchorEl} onClose={handleClosePopover}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{ sx: { p: 3, width: 500, mt: 1.5, borderRadius: 4 } }}
+          >
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" fontWeight={800} color="primary">Bộ lọc nâng cao</Typography>
+              <Chip label={`Đã chọn ${activeFilters.length}`} size="small" color="primary" sx={{ fontWeight: 700, visibility: activeFilters.length > 0 ? 'visible' : 'hidden' }} />
+            </Box>
+
+            {activeFilters.length > 0 && (
+              <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 1, bgcolor: 'action.hover', borderRadius: 2 }}>
+                {activeFilters.map((f) => (
+                  <Chip
+                    key={f.key}
+                    label={f.label}
+                    size="small"
+                    onDelete={() => handleRemoveFilter(f.key)}
+                    sx={{ borderRadius: 1, height: 22, fontSize: '0.7rem' }}
+                  />
+                ))}
+              </Box>
+            )}
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700}>ĐƠN VỊ</Typography>
+                <TextField select fullWidth size="small" value={filterUnit} onChange={e => setFilterUnit(e.target.value)}>
+                  <MenuItem value="">Tất cả</MenuItem>
+                  <MenuItem value="1">Lữ đoàn 1</MenuItem>
+                  <MenuItem value="2">Lữ đoàn 2</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700}>NHÓM</Typography>
+                <TextField select fullWidth size="small" value={filterGroup} onChange={e => setFilterGroup(e.target.value)}>
+                  <MenuItem value="">Tất cả</MenuItem>
+                  <MenuItem value="1">Thông tin</MenuItem>
+                  <MenuItem value="2">Khí tài</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" fontWeight={700}>TỪ NGÀY</Typography>
+                <TextField type="date" fullWidth size="small" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" fontWeight={700}>ĐẾN NGÀY</Typography>
+                <TextField type="date" fullWidth size="small" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </Grid>
+            </Grid>
+            <Box mt={3} pt={2} borderTop={1} borderColor="divider" display="flex" gap={1} justifyContent="flex-end">
+              <Button size="small" onClick={handleClearFilters}>Đặt lại</Button>
+              <Button size="small" variant="contained" onClick={handleClosePopover}>Áp dụng</Button>
+            </Box>
+          </Popover>
+        </CardContent>
+      </Card>
+
       {/* Tabs */}
-      <Box sx={{ bgcolor: 'background.paper', borderRadius: '8px 8px 0 0' }}>
-        <Tabs
-          value={tab} onChange={(_, v) => setTab(v)}
-          sx={{
-            '& .MuiTab-root': { fontWeight: 600, textTransform: 'none' },
-            '& .Mui-selected': { color: militaryColors.darkBlue },
-            '& .MuiTabs-indicator': { bgcolor: militaryColors.darkBlue },
-            borderBottom: 1, borderColor: 'divider',
-          }}
-        >
-          <Tab label="Thống kê theo loại" />
-          <Tab label="Thống kê theo đơn vị" />
-          <Tab label="Biểu đồ phân bổ" />
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+          <Tab label="Theo loại" sx={{ textTransform: 'none', fontWeight: 700 }} />
+          <Tab label="Theo đơn vị" sx={{ textTransform: 'none', fontWeight: 700 }} />
+          <Tab label="Phân bổ" sx={{ textTransform: 'none', fontWeight: 700 }} />
         </Tabs>
       </Box>
 
-      {/* Nội dung tab */}
-      <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderTop: 0, borderRadius: '0 0 8px 8px', p: 2 }}>
-        {/* Tab 0: Theo loại */}
+      {/* Tab Content */}
+      <Box>
         {tab === 0 && (
           <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Thống kê trang bị theo từng loại
-              </Typography>
+            <Box display="flex" justifyContent="space-between" mb={2}>
+              <Typography variant="subtitle1" fontWeight={700}>Thống kê theo chủng loại</Typography>
               <Box display="flex" gap={1}>
-                <Button
-                  size="small" variant={view === 'chart' ? 'contained' : 'outlined'}
-                  startIcon={<BarChartIcon />}
-                  onClick={() => setView('chart')}
-                  sx={{ textTransform: 'none', ...(view === 'chart' ? { bgcolor: militaryColors.darkBlue } : {}) }}
-                >
-                  Biểu đồ
-                </Button>
-                <Button
-                  size="small" variant={view === 'table' ? 'contained' : 'outlined'}
-                  startIcon={<TableChartIcon />}
-                  onClick={() => setView('table')}
-                  sx={{ textTransform: 'none', ...(view === 'table' ? { bgcolor: militaryColors.darkBlue } : {}) }}
-                >
-                  Bảng
-                </Button>
+                <IconButton size="small" onClick={() => setView('chart')} color={view === 'chart' ? "primary" : "default"}><BarChartIcon /></IconButton>
+                <IconButton size="small" onClick={() => setView('table')} color={view === 'table' ? "primary" : "default"}><TableChartIcon /></IconButton>
               </Box>
             </Box>
             {view === 'chart' ? (
-              <Grid container spacing={2}>
+              <Grid container spacing={4}>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2" fontWeight={600} mb={1} color="text.secondary">Số lượng trang bị theo loại</Typography>
-                  <SimpleBar
-                    rows={thongKeTheoLoai.map((r, i) => ({
-                      label: r.loai,
-                      value: r.soLuong,
-                      max:   maxSL,
-                      color: BAR_COLORS[i % BAR_COLORS.length],
-                    }))}
-                  />
+                  <Typography variant="body2" fontWeight={700} mb={1}>Số lượng trang bị</Typography>
+                  <SimpleBar rows={thongKeTheoLoai.map((r, i) => ({ label: r.loai, value: r.soLuong, max: maxSL, color: BAR_COLORS[i % BAR_COLORS.length] }))} />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2" fontWeight={600} mb={1} color="text.secondary">Tỷ lệ hoạt động theo loại (%)</Typography>
-                  <SimpleBar
-                    unit="%"
-                    rows={thongKeTheoLoai.map((r, i) => ({
-                      label: r.loai,
-                      value: Math.round((r.hoatDong / r.soLuong) * 100),
-                      max:   100,
-                      color: militaryColors.success,
-                    }))}
-                  />
+                  <Typography variant="body2" fontWeight={700} mb={1}>Tỷ lệ hoạt động (%)</Typography>
+                  <SimpleBar unit="%" rows={thongKeTheoLoai.map(r => ({ label: r.loai, value: Math.round((r.hoatDong / r.soLuong) * 100), max: 100, color: militaryColors.success }))} />
                 </Grid>
               </Grid>
             ) : (
-              <Box sx={{ height: 450 }}>
+              <Box
+                sx={{
+                  height: {
+                    xs: 400,
+                    sm: 450,
+                    md: 'calc(100vh - 450px)',
+                  },
+                  minHeight: 350,
+                  width: '100%',
+                  bgcolor: 'background.paper',
+                  borderRadius: 0,
+                  boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.05)',
+                  overflow: 'hidden',
+                  border: `1px solid ${theme.palette.divider}`,
+                }}
+              >
                 <DataGrid
-                  rows={loaiRows} columns={colsLoai} getRowId={r => r.id}
-                  pageSizeOptions={[10, 25]} disableRowSelectionOnClick
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
-                  sx={{
-                    borderRadius: 2,
-                    '& .MuiDataGrid-columnHeaders': { bgcolor: militaryColors.darkBlue, color: '#fff', fontWeight: 700 },
-                  }}
+                  rows={loaiRows}
+                  columns={colsLoai}
+                  getRowId={r => r.id}
+                // density, rowHeight, columnHeaderHeight được lấy từ theme.ts
                 />
               </Box>
             )}
           </Box>
         )}
 
-        {/* Tab 1: Theo đơn vị */}
         {tab === 1 && (
           <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Thống kê trang bị theo đơn vị
-              </Typography>
+            <Box display="flex" justifyContent="space-between" mb={2}>
+              <Typography variant="subtitle1" fontWeight={700}>Thống kê theo đơn vị</Typography>
               <Box display="flex" gap={1}>
-                <Button size="small" variant={view === 'chart' ? 'contained' : 'outlined'} startIcon={<BarChartIcon />}
-                  onClick={() => setView('chart')}
-                  sx={{ textTransform: 'none', ...(view === 'chart' ? { bgcolor: militaryColors.darkBlue } : {}) }}
-                >Biểu đồ</Button>
-                <Button size="small" variant={view === 'table' ? 'contained' : 'outlined'} startIcon={<TableChartIcon />}
-                  onClick={() => setView('table')}
-                  sx={{ textTransform: 'none', ...(view === 'table' ? { bgcolor: militaryColors.darkBlue } : {}) }}
-                >Bảng</Button>
+                <IconButton size="small" onClick={() => setView('chart')} color={view === 'chart' ? "primary" : "default"}><BarChartIcon /></IconButton>
+                <IconButton size="small" onClick={() => setView('table')} color={view === 'table' ? "primary" : "default"}><TableChartIcon /></IconButton>
               </Box>
             </Box>
             {view === 'chart' ? (
-              <Grid container spacing={2}>
+              <Grid container spacing={4}>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2" fontWeight={600} mb={1} color="text.secondary">Số lượng trang bị theo đơn vị</Typography>
-                  <SimpleBar
-                    rows={thongKeTheoDonVi.map((r, i) => ({
-                      label: r.donVi,
-                      value: r.soLuong,
-                      max:   maxDV,
-                      color: BAR_COLORS[i % BAR_COLORS.length],
-                    }))}
-                  />
+                  <Typography variant="body2" fontWeight={700} mb={1}>Số lượng trang bị</Typography>
+                  <SimpleBar rows={thongKeTheoDonVi.map((r, i) => ({ label: r.donVi, value: r.soLuong, max: maxDV, color: BAR_COLORS[i % BAR_COLORS.length] }))} />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2" fontWeight={600} mb={1} color="text.secondary">Tỷ lệ hoạt động theo đơn vị (%)</Typography>
-                  <SimpleBar
-                    unit="%"
-                    rows={thongKeTheoDonVi.map((r, i) => {
-                      const pct = Math.round(r.tyLeHD * 100);
-                      const color = pct >= 80 ? militaryColors.success : pct >= 60 ? militaryColors.warning : militaryColors.error;
-                      return { label: r.donVi, value: pct, max: 100, color };
-                    })}
-                  />
+                  <Typography variant="body2" fontWeight={700} mb={1}>Tỷ lệ hoạt động (%)</Typography>
+                  <SimpleBar unit="%" rows={thongKeTheoDonVi.map(r => ({ label: r.donVi, value: Math.round(r.tyLeHD * 100), max: 100, color: militaryColors.success }))} />
                 </Grid>
               </Grid>
             ) : (
-              <Box sx={{ height: 450 }}>
+              <Box
+                sx={{
+                  height: {
+                    xs: 400,
+                    sm: 450,
+                    md: 'calc(100vh - 450px)',
+                  },
+                  minHeight: 350,
+                  width: '100%',
+                  bgcolor: 'background.paper',
+                  borderRadius: 0,
+                  boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.05)',
+                  overflow: 'hidden',
+                  border: `1px solid ${theme.palette.divider}`,
+                }}
+              >
                 <DataGrid
-                  rows={dvRows} columns={colsDonVi} getRowId={r => r.id}
-                  pageSizeOptions={[10, 25]} disableRowSelectionOnClick
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
-                  sx={{
-                    borderRadius: 2,
-                    '& .MuiDataGrid-columnHeaders': { bgcolor: militaryColors.darkBlue, color: '#fff', fontWeight: 700 },
-                  }}
+                  rows={dvRows}
+                  columns={colsDonVi}
+                  getRowId={r => r.id}
+                // density, rowHeight, columnHeaderHeight được lấy từ theme.ts
                 />
               </Box>
             )}
           </Box>
         )}
 
-        {/* Tab 2: Biểu đồ phân bổ */}
         {tab === 2 && (
-          <Box>
-            <Typography variant="subtitle1" fontWeight={700} mb={2}>
-              Biểu đồ phân bổ trang bị theo khối đơn vị
-            </Typography>
-            <Box sx={{ height: 420 }}>
-              <ResponsivePie
-                data={pieData}
-                margin={{ top: 30, right: 180, bottom: 30, left: 30 }}
-                innerRadius={0.5}
-                padAngle={1.5}
-                cornerRadius={4}
-                activeOuterRadiusOffset={8}
-                colors={{ datum: 'data.color' }}
-                borderWidth={1}
-                borderColor={{ from: 'color', modifiers: [['darker', 0.4]] }}
-                arcLinkLabelsSkipAngle={8}
-                arcLinkLabelsTextColor={isDark ? '#e0e0e0' : '#333333'}
-                arcLinkLabelsThickness={2}
-                arcLinkLabelsColor={{ from: 'color' }}
-                arcLabelsSkipAngle={12}
-                arcLabelsTextColor={{ from: 'color', modifiers: [['darker', 2.5]] }}
-                legends={[{
-                  anchor: 'right', direction: 'column',
-                  justify: false, translateX: 170, translateY: 0,
-                  itemsSpacing: 4, itemWidth: 160, itemHeight: 20,
-                  itemTextColor: isDark ? '#ccc' : '#444',
-                  itemDirection: 'left-to-right',
-                  symbolSize: 12, symbolShape: 'circle',
-                }]}
-                theme={{
-                  tooltip: {
-                    container: {
-                      background: isDark ? '#1B263B' : '#fff',
-                      color: isDark ? '#e0e0e0' : '#333',
-                      fontSize: 12, borderRadius: 6,
-                    },
-                  },
-                }}
-              />
-            </Box>
+          <Box sx={{ height: 450 }}>
+            <Typography variant="subtitle1" fontWeight={700} mb={2}>Biểu đồ phân bổ</Typography>
+            <ResponsivePie
+              data={pieData}
+              margin={{ top: 20, right: 150, bottom: 20, left: 20 }}
+              innerRadius={0.5} padAngle={1} cornerRadius={4}
+              colors={{ datum: 'data.color' }}
+              legends={[{
+                anchor: 'right', direction: 'column', translateX: 140, itemWidth: 130, itemHeight: 18, symbolSize: 12
+              }]}
+            />
           </Box>
         )}
       </Box>

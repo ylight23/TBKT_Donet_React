@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────
 export {
   // Palette scales
-  militaryDarkBlue,
+  armyOlive,
   deepArmyGreen,
   tacticalNavy,
   steelGray,
@@ -163,32 +163,32 @@ type StatusKey =
 
 /** Map trạng thái → MUI Chip color */
 export const statusChipColor: Record<StatusKey, ChipProps['color']> = {
-  'Hoạt động tốt':    'success',
-  'Đang bảo trì':     'warning',
-  'Hỏng / Nguy cấp':  'error',
-  'Dự phòng':         'default',
-  'Niêm cất':         'info',
-  'Đang sửa chữa':    'warning',
-  'Đang niêm cất':    'info',
+  'Hoạt động tốt': 'success',
+  'Đang bảo trì': 'warning',
+  'Hỏng / Nguy cấp': 'error',
+  'Dự phòng': 'default',
+  'Niêm cất': 'info',
+  'Đang sửa chữa': 'warning',
+  'Đang niêm cất': 'info',
   'Kiểm tra định kỳ': 'warning',
-  'Đã xuất kho':      'success',
-  'Loại biên':        'default',
-  'Thanh lý':         'default',
+  'Đã xuất kho': 'success',
+  'Loại biên': 'default',
+  'Thanh lý': 'default',
 };
 
 /** Map trạng thái → custom HEX (dùng khi cần màu chính xác hơn MUI palette) */
 export const statusHexColor: Record<string, string> = {
-  'Hoạt động tốt':    '#2E7D32',
-  'Đang bảo trì':     '#E65100',
-  'Hỏng / Nguy cấp':  '#B71C1C',
-  'Dự phòng':         '#37474F',
-  'Niêm cất':         '#2E69AC',
-  'Đang sửa chữa':    '#ED6C02',
-  'Đang niêm cất':    '#2E69AC',
+  'Hoạt động tốt': '#2E7D32',
+  'Đang bảo trì': '#E65100',
+  'Hỏng / Nguy cấp': '#B71C1C',
+  'Dự phòng': '#37474F',
+  'Niêm cất': '#2E69AC',
+  'Đang sửa chữa': '#ED6C02',
+  'Đang niêm cất': '#2E69AC',
   'Kiểm tra định kỳ': '#ED6C02',
-  'Đã xuất kho':      '#2E7D32',
-  'Loại biên':        '#757575',
-  'Thanh lý':         '#757575',
+  'Đã xuất kho': '#2E7D32',
+  'Loại biên': '#757575',
+  'Thanh lý': '#757575',
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -212,9 +212,9 @@ export const chartPalette = [
 /** Chart màu cho status bars (thứ tự: OK, repair, broken, standby) */
 export const chartStatusPalette = {
   operational: '#3D8F4E',
-  repairing:   '#C9A84C',
-  critical:    '#B71C1C',
-  standby:     '#415A77',
+  repairing: '#C9A84C',
+  critical: '#B71C1C',
+  standby: '#415A77',
   maintenance: '#E65100',
 } as const;
 
@@ -224,36 +224,36 @@ export const chartStatusPalette = {
 
 export const sidebarTokens = {
   // Background
-  bg:             '#060F18',
-  bgItem:         'transparent',
-  bgItemHover:    'rgba(65, 90, 119, 0.15)',     // 30% navy faint
-  bgItemActive:   'rgba(201, 168, 76, 0.12)',    // 10% gold faint
+  bg: '#060F18',
+  bgItem: 'transparent',
+  bgItemHover: 'rgba(65, 90, 119, 0.15)',     // 30% navy faint
+  bgItemActive: 'rgba(201, 168, 76, 0.12)',    // 10% gold faint
 
   // Text
-  textColor:      'rgba(214, 224, 237, 0.85)',   // trắng dịu
-  textColorActive:'#D9A832',                     // gold active
+  textColor: 'rgba(214, 224, 237, 0.85)',   // trắng dịu
+  textColorActive: '#D9A832',                     // gold active
 
   // Icon
-  iconColor:      'rgba(143, 168, 192, 0.8)',
-  iconColorActive:'#D9A832',
+  iconColor: 'rgba(143, 168, 192, 0.8)',
+  iconColorActive: '#D9A832',
 
   // Border / divider
-  borderColor:    '#1E3248',
-  dividerColor:   '#1E3248',
+  borderColor: '#1E3248',
+  dividerColor: '#1E3248',
 
   // Active indicator bar (left edge)
-  activeBar:      '#C9A84C',
+  activeBar: '#C9A84C',
   activeBarWidth: '3px',
 
   // SubMenu
-  subMenuBg:      '#060F18',
-  subMenuIndent:  '16px',
+  subMenuBg: '#060F18',
+  subMenuIndent: '16px',
 
   // Dimensions
-  widthExpanded:  '260px',
+  widthExpanded: '260px',
   widthCollapsed: '64px',
-  itemHeight:     '44px',
-  iconSize:       '20px',
+  itemHeight: '44px',
+  iconSize: '20px',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────
@@ -261,14 +261,14 @@ export const sidebarTokens = {
 // ─────────────────────────────────────────────────────────────────────
 
 export const topbarTokens = {
-  bg:           '#0D1B2A',
-  border:       '#1E3248',
-  height:       '56px',
-  textColor:    '#D6E0ED',
-  iconColor:    '#8FA8C0',
-  iconHover:    '#D9A832',
-  badgeBg:      '#B71C1C',
-  badgeText:    '#FFFFFF',
+  bg: '#0D1B2A',
+  border: '#1E3248',
+  height: '56px',
+  textColor: '#D6E0ED',
+  iconColor: '#8FA8C0',
+  iconHover: '#D9A832',
+  badgeBg: '#B71C1C',
+  badgeText: '#FFFFFF',
   shadowBottom: '0 1px 8px rgba(0,0,0,0.30)',
 } as const;
 
@@ -277,17 +277,17 @@ export const topbarTokens = {
 // ─────────────────────────────────────────────────────────────────────
 
 export const cardTokens = {
-  bg:             '#112233',
-  border:         '#1E3248',
-  borderRadius:   '10px',
-  shadow:         '0 2px 8px rgba(0,0,0,0.40)',
-  headerBg:       '#0D1B2A',
-  headerText:     '#D6E0ED',
+  bg: '#112233',
+  border: '#1E3248',
+  borderRadius: '10px',
+  shadow: '0 2px 8px rgba(0,0,0,0.40)',
+  headerBg: '#0D1B2A',
+  headerText: '#D6E0ED',
   // Stat card border-top colors (theo loại chỉ số)
   accentOperational: '#2E7D32',
-  accentRepairing:   '#ED6C02',
-  accentCritical:    '#B71C1C',
-  accentStandby:     '#415A77',
-  accentPrimary:     '#0D1B2A',
-  accentGold:        '#C9A84C',
+  accentRepairing: '#ED6C02',
+  accentCritical: '#B71C1C',
+  accentStandby: '#415A77',
+  accentPrimary: '#0D1B2A',
+  accentGold: '#C9A84C',
 } as const;

@@ -1,8 +1,8 @@
 // ============================================================
 // Dashboard – Bảng điều hành
-// Hệ thống Quản lý Trang bị Kỹ thuật Thông tin
+// Hệ tokens Quản lý Trang bị Kỹ thuật Thông tin
 // ============================================================
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/GridLegacy';
 import Card from '@mui/material/Card';
@@ -10,6 +10,14 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import Popover from '@mui/material/Popover';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
 import { useTheme } from '@mui/material/styles';
 import { ResponsivePie } from '@nivo/pie';
 
@@ -21,6 +29,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PercentIcon from '@mui/icons-material/Percent';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import SearchIcon from '@mui/icons-material/Search';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import BusinessIcon from '@mui/icons-material/Business';
+import ClearIcon from '@mui/icons-material/Clear';
 
 import {
   dashboardStats,
@@ -94,7 +107,6 @@ const NienHanBarChart: React.FC = () => {
   return (
     <Box sx={{ height: 270, display: 'flex', alignItems: 'flex-end', gap: 1.5, pt: 2, pb: 1 }}>
       {nienHanNamData.map(item => {
-        // sqrt scale: giữ sự tương đối nhưng rút khoảng cách giữa cột lớn/nhỏ
         const ratio = Math.sqrt(item.soLuong / max);
         const h = Math.max(ratio * BAR_MAX, 22);
         const hHet = Math.max((item.hetNienHan / item.soLuong) * h, 0);
@@ -106,11 +118,9 @@ const NienHanBarChart: React.FC = () => {
             arrow
           >
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, cursor: 'pointer' }}>
-              {/* Số trên đầu cột */}
               <Typography variant="caption" fontWeight={700} fontSize={10} color="text.primary">
                 {item.soLuong}
               </Typography>
-
               <Box
                 sx={{
                   width: '72%',
@@ -122,7 +132,6 @@ const NienHanBarChart: React.FC = () => {
                   '&:hover': { opacity: 0.8 },
                 }}
               >
-                {/* Phần đỏ = hết niên hạn */}
                 {hHet > 0 && (
                   <Box
                     sx={{
@@ -132,7 +141,6 @@ const NienHanBarChart: React.FC = () => {
                     }}
                   />
                 )}
-                {/* % hết niên hạn bên trong cột — chỉ khi cột đủ cao */}
                 {h > 44 && pctHet > 0 && (
                   <Typography
                     variant="caption"
@@ -149,7 +157,6 @@ const NienHanBarChart: React.FC = () => {
                   </Typography>
                 )}
               </Box>
-
               <Typography variant="caption" color="text.secondary" fontWeight={600} fontSize={10}>
                 {item.nam}
               </Typography>
@@ -174,13 +181,10 @@ const TongSoLuongChart: React.FC = () => {
     { key: 'thanhLy' as const, label: 'Đã thanh lý', color: isDark ? '#EF9A9A' : '#d32f2f' },
   ];
 
-  // Thân cột: tṿ lệ thực nhưng khóa tối thiểu 18%
-  // → khi chênh lệch lớn (ví dụ 8 vs 45) thanh nhỏ vẫn thấy rõ
   const clampedPct = (total: number) => 18 + (total / maxVal) * 82;
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Chú giải */}
       <Box display="flex" gap={2.5} mb={2} flexWrap="wrap">
         {segments.map(s => (
           <Box key={s.key} display="flex" alignItems="center" gap={0.5}>
@@ -190,15 +194,12 @@ const TongSoLuongChart: React.FC = () => {
         ))}
       </Box>
 
-      {/* Các hàng */}
       {thongKeTheoLoai.map(row => {
         const total = row.soLuong;
         const pct = clampedPct(total);
         return (
           <Box key={row.loai} sx={{ mb: 1.4 }}>
             <Box display="flex" alignItems="center" gap={1}>
-
-              {/* Nhãn — tooltip khi bị cắt */}
               <Tooltip title={row.loai} placement="left" enterDelay={400}>
                 <Typography
                   variant="caption"
@@ -208,14 +209,11 @@ const TongSoLuongChart: React.FC = () => {
                   {row.loai}
                 </Typography>
               </Tooltip>
-
-              {/* Track */}
               <Tooltip
                 title={`Tổng: ${total} — Hoạt động: ${row.hoatDong} | SC: ${row.suaChua} | Niêm cất: ${row.niemCat} | Thanh lý: ${row.thanhLy}`}
                 arrow
               >
                 <Box sx={{ flex: 1, height: 24, bgcolor: 'action.hover', borderRadius: 1, overflow: 'hidden', position: 'relative', cursor: 'pointer' }}>
-                  {/* Phần tô màu — rộng = clampedPct, nội dung là segments */}
                   <Box
                     sx={{
                       width: `${pct}%`,
@@ -230,8 +228,8 @@ const TongSoLuongChart: React.FC = () => {
                         <Box
                           key={s.key}
                           sx={{
-                            flex: val,          // tỷ lệ thực giữa các segment
-                            minWidth: '4px',        // segment rất nhỏ vẫn thấy
+                            flex: val,
+                            minWidth: '4px',
                             height: '100%',
                             bgcolor: s.color,
                             transition: 'opacity 0.2s',
@@ -241,7 +239,6 @@ const TongSoLuongChart: React.FC = () => {
                       ) : null;
                     })}
                   </Box>
-                  {/* Số % trong thanh (hiển khi thanh đủ rộng) */}
                   {pct >= 35 && (
                     <Typography
                       variant="caption"
@@ -262,8 +259,6 @@ const TongSoLuongChart: React.FC = () => {
                   )}
                 </Box>
               </Tooltip>
-
-              {/* Tổng số — badge nổi bật */}
               <Box
                 sx={{
                   minWidth: 36,
@@ -276,7 +271,6 @@ const TongSoLuongChart: React.FC = () => {
               >
                 {total}
               </Box>
-
             </Box>
           </Box>
         );
@@ -285,7 +279,6 @@ const TongSoLuongChart: React.FC = () => {
   );
 };
 
-// ── Màu biểu đồ tròn — 2 bộ: light (tối) và dark (sáng) ────────
 const PIE_COLORS_LIGHT = [
   '#0D1B2A', '#1B263B', '#415A77', '#778DA9',
   '#C9A84C', '#2e7d32', '#ed6c02', '#d32f2f',
@@ -361,21 +354,267 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [searchVal, setSearchVal] = useState('');
+  const [unitFilter, setUnitFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const [reportDate, setReportDate] = useState('');
+
+  const handleOpenPopover = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClosePopover = () => {
+    setAnchorEl(null);
+  };
+
+  const isPopoverOpen = Boolean(anchorEl);
+  const popoverId = isPopoverOpen ? 'dashboard-filter-popover' : undefined;
+
+  const activeFilters = useMemo(() => {
+    const chips = [];
+    if (unitFilter) {
+      const units: Record<string, string> = { '1': 'Quân đoàn 1', '2': 'Quân đoàn 2', '3': 'Quân khu 1' };
+      chips.push({ key: 'unit', label: `Đơn vị: ${units[unitFilter] || unitFilter}`, icon: <BusinessIcon /> });
+    }
+    if (groupFilter !== 'all') {
+      const groups: Record<string, string> = { 'n1': 'Nhóm 1 (Thông tin)', 'n2': 'Nhóm 2 (Khí tài)' };
+      chips.push({ key: 'group', label: `Nhóm: ${groups[groupFilter] || groupFilter}`, icon: <ComputerIcon /> });
+    }
+    if (reportDate) {
+      chips.push({ key: 'date', label: `Ngày: ${reportDate}`, icon: <CalendarTodayIcon /> });
+    }
+    return chips;
+  }, [unitFilter, groupFilter, reportDate]);
+
+  const handleRemoveFilter = (key: string) => {
+    if (key === 'unit') setUnitFilter('');
+    if (key === 'group') setGroupFilter('all');
+    if (key === 'date') setReportDate('');
+  };
+
+  const handleResetFilters = () => {
+    setUnitFilter('');
+    setGroupFilter('all');
+    setReportDate('');
+    setSearchVal('');
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Tiêu đề */}
-      <Box mb={3}>
-        <Typography variant="h4" fontWeight={700} color="text.primary">
-          BẢNG ĐIỀU HÀNH
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Tổng hợp tình trạng trang bị kỹ thuật thông tin – Tổng cục Hậu cần Kỹ thuật
-        </Typography>
-        <Divider sx={{ mt: 1.5 }} />
+      <Box mb={4} display="flex" justifyContent="space-between" alignItems="center">
+        <Box>
+          <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
+            BẢNG ĐIỀU HÀNH
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Giám sát trạng thái trang bị kỹ thuật thông tin toàn quân thời gian thực
+          </Typography>
+        </Box>
       </Box>
 
-      {/* ── 7 thẻ thống kê ────────────────────────────────── */}
-      <Grid container spacing={2} mb={3}>
+      {/* Filter Panel */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 4,
+          borderRadius: 4,
+          border: `1px solid ${theme.palette.divider}`,
+          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#ffffff',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:hover': {
+            borderColor: theme.palette.primary.light,
+            boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.06)',
+          }
+        }}
+      >
+        <CardContent sx={{ p: '12px 16px !important' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Tìm kiếm nhanh thông tin, trạng thái, đơn vị..."
+              autoComplete="off"
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      {searchVal && (
+                        <IconButton size="small" onClick={() => setSearchVal('')}>
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 20 }} />
+                      <Tooltip title="Lọc dữ liệu">
+                        <Button
+                          size="small"
+                          onClick={handleOpenPopover}
+                          variant="text"
+                          color={activeFilters.length > 0 ? "primary" : "inherit"}
+                          startIcon={<FilterAltIcon fontSize="small" />}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            borderRadius: 2,
+                            px: 1.5,
+                            minWidth: 'auto',
+                            position: 'relative',
+                            bgcolor: activeFilters.length > 0 ? `${theme.palette.primary.main}15` : 'transparent',
+                            '&:hover': {
+                              bgcolor: activeFilters.length > 0 ? `${theme.palette.primary.main}25` : 'action.hover',
+                            }
+                          }}
+                        >
+                          Bộ lọc
+                          {activeFilters.length > 0 && (
+                            <Box sx={{
+                              position: 'absolute', top: 4, right: 4,
+                              width: 6, height: 6, bgcolor: 'error.main',
+                              borderRadius: '50%', border: `1px solid ${theme.palette.background.paper}`
+                            }} />
+                          )}
+                        </Button>
+                      </Tooltip>
+                    </Stack>
+                  </InputAdornment>
+                )
+              }}
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 3,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
+                  '& fieldset': { borderColor: 'transparent' },
+                  '&:hover fieldset': { borderColor: theme.palette.primary.light },
+                  transition: 'all 0.2s',
+                }
+              }}
+            />
+
+            <Button
+              variant="contained"
+              startIcon={<SearchIcon />}
+              sx={{
+                borderRadius: 3, px: 3, height: 40,
+                textTransform: 'none', fontWeight: 700,
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}44`
+              }}
+            >
+              Cập nhật
+            </Button>
+          </Box>
+
+          {activeFilters.length > 0 && (
+            <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+              {activeFilters.map((f) => (
+                <Chip
+                  key={f.key}
+                  icon={React.cloneElement(f.icon as React.ReactElement<any>, { sx: { fontSize: '14px !important' } })}
+                  label={f.label}
+                  size="small"
+                  variant="outlined"
+                  onDelete={() => handleRemoveFilter(f.key)}
+                  sx={{ borderRadius: 1.5, fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                />
+              ))}
+              <Button
+                variant="text"
+                size="small"
+                onClick={handleResetFilters}
+                sx={{ ml: 0.5, textTransform: 'none', fontWeight: 700, p: 0, height: 24, minWidth: 'auto', fontSize: '0.75rem' }}
+              >
+                Xóa tất cả
+              </Button>
+            </Box>
+          )}
+
+          <Popover
+            id={popoverId}
+            open={isPopoverOpen}
+            anchorEl={anchorEl}
+            onClose={handleClosePopover}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{
+              sx: {
+                mt: 1.5, p: 3, width: 500, borderRadius: 4,
+                boxShadow: theme.palette.mode === 'dark' ? '0 16px 48px rgba(0,0,0,0.7)' : '0 16px 48px rgba(0,0,0,0.15)',
+                border: `1px solid ${theme.palette.divider}`,
+                overflow: 'visible',
+                '&:before': {
+                  content: '""', position: 'absolute', top: 0, right: 24,
+                  width: 12, height: 12, bgcolor: 'background.paper',
+                  transform: 'translateY(-50%) rotate(45deg)',
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  borderLeft: `1px solid ${theme.palette.divider}`,
+                }
+              }
+            }}
+          >
+            <Box sx={{ mb: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" fontWeight={800} color="primary">Nhấn bộ lọc tìm kiếm</Typography>
+              <Chip label={`Đã chọn ${activeFilters.length}`} size="small" color="primary" sx={{ fontWeight: 700, visibility: activeFilters.length > 0 ? 'visible' : 'hidden' }} />
+            </Box>
+
+            {activeFilters.length > 0 && (
+              <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 1, bgcolor: 'action.hover', borderRadius: 2 }}>
+                {activeFilters.map((f) => (
+                  <Chip
+                    key={f.key}
+                    label={f.label}
+                    size="small"
+                    onDelete={() => handleRemoveFilter(f.key)}
+                    sx={{ borderRadius: 1, height: 22, fontSize: '0.7rem' }}
+                  />
+                ))}
+              </Box>
+            )}
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>ĐƠN VỊ</Typography>
+                <TextField select fullWidth size="small" value={unitFilter} onChange={e => setUnitFilter(e.target.value)}>
+                  <MenuItem value="">Tất cả</MenuItem>
+                  <MenuItem value="1">Quân đoàn 1</MenuItem>
+                  <MenuItem value="2">Quân đoàn 2</MenuItem>
+                  <MenuItem value="3">Quân khu 1</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NHÓM</Typography>
+                <TextField select fullWidth size="small" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
+                  <MenuItem value="all">Tất cả</MenuItem>
+                  <MenuItem value="n1">Nhóm 1 (Thông tin)</MenuItem>
+                  <MenuItem value="n2">Nhóm 2 (Khí tài)</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NGÀY BÁO CÁO</Typography>
+                <TextField type="date" fullWidth size="small" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+              </Grid>
+            </Grid>
+
+            <Box sx={{ mt: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Button size="small" onClick={handleResetFilters}>Đặt lại</Button>
+              <Button size="small" variant="contained" onClick={handleClosePopover}>Áp dụng</Button>
+            </Box>
+          </Popover>
+        </CardContent>
+      </Card>
+
+      <Divider sx={{ mb: 4 }} />
+
+      {/* Stat Cards */}
+      <Grid container spacing={2} mb={4}>
         {statCards.map((card, idx) => (
           <Grid item xs={12} sm={6} md={4} lg key={idx}>
             <StatCard {...card} />
@@ -383,105 +622,55 @@ const Dashboard: React.FC = () => {
         ))}
       </Grid>
 
-      {/* ── Hai biểu đồ ──────────────────────────────────── */}
-      <Grid container spacing={2}>
-        {/* Biểu đồ phân vùng theo đơn vị (Pie) */}
+      {/* Charts */}
+      <Grid container spacing={3}>
         <Grid item xs={12} lg={7}>
           <Card elevation={3} sx={{ borderRadius: 2, height: 460 }}>
-            <CardContent sx={{ height: '100%', pb: '16px !important' }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>
-                Phân bổ trang bị theo khối đơn vị
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Thống kê số lượng trang bị kỹ thuật trên toàn quân
-              </Typography>
-              <Box sx={{ height: 390, mt: 1 }}>
+            <CardContent sx={{ height: '100%' }}>
+              <Typography variant="h6" fontWeight={700} gutterBottom>Phân bổ theo đơn vị</Typography>
+              <Box sx={{ height: 380 }}>
                 <ResponsivePie
                   data={pieData}
                   margin={{ top: 20, right: 150, bottom: 20, left: 20 }}
                   innerRadius={0.45}
                   padAngle={1.5}
                   cornerRadius={4}
-                  activeOuterRadiusOffset={8}
                   colors={{ datum: 'data.color' }}
-                  borderWidth={1}
-                  borderColor={{ from: 'color', modifiers: [['darker', 0.4]] }}
-                  arcLinkLabelsSkipAngle={10}
                   arcLinkLabelsTextColor={isDark ? '#e0e0e0' : '#333333'}
-                  arcLinkLabelsThickness={2}
-                  arcLinkLabelsColor={{ from: 'color' }}
-                  arcLabelsSkipAngle={14}
-                  arcLabelsTextColor={{ from: 'color', modifiers: [['darker', 2.5]] }}
-                  legends={[
-                    {
-                      anchor: 'right',
-                      direction: 'column',
-                      justify: false,
-                      translateX: 140,
-                      translateY: 0,
-                      itemsSpacing: 4,
-                      itemWidth: 130,
-                      itemHeight: 18,
-                      itemTextColor: isDark ? '#ccc' : '#444',
-                      itemDirection: 'left-to-right',
-                      symbolSize: 12,
-                      symbolShape: 'circle',
-                    },
-                  ]}
-                  theme={{
-                    tooltip: {
-                      container: {
-                        background: isDark ? '#1B263B' : '#fff',
-                        color: isDark ? '#e0e0e0' : '#333',
-                        fontSize: 12,
-                        borderRadius: 6,
-                      },
-                    },
-                  }}
+                  legends={[{
+                    anchor: 'right', direction: 'column',
+                    translateX: 140, itemWidth: 130, itemHeight: 18,
+                    itemTextColor: isDark ? '#ccc' : '#444', symbolSize: 12, symbolShape: 'circle'
+                  }]}
                 />
               </Box>
             </CardContent>
           </Card>
         </Grid>
-
-        {/* Biểu đồ Niên hạn theo năm (Bar tự vẽ) */}
         <Grid item xs={12} lg={5}>
           <Card elevation={3} sx={{ borderRadius: 2, height: 460 }}>
-            <CardContent sx={{ height: '100%', pb: '16px !important' }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>
-                Niên hạn trang bị theo năm sản xuất
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Trang bị sắp hết / đã hết niên hạn (màu đỏ = hết niên hạn)
-              </Typography>
-              {/* Chú giải */}
-              <Box display="flex" gap={2} mt={1}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={700} gutterBottom>Niên hạn sản xuất</Typography>
+              <NienHanBarChart />
+              <Box display="flex" gap={2} mt={2}>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <Box sx={{ width: 12, height: 12, bgcolor: militaryColors.navy, borderRadius: '2px' }} />
-                  <Typography variant="caption">Tổng trang bị</Typography>
+                  <Typography variant="caption">Tổng</Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <Box sx={{ width: 12, height: 12, bgcolor: militaryColors.error, borderRadius: '2px' }} />
-                  <Typography variant="caption">Hết niên hạn</Typography>
+                  <Typography variant="caption">Hết hạn</Typography>
                 </Box>
               </Box>
-              <NienHanBarChart />
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* ── Biểu đồ tổng số lượng trang bị theo loại ─────── */}
-      <Box mt={2}>
+      <Box mt={3}>
         <Card elevation={3} sx={{ borderRadius: 2 }}>
           <CardContent>
-            <Typography variant="h6" fontWeight={700} gutterBottom color="text.primary">
-              Tổng số lượng trang bị theo loại
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Phân bổ trạng thái từng chủng loại trang bị kỹ thuật thông tin
-            </Typography>
-            <Divider sx={{ my: 1.5 }} />
+            <Typography variant="h6" fontWeight={700} gutterBottom>Tổng số lượng theo loại</Typography>
             <TongSoLuongChart />
           </CardContent>
         </Card>

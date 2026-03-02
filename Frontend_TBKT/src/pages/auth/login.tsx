@@ -144,7 +144,7 @@ const Login: React.FC = () => {
                     width: '300px',
                     height: '300px',
                     borderRadius: '50%',
-                    background: colors.blueAccent[500],
+                    background: colors.forestAccent[500],
                     filter: 'blur(100px)',
                     opacity: 0.2,
                     top: '-50px',
@@ -190,12 +190,12 @@ const Login: React.FC = () => {
                             width: 80,
                             height: 80,
                             borderRadius: '24px',
-                            background: `linear-gradient(135deg, ${colors.blueAccent[600]} 0%, ${colors.greenAccent[500]} 100%)`,
+                            background: `linear-gradient(135deg, ${colors.forestAccent[600]} 0%, ${colors.greenAccent[500]} 100%)`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             mb: 4,
-                            boxShadow: `0 10px 20px -5px ${colors.blueAccent[500]}`
+                            boxShadow: `0 10px 20px -5px ${colors.forestAccent[500]}`
                         }}
                     >
                         <LockOpenIcon sx={{ fontSize: 40, color: '#fff' }} />
@@ -221,13 +221,13 @@ const Login: React.FC = () => {
                             fontWeight: '700',
                             textTransform: 'none',
                             borderRadius: 2,
-                            background: `linear-gradient(to right, ${colors.blueAccent[600]}, ${colors.blueAccent[500]})`,
-                            boxShadow: `0 4px 14px 0 ${colors.blueAccent[500]}66`,
+                            background: `linear-gradient(to right, ${colors.forestAccent[600]}, ${colors.forestAccent[500]})`,
+                            boxShadow: `0 4px 14px 0 ${colors.forestAccent[500]}66`,
                             transition: 'all 0.3s ease',
                             '&:hover': {
                                 transform: 'translateY(-2px)',
                                 boxShadow: `0 6px 20px rgba(0, 0, 0, 0.23)`,
-                                background: `linear-gradient(to right, ${colors.blueAccent[700]}, ${colors.blueAccent[600]})`,
+                                background: `linear-gradient(to right, ${colors.forestAccent[700]}, ${colors.forestAccent[600]})`,
                             },
                         }}
                     >

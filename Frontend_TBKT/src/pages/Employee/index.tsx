@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 
 
-import Box        from '@mui/material/Box';
+import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Stack      from '@mui/material/Stack';
-import Chip       from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
+import Chip from '@mui/material/Chip';
 
 
 import Check from '@mui/icons-material/Check';
@@ -12,18 +12,18 @@ import Close from '@mui/icons-material/Close';
 
 
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
-import type { GridColDef }       from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
 
-import Header           from '../../components/Header';
-import ModalEmployee    from './subComponent/ModalEmployee';
-import FilterEmployee   from './subComponent/FilterEmployee';
-import ExportExcel      from '../../components/Buttons/ExportExcel';
-import ImportExcel      from '../../components/Buttons/ImportExcel';
+import Header from '../../components/Header';
+import ModalEmployee from './subComponent/ModalEmployee';
+import FilterEmployee from './subComponent/FilterEmployee';
+import ExportExcel from '../../components/Buttons/ExportExcel';
+import ImportExcel from '../../components/Buttons/ImportExcel';
 import OfficeDictionary from '../Office/subComponent/OfficeDictionary';
 import { EmployeeProvider, useEmployee } from '../../context/EmployeeContext';
-import type { EmployeeItem }             from '../../context/EmployeeContext';
-import { formatDate }                    from '../../apis/employeeApi';
-import { TreeSkeleton, GridSkeleton }    from '../../components/Skeletons';
+import type { EmployeeItem } from '../../context/EmployeeContext';
+import { formatDate } from '../../apis/employeeApi';
+import { TreeSkeleton, GridSkeleton } from '../../components/Skeletons';
 
 // ── Inner component ────────────────────────────────────────────────────────────
 const EmployeeInner: React.FC = () => {
@@ -88,7 +88,7 @@ const EmployeeInner: React.FC = () => {
             align: 'center', headerAlign: 'center', flex: 1,
             renderCell: (params) => (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
-                    <Typography variant="body1" sx={{ color: colors.blueAccent[500], fontWeight: 600, fontSize: '16px' }}>
+                    <Typography variant="body1" sx={{ color: colors.forestAccent[500], fontWeight: 600, fontSize: '16px' }}>
                         {officeMap[params.row.idDonVi as string] || params.row.idDonVi || '-'}
                     </Typography>
                 </Box>
@@ -99,7 +99,7 @@ const EmployeeInner: React.FC = () => {
             align: 'center', headerAlign: 'center', flex: 1,
             renderCell: (params) => (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
-                    <Typography variant="body1" sx={{ color: colors.blueAccent[400], fontWeight: 600, fontSize: '16px' }}>
+                    <Typography variant="body1" sx={{ color: colors.forestAccent[400], fontWeight: 600, fontSize: '16px' }}>
                         {officeMap[params.row.idQuanTriDonVi as string] || params.row.idQuanTriDonVi || '-'}
                     </Typography>
                 </Box>
@@ -127,7 +127,7 @@ const EmployeeInner: React.FC = () => {
             renderCell: (params) => <ModalEmployee data={params.row} />,
             // ← Xóa dispatch, colors, capBacList, officeList — đã dùng context
         },
-    // ── capBacMap/officeMap/colors thay đổi khi context update ────────────────
+        // ── capBacMap/officeMap/colors thay đổi khi context update ────────────────
     ], [capBacMap, officeMap, colors]);
 
     return (
@@ -176,24 +176,28 @@ const EmployeeInner: React.FC = () => {
                 {isInitialLoading
                     ? <GridSkeleton rows={8} cols={9} />
                     : (
-                        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: 'inherit', boxShadow: 1 }}>
-                            <Typography variant="h6" sx={{ whiteSpace: 'nowrap', alignSelf: 'center', mx: 2 }}>
+                        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: 'inherit', border: `1px solid ${colors.grey[800]}`, borderRadius: 0 }}>
+                            <Typography variant="h6" sx={{ fontSize: '0.9rem', fontWeight: 700, whiteSpace: 'nowrap', alignSelf: 'center', my: 1 }}>
                                 {`Tổng cộng: ${displayEmployees.length} cán bộ`}
                             </Typography>
                             <DataGrid
                                 rows={displayEmployees}
                                 columns={columns}
                                 getRowId={(row) => row.id || row.index || ''}
-                                initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
-                                pageSizeOptions={[5]}
+                                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+                                pageSizeOptions={[10, 25, 50]}
                                 slots={{ toolbar: GridToolbar }}
                                 sx={{
-                                    fontSize: '16px', fontWeight: 600, width: '100%', border: 'none',
-                                    '& .MuiDataGrid-cell':            { borderBottom: 'none' },
-                                    '& .MuiDataGrid-columnHeaders':   { backgroundColor: colors.blueAccent[700], borderBottom: 'none' },
+                                    fontSize: '14px', fontWeight: 600, width: '100%', border: 'none',
+                                    borderRadius: 0,
+                                    '& .MuiDataGrid-columnHeaders': {
+                                        backgroundColor: colors.primary[400],
+                                        borderBottom: `2px solid ${colors.grey[800]}`,
+                                    },
+                                    '& .MuiDataGrid-cell': { borderBottom: 'none' },
                                     '& .MuiDataGrid-virtualScroller': { backgroundColor: colors.primary[400] },
-                                    '& .MuiDataGrid-footerContainer': { borderTop: 'none', backgroundColor: colors.blueAccent[700] },
-                                    '& .MuiCheckbox-root':            { color: `${colors.greenAccent[200]} !important` },
+                                    '& .MuiDataGrid-footerContainer': { borderTop: 'none', backgroundColor: colors.forestAccent[700] },
+                                    '& .MuiCheckbox-root': { color: `${colors.greenAccent[200]} !important` },
                                     '& .MuiDataGrid-toolbarContainer .MuiButton-text': { color: `${colors.grey[100]} !important` },
                                 }}
                             />

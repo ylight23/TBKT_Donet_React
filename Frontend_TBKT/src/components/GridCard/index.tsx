@@ -22,7 +22,7 @@ const GridCard: React.FC<GridCardProps> = ({ xs, title, content, icon }) => {
 
     return (
         <Box sx={{ width, p: 1 }}>
-            <Card sx={{ backgroundColor: colors.blueAccent[700] }}>
+            <Card sx={{ backgroundColor: colors.forestAccent[700] }}>
                 <CardContent>
                     <Typography variant="h4" color="common.white" fontWeight="bold">
                         {title ?? 'Loading...'}

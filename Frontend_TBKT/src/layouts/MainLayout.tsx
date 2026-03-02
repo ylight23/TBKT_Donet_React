@@ -16,7 +16,7 @@ function InnerLayout(): React.ReactElement {
 
     return (
         <ProSidebarProvider>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
                 <AppHeader />
                 <div className="app" style={{ flex: 1, overflow: 'hidden' }}>
                     <Sidebar />
@@ -30,13 +30,15 @@ function InnerLayout(): React.ReactElement {
                                 inset: 0,
                                 zIndex: 0,
                                 backgroundImage: `url(${bgImage})`,
+                                backgroundColor: '#F4F7F4',
+                                backgroundBlendMode: isDark ? 'overlay' : 'multiply',
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center',
                                 backgroundRepeat: 'no-repeat',
-                                opacity: isDark ? 0.18 : 1.0,
+                                opacity: isDark ? 0.3 : 0.8,
                                 filter: isDark
-                                    ? 'brightness(1.5) sepia(0.6) hue-rotate(80deg) saturate(0.5)'
-                                    : 'contrast(1.8) brightness(0.88) saturate(1.3)',
+                                    ? 'brightness(1.2)'
+                                    : 'contrast(1)',
                                 pointerEvents: 'none',
                             }}
                         />

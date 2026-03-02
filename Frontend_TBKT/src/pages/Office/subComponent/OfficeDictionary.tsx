@@ -4,22 +4,23 @@ import React, {
 } from 'react';
 
 
-import Box            from '@mui/material/Box';
-import Typography     from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert          from '@mui/material/Alert';
-import TextField      from '@mui/material/TextField';
+import Alert from '@mui/material/Alert';
+import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import IconButton     from '@mui/material/IconButton';
-import ExpandMore     from '@mui/icons-material/ExpandMore';
-import ChevronRight   from '@mui/icons-material/ChevronRight';
-import Search         from '@mui/icons-material/Search';
-import Clear          from '@mui/icons-material/Clear';
+import IconButton from '@mui/material/IconButton';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import Search from '@mui/icons-material/Search';
+import Clear from '@mui/icons-material/Clear';
+import { useTheme } from '@mui/material/styles';
 
-import { useVirtualizer }        from '@tanstack/react-virtual';
-import officeApi                 from '../../../apis/officeApi';
-import { serializeProtoObject }  from '../../../utils/serializeProto';
-import OfficeContext             from '../../../context/OfficeContext';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import officeApi from '../../../apis/officeApi';
+import { serializeProtoObject } from '../../../utils/serializeProto';
+import OfficeContext from '../../../context/OfficeContext';
 
 
 
@@ -29,7 +30,7 @@ export interface OfficeNode {
     id?: string | number;
     ten?: string;
     tenDayDu?: string;
-    vietTat?: string;        
+    vietTat?: string;
     idCapTren?: string;
     coCapDuoi?: boolean;
     thuTu?: number;
@@ -129,12 +130,13 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
     onSelect,
     style,
 }: VirtualTreeRowProps) {
+    const theme = useTheme();
     if ((row as LoadingRow).loading) {
         const loadingRow = row as LoadingRow;
         return (
             <Box sx={{ ...style, display: 'flex', alignItems: 'center', pl: `${loadingRow.depth * 20 + 28}px`, gap: 1 }}>
                 <CircularProgress size={14} />
-                <Typography variant="body2" sx={{ color: '#757575', fontSize: '0.875rem' }}>Đang tải...</Typography>
+                <Typography variant="body2" sx={{ color: '#757575', fontSize: '0.875rem' }}>Đang tải…</Typography>
             </Box>
         );
     }
@@ -152,11 +154,12 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 pl: `${depth * 20}px`,
                 pr: 1,
                 cursor: 'pointer',
-                borderRadius: 1,
-                backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
-                '&:hover': { backgroundColor: isSelected ? '#bbdefb' : '#f5f5f5' },
-                transition: 'background-color 0.1s',
+                borderRadius: 1.5,
+                backgroundColor: isSelected ? `${theme.palette.primary.main}15` : 'transparent',
+                '&:hover': { backgroundColor: isSelected ? `${theme.palette.primary.main}25` : theme.palette.action.hover },
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 userSelect: 'none',
+                mb: 0.25,
             }}
             onClick={() => onSelect(node)}
         >
@@ -171,7 +174,13 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 )}
             </Box>
             <Typography noWrap variant="body1"
-                sx={{ fontSize: '0.95rem', fontWeight: isSelected ? 600 : 400, flex: 1, minWidth: 0 }}
+                sx={{
+                    fontSize: '0.925rem',
+                    fontWeight: isSelected ? 700 : 400,
+                    flex: 1,
+                    minWidth: 0,
+                    color: isSelected ? theme.palette.primary.main : 'text.primary'
+                }}
             >
                 {ten as string}
             </Typography>
@@ -182,6 +191,7 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
 // ── OfficeDictionary ───────────────────────────────────────────────────────────
 
 const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryProps>((props, ref) => {
+    const theme = useTheme();
     const { onSelect, onSelectOffice } = props;
 
     // ── Đọc OfficeContext optional (không throw khi dùng từ Employee page) ────
@@ -463,7 +473,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
         if (String(selectedOffice?.id ?? '') !== String(internalSelected?.id ?? '')) {
             setInternalSelected(selectedOffice ?? null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedOffice]);
 
     const handleSelect = useCallback((node: OfficeNode) => {
@@ -568,7 +578,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #e0e0e0', flexShrink: 0 }}>
                 <TextField
                     size="small" fullWidth
-                    placeholder="Tìm kiếm đơn vị (nhấn Enter)..."
+                    placeholder="Tìm kiếm đơn vị (nhấn Enter)…"
                     value={searchText}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -594,12 +604,19 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
                             </InputAdornment>
                         )
                     }}
-                    sx={{ mb: 1 }}
+                    sx={{
+                        mb: 1,
+                        '& .MuiOutlinedInput-root': {
+                            borderRadius: 2.5,
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.01)',
+                            '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.03)' },
+                        }
+                    }}
                 />
                 {(rootNodes.length > 0 || searchResults) && (
                     <Typography variant="caption" sx={{ color: '#757575', fontSize: '0.875rem' }}>
                         {isSearchMode
-                            ? (searchLoading ? 'Đang tìm kiếm...' : `Tìm thấy ${displayCount} đơn vị`)
+                            ? (searchLoading ? 'Đang tìm kiếm…' : `Tìm thấy ${displayCount} đơn vị`)
                             : `${displayCount} đơn vị`}
                     </Typography>
                 )}
@@ -611,7 +628,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
                     <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '200px', gap: 2 }}>
                         <CircularProgress />
                         <Typography variant="body2" color="text.secondary">
-                            {searchLoading ? 'Đang tìm kiếm...' : 'Đang tải danh sách đơn vị...'}
+                            {searchLoading ? 'Đang tìm kiếm…' : 'Đang tải danh sách đơn vị…'}
                         </Typography>
                     </Box>
                 ) : error ? (
