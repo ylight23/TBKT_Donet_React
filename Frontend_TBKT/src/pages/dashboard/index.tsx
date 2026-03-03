@@ -401,9 +401,9 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 1.5 }}>
       {/* Tiêu đề */}
-      <Box mb={4} display="flex" justifyContent="space-between" alignItems="center">
+      <Box mb={1.5} display="flex" justifyContent="space-between" alignItems="center">
         <Box>
           <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
             BẢNG ĐIỀU HÀNH
@@ -415,20 +415,7 @@ const Dashboard: React.FC = () => {
       </Box>
 
       {/* Filter Panel */}
-      <Card
-        elevation={0}
-        sx={{
-          mb: 4,
-          borderRadius: 4,
-          border: `1px solid ${theme.palette.divider}`,
-          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#ffffff',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          '&:hover': {
-            borderColor: theme.palette.primary.light,
-            boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.06)',
-          }
-        }}
-      >
+      <Card variant={"filterPanel" as any}>
         <CardContent sx={{ p: '12px 16px !important' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <TextField
@@ -488,16 +475,7 @@ const Dashboard: React.FC = () => {
                   </InputAdornment>
                 )
               }}
-              sx={{
-                flex: 1,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
-                  '& fieldset': { borderColor: 'transparent' },
-                  '&:hover fieldset': { borderColor: theme.palette.primary.light },
-                  transition: 'all 0.2s',
-                }
-              }}
+              sx={{ flex: 1 }}
             />
 
             <Button
@@ -518,7 +496,7 @@ const Dashboard: React.FC = () => {
               {activeFilters.map((f) => (
                 <Chip
                   key={f.key}
-                  icon={React.cloneElement(f.icon as React.ReactElement<any>, { sx: { fontSize: '14px !important' } })}
+                  icon={f.icon}
                   label={f.label}
                   size="small"
                   variant="outlined"
@@ -581,7 +559,7 @@ const Dashboard: React.FC = () => {
 
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>ĐƠN VỊ</Typography>
+                <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>ĐƠN VỊ</Typography>
                 <TextField select fullWidth size="small" value={unitFilter} onChange={e => setUnitFilter(e.target.value)}>
                   <MenuItem value="">Tất cả</MenuItem>
                   <MenuItem value="1">Quân đoàn 1</MenuItem>
@@ -590,7 +568,7 @@ const Dashboard: React.FC = () => {
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>
-                <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NHÓM</Typography>
+                <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NHÓM</Typography>
                 <TextField select fullWidth size="small" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
                   <MenuItem value="all">Tất cả</MenuItem>
                   <MenuItem value="n1">Nhóm 1 (Thông tin)</MenuItem>
@@ -598,7 +576,7 @@ const Dashboard: React.FC = () => {
                 </TextField>
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NGÀY BÁO CÁO</Typography>
+                <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NGÀY BÁO CÁO</Typography>
                 <TextField type="date" fullWidth size="small" value={reportDate} onChange={e => setReportDate(e.target.value)} />
               </Grid>
             </Grid>
@@ -611,10 +589,10 @@ const Dashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Divider sx={{ mb: 4 }} />
+
 
       {/* Stat Cards */}
-      <Grid container spacing={2} mb={4}>
+      <Grid container spacing={2} mb={2}>
         {statCards.map((card, idx) => (
           <Grid item xs={12} sm={6} md={4} lg key={idx}>
             <StatCard {...card} />
@@ -627,7 +605,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} lg={7}>
           <Card elevation={3} sx={{ borderRadius: 2, height: 460 }}>
             <CardContent sx={{ height: '100%' }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>Phân bổ theo đơn vị</Typography>
+              <Typography variant="h6" fontWeight={800} gutterBottom>Phân bổ theo đơn vị</Typography>
               <Box sx={{ height: 380 }}>
                 <ResponsivePie
                   data={pieData}
@@ -637,6 +615,8 @@ const Dashboard: React.FC = () => {
                   cornerRadius={4}
                   colors={{ datum: 'data.color' }}
                   arcLinkLabelsTextColor={isDark ? '#e0e0e0' : '#333333'}
+                  arcLabelsTextColor="#ffffff"
+                  arcLabelsSkipAngle={10}
                   legends={[{
                     anchor: 'right', direction: 'column',
                     translateX: 140, itemWidth: 130, itemHeight: 18,
@@ -650,7 +630,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} lg={5}>
           <Card elevation={3} sx={{ borderRadius: 2, height: 460 }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={700} gutterBottom>Niên hạn sản xuất</Typography>
+              <Typography variant="h6" fontWeight={800} gutterBottom>Niên hạn sản xuất</Typography>
               <NienHanBarChart />
               <Box display="flex" gap={2} mt={2}>
                 <Box display="flex" alignItems="center" gap={0.5}>
@@ -670,7 +650,7 @@ const Dashboard: React.FC = () => {
       <Box mt={3}>
         <Card elevation={3} sx={{ borderRadius: 2 }}>
           <CardContent>
-            <Typography variant="h6" fontWeight={700} gutterBottom>Tổng số lượng theo loại</Typography>
+            <Typography variant="h6" fontWeight={800} gutterBottom>Tổng số lượng theo loại</Typography>
             <TongSoLuongChart />
           </CardContent>
         </Card>

@@ -81,14 +81,14 @@ const SimpleBar: React.FC<{ rows: BarRow[]; unit?: string }> = ({ rows, unit = '
 
 // ── Columns thống kê theo loại ───────────────────────────────
 const colsLoai: GridColDef[] = [
-  { field: 'loai', headerName: 'Loại trang bị', flex: 1, minWidth: 200, align: 'center', headerAlign: 'center' },
-  { field: 'soLuong', headerName: 'Tổng số lượng', width: 130, type: 'number', align: 'center', headerAlign: 'center' },
-  { field: 'hoatDong', headerName: 'Hoạt động', width: 110, type: 'number', align: 'center', headerAlign: 'center' },
-  { field: 'suaChua', headerName: 'Sửa chữa', width: 100, type: 'number', align: 'center', headerAlign: 'center' },
-  { field: 'niemCat', headerName: 'Niêm cất', width: 100, type: 'number', align: 'center', headerAlign: 'center' },
-  { field: 'thanhLy', headerName: 'Thanh lý', width: 100, type: 'number', align: 'center', headerAlign: 'center' },
+  { field: 'loai', headerName: 'Loại trang bị', flex: 1, minWidth: 200 },
+  { field: 'soLuong', headerName: 'Tổng số lượng', width: 130, type: 'number' },
+  { field: 'hoatDong', headerName: 'Hoạt động', width: 110, type: 'number' },
+  { field: 'suaChua', headerName: 'Sửa chữa', width: 100, type: 'number' },
+  { field: 'niemCat', headerName: 'Niêm cất', width: 100, type: 'number' },
+  { field: 'thanhLy', headerName: 'Thanh lý', width: 100, type: 'number' },
   {
-    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động', width: 160, align: 'center', headerAlign: 'center',
+    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động', width: 160,
     renderCell: p => {
       const row = p.row as typeof thongKeTheoLoai[0];
       const pct = Math.round((row.hoatDong / row.soLuong) * 100);
@@ -111,10 +111,10 @@ const colsLoai: GridColDef[] = [
 
 // ── Columns thống kê theo đơn vị ─────────────────────────────
 const colsDonVi: GridColDef[] = [
-  { field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 200, align: 'center', headerAlign: 'center' },
-  { field: 'soLuong', headerName: 'Tổng trang bị', width: 140, type: 'number', align: 'center', headerAlign: 'center' },
+  { field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 200 },
+  { field: 'soLuong', headerName: 'Tổng trang bị', width: 140, type: 'number' },
   {
-    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động (%)', width: 200, align: 'center', headerAlign: 'center',
+    field: 'tyLeHD', headerName: 'Tỷ lệ hoạt động (%)', width: 200,
     renderCell: p => {
       const pct = Math.round((p.row as typeof thongKeTheoDonVi[0]).tyLeHD * 100);
       const color = pct >= 80 ? militaryColors.success : pct >= 60 ? militaryColors.warning : militaryColors.error;
@@ -219,8 +219,8 @@ const ThongKeBaoCao: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box mb={4}>
+    <Box sx={{ p: 1.5 }}>
+      <Box mb={1.5}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
           <Box>
             <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
@@ -248,13 +248,13 @@ const ThongKeBaoCao: React.FC = () => {
             >Excel</Button>
           </Box>
         </Box>
-        <Divider sx={{ mt: 2 }} />
+        
       </Box>
 
       {/* Summary Cards */}
-      <Grid container spacing={2} mb={4}>
+      <Grid container spacing={2} mb={1.5}>
         {summaryItems.map((s, i) => (
-          <Grid item xs={6} sm={4} md={3} lg key={i}>
+          <Grid item xs={6} sm={3} md={3} lg key={i}>
             <Card elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
               <CardContent sx={{ py: 2 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase' }}>{s.label}</Typography>
@@ -266,7 +266,7 @@ const ThongKeBaoCao: React.FC = () => {
       </Grid>
 
       {/* Filter Panel */}
-      <Card elevation={0} sx={{ mb: 4, borderRadius: 4, border: `1px solid ${theme.palette.divider}` }}>
+      <Card elevation={0} sx={{ mb: 1.5, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
         <CardContent sx={{ p: 2 }}>
           <Box display="flex" gap={2} alignItems="center">
             <TextField
@@ -432,29 +432,20 @@ const ThongKeBaoCao: React.FC = () => {
                 </Grid>
               </Grid>
             ) : (
-              <Box
+              <DataGrid
+                rows={loaiRows}
+                columns={colsLoai}
+                getRowId={(r) => r.id}
                 sx={{
                   height: {
                     xs: 400,
                     sm: 450,
-                    md: 'calc(100vh - 450px)',
+                    md: "calc(100vh - 450px)",
                   },
                   minHeight: 350,
-                  width: '100%',
-                  bgcolor: 'background.paper',
-                  borderRadius: 0,
-                  boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.05)',
-                  overflow: 'hidden',
-                  border: `1px solid ${theme.palette.divider}`,
+                  width: "100%",
                 }}
-              >
-                <DataGrid
-                  rows={loaiRows}
-                  columns={colsLoai}
-                  getRowId={r => r.id}
-                // density, rowHeight, columnHeaderHeight được lấy từ theme.ts
-                />
-              </Box>
+              />
             )}
           </Box>
         )}
@@ -480,43 +471,39 @@ const ThongKeBaoCao: React.FC = () => {
                 </Grid>
               </Grid>
             ) : (
-              <Box
+              <DataGrid
+                rows={dvRows}
+                columns={colsDonVi}
+                getRowId={(r) => r.id}
                 sx={{
                   height: {
                     xs: 400,
                     sm: 450,
-                    md: 'calc(100vh - 450px)',
+                    md: "calc(100vh - 450px)",
                   },
                   minHeight: 350,
-                  width: '100%',
-                  bgcolor: 'background.paper',
-                  borderRadius: 0,
-                  boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.05)',
-                  overflow: 'hidden',
-                  border: `1px solid ${theme.palette.divider}`,
+                  width: "100%",
                 }}
-              >
-                <DataGrid
-                  rows={dvRows}
-                  columns={colsDonVi}
-                  getRowId={r => r.id}
-                // density, rowHeight, columnHeaderHeight được lấy từ theme.ts
-                />
-              </Box>
+              />
             )}
           </Box>
         )}
 
         {tab === 2 && (
           <Box sx={{ height: 450 }}>
-            <Typography variant="subtitle1" fontWeight={700} mb={2}>Biểu đồ phân bổ</Typography>
             <ResponsivePie
               data={pieData}
-              margin={{ top: 20, right: 150, bottom: 20, left: 20 }}
-              innerRadius={0.5} padAngle={1} cornerRadius={4}
+              margin={{ top: 40, right: 150, bottom: 40, left: 20 }}
+              innerRadius={0.5}
+              padAngle={1.5}
+              cornerRadius={4}
               colors={{ datum: 'data.color' }}
+              arcLabelsTextColor="#ffffff"
+              arcLinkLabelsTextColor={isDark ? '#e0e0e0' : '#333333'}
               legends={[{
-                anchor: 'right', direction: 'column', translateX: 140, itemWidth: 130, itemHeight: 18, symbolSize: 12
+                anchor: 'right', direction: 'column',
+                translateX: 140, itemWidth: 100, itemHeight: 20,
+                itemTextColor: isDark ? '#ccc' : '#444', symbolSize: 12, symbolShape: 'circle'
               }]}
             />
           </Box>

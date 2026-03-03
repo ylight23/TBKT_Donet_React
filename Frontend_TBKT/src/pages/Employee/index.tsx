@@ -24,6 +24,7 @@ import { EmployeeProvider, useEmployee } from '../../context/EmployeeContext';
 import type { EmployeeItem } from '../../context/EmployeeContext';
 import { formatDate } from '../../apis/employeeApi';
 import { TreeSkeleton, GridSkeleton } from '../../components/Skeletons';
+import StatsButton from '../../components/Stats/StatsButton';
 
 // ── Inner component ────────────────────────────────────────────────────────────
 const EmployeeInner: React.FC = () => {
@@ -51,63 +52,55 @@ const EmployeeInner: React.FC = () => {
     const columns = useMemo((): GridColDef<EmployeeItem>[] => [
         {
             field: 'index', headerName: 'STT',
-            align: 'center', headerAlign: 'center', flex: 0.5, type: 'number',
+            flex: 0.5, type: 'number',
         },
         {
             field: 'hoVaTen', headerName: 'Họ và tên',
-            align: 'center', headerAlign: 'center', flex: 1.2,
+            flex: 1.2,
         },
         {
             field: 'ngaySinh', headerName: 'Ngày sinh',
-            flex: 1, align: 'center', headerAlign: 'center',
+            flex: 1,
             renderCell: (params) => (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
-                    <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '16px' }}>
-                        {formatDate(params.row.ngaySinh as any)}
-                    </Typography>
-                </Box>
+                <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '16px' }}>
+                    {formatDate(params.row.ngaySinh as any)}
+                </Typography>
             ),
         },
         {
             field: 'idCapBac', headerName: 'Cấp bậc',
-            align: 'center', headerAlign: 'center', flex: 1,
+            flex: 1,
             renderCell: (params) => (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
-                    <Typography variant="body1" sx={{ color: colors.greenAccent[400], fontWeight: 600, fontSize: '11px' }}>
-                        {capBacMap[params.row.idCapBac as string] || params.row.idCapBac || '-'}
-                    </Typography>
-                </Box>
+                <Typography variant="body1" sx={{ color: colors.greenAccent[400], fontWeight: 600, fontSize: '11px' }}>
+                    {capBacMap[params.row.idCapBac as string] || params.row.idCapBac || '-'}
+                </Typography>
             ),
         },
         {
             field: 'chucVu', headerName: 'Chức vụ',
-            align: 'center', headerAlign: 'center', flex: 1,
+            flex: 1,
         },
         {
             field: 'idDonVi', headerName: 'Đơn vị',
-            align: 'center', headerAlign: 'center', flex: 1,
+            flex: 1,
             renderCell: (params) => (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
-                    <Typography variant="body1" sx={{ color: colors.forestAccent[500], fontWeight: 600, fontSize: '16px' }}>
-                        {officeMap[params.row.idDonVi as string] || params.row.idDonVi || '-'}
-                    </Typography>
-                </Box>
+                <Typography variant="body1" sx={{ color: colors.forestAccent[500], fontWeight: 600, fontSize: '16px' }}>
+                    {officeMap[params.row.idDonVi as string] || params.row.idDonVi || '-'}
+                </Typography>
             ),
         },
         {
             field: 'idQuanTriDonVi', headerName: 'Phạm vi quản trị',
-            align: 'center', headerAlign: 'center', flex: 1,
+            flex: 1,
             renderCell: (params) => (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
-                    <Typography variant="body1" sx={{ color: colors.forestAccent[400], fontWeight: 600, fontSize: '16px' }}>
-                        {officeMap[params.row.idQuanTriDonVi as string] || params.row.idQuanTriDonVi || '-'}
-                    </Typography>
-                </Box>
+                <Typography variant="body1" sx={{ color: colors.forestAccent[400], fontWeight: 600, fontSize: '16px' }}>
+                    {officeMap[params.row.idQuanTriDonVi as string] || params.row.idQuanTriDonVi || '-'}
+                </Typography>
             ),
         },
         {
             field: 'kichHoat', headerName: 'Trạng thái',
-            flex: 0.8, align: 'center', headerAlign: 'center',
+            flex: 0.8,
             renderCell: (params) => {
                 const isActive = params.row.kichHoat ?? (params.row as any).kichhoat ?? false;
                 return (
@@ -122,7 +115,7 @@ const EmployeeInner: React.FC = () => {
         },
         {
             field: 'actions', type: 'actions', headerName: 'Hành động',
-            width: 150, headerAlign: 'center', align: 'center',
+            width: 150,
             sortable: false, filterable: false,
             renderCell: (params) => <ModalEmployee data={params.row} />,
             // ← Xóa dispatch, colors, capBacList, officeList — đã dùng context
@@ -136,6 +129,7 @@ const EmployeeInner: React.FC = () => {
             {/* Header render ngay */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Header title="Quản lý Cán bộ" subtitle="Danh sách cán bộ trong hệ thống" />
+                <StatsButton activeMenu="employee" />
             </Box>
 
             {/* Filter + Toolbar render ngay */}
@@ -176,7 +170,7 @@ const EmployeeInner: React.FC = () => {
                 {isInitialLoading
                     ? <GridSkeleton rows={8} cols={9} />
                     : (
-                        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: 'inherit', border: `1px solid ${colors.grey[800]}`, borderRadius: 0 }}>
+                        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: 'inherit' }}>
                             <Typography variant="h6" sx={{ fontSize: '0.9rem', fontWeight: 700, whiteSpace: 'nowrap', alignSelf: 'center', my: 1 }}>
                                 {`Tổng cộng: ${displayEmployees.length} cán bộ`}
                             </Typography>
@@ -184,21 +178,11 @@ const EmployeeInner: React.FC = () => {
                                 rows={displayEmployees}
                                 columns={columns}
                                 getRowId={(row) => row.id || row.index || ''}
-                                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-                                pageSizeOptions={[10, 25, 50]}
                                 slots={{ toolbar: GridToolbar }}
                                 sx={{
-                                    fontSize: '14px', fontWeight: 600, width: '100%', border: 'none',
-                                    borderRadius: 0,
-                                    '& .MuiDataGrid-columnHeaders': {
-                                        backgroundColor: colors.primary[400],
-                                        borderBottom: `2px solid ${colors.grey[800]}`,
-                                    },
-                                    '& .MuiDataGrid-cell': { borderBottom: 'none' },
-                                    '& .MuiDataGrid-virtualScroller': { backgroundColor: colors.primary[400] },
-                                    '& .MuiDataGrid-footerContainer': { borderTop: 'none', backgroundColor: colors.forestAccent[700] },
-                                    '& .MuiCheckbox-root': { color: `${colors.greenAccent[200]} !important` },
-                                    '& .MuiDataGrid-toolbarContainer .MuiButton-text': { color: `${colors.grey[100]} !important` },
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    width: '100%',
                                 }}
                             />
                         </Box>

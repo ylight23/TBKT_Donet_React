@@ -8,7 +8,29 @@
  */
 
 import { createContext, useState, useMemo } from 'react';
-import { createTheme, Theme, PaletteMode } from '@mui/material/styles';
+import { createTheme as muiCreateTheme, Theme, PaletteMode } from '@mui/material/styles';
+
+// -------------------------------------------------------------------
+//  MILITARY DESIGN SYSTEM – CUSTOM VARIANTS TYPE EXTENSIONS
+// -------------------------------------------------------------------
+declare module '@mui/material/Paper' {
+  interface PaperPropsVariantOverrides {
+    filterPanel: true;
+  }
+}
+
+
+
+declare module '@mui/material/Button' {
+  interface ButtonPropsVariantOverrides {
+    militaryAction: true;
+  }
+}
+
+
+
+
+
 
 // -------------------------------------------------------------------
 //  SECTION 1 – PRIMARY PALETTE SCALES (50 - 900)
@@ -491,15 +513,82 @@ export const themeSetting = (mode: PaletteMode) => {
           },
         },
       },
+      MuiCard: {
+        styleOverrides: {
+          root: ({ ownerState, theme }: { ownerState: any; theme: Theme }) => ({
+            borderRadius: 10,
+            border: '1px solid ' + dt.cardBorder,
+            boxShadow: isDark
+              ? '0 2px 12px rgba(0,0,0,0.55)'
+              : '0 1px 4px rgba(46,125,50,0.10)',
+            ...(ownerState.variant === 'filterPanel' && {
+              borderRadius: 16,
+              border: `1px solid ${theme.palette.divider}`,
+              background: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                borderColor: theme.palette.primary.light,
+                boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.06)',
+              }
+            })
+          }),
+        },
+      },
+
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: ({ theme }: { theme: Theme }) => ({
+            borderRadius: 12,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '& fieldset': {
+              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+            },
+            '&:hover fieldset': {
+              borderColor: theme.palette.primary.light + ' !important',
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: theme.palette.primary.main + ' !important',
+              borderWidth: '1px !important',
+            },
+            '&.Mui-focused': {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+              boxShadow: isDark
+                ? '0 4px 20px rgba(0,0,0,0.4)'
+                : '0 4px 20px rgba(46,125,50,0.08)',
+            }
+          }),
+        },
+      },
+      MuiTextField: {
+        defaultProps: {
+          variant: 'outlined' as const,
+        },
+      },
       MuiButton: {
         styleOverrides: {
-          root: {
+          root: ({ ownerState, theme }: { ownerState: any; theme: Theme }) => ({
             borderRadius: 6,
             textTransform: 'none' as const,
             fontWeight: 600,
             letterSpacing: '0.2px',
             transition: 'background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
-          },
+            ...(ownerState.variant === 'militaryAction' && {
+              borderRadius: 12,
+              paddingLeft: 24,
+              paddingRight: 24,
+              height: 40,
+              fontWeight: 700,
+              boxShadow: isDark
+                ? '0 4px 14px rgba(0,0,0,0.5)'
+                : `0 4px 14px rgba(46,125,50,0.25)`,
+              '&:hover': {
+                boxShadow: isDark
+                  ? '0 6px 20px rgba(0,0,0,0.6)'
+                  : `0 6px 20px rgba(46,125,50,0.35)`,
+              }
+            })
+          }),
           containedPrimary: {
             background: isDark ? gradientGreen.darkBtn : gradientGreen.lightBtn,
             color: '#FFFFFF',
@@ -514,17 +603,6 @@ export const themeSetting = (mode: PaletteMode) => {
               transform: 'translateY(-1px)',
             },
             '&:active': { transform: 'translateY(0)' },
-          },
-        },
-      },
-      MuiCard: {
-        styleOverrides: {
-          root: {
-            borderRadius: 10,
-            border: '1px solid ' + dt.cardBorder,
-            boxShadow: isDark
-              ? '0 2px 12px rgba(0,0,0,0.55)'
-              : '0 1px 4px rgba(46,125,50,0.10)',
           },
         },
       },
@@ -566,6 +644,14 @@ export const themeSetting = (mode: PaletteMode) => {
           },
         },
       },
+      MuiTableCell: {
+        styleOverrides: {
+          root: {
+            textAlign: 'center' as const,
+            verticalAlign: 'middle' as const,
+          },
+        },
+      },
       MuiTableHead: {
         styleOverrides: {
           root: {
@@ -574,6 +660,9 @@ export const themeSetting = (mode: PaletteMode) => {
               color: '#FFFFFF',
               fontWeight: 700,
               letterSpacing: '0.3px',
+              textAlign: 'center' as const,
+              display: 'table-cell',
+              verticalAlign: 'middle' as const,
               borderBottom: 'none',
             },
           },
@@ -607,40 +696,162 @@ export const themeSetting = (mode: PaletteMode) => {
       MuiDataGrid: {
         defaultProps: {
           density: 'compact' as const,
-          columnHeaderHeight: 56,
-          rowHeight: 46,
+          columnHeaderHeight: 70, // Increased to support wrapped headers
+          rowHeight: 48,
           disableRowSelectionOnClick: true,
+          pageSizeOptions: [10, 25, 50, 100],
+          initialState: {
+            pagination: { paginationModel: { page: 0, pageSize: 25 } },
+          },
+
         },
         styleOverrides: {
           root: {
-            border: 'none',
-            borderRadius: 0,
-            fontSize: 'var(--mil-font-size-sm, 0.875rem)',
-            // Header
-            '& .MuiDataGrid-columnHeaders': {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              borderBottom: `2px solid ${dt.divider}`,
+            border: `1px solid ${dt.divider}`,
+            borderRadius: "6px",
+            backgroundColor: dt.contentBg,
+            boxShadow: isDark
+              ? "0 8px 32px rgba(0,0,0,0.4)"
+              : "0 8px 32px rgba(0,0,0,0.05)",
+            fontSize: "0.875rem",
+            overflow: "hidden",
+            // Header - Đảm bảo phủ 100% kể cả khi có scroll hoặc filler
+            "& .MuiDataGrid-columnHeaders": {
+              background: dt.tableHeaderGradient,
+              color: "#FFFFFF",
+              borderBottom: "none",
               borderRadius: 0,
-              '& .MuiDataGrid-columnHeaderTitle': {
-                fontWeight: 900,
-                color: dt.textPrimary,
-                textTransform: 'uppercase',
-                fontSize: '0.8rem',
-                letterSpacing: '0.05em',
-              }
+
+              "& .MuiDataGrid-columnHeaderRow": {
+                background: "transparent",
+                overflow: "visible !important",
+              },
+              "& .MuiDataGrid-filler": {
+                background: "transparent",
+              },
+              "& .MuiDataGrid-scrollbarFiller": {
+                background: "transparent",
+              },
+              // Fix for sticky headers in column containers
+              "& .MuiDataGrid-columnHeadersInner": {
+                overflow: "visible !important",
+              },
+            },
+            // Từng ô tiêu đề đơn lẻ
+            "& .MuiDataGrid-columnHeader": {
+              background: "transparent",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              alignContent: "center",
+              textAlign: "center",
+              whiteSpace: "normal !important",
+              lineHeight: "1.2 !important",
+              "& .MuiDataGrid-columnHeaderTitleContainer": {
+                justifyContent: "center",
+                alignItems: "center",
+                alignContent: "center",
+                width: "100%",
+                flex: 1,
+              },
+              "& .MuiDataGrid-columnHeaderTitleContainerContent": {
+                overflow: "visible",
+              },
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontWeight: 800,
+                textTransform: "uppercase",
+                fontSize: "0.8rem",
+                letterSpacing: "0.04em",
+                whiteSpace: "normal",
+                textAlign: "center",
+              },
+              "& .MuiDataGrid-iconButtonContainer": {
+                color: "rgba(255, 255, 255, 0.85)",
+              },
+              "& .MuiDataGrid-menuIcon": {
+                color: "rgba(255, 255, 255, 0.85)",
+              },
+            },
+            // Đường phân cách giữa các cột
+            "& .MuiDataGrid-columnSeparator": {
+              color: "rgba(255, 255, 255, 0.15)",
             },
             // Cell
             '& .MuiDataGrid-cell': {
               borderBottom: `1px solid ${dt.divider}33`,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
+              alignContent: 'center',
+              textAlign: 'center !important' as any,
+            },
+            // Force center alignment for all text-align classes MUI uses
+            '& .MuiDataGrid-cell--textLeft': {
+              justifyContent: 'center !important',
+              textAlign: 'center !important' as any,
+            },
+            '& .MuiDataGrid-cell--textRight': {
+              justifyContent: 'center !important',
+              textAlign: 'center !important' as any,
+            },
+            '& .MuiDataGrid-columnHeader--alignLeft': {
+              '& .MuiDataGrid-columnHeaderTitleContainer': {
+                justifyContent: 'center !important',
+              },
+            },
+            '& .MuiDataGrid-columnHeader--alignRight': {
+              '& .MuiDataGrid-columnHeaderTitleContainer': {
+                justifyContent: 'center !important',
+              },
+            },
+            // Simulate pinned/sticky actions column removed from here, merged below
+            '& .MuiDataGrid-cell[data-field="actions"]': {
+              position: 'sticky !important',
+              right: '0 !important',
+              backgroundColor: isDark ? '#0C1A0E !important' : '#FFFFFF !important',
+              zIndex: '100 !important' as any, // Extremely high to stay above all cells
+              boxShadow: '-4px 0 10px rgba(0,0,0,0.15)',
+              borderLeft: `2px solid ${dt.divider} !important`,
+              display: 'flex',
+              justifyContent: 'center !important',
+              alignItems: 'center',
+            },
+            '& .MuiDataGrid-row:hover .MuiDataGrid-cell[data-field="actions"]': {
+              backgroundColor: isDark ? 'rgba(76,175,80,0.15)' : 'rgba(46,125,50,0.12)', // Match dt.tableRowHover
+            },
+            '& .MuiDataGrid-row--lastVisible .MuiDataGrid-cell[data-field="actions"]': {
+              borderBottom: `1px solid ${dt.divider}33`,
             },
             // Row
             '& .MuiDataGrid-row': {
               transition: 'background-color 0.2s',
+              overflow: 'visible !important',
+              width: 'max-content', // Encourage row to span full width
+              minWidth: '100%',
+              display: 'flex', // Ensure row is flex for its children
               '&:hover': {
                 backgroundColor: dt.tableRowHover,
               },
+            },
+            // Critical: the scroll container itself must allow sticky
+            '& .MuiDataGrid-virtualScroller': {
+              overflow: 'auto !important',
+            },
+            '& .MuiDataGrid-virtualScrollerContent': {
+              overflow: 'visible !important',
+            },
+            '& .MuiDataGrid-virtualScrollerRenderZone': {
+              overflow: 'visible !important',
+            },
+            // Ensure header also sticks correctly
+            '& .MuiDataGrid-columnHeader[data-field="actions"]': {
+              position: 'sticky !important',
+              right: '0 !important',
+              backgroundColor: isDark ? '#1b4d1d !important' : '#43A047 !important',
+              zIndex: '101 !important' as any,
+              boxShadow: '-4px 0 8px rgba(0,0,0,0.2)',
+              borderLeft: `2px solid rgba(255,255,255,0.3) !important`,
             },
             // Footer
             '& .MuiDataGrid-footerContainer': {
@@ -684,6 +895,6 @@ export const useMode = (): [Theme, ColorModeContextType] => {
     [],
   );
 
-  const theme = useMemo(() => createTheme(themeSetting(mode)), [mode]);
-  return [theme, colorMode];
+  const themeValue = useMemo(() => muiCreateTheme(themeSetting(mode)), [mode]);
+  return [themeValue, colorMode];
 };

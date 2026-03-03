@@ -10,6 +10,7 @@ const TrangBiNhom2: React.FC = () => (
     title="TRANG BỊ KỸ THUẬT NHÓM 2"
     subtitle="Quản lý phương tiện phụ trợ – Nhóm trang bị chuyên dụng"
     data={mockTrangBiNhom2}
+    activeMenu="tbNhom2"
   />
 );
 

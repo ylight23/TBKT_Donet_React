@@ -35,6 +35,13 @@ export interface ITrangBi {
     namSuDung: number;
     serial?: string;
     mac?: string;
+    phanNganh: string;
+    donViQuanLy: string;
+    tinhTrangKyThuat: string;
+    namSanXuat: number;
+    nienHanSuDung: number;
+    nuocSanXuat: string;
+    hangSanXuat: string;
 }
 
 export interface IBaoDuong {
@@ -110,14 +117,44 @@ export const donViList = [
 // ── Mock Data Arrays ────────────────────────────────────────
 
 export const mockTrangBiNhom1: ITrangBi[] = [
-    { id: '1', maTrangBi: 'TB-001', ten: 'Máy vô tuyến điện VRU-611', loai: 'Thông tin', donVi: 'Lữ đoàn 1', chatLuong: ChatLuong.Tot, trangThai: TrangThaiTrangBi.HoatDong, soLanSuaChua: 1, nienHan: 15, namSuDung: 2018, serial: 'SN-V611-001', mac: '00:1A:2B:3C:4D:5E' },
-    { id: '2', maTrangBi: 'TB-002', ten: 'Máy vô tuyến điện VRU-612', loai: 'Thông tin', donVi: 'Lữ đoàn 2', chatLuong: ChatLuong.Kha, trangThai: TrangThaiTrangBi.HoatDong, soLanSuaChua: 2, nienHan: 15, namSuDung: 2019, serial: 'SN-V612-002', mac: '00:1A:2B:3C:4D:5F' },
-    { id: '3', maTrangBi: 'TB-003', ten: 'Xe thông tin cơ động M33', loai: 'Xe thông tin', donVi: 'Lữ đoàn 1', chatLuong: ChatLuong.TrungBinh, trangThai: TrangThaiTrangBi.SuaChua, soLanSuaChua: 5, nienHan: 20, namSuDung: 2010, serial: 'SN-M33-003', mac: '00:1A:2B:3C:4D:60' },
+    {
+        id: '1', maTrangBi: 'TB-001', ten: 'Máy vô tuyến điện VRU-611', loai: 'Thông tin', donVi: 'Lữ đoàn 1',
+        chatLuong: ChatLuong.Tot, trangThai: TrangThaiTrangBi.HoatDong, soLanSuaChua: 1, nienHan: 15, namSuDung: 2018,
+        serial: 'SN-V611-001', mac: '00:1A:2B:3C:4D:5E',
+        phanNganh: 'Vô tuyến điện', donViQuanLy: 'Cục Kỹ thuật', tinhTrangKyThuat: 'Tốt',
+        namSanXuat: 2017, nienHanSuDung: 20, nuocSanXuat: 'Việt Nam', hangSanXuat: 'Viettel'
+    },
+    {
+        id: '2', maTrangBi: 'TB-002', ten: 'Máy vô tuyến điện VRU-612', loai: 'Thông tin', donVi: 'Lữ đoàn 2',
+        chatLuong: ChatLuong.Kha, trangThai: TrangThaiTrangBi.HoatDong, soLanSuaChua: 2, nienHan: 15, namSuDung: 2019,
+        serial: 'SN-V612-002', mac: '00:1A:2B:3C:4D:5F',
+        phanNganh: 'Vô tuyến điện', donViQuanLy: 'Cục Kỹ thuật', tinhTrangKyThuat: 'Tốt',
+        namSanXuat: 2018, nienHanSuDung: 20, nuocSanXuat: 'Việt Nam', hangSanXuat: 'Viettel'
+    },
+    {
+        id: '3', maTrangBi: 'TB-003', ten: 'Xe thông tin cơ động M33', loai: 'Xe thông tin', donVi: 'Lữ đoàn 1',
+        chatLuong: ChatLuong.TrungBinh, trangThai: TrangThaiTrangBi.SuaChua, soLanSuaChua: 5, nienHan: 20, namSuDung: 2010,
+        serial: 'SN-M33-003', mac: '00:1A:2B:3C:4D:60',
+        phanNganh: 'Xe máy', donViQuanLy: 'Cục Kỹ thuật', tinhTrangKyThuat: 'Xuống cấp',
+        namSanXuat: 2008, nienHanSuDung: 25, nuocSanXuat: 'Nga', hangSanXuat: 'Kamaz'
+    },
 ];
 
 export const mockTrangBiNhom2: ITrangBi[] = [
-    { id: '101', maTrangBi: 'TB-101', ten: 'Đài Radar 36D6', loai: 'Radar', donVi: 'Trung đoàn 291', chatLuong: ChatLuong.Tot, trangThai: TrangThaiTrangBi.HoatDong, soLanSuaChua: 0, nienHan: 25, namSuDung: 2020, serial: 'SN-R36-101', mac: '00:1A:2B:3C:4D:A1' },
-    { id: '102', maTrangBi: 'TB-102', ten: 'Máy đo tham số kỹ thuật P-18', loai: 'Thiết bị đo', donVi: 'Kho 864', chatLuong: ChatLuong.Xau, trangThai: TrangThaiTrangBi.NiemCat, soLanSuaChua: 3, nienHan: 10, namSuDung: 2015, serial: 'SN-P18-102', mac: '00:1A:2B:3C:4D:A2' },
+    {
+        id: '101', maTrangBi: 'TB-101', ten: 'Đài Radar 36D6', loai: 'Radar', donVi: 'Trung đoàn 291',
+        chatLuong: ChatLuong.Tot, trangThai: TrangThaiTrangBi.HoatDong, soLanSuaChua: 0, nienHan: 25, namSuDung: 2020,
+        serial: 'SN-R36-101', mac: '00:1A:2B:3C:4D:A1',
+        phanNganh: 'Radar', donViQuanLy: 'Quân chủng PK-KQ', tinhTrangKyThuat: 'Tốt',
+        namSanXuat: 2019, nienHanSuDung: 30, nuocSanXuat: 'Nga', hangSanXuat: 'Almaz-Antey'
+    },
+    {
+        id: '102', maTrangBi: 'TB-102', ten: 'Máy đo tham số kỹ thuật P-18', loai: 'Thiết thiết bị đo', donVi: 'Kho 864',
+        chatLuong: ChatLuong.Xau, trangThai: TrangThaiTrangBi.NiemCat, soLanSuaChua: 3, nienHan: 10, namSuDung: 2015,
+        serial: 'SN-P18-102', mac: '00:1A:2B:3C:4D:A2',
+        phanNganh: 'Thiết bị đo', donViQuanLy: 'Cục Kỹ thuật', tinhTrangKyThuat: 'Trung bình',
+        namSanXuat: 2014, nienHanSuDung: 15, nuocSanXuat: 'Trung Quốc', hangSanXuat: 'ZTE'
+    },
 ];
 
 export const mockBaoDuong: IBaoDuong[] = [

@@ -100,15 +100,15 @@ const Sidebar: React.FC = () => {
     const [selected, setSelected] = useState<string>("dashboard");
     const { collapseSidebar } = useProSidebar();
 
-    const handleCollapse = (): void => {
-        collapseSidebar();
-        setIsCollapse((prev) => !prev);
-    };
-
     useEffect(() => {
         const activeMenuName = getActiveMenuName();
         setSelected(activeMenuName);
     }, [location.pathname]);
+
+    const handleCollapse = (): void => {
+        collapseSidebar();
+        setIsCollapse((prev) => !prev);
+    };
 
     return (
         <Box

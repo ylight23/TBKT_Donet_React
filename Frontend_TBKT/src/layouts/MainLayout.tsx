@@ -45,7 +45,9 @@ function InnerLayout(): React.ReactElement {
 
                         {/* ── Nội dung nằm trên lớp ảnh ── */}
                         <div style={{ position: 'relative', zIndex: 1 }}>
-                            <Topbar />
+                            <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                                <Topbar />
+                            </div>
                             <Outlet />
                         </div>
 

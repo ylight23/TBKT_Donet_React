@@ -4,6 +4,7 @@
 // ============================================================
 import React, { useState, useMemo, useCallback } from 'react';
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
@@ -18,10 +19,15 @@ import { useTheme } from '@mui/material/styles';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import PrintIcon from '@mui/icons-material/Print';
 
 import { ITrangBi, TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
 import { militaryColors } from '../../theme';
 import FilterTrangBi, { FilterTrangBiValues } from './FilterTrangBi';
+import OfficeDictionary, { OfficeNode } from '../../pages/Office/subComponent/OfficeDictionary';
+import { OfficeProvider } from '../../context/OfficeContext';
+import StatsButton from '../Stats/StatsButton';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -46,14 +52,16 @@ interface TrangBiDataGridProps {
   title: string;
   subtitle: string;
   data: ITrangBi[];
+  activeMenu?: string;
 }
 
 // ── TrangBiDataGrid ──────────────────────────────────────────
-const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data }) => {
+const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data, activeMenu }) => {
   const theme = useTheme();
 
   // State bộ lọc nâng cao
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
+  const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
 
   // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
@@ -111,9 +119,15 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
       if (namSanXuat && r.namSanXuat !== Number(namSanXuat)) return false;
       if (namSuDung && r.namSuDung !== Number(namSuDung)) return false;
 
+      // 3. Lọc theo đơn vị từ Dictionary
+      if (selectedOffice) {
+        const officeName = selectedOffice.ten || selectedOffice.tenDayDu || "";
+        if (!row.donVi.toLowerCase().includes(officeName.toLowerCase())) return false;
+      }
+
       return true;
     });
-  }, [data, filterValues]);
+  }, [data, filterValues, selectedOffice]);
 
   // Giả lập export Excel
   const handleExport = useCallback(() => {
@@ -123,6 +137,15 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
   // ── Định nghĩa cột DataGrid ──────────────────────────────
   const columns: GridColDef[] = [
     {
+      field: 'stt',
+      headerName: 'STT',
+      width: 60,
+      renderCell: (p) => {
+        const index = p.api.getAllRowIds().indexOf(p.id);
+        return <Typography variant="body2">{index + 1}</Typography>;
+      },
+    },
+    {
       field: 'maTrangBi', headerName: 'Mã trang bị', width: 140,
       renderCell: (p) => (
         <Typography variant="body2" fontWeight={600} sx={{ color: 'var(--mil-text-primary)' }}>
@@ -130,14 +153,13 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
         </Typography>
       ),
     },
-    { field: 'ten', headerName: 'Tên trang bị', flex: 1, minWidth: 200 },
-    { field: 'loai', headerName: 'Loại', width: 150 },
-    { field: 'serial', headerName: 'Số hiệu / Serial', width: 160 },
     {
       field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 160,
     },
+    { field: 'phanNganh', headerName: 'Phân ngành', width: 150 },
+    { field: 'donViQuanLy', headerName: 'Đơn vị quản lý', width: 180 },
     {
-      field: 'trangThai', headerName: 'Trạng thái', width: 150,
+      field: 'trangThai', headerName: 'Tình trạng sử dụng', width: 160,
       renderCell: (p: GridRenderCellParams<ITrangBi, TrangThaiTrangBi>) => (
         <Chip
           label={p.value}
@@ -147,8 +169,9 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
         />
       ),
     },
+    { field: 'tinhTrangKyThuat', headerName: 'Tình trạng kỹ thuật', width: 160 },
     {
-      field: 'chatLuong', headerName: 'Chất lượng', width: 130,
+      field: 'chatLuong', headerName: 'Cấp chất lượng', width: 140,
       renderCell: (p: GridRenderCellParams<ITrangBi, ChatLuong>) => (
         <Chip
           label={p.value}
@@ -163,18 +186,24 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
         />
       ),
     },
-    { field: 'namSuDung', headerName: 'Năm sử dụng', width: 130, type: 'number' },
+    { field: 'serial', headerName: 'Số hiệu', width: 140 },
+    { field: 'namSanXuat', headerName: 'Năm sản xuất', width: 120, type: 'number' },
+    { field: 'namSuDung', headerName: 'Năm sử dụng', width: 120, type: 'number' },
+    { field: 'nienHanSuDung', headerName: 'Niên hạn sử dụng', width: 150, type: 'number' },
+    { field: 'nuocSanXuat', headerName: 'Nước sản xuất', width: 140 },
+    { field: 'hangSanXuat', headerName: 'Hãng sản xuất', width: 150 },
+    { field: 'loai', headerName: 'Loại trang bị', width: 150 },
     {
-      field: 'actions', headerName: 'Thao tác', width: 110, sortable: false, filterable: false,
+      field: 'actions', headerName: 'Thao tác', width: 160, sortable: false, filterable: false,
       renderCell: (p: GridRenderCellParams<ITrangBi>) => (
-        <Box display="flex" gap={0.5} justifyContent="center" width="100%">
+        <Stack direction="row" spacing={0.5} justifyContent="center" width="100%">
           <Tooltip title="Xem chi tiết">
             <IconButton
               size="small"
               onClick={() => alert(`Xem: ${p.row.maTrangBi}`)}
               sx={{ color: militaryColors.navy }}
             >
-              <VisibilityIcon fontSize="small" />
+              <VisibilityIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -183,93 +212,127 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
               onClick={() => alert(`Sửa: ${p.row.maTrangBi}`)}
               sx={{ color: militaryColors.warning }}
             >
-              <EditIcon fontSize="small" />
+              <EditIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
-        </Box>
+          <Tooltip title="In chi tiết">
+            <IconButton
+              size="small"
+              onClick={() => alert(`In: ${p.row.maTrangBi}`)}
+              sx={{ color: militaryColors.success }}
+            >
+              <PrintIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Xóa trang bị">
+            <IconButton
+              size="small"
+              onClick={() => alert(`Xóa: ${p.row.maTrangBi}`)}
+              sx={{ color: militaryColors.error }}
+            >
+              <DeleteIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       ),
     },
   ];
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
-      {/* Header Section */}
-      <Box
-        mb={2}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="flex-end"
-        sx={{ flexWrap: 'wrap', gap: 2 }}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            fontWeight={800}
-            color="primary"
-            gutterBottom
-            sx={{
-              fontSize: { xs: '1.5rem', sm: '1.8rem', md: '2.125rem' },
-              letterSpacing: '-0.02em'
-            }}
-          >
-            {title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.8 }}>
-            {subtitle} • Hiển thị <strong>{filtered.length}</strong> / <strong>{data.length}</strong> bản ghi
-          </Typography>
+    <OfficeProvider>
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: '270px 1fr',
+        height: 'calc(100vh - 120px)',
+        bgcolor: 'background.default',
+        overflow: 'hidden'
+      }}>
+        {/* Sidebar: Office Dictionary */}
+        <Box component="aside" sx={{
+          borderRight: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          overflow: 'hidden',
+          height: '100%'
+        }}>
+          <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<FileDownloadIcon />}
-          onClick={handleExport}
-          sx={{
-            bgcolor: militaryColors.deepOlive,
-            '&:hover': { bgcolor: militaryColors.midOlive },
-            textTransform: 'none',
 
-            fontWeight: 700,
-            px: 3,
-            height: 40,
-            boxShadow: `0 4px 12px ${militaryColors.deepOlive}44`
+        {/* Main Content: DataGrid */}
+        <Stack
+          component="section"
+          spacing={1}
+          sx={{
+            pt: { xs: 1.5, sm: 2, md: 2 },
+            px: { xs: 1.5, sm: 2, md: 2 },
+            pb: 0,
+            overflow: 'hidden',
+            height: '100%'
           }}
         >
-          Xuất Excel
-        </Button>
-      </Box>
+          {/* Header Section */}
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-end"
+            flexWrap="wrap"
+            gap={2}
+          >
+            <Stack spacing={0.25}>
+              <Typography
+                variant="h4"
+                fontWeight={800}
+                color="primary"
+                sx={{ letterSpacing: '-0.02em' }}
+              >
+                {title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.8 }}>
+                {subtitle} • Hiển thị <strong>{filtered.length}</strong> / <strong>{data.length}</strong> bản ghi
+                {selectedOffice && (
+                  <> • Đang chọn: <strong>{selectedOffice.ten}</strong></>
+                )}
+              </Typography>
+            </Stack>
 
-      {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}
-      <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />
+            <Stack direction="row" spacing={1.5}>
+              {activeMenu && <StatsButton activeMenu={activeMenu} />}
+              <Button
+                variant="contained"
+                startIcon={<FileDownloadIcon />}
+                onClick={handleExport}
+                sx={{
+                  bgcolor: militaryColors.deepOlive,
+                  '&:hover': { bgcolor: militaryColors.midOlive },
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  px: 3,
+                  height: 40,
+                  boxShadow: `0 4px 12px ${militaryColors.deepOlive}44`
+                }}
+              >
+                Xuất Excel
+              </Button>
+            </Stack>
+          </Stack>
 
-      {/* ── DataGrid Container ───────────────────────────────── */}
-      <Box
-        sx={{
-          height: {
-            xs: 500,
-            sm: 550,
-            md: 'calc(100vh - 300px)', // Co giãn theo chiều cao màn hình cho laptop 12-14 inch
-          },
-          minHeight: 450,
-          width: '100%',
-          bgcolor: 'background.paper',
-          borderRadius: 0,
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 8px 32px rgba(0,0,0,0.4)'
-            : '0 8px 32px rgba(0,0,0,0.05)',
-          overflow: 'hidden',
-          border: `1px solid ${theme.palette.divider}`,
-          transition: 'all 0.3s ease',
-        }}
-      >
-        <DataGrid
-          rows={filtered}
-          columns={columns}
-          getRowId={row => row.id}
-          pageSizeOptions={[10, 25, 50, 100]}
-          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 25 } } }}
-        // density, rowHeight, columnHeaderHeight, disableRowSelectionOnClick được lấy từ theme.ts
-        />
+          {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}
+          <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />
+
+          {/* ── DataGrid Container ───────────────────────────────── */}
+          <DataGrid
+            rows={filtered}
+            columns={columns}
+            getRowId={(row) => row.id}
+            sx={{
+              flex: 1,
+              minHeight: 450,
+              width: "100%",
+            }}
+          />
+        </Stack>
       </Box>
-    </Box>
+    </OfficeProvider>
   );
 };
 

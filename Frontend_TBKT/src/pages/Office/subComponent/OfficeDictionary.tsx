@@ -572,7 +572,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
-        <Box sx={{ width: '100%', minWidth: 0, boxShadow: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#fafafa', height: '100%', overflow: 'hidden' }}>
+        <Box sx={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'background.paper', height: '100%', overflow: 'hidden' }}>
 
             {/* Search bar */}
             <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #e0e0e0', flexShrink: 0 }}>
