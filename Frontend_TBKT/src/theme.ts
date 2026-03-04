@@ -697,13 +697,12 @@ export const themeSetting = (mode: PaletteMode) => {
         defaultProps: {
           density: 'compact' as const,
           columnHeaderHeight: 70, // Increased to support wrapped headers
-          rowHeight: 48,
+          getRowHeight: () => 'auto',
           disableRowSelectionOnClick: true,
           pageSizeOptions: [10, 25, 50, 100],
           initialState: {
             pagination: { paginationModel: { page: 0, pageSize: 25 } },
           },
-
         },
         styleOverrides: {
           root: {
@@ -785,6 +784,11 @@ export const themeSetting = (mode: PaletteMode) => {
               justifyContent: 'center',
               alignContent: 'center',
               textAlign: 'center !important' as any,
+              whiteSpace: 'normal !important',
+              wordWrap: 'break-word' as any,
+              lineHeight: '1.4 !important',
+              padding: '8px !important',
+              flexWrap: 'wrap',
             },
             // Force center alignment for all text-align classes MUI uses
             '& .MuiDataGrid-cell--textLeft': {

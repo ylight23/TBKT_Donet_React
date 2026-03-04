@@ -15,6 +15,7 @@ import HandymanIcon        from '@mui/icons-material/Handyman';
 import FactCheckIcon       from '@mui/icons-material/FactCheck';
 import WarehouseIcon       from '@mui/icons-material/Warehouse';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 
 // ── Kiểu mục menu đơn ──────────────────────────────────────
 export interface MenuItem {
@@ -72,6 +73,7 @@ const menu: MenuEntry[] = [
     { title: 'Điều động',               path: '/dieu-dong',              icon: <LocalShippingIcon />,         active: 'dieuDong'             },
     { title: 'Chuyển cấp chất lượng',   path: '/chuyen-cap-chat-luong',  icon: <StarRateIcon />,              active: 'chuyenCap'            },
     { title: 'Thống kê báo cáo',        path: '/thong-ke-bao-cao',       icon: <BarChartIcon />,              active: 'thongKe'              },
+    { title: 'Cấu hình tham số',        path: '/cau-hinh-tham-so',       icon: <SettingsSuggestIcon />,       active: 'cauHinhThamSo'        },
     // Cũ (giữ lại tương thích)
     { title: 'Nhân Viên',               path: '/employee',               icon: <AssessmentIcon />,            active: 'employee'             },
 ];

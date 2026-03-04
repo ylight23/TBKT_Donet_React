@@ -25,6 +25,7 @@ const NiemCat              = React.lazy(() => import('../pages/NiemCat'));
 const DieuDong             = React.lazy(() => import('../pages/DieuDong'));
 const ChuyenCapChatLuong   = React.lazy(() => import('../pages/ChuyenCapChatLuong'));
 const ThongKeBaoCao        = React.lazy(() => import('../pages/ThongKeBaoCao'));
+const CauHinhThamSo        = React.lazy(() => import('../pages/CauHinhThamSo'));
 
 // ── Hoisted static JSX (Rule: hoist-jsx) ──────────────────────────────────────
 const loadingSpinner = (
@@ -148,6 +149,14 @@ const MainRoute: RouteObject = {
             element: (
                 <Suspense fallback={<PageSkeleton />}>
                     <ThongKeBaoCao />
+                </Suspense>
+            )
+        },
+        {
+            path: "/cau-hinh-tham-so",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <CauHinhThamSo />
                 </Suspense>
             )
         },

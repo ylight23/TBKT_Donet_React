@@ -108,6 +108,7 @@ export const getActiveMenuName = (): string => {
     if (url.includes('/dieu-dong'))                 return 'dieuDong';
     if (url.includes('/chuyen-cap-chat-luong'))     return 'chuyenCap';
     if (url.includes('/thong-ke-bao-cao'))          return 'thongKe';
+    if (url.includes('/cau-hinh-tham-so'))          return 'cauHinhThamSo';
     // ── Legacy routes ─────────────────────────────────────────
     if (url.includes('/employee'))                  return 'employee';
     if (url.includes('/office'))                    return 'office';

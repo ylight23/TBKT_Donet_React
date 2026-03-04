@@ -38,6 +38,7 @@ const preloadMap: Record<string, () => Promise<unknown>> = {
     '/dieu-dong': () => import('../DieuDong'),
     '/chuyen-cap-chat-luong': () => import('../ChuyenCapChatLuong'),
     '/thong-ke-bao-cao': () => import('../ThongKeBaoCao'),
+    '/cau-hinh-tham-so': () => import('../CauHinhThamSo'),
     '/office': () => import('../Office'),
     '/employee': () => import('../Employee'),
 };

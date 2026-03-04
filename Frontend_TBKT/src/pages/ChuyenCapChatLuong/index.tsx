@@ -58,12 +58,21 @@ const getTrend = (capCu: ChatLuong, capMoi: ChatLuong): 'up' | 'down' | 'flat' =
   return 'flat';
 };
 
+// ── Mở rộng dữ liệu chuyển cấp (mock) ────────────────────────
+const chuyenCapRows = mockChuyenCap.map((r, i) => ({
+  ...r,
+  stt: i + 1,
+  ten: r.tenTrangBi,
+  soMenhLenh: `ML/${2400 + i}/QĐ-Kỹ thuật`,
+  canCu: `Biên bản giám định số ${100 + i}`,
+  thoiGian: r.ngayCapNhat,
+}));
+
 const ChuyenCapChatLuong: React.FC = () => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [filterCu, setFilterCu] = useState('');
   const [filterMoi, setFilterMoi] = useState('');
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const activeFilters = useMemo(() => {
     const chips: any[] = [];
@@ -89,11 +98,11 @@ const ChuyenCapChatLuong: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return mockChuyenCap.filter((r) => {
+    return chuyenCapRows.filter((r) => {
       const matchSearch =
         !q ||
-        [r.maTrangBi, r.tenTrangBi, r.donVi, r.lyDo, r.nguoiXacNhan].some((v) =>
-          v.toLowerCase().includes(q)
+        [r.ten, r.donVi, r.lyDo, r.nguoiXacNhan, r.soMenhLenh, r.canCu].some((v) =>
+          v?.toLowerCase().includes(q)
         );
       const matchCu = !filterCu || r.capCu === filterCu;
       const matchMoi = !filterMoi || r.capMoi === filterMoi;
@@ -111,11 +120,11 @@ const ChuyenCapChatLuong: React.FC = () => {
 
   const stats = useMemo(
     () => ({
-      total: mockChuyenCap.length,
-      tangCap: mockChuyenCap.filter(
+      total: chuyenCapRows.length,
+      tangCap: chuyenCapRows.filter(
         (r) => getTrend(r.capCu, r.capMoi) === "up"
       ).length,
-      giamCap: mockChuyenCap.filter(
+      giamCap: chuyenCapRows.filter(
         (r) => getTrend(r.capCu, r.capMoi) === "down"
       ).length,
     }),
@@ -123,49 +132,35 @@ const ChuyenCapChatLuong: React.FC = () => {
   );
 
   const columns: GridColDef[] = [
+    { field: 'stt', headerName: 'STT', width: 70 },
+    { field: 'ten', headerName: 'Tên', width: 220 },
     {
-      field: 'id', headerName: 'Mã phiếu CC', width: 130,
-      renderCell: p => <Typography variant="body2" fontWeight={600} sx={{ color: 'var(--mil-text-primary)' }}>{p.value}</Typography>
-    },
-    { field: 'maTrangBi', headerName: 'Mã trang bị', width: 140 },
-    { field: 'tenTrangBi', headerName: 'Tên trang bị', flex: 1, minWidth: 160 },
-    { field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 150 },
-    {
-      field: 'capCu', headerName: 'Cấp cũ', width: 130,
-      renderCell: (p: GridRenderCellParams<IChuyenCap, ChatLuong>) => (
-        <Chip
-          label={p.value} size="small"
-          sx={{
-            bgcolor: `${clColor[p.value!]}22`, color: clColor[p.value!], fontWeight: 600,
-            border: `1px solid ${clColor[p.value!]}55`
-          }}
-        />
+      field: 'capChatLuong', headerName: 'Cấp chất lượng', width: 250,
+      renderCell: (p: GridRenderCellParams<any>) => (
+        <Box display="flex" alignItems="center" gap={1}>
+          <Chip
+            label={p.row.capCu} size="small"
+            sx={{
+              bgcolor: `${clColor[p.row.capCu as ChatLuong]}15`, color: clColor[p.row.capCu as ChatLuong],
+              fontWeight: 700, border: `1px solid ${clColor[p.row.capCu as ChatLuong]}33`
+            }}
+          />
+          <TrendingFlatIcon sx={{ color: 'text.disabled', fontSize: 16 }} />
+          <Chip
+            label={p.row.capMoi} size="small"
+            sx={{
+              bgcolor: `${clColor[p.row.capMoi as ChatLuong]}15`, color: clColor[p.row.capMoi as ChatLuong],
+              fontWeight: 700, border: `1px solid ${clColor[p.row.capMoi as ChatLuong]}33`
+            }}
+          />
+        </Box>
       ),
     },
-    {
-      field: 'trend', headerName: 'Xu hướng', width: 100, sortable: false, filterable: false,
-      renderCell: (p: GridRenderCellParams<IChuyenCap>) => {
-        const trend = getTrend(p.row.capCu, p.row.capMoi);
-        return trend === 'up' ? <TrendingUpIcon color="success" /> :
-          trend === 'down' ? <TrendingDownIcon color="error" /> :
-            <TrendingFlatIcon color="action" />;
-      },
-    },
-    {
-      field: 'capMoi', headerName: 'Cấp mới', width: 130,
-      renderCell: (p: GridRenderCellParams<IChuyenCap, ChatLuong>) => (
-        <Chip
-          label={p.value} size="small"
-          sx={{
-            bgcolor: `${clColor[p.value!]}22`, color: clColor[p.value!], fontWeight: 600,
-            border: `1px solid ${clColor[p.value!]}55`
-          }}
-        />
-      ),
-    },
-    { field: 'ngayCapNhat', headerName: 'Ngày cập nhật', width: 140 },
-    { field: 'lyDo', headerName: 'Lý do', flex: 1, minWidth: 200 },
-    { field: 'nguoiXacNhan', headerName: 'Người xác nhận', width: 200 },
+    { field: 'donVi', headerName: 'Đơn vị', width: 180 },
+    { field: 'thoiGian', headerName: 'Thời gian', width: 140 },
+    { field: 'soMenhLenh', headerName: 'Số mệnh lệnh', width: 180 },
+    { field: 'canCu', headerName: 'Căn cứ', width: 220 },
+    { field: 'lyDo', headerName: 'Ghi chú', flex: 1, minWidth: 200 },
     {
       field: 'actions', headerName: 'Thao tác', width: 160, sortable: false, filterable: false,
       renderCell: (p: GridRenderCellParams) => (
@@ -202,7 +197,7 @@ const ChuyenCapChatLuong: React.FC = () => {
         </Box>
         <StatsButton activeMenu="chuyenCap" />
       </Stack>
-      
+
 
 
       <CommonFilter

@@ -53,18 +53,32 @@ const ttColor: Record<string, 'info' | 'success' | 'warning' | 'error' | 'defaul
   'Hủy': 'error',
 };
 
+// ── Mở rộng dữ liệu điều động (mock) ────────────────────────
+const dieuDongRows = mockDieuDong.map((r, i) => ({
+  ...r,
+  stt: i + 1,
+  tieuDe: `Điều động ${r.tenTrangBi}`,
+  canCu: `Lệnh ${400 + i}/L-ĐĐ`,
+  thoiGian: r.ngayDieuDong,
+  thuTruong: r.nguoiDuyet,
+  donViGiao: r.donViCu,
+  nguoiGiao: `Thượng tá Nguyễn Văn ${String.fromCharCode(65 + (i % 26))}`,
+  donViNhan: r.donViMoi,
+  nguoiNhan: `Thiếu tá Trần Minh ${String.fromCharCode(88 - (i % 26))}`,
+  ghiChu: "Điều động phục vụ nhiệm vụ đột xuất",
+}));
+
 const DieuDong: React.FC = () => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [filterTT, setFilterTT] = useState('');
-  const [expanded, setExpanded] = useState(false);
 
-  const ttList = useMemo(() => Array.from(new Set(mockDieuDong.map(d => d.trangThai))), []);
+  const ttList = useMemo(() => Array.from(new Set(dieuDongRows.map(d => d.trangThai))), []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return mockDieuDong.filter(r => {
-      const matchSearch = !q || [r.maTrangBi, r.tenTrangBi, r.donViCu, r.donViMoi, r.lyDo].some(v => v.toLowerCase().includes(q));
+    return dieuDongRows.filter(r => {
+      const matchSearch = !q || [r.maTrangBi, r.tenTrangBi, r.donViGiao, r.donViNhan, r.lyDo, r.tieuDe, r.canCu].some(v => v?.toLowerCase().includes(q));
       const matchTT = !filterTT || r.trangThai === filterTT;
       return matchSearch && matchTT;
     });
@@ -94,34 +108,33 @@ const DieuDong: React.FC = () => {
 
   const stats = useMemo(
     () => ({
-      total: mockDieuDong.length,
-      daDuyet: mockDieuDong.filter((r) => r.trangThai === "Đã duyệt").length,
-      choDuyet: mockDieuDong.filter((r) => r.trangThai === "Chờ duyệt").length,
-      daThucHien: mockDieuDong.filter((r) => r.trangThai === "Đã thực hiện")
+      total: dieuDongRows.length,
+      daDuyet: dieuDongRows.filter((r) => r.trangThai === "Đã duyệt").length,
+      choDuyet: dieuDongRows.filter((r) => r.trangThai === "Chờ duyệt").length,
+      daThucHien: dieuDongRows.filter((r) => r.trangThai === "Đã thực hiện")
         .length,
-      huy: mockDieuDong.filter((r) => r.trangThai === "Hủy").length,
+      huy: dieuDongRows.filter((r) => r.trangThai === "Hủy").length,
     }),
     []
   );
 
   const columns: GridColDef[] = [
+    { field: 'stt', headerName: 'STT', width: 70 },
+    { field: 'tieuDe', headerName: 'Tiêu đề', width: 250 },
+    { field: 'canCu', headerName: 'Căn cứ', width: 180 },
     {
-      field: 'id', headerName: 'Mã phiếu ĐĐ', width: 130,
-      renderCell: p => <Typography variant="body2" fontWeight={600} sx={{ color: 'var(--mil-text-primary)' }}>{p.value}</Typography>
-    },
-    { field: 'maTrangBi', headerName: 'Mã trang bị', width: 140 },
-    { field: 'tenTrangBi', headerName: 'Tên trang bị', flex: 1, minWidth: 160 },
-    { field: 'donViCu', headerName: 'Đơn vị cũ', flex: 1, minWidth: 150 },
-    { field: 'donViMoi', headerName: 'Đơn vị mới', flex: 1, minWidth: 150 },
-    { field: 'ngayDieuDong', headerName: 'Ngày điều động', width: 140 },
-    { field: 'lyDo', headerName: 'Lý do', flex: 1, minWidth: 200 },
-    { field: 'nguoiDuyet', headerName: 'Người duyệt', width: 200 },
-    {
-      field: 'trangThai', headerName: 'Trạng thái', width: 150,
+      field: 'trangThai', headerName: 'Trạng thái điều động', width: 180,
       renderCell: (p: GridRenderCellParams) => (
         <Chip label={p.value} color={ttColor[p.value] ?? 'default'} size="small" sx={{ fontWeight: 600 }} />
       ),
     },
+    { field: 'thoiGian', headerName: 'Thời gian', width: 140 },
+    { field: 'thuTruong', headerName: 'Thủ trưởng', width: 180 },
+    { field: 'donViGiao', headerName: 'Đơn vị giao', width: 180 },
+    { field: 'nguoiGiao', headerName: 'Người giao', width: 180 },
+    { field: 'donViNhan', headerName: 'Đơn vị nhận', width: 180 },
+    { field: 'nguoiNhan', headerName: 'Người nhận', width: 180 },
+    { field: 'ghiChu', headerName: 'Ghi chú', flex: 1, minWidth: 200 },
     {
       field: 'actions', headerName: 'Thao tác', width: 160, sortable: false, filterable: false,
       renderCell: (p: GridRenderCellParams) => (
