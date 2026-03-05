@@ -2,6 +2,6 @@ version: v2
 clean: true
 plugins:
   - local: protoc-gen-es
-    out: src/grpc/generated
+    out: Frontend_TBKT/src/grpc/generated
     opt:
       - target=ts

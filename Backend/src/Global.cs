@@ -112,6 +112,39 @@ public static class Global
         }
     }
 
+    // ── ThamSo collections (Using BsonDocument for manual mapping) ───
+    private static IMongoCollection<BsonDocument>? _collectionDynamicField;
+    public static IMongoCollection<BsonDocument>? CollectionDynamicField
+    {
+        get
+        {
+            if (_collectionDynamicField == null)
+                _collectionDynamicField = MongoDB?.GetCollection<BsonDocument>("DynamicField");
+            return _collectionDynamicField;
+        }
+    }
+
+    private static IMongoCollection<BsonDocument>? _collectionFieldSet;
+    public static IMongoCollection<BsonDocument>? CollectionFieldSet
+    {
+        get
+        {
+            if (_collectionFieldSet == null)
+                _collectionFieldSet = MongoDB?.GetCollection<BsonDocument>("FieldSet");
+            return _collectionFieldSet;
+        }
+    }
+
+    private static IMongoCollection<BsonDocument>? _collectionFormConfig;
+    public static IMongoCollection<BsonDocument>? CollectionFormConfig
+    {
+        get
+        {
+            if (_collectionFormConfig == null)
+                _collectionFormConfig = MongoDB?.GetCollection<BsonDocument>("FormConfig");
+            return _collectionFormConfig;
+        }
+    }
 
 
     public static void UseEmployeeServices(this WebApplication app, IConfiguration config, string version)
@@ -135,11 +168,14 @@ public static class Global
             throw;
         }
 
+        
+        // BsonSerializer.RegisterSerializer(
+        //     typeof(Google.Protobuf.Collections.RepeatedField<string>),
+        //     Backend.Models.RepeatedFieldStringSerializer.Instance);
+
         BsonClassMap.RegisterClassMap<Employee>(c =>
         {
             c.AutoMap();
-            // c.MapProperty(x => x.Parameters);
-            // c.MapProperty(x => x.ViewInMenus);
         });
         BsonClassMap.RegisterClassMap<Office>(c =>
         {
@@ -147,17 +183,20 @@ public static class Global
             c.MapProperty(x => x.Parameters);
         });
 
+        // ── ThamSo BsonClassMap ──────────────────────────────────────────
+        // Note: Using BsonDocument and manual mapping for Proto classes to handle RepeatedField correctly.
+
         // Initialize default Office item with ID "000"
         InitializeDefaultOffice();
 
-        // Map gRPC services with gRPC-Web support
         app.MapGrpcService<EmployeeServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<OfficeServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<CatalogServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<ThamSoServiceImpl>().EnableGrpcWeb().RequireAuthorization();
 
         app.UseStaticFiles(new StaticFileOptions
         {
-            ServeUnknownFileTypes = true, // Đảm bảo phục vụ các file không xác định (như .js, .css)
+            ServeUnknownFileTypes = true, 
             DefaultContentType = "application/octet-stream"
         });
         app.UseRouting();

@@ -226,7 +226,7 @@ const TinhTrangKyThuat: React.FC = () => {
         </Box>
         <StatsButton activeMenu="tinhTrangKT" />
       </Stack>
-      
+
 
       <CommonFilter
         search={search}

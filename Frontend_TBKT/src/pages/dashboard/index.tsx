@@ -4,7 +4,7 @@
 // ============================================================
 import React, { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/GridLegacy';
+import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -558,7 +558,7 @@ const Dashboard: React.FC = () => {
             )}
 
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>ĐƠN VỊ</Typography>
                 <TextField select fullWidth size="small" value={unitFilter} onChange={e => setUnitFilter(e.target.value)}>
                   <MenuItem value="">Tất cả</MenuItem>
@@ -567,7 +567,7 @@ const Dashboard: React.FC = () => {
                   <MenuItem value="3">Quân khu 1</MenuItem>
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NHÓM</Typography>
                 <TextField select fullWidth size="small" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
                   <MenuItem value="all">Tất cả</MenuItem>
@@ -575,7 +575,7 @@ const Dashboard: React.FC = () => {
                   <MenuItem value="n2">Nhóm 2 (Khí tài)</MenuItem>
                 </TextField>
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NGÀY BÁO CÁO</Typography>
                 <TextField type="date" fullWidth size="small" value={reportDate} onChange={e => setReportDate(e.target.value)} />
               </Grid>
@@ -594,7 +594,7 @@ const Dashboard: React.FC = () => {
       {/* Stat Cards */}
       <Grid container spacing={2} mb={2}>
         {statCards.map((card, idx) => (
-          <Grid item xs={12} sm={6} md={4} lg key={idx}>
+          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 'grow' }} key={idx}>
             <StatCard {...card} />
           </Grid>
         ))}
@@ -602,7 +602,7 @@ const Dashboard: React.FC = () => {
 
       {/* Charts */}
       <Grid container spacing={3}>
-        <Grid item xs={12} lg={7}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           <Card elevation={3} sx={{ borderRadius: 2, height: 460 }}>
             <CardContent sx={{ height: '100%' }}>
               <Typography variant="h6" fontWeight={800} gutterBottom>Phân bổ theo đơn vị</Typography>
@@ -627,7 +627,7 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} lg={5}>
+        <Grid size={{ xs: 12, lg: 5 }}>
           <Card elevation={3} sx={{ borderRadius: 2, height: 460 }}>
             <CardContent>
               <Typography variant="h6" fontWeight={800} gutterBottom>Niên hạn sản xuất</Typography>

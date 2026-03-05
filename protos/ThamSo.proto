@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package ThamSo;
+
+import "google/protobuf/timestamp.proto";
+import "Base.proto";
+
+// ============================================================
+// Service
+// ============================================================
+service ThamSoService {
+  // DynamicField
+  rpc GetListDynamicFields(GetListDynamicFieldsRequest) returns (GetListDynamicFieldsResponse);
+  rpc SaveDynamicField(SaveDynamicFieldRequest) returns (SaveDynamicFieldResponse);
+  rpc DeleteDynamicField(DeleteDynamicFieldRequest) returns (Base.DeleteBaseResponse);
+
+  // FieldSet
+  rpc GetListFieldSets(GetListFieldSetsRequest) returns (GetListFieldSetsResponse);
+  rpc SaveFieldSet(SaveFieldSetRequest) returns (SaveFieldSetResponse);
+  rpc DeleteFieldSet(DeleteFieldSetRequest) returns (Base.DeleteBaseResponse);
+
+  // FormConfig
+  rpc GetListFormConfigs(GetListFormConfigsRequest) returns (GetListFormConfigsResponse);
+  rpc SaveFormConfig(SaveFormConfigRequest) returns (SaveFormConfigResponse);
+  rpc DeleteFormConfig(DeleteFormConfigRequest) returns (Base.DeleteBaseResponse);
+}
+
+// ============================================================
+// DynamicField
+// ============================================================
+message FieldValidation {
+  int32 min_length = 1;
+  int32 max_length = 2;
+  string pattern = 3;
+  double min = 4;
+  double max = 5;
+  repeated string options = 6;
+}
+
+message DynamicField {
+  string id = 1;
+  string key = 2;
+  string label = 3;
+  string type = 4; // text | number | date | select | textarea | checkbox
+  bool required = 5;
+  FieldValidation validation = 6;
+  bool delete = 7;
+  google.protobuf.Timestamp create_date = 10;
+  google.protobuf.Timestamp modify_date = 11;
+}
+
+message GetListDynamicFieldsRequest {}
+message GetListDynamicFieldsResponse {
+  repeated DynamicField items = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message SaveDynamicFieldRequest {
+  DynamicField item = 1;
+  bool is_new = 2;
+}
+message SaveDynamicFieldResponse {
+  DynamicField item = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message DeleteDynamicFieldRequest {
+  string id = 1;
+  repeated string ids = 2;
+}
+
+// ============================================================
+// FieldSet
+// ============================================================
+message FieldSet {
+  string id = 1;
+  string name = 2;
+  string icon = 3; // MUI icon name, e.g. "Assignment", "Shield"
+  string color = 4;
+  string desc = 5;
+  repeated string field_ids = 6;
+  bool delete = 7;
+  google.protobuf.Timestamp create_date = 10;
+  google.protobuf.Timestamp modify_date = 11;
+}
+
+message GetListFieldSetsRequest {}
+message GetListFieldSetsResponse {
+  repeated FieldSet items = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message SaveFieldSetRequest {
+  FieldSet item = 1;
+  bool is_new = 2;
+}
+message SaveFieldSetResponse {
+  FieldSet item = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message DeleteFieldSetRequest {
+  string id = 1;
+  repeated string ids = 2;
+}
+
+// ============================================================
+// FormConfig
+// ============================================================
+message FormTabConfig {
+  string id = 1;
+  string label = 2;
+  repeated string set_ids = 3;
+}
+
+message FormConfig {
+  string id = 1;
+  string name = 2;
+  string desc = 3;
+  repeated FormTabConfig tabs = 4;
+  bool delete = 5;
+  google.protobuf.Timestamp create_date = 10;
+  google.protobuf.Timestamp modify_date = 11;
+}
+
+message GetListFormConfigsRequest {}
+message GetListFormConfigsResponse {
+  repeated FormConfig items = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message SaveFormConfigRequest {
+  FormConfig item = 1;
+  bool is_new = 2;
+}
+message SaveFormConfigResponse {
+  FormConfig item = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message DeleteFormConfigRequest {
+  string id = 1;
+  repeated string ids = 2;
+}

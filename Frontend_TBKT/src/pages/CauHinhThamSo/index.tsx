@@ -51,6 +51,16 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import DirectionsBoatIcon from '@mui/icons-material/DirectionsBoat';
 import FlightIcon from '@mui/icons-material/Flight';
 import SecurityIcon from '@mui/icons-material/Security';
+import UpgradeIcon from '@mui/icons-material/Upgrade';
+
+import { thamSoApi } from '../../api/thamSoApiWithCache';
+import type {
+  LocalDynamicField as DynamicField,
+  LocalFormTabConfig as FormTabConfig,
+  LocalFormConfig as FormConfig,
+} from '../../types/thamSo';
+import { SEED_FIELDS, SEED_SETS, SEED_FORMS } from '../../data/thamSoSeeds';
+import { iconToName, nameToIcon } from '../../utils/thamSoUtils';
 
 // ============================================================
 // Types
@@ -66,15 +76,7 @@ interface FieldValidation {
   options?: string[];
 }
 
-interface DynamicField {
-  id: string;
-  key: string;
-  label: string;
-  type: FieldType;
-  required: boolean;
-  validation: FieldValidation;
-}
-
+// Local FieldSet uses React.ReactNode for the icon to support JSX icons in the UI
 interface FieldSet {
   id: string;
   name: string;
@@ -110,9 +112,9 @@ interface EquipmentItem {
   logs: EquipmentLog[];
 }
 
+
 // ============================================================
-// Constants from EquipmentManagerV3
-// ============================================================
+
 const FIELD_TYPES: Array<{ value: FieldType; label: string; icon: React.ReactNode; color: string }> = [
   { value: 'text', label: 'Văn bản', icon: <TextFieldsIcon sx={{ fontSize: 14 }} />, color: '#3b82f6' },
   { value: 'number', label: 'Số', icon: <NumbersIcon sx={{ fontSize: 14 }} />, color: '#34d399' },
@@ -122,7 +124,7 @@ const FIELD_TYPES: Array<{ value: FieldType; label: string; icon: React.ReactNod
   { value: 'checkbox', label: 'Có / Không', icon: <CheckBoxIcon sx={{ fontSize: 14 }} />, color: '#fb923c' },
 ];
 
-const typeOf = (v: FieldType) => FIELD_TYPES.find((item) => item.value === v) ?? FIELD_TYPES[0];
+const typeOf = (v: string) => FIELD_TYPES.find((item) => item.value === v) ?? FIELD_TYPES[0];
 
 const LOG_TYPES: Record<LogType, { label: string; color: string; icon: React.ReactNode; fields: string[] }> = {
   bao_quan: {
@@ -186,82 +188,10 @@ const LOG_LABELS: Record<string, string> = {
   nhiem_vu: 'Nhiệm vụ',
 };
 
-const createId = (prefix: string): string => `${prefix}_${Math.random().toString(36).slice(2, 9)}_${Date.now().toString(36)}`;
+// SEED data imported from thamSoSeeds.tsx
 
-const SEED_FIELDS: DynamicField[] = [
-  { id: 'f01', key: 'ma_trang_bi', label: 'Mã trang bị', type: 'text', required: true, validation: { minLength: 2, maxLength: 50 } },
-  { id: 'f02', key: 'ten_trang_bi', label: 'Tên trang bị', type: 'text', required: true, validation: { minLength: 3, maxLength: 200 } },
-  { id: 'f03', key: 'don_vi_tinh', label: 'Đơn vị tính', type: 'text', required: false, validation: {} },
-  { id: 'f04', key: 'don_vi_quan_ly', label: 'Đơn vị quản lý', type: 'text', required: false, validation: {} },
-  { id: 'f05', key: 'don_vi_su_dung', label: 'Đơn vị sử dụng', type: 'text', required: false, validation: {} },
-  { id: 'f06', key: 'so_luong', label: 'Số lượng', type: 'number', required: false, validation: { min: 0, max: 99999 } },
-  { id: 'f07', key: 'cap_chat_luong', label: 'Cấp chất lượng', type: 'select', required: false, validation: { options: ['Loại 1', 'Loại 2', 'Loại 3', 'Loại 4'] } },
-  { id: 'f08', key: 'serial_number', label: 'Serial Number', type: 'text', required: false, validation: {} },
-  { id: 'f09', key: 'nam_san_xuat', label: 'Năm sản xuất', type: 'number', required: false, validation: { min: 1900, max: 2100 } },
-  { id: 'f10', key: 'nam_su_dung', label: 'Năm đưa vào sử dụng', type: 'number', required: false, validation: { min: 1900, max: 2100 } },
-  { id: 'f11', key: 'nuoc_san_xuat', label: 'Nước sản xuất', type: 'text', required: false, validation: {} },
-  { id: 'f12', key: 'hang_san_xuat', label: 'Hãng sản xuất', type: 'text', required: false, validation: {} },
-  { id: 'f13', key: 'nguon_hinh_thanh', label: 'Nguồn hình thành', type: 'text', required: false, validation: {} },
-  { id: 'f14', key: 'tinh_trang', label: 'Tình trạng sử dụng', type: 'select', required: false, validation: { options: ['Đang sử dụng', 'Niêm cất', 'Chờ sửa chữa', 'Đã thanh lý'] } },
-  { id: 'f15', key: 'nien_han', label: 'Niên hạn sử dụng', type: 'text', required: false, validation: {} },
-  { id: 'f16', key: 'dv_dam_bao_kt', label: 'Đơn vị đảm bảo kỹ thuật', type: 'text', required: false, validation: {} },
-  { id: 'f17', key: 'dv_hinh_thanh_kt', label: 'Đơn vị hình thành kỹ thuật', type: 'text', required: false, validation: {} },
-  { id: 'f18', key: 'tinh_nang_chien_kt', label: 'Tính năng chiến - kỹ thuật', type: 'textarea', required: false, validation: { maxLength: 2000 } },
-  { id: 'f19', key: 'ghi_chu', label: 'Ghi chú', type: 'textarea', required: false, validation: { maxLength: 1000 } },
-  { id: 'f20', key: 'trong_tai', label: 'Trọng tải (tấn)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f21', key: 'mod_nuoc', label: 'Mớn nước (m)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f22', key: 'chieu_dai', label: 'Chiều dài (m)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f23', key: 'cong_suat_may', label: 'Công suất máy (HP)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f24', key: 'van_toc_tau', label: 'Vận tốc tối đa (hl/h)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f25', key: 'loai_dong_co_tau', label: 'Loại động cơ tàu', type: 'text', required: false, validation: {} },
-  { id: 'f26', key: 'trong_luong_mb', label: 'Trọng lượng cất cánh (kg)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f27', key: 'toc_do_mb', label: 'Tốc độ tối đa (km/h)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f28', key: 'tran_bay', label: 'Trần bay (m)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f29', key: 'ban_kinh_hd', label: 'Bán kính hoạt động (km)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f30', key: 'loai_dong_co_mb', label: 'Loại động cơ', type: 'text', required: false, validation: {} },
-  { id: 'f31', key: 'trong_luong_xt', label: 'Trọng lượng (tấn)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f32', key: 'vo_giap', label: 'Vỏ giáp (mm)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f33', key: 'cong_suat_xt', label: 'Công suất động cơ (HP)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f34', key: 'toc_do_xt', label: 'Tốc độ đường bộ (km/h)', type: 'number', required: false, validation: { min: 0 } },
-  { id: 'f35', key: 'co_cau_vu_khi', label: 'Cơ cấu vũ khí', type: 'textarea', required: false, validation: { maxLength: 1000 } },
-];
 
-const SEED_SETS: FieldSet[] = [
-  {
-    id: 'gs01',
-    name: 'Trang bị chuyên ngành',
-    icon: <AssignmentIcon sx={{ fontSize: 18 }} />,
-    color: '#3b82f6',
-    desc: '19 trường thông tin gốc bắt buộc theo quy định',
-    fieldIds: ['f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07', 'f08', 'f09', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19'],
-  },
-  {
-    id: 'gs02',
-    name: 'Tàu thuyền',
-    icon: <DirectionsBoatIcon sx={{ fontSize: 18 }} />,
-    color: '#22d3ee',
-    desc: 'Thông số kỹ thuật chuyên ngành tàu thuyền',
-    fieldIds: ['f20', 'f21', 'f22', 'f23', 'f24', 'f25'],
-  },
-  {
-    id: 'gs03',
-    name: 'Máy bay',
-    icon: <FlightIcon sx={{ fontSize: 18 }} />,
-    color: '#a78bfa',
-    desc: 'Thông số kỹ thuật chuyên ngành máy bay',
-    fieldIds: ['f26', 'f27', 'f28', 'f29', 'f30'],
-  },
-  {
-    id: 'gs04',
-    name: 'Xe tăng - Xe bọc thép',
-    icon: <SecurityIcon sx={{ fontSize: 18 }} />,
-    color: '#fbbf24',
-    desc: 'Thông số kỹ thuật chuyên ngành xe tăng / thiết giáp',
-    fieldIds: ['f31', 'f32', 'f33', 'f34', 'f35'],
-  },
-];
-
-const SEED_EQUIPMENT: EquipmentItem[] = [
+const SEED_EQUIPMENT: EquipmentItem[] = []; /* [
   {
     id: 'eq01',
     selectedSetIds: ['gs01', 'gs02'],
@@ -293,7 +223,7 @@ const SEED_EQUIPMENT: EquipmentItem[] = [
       },
     ],
   },
-];
+]; */
 
 // ============================================================
 // Utilities
@@ -712,237 +642,199 @@ interface FieldSetEditorDialogProps {
 }
 
 const SET_COLORS = ['#3b82f6', '#22d3ee', '#34d399', '#fbbf24', '#a78bfa', '#fb923c', '#f43f5e', '#ec4899'];
-const SET_ICONS: React.ReactNode[] = [
-  <AssignmentIcon sx={{ fontSize: 18 }} />,
-  <DirectionsBoatIcon sx={{ fontSize: 18 }} />,
-  <FlightIcon sx={{ fontSize: 18 }} />,
-  <SecurityIcon sx={{ fontSize: 18 }} />,
-  <ConstructionIcon sx={{ fontSize: 18 }} />,
-  <TimerIcon sx={{ fontSize: 18 }} />,
-  <LocalShippingIcon sx={{ fontSize: 18 }} />,
-  <InventoryIcon sx={{ fontSize: 18 }} />,
-  <HandymanIcon sx={{ fontSize: 18 }} />,
-  <ShieldIcon sx={{ fontSize: 18 }} />,
-  <BuildIcon sx={{ fontSize: 18 }} />,
-  <LibraryBooksIcon sx={{ fontSize: 18 }} />,
+
+const ICON_OPTIONS: Array<{ name: string; node: React.ReactNode; label: string }> = [
+  { name: 'Assignment', node: <AssignmentIcon sx={{ fontSize: 18 }} />, label: 'Assignment' },
+  { name: 'Shield', node: <ShieldIcon sx={{ fontSize: 18 }} />, label: 'Bảo quản' },
+  { name: 'Handyman', node: <HandymanIcon sx={{ fontSize: 18 }} />, label: 'Bảo dưỡng' },
+  { name: 'Construction', node: <ConstructionIcon sx={{ fontSize: 18 }} />, label: 'Sửa chữa' },
+  { name: 'Inventory', node: <InventoryIcon sx={{ fontSize: 18 }} />, label: 'Niêm cất' },
+  { name: 'LocalShipping', node: <LocalShippingIcon sx={{ fontSize: 18 }} />, label: 'Điều động' },
+  { name: 'Upgrade', node: <UpgradeIcon sx={{ fontSize: 18 }} />, label: 'Nâng cấp' },
+  { name: 'DirectionsBoat', node: <DirectionsBoatIcon sx={{ fontSize: 18 }} />, label: 'Tàu thuyền' },
+  { name: 'Flight', node: <FlightIcon sx={{ fontSize: 18 }} />, label: 'Máy bay' },
+  { name: 'Security', node: <SecurityIcon sx={{ fontSize: 18 }} />, label: 'Xe tăng' },
+  { name: 'LibraryBooks', node: <LibraryBooksIcon sx={{ fontSize: 18 }} />, label: 'Tài liệu' },
+  { name: 'Settings', node: <SettingsIcon sx={{ fontSize: 18 }} />, label: 'Cài đặt' },
+  { name: 'Build', node: <BuildIcon sx={{ fontSize: 18 }} />, label: 'Xây dựng' },
+  { name: 'Timer', node: <TimerIcon sx={{ fontSize: 18 }} />, label: 'Thời gian' },
 ];
 
 const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setData, allFields, onSave, onClose }) => {
-  const [draft, setDraft] = useState<FieldSet>(setData);
+  const [name, setName] = useState(setData.name);
+  const [desc, setDesc] = useState(setData.desc ?? '');
+  const [color, setColor] = useState(setData.color);
+  const [iconName, setIconName] = useState<string>(() => {
+    for (const opt of ICON_OPTIONS) {
+      if (
+        React.isValidElement(setData.icon) &&
+        React.isValidElement(opt.node) &&
+        (setData.icon as React.ReactElement).type === (opt.node as React.ReactElement).type
+      ) {
+        return opt.name;
+      }
+    }
+    return 'Assignment';
+  });
+  const [selectedIds, setSelectedIds] = useState<string[]>([...setData.fieldIds]);
+  const [fieldSearch, setFieldSearch] = useState('');
 
+  // Reset when dialog opens with new data
   useEffect(() => {
-    setDraft(setData);
+    setName(setData.name);
+    setDesc(setData.desc ?? '');
+    setColor(setData.color);
+    setSelectedIds([...setData.fieldIds]);
+    setFieldSearch('');
+    for (const opt of ICON_OPTIONS) {
+      if (
+        React.isValidElement(setData.icon) &&
+        React.isValidElement(opt.node) &&
+        (setData.icon as React.ReactElement).type === (opt.node as React.ReactElement).type
+      ) {
+        setIconName(opt.name);
+        return;
+      }
+    }
+    setIconName('Assignment');
   }, [setData]);
 
-  const availableFields = allFields.filter((field) => !draft.fieldIds.includes(field.id));
-  const selectedFields = draft.fieldIds
-    .map((fieldId) => allFields.find((field) => field.id === fieldId))
-    .filter((field): field is DynamicField => Boolean(field));
+  const filteredAllFields = useMemo(
+    () => allFields.filter(
+      (f) =>
+        f.label.toLowerCase().includes(fieldSearch.toLowerCase()) ||
+        f.key.toLowerCase().includes(fieldSearch.toLowerCase()),
+    ),
+    [allFields, fieldSearch],
+  );
 
-  const toggleField = (fieldId: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      fieldIds: prev.fieldIds.includes(fieldId)
-        ? prev.fieldIds.filter((id) => id !== fieldId)
-        : [...prev.fieldIds, fieldId],
-    }));
+  const toggle = (fieldId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(fieldId) ? prev.filter((id) => id !== fieldId) : [...prev, fieldId],
+    );
   };
 
-  const moveField = (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= draft.fieldIds.length) {
-      return;
-    }
-    const next = [...draft.fieldIds];
-    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-    setDraft((prev) => ({ ...prev, fieldIds: next }));
+  const handleSave = () => {
+    const iconNode = ICON_OPTIONS.find((o) => o.name === iconName)?.node ?? <AssignmentIcon sx={{ fontSize: 18 }} />;
+    onSave({ ...setData, name: name.trim() || '(chưa đặt tên)', desc, color, icon: iconNode, fieldIds: selectedIds });
   };
+
+  const currentIconNode = ICON_OPTIONS.find((o) => o.name === iconName)?.node ?? <AssignmentIcon sx={{ fontSize: 18 }} />;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography fontWeight={800}>Cấu hình bộ dữ liệu</Typography>
-          <IconButton size="small" onClick={onClose}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box sx={{ color, display: 'flex' }}>{currentIconNode}</Box>
+          <Typography fontWeight={800}>{setData.name || 'Tạo bộ dữ liệu mới'}</Typography>
         </Stack>
+        <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
       </DialogTitle>
 
-      <DialogContent>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
-          <TextField
-            label="Tên bộ dữ liệu"
-            size="small"
-            value={draft.name}
-            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
-            fullWidth
-          />
-          <TextField
-            label="Mô tả"
-            size="small"
-            value={draft.desc ?? ''}
-            onChange={(event) => setDraft((prev) => ({ ...prev, desc: event.target.value }))}
-            fullWidth
-          />
-        </Box>
+      <DialogContent dividers sx={{ p: 2 }}>
+        <Stack spacing={2}>
+          <TextField fullWidth size="small" label="Tên bộ dữ liệu" value={name}
+            onChange={(e) => setName(e.target.value)} autoFocus />
+          <TextField fullWidth size="small" label="Mô tả" value={desc}
+            onChange={(e) => setDesc(e.target.value)} multiline rows={2} />
 
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} mb={2}>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
-              Icon
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={0.75}>
-              {SET_ICONS.map((icon, idx) => (
-                <Button
-                  key={idx}
-                  variant={draft.icon === null ? 'outlined' : 'outlined'}
-                  size="small"
-                  onClick={() => setDraft((prev) => ({ ...prev, icon }))}
-                  sx={{ minWidth: 36, px: 1, display: 'flex', alignItems: 'center' }}
-                >
-                  {icon}
-                </Button>
+          {/* Color */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.75, display: 'block' }}>Màu sắc</Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+              {SET_COLORS.map((c) => (
+                <Box key={c} onClick={() => setColor(c)} sx={{
+                  width: 28, height: 28, borderRadius: '50%', bgcolor: c, cursor: 'pointer',
+                  border: color === c ? '3px solid' : '2px solid transparent',
+                  borderColor: color === c ? 'background.paper' : 'transparent',
+                  boxShadow: color === c ? `0 0 0 2px ${c}` : 'none',
+                  transition: 'all 0.15s',
+                }} />
               ))}
             </Stack>
           </Box>
 
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
-              Màu nhận diện
-            </Typography>
-            <Stack direction="row" spacing={1} mt={0.75}>
-              {SET_COLORS.map((color) => (
-                <Box
-                  key={color}
-                  onClick={() => setDraft((prev) => ({ ...prev, color }))}
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: '50%',
-                    bgcolor: color,
-                    border: draft.color === color ? '3px solid #fff' : '2px solid transparent',
-                    boxShadow: draft.color === color ? `0 0 0 1px ${color}` : undefined,
-                    cursor: 'pointer',
-                  }}
-                />
+          {/* Icon */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.75, display: 'block' }}>Icon</Typography>
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+              {ICON_OPTIONS.map((opt) => (
+                <Tooltip key={opt.name} title={opt.label}>
+                  <IconButton size="small" onClick={() => setIconName(opt.name)} sx={{
+                    border: '1px solid',
+                    borderColor: iconName === opt.name ? color : 'divider',
+                    borderRadius: 1.5,
+                    bgcolor: iconName === opt.name ? `${color}22` : 'transparent',
+                    color: iconName === opt.name ? color : 'text.secondary',
+                  }}>
+                    {opt.node}
+                  </IconButton>
+                </Tooltip>
               ))}
             </Stack>
+          </Box>
+
+          <Divider />
+
+          {/* Field checklist */}
+          <Box>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+              <Typography variant="subtitle2" fontWeight={800}>
+                Chọn trường dữ liệu ({selectedIds.length}/{allFields.length})
+              </Typography>
+              <Stack direction="row" spacing={0.5}>
+                <Button size="small" onClick={() => setSelectedIds(allFields.map((f) => f.id))}>Chọn tất cả</Button>
+                <Button size="small" onClick={() => setSelectedIds([])}>Bỏ chọn</Button>
+              </Stack>
+            </Stack>
+
+            <TextField fullWidth size="small" placeholder="Tìm trường..."
+              value={fieldSearch} onChange={(e) => setFieldSearch(e.target.value)} sx={{ mb: 1 }} />
+
+            <Box sx={{ maxHeight: 300, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+              {filteredAllFields.map((field, idx) => {
+                const checked = selectedIds.includes(field.id);
+                const meta = typeOf(field.type);
+                return (
+                  <Box key={field.id} onClick={() => toggle(field.id)} sx={{
+                    display: 'flex', alignItems: 'center', px: 1.5, py: 0.75,
+                    cursor: 'pointer',
+                    bgcolor: checked ? `${color}0d` : 'transparent',
+                    borderBottom: idx < filteredAllFields.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                    '&:hover': { bgcolor: checked ? `${color}1a` : 'action.hover' },
+                    transition: 'background-color 0.12s',
+                  }}>
+                    <Checkbox size="small" checked={checked}
+                      sx={{ p: 0.5, mr: 1, color: checked ? color : undefined, '&.Mui-checked': { color } }}
+                      onChange={() => toggle(field.id)}
+                      onClick={(e) => e.stopPropagation()} />
+                    <Box sx={{ color: meta.color, display: 'flex', mr: 0.75 }}>{meta.icon}</Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>{field.label}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ fontFamily: 'monospace' }}>
+                        {field.key} · {meta.label}
+                      </Typography>
+                    </Box>
+                    {field.required && <Chip size="small" label="*" color="error" sx={{ height: 16, fontSize: 10, ml: 1 }} />}
+                  </Box>
+                );
+              })}
+              {filteredAllFields.length === 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                  Không tìm thấy trường nào
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Stack>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-          <Card variant="outlined">
-            <CardContent sx={{ p: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                Thư viện trường ({availableFields.length})
-              </Typography>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
-                {availableFields.map((field) => (
-                  <Box
-                    key={field.id}
-                    onClick={() => toggleField(field.id)}
-                    sx={{
-                      p: 1,
-                      borderRadius: 1,
-                      cursor: 'pointer',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      mb: 0.75,
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Chip size="small" icon={<Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5 }}>{typeOf(field.type).icon}</Box> as any} label={typeOf(field.type).label} />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={600} noWrap>
-                          {field.label}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>
-                          {field.key}
-                        </Typography>
-                      </Box>
-                      <Typography color="success.main" fontWeight={700}>
-                        +
-                      </Typography>
-                    </Stack>
-                  </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card variant="outlined">
-            <CardContent sx={{ p: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                Trường trong bộ ({selectedFields.length})
-              </Typography>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
-                {selectedFields.map((field, index) => (
-                  <Box
-                    key={field.id}
-                    sx={{
-                      p: 1,
-                      borderRadius: 1,
-                      border: '1px solid',
-                      borderColor: `${draft.color}66`,
-                      mb: 0.75,
-                      bgcolor: `${draft.color}11`,
-                    }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Typography variant="caption" color="text.secondary" sx={{ width: 20 }}>
-                        {index + 1}
-                      </Typography>
-                      <Chip size="small" icon={<Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5 }}>{typeOf(field.type).icon}</Box> as any} label={typeOf(field.type).label} />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={600} noWrap>
-                          {field.label}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>
-                          {field.key}
-                        </Typography>
-                      </Box>
-
-                      <Stack direction="column" spacing={0.25}>
-                        <IconButton
-                          size="small"
-                          onClick={() => moveField(index, -1)}
-                          disabled={index === 0}
-                        >
-                          <ArrowUpwardIcon fontSize="inherit" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => moveField(index, 1)}
-                          disabled={index === selectedFields.length - 1}
-                        >
-                          <ArrowDownwardIcon fontSize="inherit" />
-                        </IconButton>
-                      </Stack>
-
-                      <IconButton size="small" onClick={() => toggleField(field.id)}>
-                        <CloseIcon fontSize="inherit" />
-                      </IconButton>
-                    </Stack>
-                  </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={{ px: 2, py: 1.5 }}>
         <Button onClick={onClose}>Huỷ</Button>
-        <Button
-          variant="contained"
-          onClick={() => onSave(draft)}
-          disabled={!draft.name.trim() || draft.fieldIds.length === 0}
-        >
-          Lưu bộ dữ liệu
+        <Button variant="contained" onClick={handleSave} disabled={!name.trim()}
+          sx={{ bgcolor: color, '&:hover': { bgcolor: color, filter: 'brightness(0.9)' } }}>
+          Lưu ({selectedIds.length} trường)
         </Button>
       </DialogActions>
     </Dialog>
@@ -1123,7 +1015,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ equipment, fields, fieldS
   };
 
   const addTechParam = () => {
-    updateTechParams([...equipment.techParams, { id: createId('tp'), key: '', value: '' }]);
+    updateTechParams([...equipment.techParams, { id: `tp_${Math.random().toString(36).slice(2, 9)}`, key: '', value: '' }]);
   };
 
   const updateTechParamField = (id: string, prop: 'key' | 'value', value: string) => {
@@ -1140,7 +1032,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ equipment, fields, fieldS
     }
 
     const nextLog: EquipmentLog = {
-      id: createId('log'),
+      id: `log_${Math.random().toString(36).slice(2, 9)}`,
       type: logType,
       date: logMeta.date,
       performedBy: logMeta.performedBy,
@@ -1467,7 +1359,7 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
   const editingField = editingFieldId ? fields.find((field) => field.id === editingFieldId) : undefined;
 
   const handleAddField = () => {
-    const id = createId('field');
+    const id = `field_${Math.random().toString(36).slice(2, 9)}`;
     const newField: DynamicField = {
       id,
       key: `truong_${fields.length + 1}`,
@@ -1502,7 +1394,7 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
   const handleCreateSet = () => {
     setIsNewSetMode(true);
     setEditingSet({
-      id: createId('set'),
+      id: `set_${Math.random().toString(36).slice(2, 9)}`,
       name: '',
       icon: <AssignmentIcon sx={{ fontSize: 18 }} />,
       color: '#3b82f6',
@@ -1745,39 +1637,8 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
 // ============================================================
 // Page B: Form configuration management
 // ============================================================
-interface FormTabConfig {
-  id: string;
-  label: string;
-  setIds: string[];
-}
+// Form configuration management interfaces and seed data are imported from thamSoSeeds.tsx
 
-interface FormConfig {
-  id: string;
-  name: string;
-  desc?: string;
-  tabs: FormTabConfig[];
-}
-
-const SEED_FORMS: FormConfig[] = [
-  {
-    id: 'form01',
-    name: 'Form trang bị hải quân',
-    desc: 'Form nhập liệu chuyên ngành tàu thuyền và radar',
-    tabs: [
-      { id: 'tab01a', label: 'Thông tin cơ bản', setIds: ['gs01'] },
-      { id: 'tab01b', label: 'Tàu thuyền', setIds: ['gs02'] },
-    ],
-  },
-  {
-    id: 'form02',
-    name: 'Form trang bị không quân',
-    desc: 'Form nhập liệu cho máy bay các loại',
-    tabs: [
-      { id: 'tab02a', label: 'Thông tin cƠ bản', setIds: ['gs01'] },
-      { id: 'tab02b', label: 'Máy bay', setIds: ['gs03'] },
-    ],
-  },
-];
 
 interface TabSetPickerDialogProps {
   open: boolean;
@@ -1794,10 +1655,10 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, fiel
   useEffect(() => { setDraft(tab); }, [tab]);
 
   const toggle = (setId: string) =>
-    setDraft((prev) => ({
+    setDraft((prev: FormTabConfig) => ({
       ...prev,
       setIds: prev.setIds.includes(setId)
-        ? prev.setIds.filter((id) => id !== setId)
+        ? prev.setIds.filter((id: string) => id !== setId)
         : [...prev.setIds, setId],
     }));
 
@@ -1903,11 +1764,13 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, fiel
 interface PageFormConfigProps {
   fieldSets: FieldSet[];
   fields: DynamicField[];
+  forms: FormConfig[];
+  setForms: React.Dispatch<React.SetStateAction<FormConfig[]>>;
+  activeFormId: string | null;
+  setActiveFormId: (id: string | null) => void;
 }
 
-const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) => {
-  const [forms, setForms] = useState<FormConfig[]>(SEED_FORMS);
-  const [activeFormId, setActiveFormId] = useState<string | null>(SEED_FORMS[0]?.id ?? null);
+const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, forms, setForms, activeFormId, setActiveFormId }) => {
   const [editingTab, setEditingTab] = useState<FormTabConfig | null>(null);
 
   const activeForm = forms.find((f) => f.id === activeFormId) ?? null;
@@ -1916,12 +1779,12 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
     setForms((prev) => prev.map((f) => (f.id === next.id ? next : f)));
 
   const createForm = () => {
-    const id = createId('form');
+    const id = `form_${Math.random().toString(36).slice(2, 9)}`;
     const newForm: FormConfig = {
       id,
       name: 'Form mới',
       desc: '',
-      tabs: [{ id: createId('tab'), label: 'Tab 1', setIds: [] }],
+      tabs: [{ id: `tab_${Math.random().toString(36).slice(2, 9)}`, label: 'Tab 1', setIds: [] }],
     };
     setForms((prev) => [...prev, newForm]);
     setActiveFormId(id);
@@ -1935,7 +1798,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
 
   const addTab = () => {
     if (!activeForm) return;
-    const newTab: FormTabConfig = { id: createId('tab'), label: `Tab ${activeForm.tabs.length + 1}`, setIds: [] };
+    const newTab: FormTabConfig = { id: `tab_${Math.random().toString(36).slice(2, 9)}`, label: `Tab ${activeForm.tabs.length + 1}`, setIds: [] };
     updateActiveForm({ ...activeForm, tabs: [...activeForm.tabs, newTab] });
   };
 
@@ -1971,9 +1834,9 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
         </CardContent>
         <Box sx={{ p: 1, overflowY: 'auto', flex: 1 }}>
           <Stack spacing={0.75}>
-            {forms.map((form) => {
+            {forms.map((form: FormConfig) => {
               const isActive = form.id === activeFormId;
-              const totalSets = form.tabs.reduce((a, t) => a + t.setIds.length, 0);
+              const totalSets = form.tabs.reduce((a: number, t: FormTabConfig) => a + t.setIds.length, 0);
               return (
                 <Box
                   key={form.id}
@@ -2051,11 +1914,11 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
             )}
 
             <Stack spacing={1.5}>
-              {activeForm.tabs.map((tab, idx) => {
+              {activeForm.tabs.map((tab: FormTabConfig, idx: number) => {
                 const selectedSets = tab.setIds
-                  .map((id) => fieldSets.find((s) => s.id === id))
+                  .map((id: string) => fieldSets.find((s: FieldSet) => s.id === id))
                   .filter(Boolean) as FieldSet[];
-                const totalFields = selectedSets.reduce((a, s) => a + s.fieldIds.length, 0);
+                const totalFields = selectedSets.reduce((a: number, s: FieldSet) => a + s.fieldIds.length, 0);
 
                 return (
                   <Card
@@ -2092,7 +1955,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
                             <Typography variant="caption" color="text.disabled">Chưa chọn bộ dữ liệu nào.</Typography>
                           ) : (
                             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                              {selectedSets.map((set) => (
+                              {selectedSets.map((set: FieldSet) => (
                                 <Chip
                                   key={set.id} size="small"
                                   icon={<Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5, color: set.color }}>{set.icon}</Box> as any}
@@ -2136,7 +1999,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
                   <CardContent sx={{ p: 0 }}>
                     {/* Mock tab header */}
                     <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
-                      {activeForm.tabs.map((tab, i) => (
+                      {activeForm.tabs.map((tab: FormTabConfig, i: number) => (
                         <Box
                           key={tab.id}
                           sx={{
@@ -2157,11 +2020,11 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields }) =>
                       </Typography>
                       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 1 }}>
                         {activeForm.tabs[0]?.setIds
-                          .flatMap((sid) => {
-                            const set = fieldSets.find((s) => s.id === sid);
-                            return (set?.fieldIds ?? []).map((fid) => fields.find((f) => f.id === fid)).filter(Boolean) as DynamicField[];
+                          .flatMap((sid: string) => {
+                            const set = fieldSets.find((s: FieldSet) => s.id === sid);
+                            return (set?.fieldIds ?? []).map((fid: string) => fields.find((f: DynamicField) => f.id === fid)).filter(Boolean) as DynamicField[];
                           })
-                          .map((field) => (
+                          .map((field: DynamicField) => (
                             <Box key={field.id} sx={{ p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                               <Typography variant="caption" fontWeight={600} noWrap>{field.label}</Typography>
                               <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontFamily: 'monospace' }}>{field.type}</Typography>
@@ -2210,11 +2073,12 @@ interface PageDatasetsProps {
   fields: DynamicField[];
   fieldSets: FieldSet[];
   setFieldSets: React.Dispatch<React.SetStateAction<FieldSet[]>>;
+  activeSetId: string | null;
+  setActiveSetId: (id: string | null) => void;
 }
 
-const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setFieldSets }) => {
+const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setFieldSets, activeSetId, setActiveSetId }) => {
   const [search, setSearch] = useState('');
-  const [activeSetId, setActiveSetId] = useState<string | null>(fieldSets[0]?.id ?? null);
   const [editingSet, setEditingSet] = useState<FieldSet | null>(null);
   const [isNewMode, setIsNewMode] = useState(false);
 
@@ -2236,7 +2100,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
   const handleCreate = () => {
     setIsNewMode(true);
     setEditingSet({
-      id: createId('set'),
+      id: `set_${Math.random().toString(36).slice(2, 9)}`,
       name: '',
       icon: <AssignmentIcon sx={{ fontSize: 18 }} />,
       color: '#3b82f6',
@@ -2431,14 +2295,225 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
 };
 
 // ============================================================
+// Icon utilities (nameToIcon, iconToName) are imported from thamSoUtils.tsx
+
+
+// ============================================================
 // Root page
 // ============================================================
 type MainTab = 'fields' | 'datasets' | 'equip';
 
 const CauHinhThamSo: React.FC = () => {
   const [tab, setTab] = useState<MainTab>('fields');
-  const [fields, setFields] = useState<DynamicField[]>(SEED_FIELDS);
-  const [fieldSets, setFieldSets] = useState<FieldSet[]>(SEED_SETS);
+  const [fields, setFields] = useState<DynamicField[]>([]); // (SEED_FIELDS)
+  const [fieldSets, setFieldSets] = useState<FieldSet[]>([]); // (SEED_SETS)
+  const [activeSetId, setActiveSetId] = useState<string | null>(null); // (SEED_SETS[0]?.id ?? null)
+  const [forms, setForms] = useState<FormConfig[]>([]); // (SEED_FORMS)
+  const [activeFormId, setActiveFormId] = useState<string | null>(null); // (SEED_FORMS[0]?.id ?? null)
+  const [loading, setLoading] = useState(true);
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false, message: '', severity: 'info',
+  });
+
+  // Load data from API on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        const [apiFields, apiSets, apiForms] = await Promise.all([
+          thamSoApi.getListDynamicFields().catch(() => []),
+          thamSoApi.getListFieldSets().catch(() => []),
+          thamSoApi.getListFormConfigs().catch(() => []),
+        ]);
+
+        if (cancelled) return;
+
+        // If DB is empty or disconnected, seed with defaults
+        // If DB is empty or disconnected, only use API data
+        const finalFields = apiFields; // apiFields.length > 0 ? apiFields : SEED_FIELDS;
+        const finalSets = (apiSets).map((s: any) => ({ // (apiSets.length > 0 ? apiSets : SEED_SETS)
+          ...s,
+          icon: typeof s.icon === 'string' ? nameToIcon(s.icon) : s.icon
+        }));
+        const finalForms = apiForms; // apiForms.length > 0 ? apiForms : SEED_FORMS;
+
+        setFields(finalFields as any);
+        setFieldSets(finalSets as any);
+        setForms(finalForms as any);
+
+        if (finalSets.length > 0) setActiveSetId(finalSets[0].id);
+        if (finalForms.length > 0) setActiveFormId(finalForms[0].id);
+
+        setSnack({ open: true, message: `Đã cập nhật cấu hình: ${finalFields.length} trường, ${finalSets.length} bộ dữ liệu`, severity: 'success' });
+      } catch (err) {
+        console.error('[CauHinhThamSo] Failed to load from API', err);
+        setSnack({ open: true, message: 'Lỗi tải cấu hình từ server', severity: 'error' });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Persist helpers ──
+  const handleSaveField = async (field: DynamicField, isNew: boolean) => {
+    try {
+      const response = await thamSoApi.saveDynamicField(field as any, isNew);
+
+      if (response && isNew) {
+        // Cập nhật lại ID thật từ Backend (ObjectId) vào State
+        setFields(prev => prev.map(f => f.id === field.id ? { ...f, id: response.id } : f));
+      }
+
+      setSnack({ open: true, message: `Đã lưu trường "${field.label}"`, severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] saveDynamicField error', err);
+      setSnack({ open: true, message: 'Lỗi lưu trường dữ liệu', severity: 'error' });
+    }
+  };
+
+  const handleDeleteField = async (id: string) => {
+    try {
+      await thamSoApi.deleteDynamicField(id);
+      setSnack({ open: true, message: 'Đã xoá trường', severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] deleteDynamicField error', err);
+      setSnack({ open: true, message: 'Lỗi xoá trường dữ liệu', severity: 'error' });
+    }
+  };
+
+  const handleSaveFieldSet = async (fieldSet: FieldSet, isNew: boolean) => {
+    try {
+      const response = await thamSoApi.saveFieldSet({
+        ...fieldSet,
+        icon: iconToName(fieldSet.icon),
+        desc: fieldSet.desc ?? '',
+      } as any, isNew);
+
+      if (response && isNew) {
+        // Cập nhật lại ID thật từ Backend vào State và activeSet
+        const newItem: FieldSet = {
+          ...fieldSet,
+          id: response.id,
+          icon: fieldSet.icon // Keep local JSX icon
+        };
+        setFieldSets(prev => prev.map(s => s.id === fieldSet.id ? newItem : s));
+        setActiveSetId(newItem.id);
+      }
+
+      setSnack({ open: true, message: `Đã lưu bộ dữ liệu "${fieldSet.name}"`, severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] saveFieldSet error', err);
+      setSnack({ open: true, message: 'Lỗi lưu bộ dữ liệu', severity: 'error' });
+    }
+  };
+
+  const handleDeleteFieldSet = async (id: string) => {
+    try {
+      await thamSoApi.deleteFieldSet(id);
+      setSnack({ open: true, message: 'Đã xoá bộ dữ liệu', severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] deleteFieldSet error', err);
+      setSnack({ open: true, message: 'Lỗi xoá bộ dữ liệu', severity: 'error' });
+    }
+  };
+
+  const handleSaveFormConfig = async (form: FormConfig, isNew: boolean) => {
+    try {
+      const response = await thamSoApi.saveFormConfig(form as any, isNew);
+      if (response && isNew) {
+        setForms(prev => prev.map(f => f.id === form.id ? response : f));
+        setActiveFormId(response.id);
+      }
+      setSnack({ open: true, message: `Đã lưu cấu hình form "${form.name}"`, severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] saveFormConfig error', err);
+      setSnack({ open: true, message: 'Lỗi lưu cấu hình form', severity: 'error' });
+    }
+  };
+
+  const handleDeleteFormConfig = async (id: string) => {
+    try {
+      await thamSoApi.deleteFormConfig(id);
+      setSnack({ open: true, message: 'Đã xoá cấu hình form', severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] deleteFormConfig error', err);
+      setSnack({ open: true, message: 'Lỗi xoá cấu hình form', severity: 'error' });
+    }
+  };
+
+  // Wrap setFields / setFieldSets so they also persist
+  const setFieldsAndPersist: React.Dispatch<React.SetStateAction<DynamicField[]>> = (action) => {
+    setFields((prev: DynamicField[]) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      // Detect added or changed items and persist them
+      for (const f of next) {
+        const existing = prev.find((p: DynamicField) => p.id === f.id);
+        if (!existing) {
+          handleSaveField(f, true);
+        } else if (JSON.stringify(existing) !== JSON.stringify(f)) {
+          handleSaveField(f, false);
+        }
+      }
+      // Detect deleted
+      for (const p of prev) {
+        if (!next.find((f: DynamicField) => f.id === p.id)) {
+          handleDeleteField(p.id);
+        }
+      }
+      return next;
+    });
+  };
+
+  const setFormsAndPersist: React.Dispatch<React.SetStateAction<FormConfig[]>> = (action) => {
+    setForms((prev: FormConfig[]) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      for (const f of next) {
+        const existing = prev.find((p: FormConfig) => p.id === f.id);
+        if (!existing) {
+          handleSaveFormConfig(f, true);
+        } else if (JSON.stringify(existing) !== JSON.stringify(f)) {
+          handleSaveFormConfig(f, false);
+        }
+      }
+      for (const p of prev) {
+        if (!next.find((f: FormConfig) => f.id === p.id)) {
+          handleDeleteFormConfig(p.id);
+        }
+      }
+      return next;
+    });
+  };
+
+  const setFieldSetsAndPersist: React.Dispatch<React.SetStateAction<FieldSet[]>> = (action) => {
+    setFieldSets((prev: FieldSet[]) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      for (const s of next) {
+        const existing = prev.find((p: FieldSet) => p.id === s.id);
+        if (!existing) {
+          handleSaveFieldSet(s, true);
+        } else if (
+          existing && (
+            existing.name !== s.name ||
+            existing.color !== s.color ||
+            existing.desc !== s.desc ||
+            JSON.stringify(existing.fieldIds) !== JSON.stringify(s.fieldIds)
+          )
+        ) {
+          handleSaveFieldSet(s, false);
+        }
+      }
+      for (const p of prev) {
+        if (!next.find((s: FieldSet) => s.id === p.id)) {
+          handleDeleteFieldSet(p.id);
+        }
+      }
+      return next;
+    });
+  };
 
   return (
     <Box sx={{ p: 1.5 }}>
@@ -2448,12 +2523,13 @@ const CauHinhThamSo: React.FC = () => {
             CẤU HÌNH THAM SỐ NHẬP LIỆU
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Cấu hình động trường dữ liệu, bộ dữ liệu và biểu mẫu trang bị theo mô hình EquipmentManagerV3
+            Cấu hình động trường dữ liệu, bộ dữ liệu và biểu mẫu trang bị — kết nối MongoDB qua gRPC
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
           <Chip icon={<LibraryBooksIcon />} label={`${fields.length} trường`} color="primary" variant="outlined" />
           <Chip icon={<SettingsIcon />} label={`${fieldSets.length} bộ`} color="secondary" variant="outlined" />
+          {loading && <Chip label="Đang tải..." variant="outlined" />}
         </Stack>
       </Stack>
 
@@ -2489,20 +2565,59 @@ const CauHinhThamSo: React.FC = () => {
         {tab === 'fields' && (
           <PageFieldLibrary
             fields={fields}
-            setFields={setFields}
+            setFields={setFieldsAndPersist}
             fieldSets={fieldSets}
-            setFieldSets={setFieldSets}
+            setFieldSets={setFieldSetsAndPersist}
           />
         )}
         {tab === 'datasets' && (
           <PageDatasets
             fields={fields}
             fieldSets={fieldSets}
-            setFieldSets={setFieldSets}
+            setFieldSets={setFieldSetsAndPersist}
+            activeSetId={activeSetId}
+            setActiveSetId={setActiveSetId}
           />
         )}
-        {tab === 'equip' && <PageFormConfig fields={fields} fieldSets={fieldSets} />}
+        {tab === 'equip' && (
+          <PageFormConfig
+            fields={fields}
+            fieldSets={fieldSets}
+            forms={forms}
+            setForms={setFormsAndPersist}
+            activeFormId={activeFormId}
+            setActiveFormId={setActiveFormId}
+          />
+        )}
       </Box>
+
+      {/* Snackbar notifications */}
+      {snack.open && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 9999,
+            minWidth: 300,
+            bgcolor: snack.severity === 'success' ? '#2e7d32' : snack.severity === 'error' ? '#d32f2f' : '#0288d1',
+            color: '#fff',
+            borderRadius: 2,
+            px: 2.5,
+            py: 1.5,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            animation: 'fadeIn 0.3s ease',
+          }}
+        >
+          <Typography variant="body2" fontWeight={600}>{snack.message}</Typography>
+          <IconButton size="small" sx={{ color: '#fff', ml: 1 }} onClick={() => setSnack((s) => ({ ...s, open: false }))}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
     </Box>
   );
 };

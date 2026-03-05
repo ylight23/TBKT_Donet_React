@@ -12,7 +12,11 @@ import { authConfig } from "./configs/authConfig";
 import AuthSync from "./components/auth/AuthSync";
 import { FrontChannelLogoutMonitor } from "./components/auth/FrontChannelLogoutMonitor";
 import { FrontChannelLogoutStatus } from "./components/auth/FrontChannelLogoutStatus";
+import { schemaCache } from "./api/thamSoCache";
 // import { CustomSessionMonitor } from "./components/auth/CustomSessionMonitor";
+
+schemaCache.checkAndMigrateVersion(import.meta.env.VITE_APP_VERSION ?? 'dev');
+
 const notifiConfig: ToastContainerProps = {
   limit: 3,
   autoClose: 2000,

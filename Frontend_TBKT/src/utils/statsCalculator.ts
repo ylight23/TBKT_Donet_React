@@ -112,10 +112,10 @@ export const getStatsByActiveMenu = (activeMenu: string): CategoryStats | null =
             return {
                 title: 'Quản lý Nhân sự',
                 stats: [
-                    { label: 'Sĩ quan', count: 145, color: '#1b5e20' },
-                    { label: 'QNCN', count: 86, color: '#2e7d32' },
-                    { label: 'Công nhân viên', count: 24, color: '#4caf50' },
-                    { label: 'Hạ sĩ quan - Binh sĩ', count: 312, color: '#81c784' },
+                    { label: 'Sĩ quan', count: 0, color: '#1b5e20' },
+                    { label: 'QNCN', count: 0, color: '#2e7d32' },
+                    { label: 'Công nhân viên', count: 0, color: '#4caf50' },
+                    { label: 'Hạ sĩ quan - Binh sĩ', count: 0, color: '#81c784' },
                 ]
             };
         default:

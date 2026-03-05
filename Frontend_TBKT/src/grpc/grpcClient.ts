@@ -5,6 +5,7 @@ import { store } from '../store';
 import { EmployeeService } from "./generated/Employee_pb";
 import { OfficeService } from "./generated/Office_pb";
 import { CatalogService } from "./generated/Catalog_pb";
+import { ThamSoService } from "./generated/ThamSo_pb";
 
 // =====================
 // Auth interceptor
@@ -32,7 +33,7 @@ const authInterceptor: Interceptor = (next) => async (req) => {
         const channel = new BroadcastChannel("logout_channel");
         channel.postMessage({ type: "logout", reason: "token_invalid_401", timestamp: Date.now() });
         channel.close();
-      } catch {}
+      } catch { }
     }
     throw err;
   }
@@ -55,3 +56,5 @@ export const employeeClient = createClient(EmployeeService, transport);
 export const officeClient = createClient(OfficeService, transport);
 
 export const catalogClient = createClient(CatalogService, transport);
+
+export const thamSoClient = createClient(ThamSoService, transport);

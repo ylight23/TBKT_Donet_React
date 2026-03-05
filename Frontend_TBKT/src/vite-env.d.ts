@@ -7,6 +7,7 @@ declare module '*.jpg';
 
 interface ImportMetaEnv {
     readonly VITE_GRPC_URL: string;
+    readonly VITE_APP_VERSION?: string;
     // more env variables...
 }
 

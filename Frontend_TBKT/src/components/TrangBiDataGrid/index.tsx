@@ -2,7 +2,7 @@
 // TrangBiDataGrid – Bảng dữ liệu trang bị kỹ thuật dùng chung
 // Dùng cho cả Nhóm 1 và Nhóm 2
 // ============================================================
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -11,7 +11,7 @@ import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/GridLegacy';
+import Grid from '@mui/material/Grid';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useTheme } from '@mui/material/styles';
 
@@ -21,6 +21,27 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
+import AddIcon from '@mui/icons-material/Add';
+import SaveIcon from '@mui/icons-material/Save';
+import CloseIcon from '@mui/icons-material/Close';
+
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import TextField from '@mui/material/TextField';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import MenuItem from '@mui/material/MenuItem';
+
+import { thamSoApi } from '../../api/thamSoApiWithCache';
+import type {
+  LocalDynamicField as DynamicField,
+  LocalFieldSet as FieldSet,
+  LocalFormConfig as FormConfig,
+} from '../../types/thamSo';
 
 import { ITrangBi, TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
 import { militaryColors } from '../../theme';
@@ -52,8 +73,193 @@ interface TrangBiDataGridProps {
   title: string;
   subtitle: string;
   data: ITrangBi[];
-  activeMenu?: string;
+  activeMenu?: 'tbNhom1' | 'tbNhom2' | string;
 }
+
+// ── Dynamic Form UI Helper Components ──────────────────────────
+interface FieldInputProps {
+  field: DynamicField;
+  value: string;
+  onChange: (v: string) => void;
+}
+
+const FieldInput: React.FC<FieldInputProps> = React.memo(({ field, value, onChange }) => {
+  if (field.type === 'select') {
+    return (
+      <TextField select fullWidth size="small" value={value} onChange={(e) => onChange(e.target.value)}>
+        {(field.validation.options ?? []).map((o) => (
+          <MenuItem key={o} value={o}>{o}</MenuItem>
+        ))}
+      </TextField>
+    );
+  }
+
+  if (field.type === 'checkbox') {
+    return (
+      <FormControlLabel
+        control={<Checkbox checked={value === 'true'} onChange={(e) => onChange(e.target.checked ? 'true' : 'false')} />}
+        label={field.label}
+      />
+    );
+  }
+
+  if (field.type === 'textarea') {
+    return <TextField fullWidth multiline rows={3} size="small" value={value} onChange={(e) => onChange(e.target.value)} />;
+  }
+
+  return (
+    <TextField
+      fullWidth
+      size="small"
+      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+});
+
+FieldInput.displayName = 'FieldInput';
+
+interface FormFieldItemProps {
+  field: DynamicField;
+  value: string;
+  onFieldChange: (fieldKey: string, value: string) => void;
+}
+
+const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(({ field, value, onFieldChange }) => {
+  const handleChange = useCallback(
+    (nextValue: string) => onFieldChange(field.key, nextValue),
+    [onFieldChange, field.key],
+  );
+
+  return (
+    <Grid size={{ xs: 12, md: field.type === 'textarea' ? 12 : 6 }}>
+      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+        {field.label}{field.required ? ' *' : ''}
+      </Typography>
+      <FieldInput field={field} value={value} onChange={handleChange} />
+    </Grid>
+  );
+}, (prevProps, nextProps) => (
+  prevProps.field === nextProps.field
+  && prevProps.value === nextProps.value
+  && prevProps.onFieldChange === nextProps.onFieldChange
+));
+
+FormFieldItem.displayName = 'FormFieldItem';
+
+// ── AddTrangBiDialog ───────────────────────────────────────────
+interface AddTrangBiDialogProps {
+  open: boolean;
+  onClose: () => void;
+  formConfig: FormConfig | null;
+  allFieldSets: FieldSet[];
+  allFields: DynamicField[];
+}
+
+const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({ open, onClose, formConfig, allFieldSets, allFields }) => {
+  const [activeTab, setActiveTab] = useState(0);
+  const [formData, setFormData] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (open) {
+      setActiveTab(0);
+      setFormData({});
+    }
+  }, [open, formConfig?.id]);
+
+  const fieldSetById = useMemo(
+    () => new Map(allFieldSets.map((set) => [set.id, set])),
+    [allFieldSets],
+  );
+
+  const fieldById = useMemo(
+    () => new Map(allFields.map((field) => [field.id, field])),
+    [allFields],
+  );
+
+  const tabs = useMemo(() => formConfig?.tabs ?? [], [formConfig]);
+  const currentTab = tabs[activeTab];
+
+  // Merge fields for current tab
+  const tabFields = useMemo(() => {
+    if (!currentTab) return [];
+    const setIds = currentTab.setIds ?? [];
+    return setIds
+      .flatMap((setId: string) => fieldSetById.get(setId)?.fieldIds ?? [])
+      .map((fieldId: string) => fieldById.get(fieldId))
+      .filter((field): field is DynamicField => Boolean(field));
+  }, [currentTab, fieldSetById, fieldById]);
+
+  const handleFieldChange = useCallback((fieldKey: string, value: string) => {
+    setFormData((prev) => {
+      if (prev[fieldKey] === value) return prev;
+      return { ...prev, [fieldKey]: value };
+    });
+  }, []);
+
+  const handleSave = useCallback(() => {
+    console.log('Add Equipment:', formData);
+    alert('Lưu thành công! (Giả lập)');
+    onClose();
+  }, [formData, onClose]);
+
+  if (!formConfig) {
+    return null;
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6" fontWeight={800}>Thêm trang bị mới</Typography>
+          <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
+        </Stack>
+        <Typography variant="caption" color="text.secondary">Sử dụng bộ mẫu: <strong>{formConfig.name}</strong></Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 0, height: 600, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
+          <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto">
+            {tabs.map((t: any) => (
+              <Tab key={t.id} label={t.label} sx={{ textTransform: 'none', fontWeight: 700 }} />
+            ))}
+          </Tabs>
+        </Box>
+
+        <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
+          <Grid container spacing={2.5}>
+            {tabFields.map((f) => (
+              <FormFieldItem
+                key={f.id}
+                field={f}
+                value={formData[f.key] ?? ''}
+                onFieldChange={handleFieldChange}
+              />
+            ))}
+            {tabFields.length === 0 && (
+              <Box sx={{ p: 4, width: '100%', textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Tab này chưa có trường dữ liệu nào.</Typography>
+              </Box>
+            )}
+          </Grid>
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <Button onClick={onClose} color="inherit">Huỷ bỏ</Button>
+        <Button
+          variant="contained"
+          startIcon={<SaveIcon />}
+          onClick={handleSave}
+          sx={{ fontWeight: 700, px: 3 }}
+        >
+          Lưu trang bị
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 // ── TrangBiDataGrid ──────────────────────────────────────────
 const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data, activeMenu }) => {
@@ -62,6 +268,42 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
   // State bộ lọc nâng cao
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
   const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+
+  // States for Dynamic Form
+  const [openAdd, setOpenAdd] = useState(false);
+  const [allFields, setAllFields] = useState<DynamicField[]>([]); // (SEED_FIELDS)
+  const [allFieldSets, setAllFieldSets] = useState<FieldSet[]>([]); // (SEED_SETS)
+  const [allForms, setAllForms] = useState<FormConfig[]>([]); // (SEED_FORMS)
+
+  // Load configs on mount
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const [f, s, fc] = await Promise.all([
+          thamSoApi.getListDynamicFields(),
+          thamSoApi.getListFieldSets(),
+          thamSoApi.getListFormConfigs(),
+        ]);
+        setAllFields(f); // (f.length ? f : SEED_FIELDS)
+        setAllFieldSets(s); // (s.length ? s : SEED_SETS)
+        setAllForms(fc); // (fc.length ? fc : SEED_FORMS)
+      } catch (err) {
+        console.error('Failed to load thamSo configs', err);
+        // setAllFields(SEED_FIELDS);
+        // setAllFieldSets(SEED_SETS);
+        // setAllForms(SEED_FORMS);
+      }
+    };
+    load();
+  }, []);
+
+  // Determine which form to use
+  const activeForm = useMemo(() => {
+    if (!activeMenu) return allForms[0] || null;
+    const targetName = activeMenu === 'tbNhom1' ? 'Trang bị Nhóm 1' : 'Trang bị Nhóm 2';
+    const found = allForms.find(f => f.name === targetName);
+    return found || allForms[0] || null;
+  }, [allForms, activeMenu]);
 
   // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
@@ -299,6 +541,18 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
               {activeMenu && <StatsButton activeMenu={activeMenu} />}
               <Button
                 variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenAdd(true)}
+                sx={{
+                  bgcolor: militaryColors.navy,
+                  '&:hover': { bgcolor: militaryColors.navy, filter: 'brightness(1.1)' },
+                  textTransform: 'none', fontWeight: 700, px: 3, height: 40,
+                }}
+              >
+                Thêm trang bị
+              </Button>
+              <Button
+                variant="contained"
                 startIcon={<FileDownloadIcon />}
                 onClick={handleExport}
                 sx={{
@@ -315,6 +569,15 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
               </Button>
             </Stack>
           </Stack>
+
+          {/* Dynamic Add Dialog */}
+          <AddTrangBiDialog
+            open={openAdd}
+            onClose={() => setOpenAdd(false)}
+            formConfig={activeForm}
+            allFields={allFields}
+            allFieldSets={allFieldSets}
+          />
 
           {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}
           <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />
