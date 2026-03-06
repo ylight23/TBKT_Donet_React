@@ -61,7 +61,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 MaxLength = vDoc.GetValue("MaxLength", 0).ToInt32(),
                 Pattern = vDoc.GetValue("Pattern", "").ToString(),
                 Min = vDoc.GetValue("Min", 0.0).ToDouble(),
-                Max = vDoc.GetValue("Max", 0.0).ToDouble()
+                Max = vDoc.GetValue("Max", 0.0).ToDouble(),
+                DataSource = vDoc.GetValue("DataSource", "").ToString(),
+                ApiUrl = vDoc.GetValue("ApiUrl", "").ToString(),
+                DisplayType = vDoc.GetValue("DisplayType", "").ToString()
             };
             if (vDoc.Contains("Options") && vDoc["Options"].IsBsonArray)
             {
@@ -94,7 +97,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 { "MaxLength", item.Validation.MaxLength },
                 { "Pattern", item.Validation.Pattern },
                 { "Min", item.Validation.Min },
-                { "Max", item.Validation.Max }
+                { "Max", item.Validation.Max },
+                { "DataSource", item.Validation.DataSource },
+                { "ApiUrl", item.Validation.ApiUrl },
+                { "DisplayType", item.Validation.DisplayType }
             };
             var optArr = new BsonArray();
             foreach (var opt in item.Validation.Options) optArr.Add(opt);

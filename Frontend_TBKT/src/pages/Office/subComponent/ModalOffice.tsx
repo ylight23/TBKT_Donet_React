@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from "react";
-
-// ✅ Direct imports
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
-import Dialog from '@mui/material/Dialog';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import Grid from '@mui/material/GridLegacy';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
+import {
+    CircularProgress,
+    Box,
+    Button,
+    Divider,
+    FormControl,
+    FormControlLabel,
+    Grid,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Switch,
+    TextField,
+    Typography
+} from '@mui/material';
 import Delete from '@mui/icons-material/Delete';
 import Edit from '@mui/icons-material/Edit';
 
@@ -24,12 +22,10 @@ import { useForm, Controller } from "react-hook-form";
 import * as Yup from "yup";
 import { yupResolver } from '@hookform/resolvers/yup';
 import Create from '../../../components/Buttons/Create';
-import ConfirmDialog from "../../../components/Dialog";
+import { CommonDialog } from "../../../components/Dialog";
 import officeApi from '../../../apis/officeApi';
 import { OfficeNode } from './OfficeDictionary';
 import { useOffice } from '../../../context/OfficeContext';
-
-
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -85,7 +81,6 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
     defaultParentId = '',
     createLabel = 'Tạo mới',
 }) => {
-    // ── Dùng { state, actions, meta } thay vì flat ────────────────────────────
     const { state, actions, meta } = useOffice();
     const { allOffices } = state;
     const { createOffice, updateOffice, deleteOffice } = actions;
@@ -109,25 +104,22 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
     useEffect(() => {
         const loadData = async () => {
             if (!isOpen) { setCurrentData(null); return; }
-            if (!data) {
+            if (!isUpdate) {
                 setCurrentData(null);
                 reset({
                     ten: '', tenDayDu: '', vietTat: '',
                     idCapTren: defaultParentId || '',
                     thuTu: 0, thuTuSapXep: '', coCapDuoi: false,
-                }, { keepDefaultValues: false, keepDirty: false, keepValues: false });
+                });
                 if (defaultParentId) setValue('idCapTren', defaultParentId);
                 return;
             }
             try {
                 setIsLoading(true);
                 const result = await officeApi.getOffice(String(data.id));
-                if (!result) { setIsLoading(false); return; }
+                if (!result) return;
                 const freshData = result as unknown as OfficeNode;
                 setCurrentData(freshData);
-                const coCapDuoi = convertToBoolean(
-                    freshData.coCapDuoi ?? freshData.cocapduoi ?? freshData.CoCapDuoi ?? false
-                );
                 reset({
                     ten: (freshData.ten as string) || '',
                     tenDayDu: (getFieldValue(freshData, 'tendaydu', 'tenDayDu', 'TenDayDu') as string) || '',
@@ -135,8 +127,8 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                     idCapTren: (getFieldValue(freshData, 'idcaptren', 'idCapTren', 'IdCapTren') as string) || '',
                     thuTu: (getFieldValue(freshData, 'thutu', 'thuTu', 'ThuTu') as number) || 0,
                     thuTuSapXep: (getFieldValue(freshData, 'thutusapxep', 'thuTuSapXep', 'ThuTuSapXep') as string) || '',
-                    coCapDuoi,
-                }, { keepDefaultValues: false, keepDirty: false, keepValues: false });
+                    coCapDuoi: convertToBoolean(freshData.coCapDuoi ?? freshData.cocapduoi ?? (freshData as any).CoCapDuoi ?? false),
+                });
             } catch (err) {
                 console.error('[ModalOffice] Error loading:', err);
             } finally {
@@ -144,11 +136,10 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
             }
         };
         loadData();
-    }, [isOpen, data?.id, reset, setValue, defaultParentId]);
+    }, [isOpen, data?.id, reset, setValue, defaultParentId, isUpdate]);
 
     const handleClose = () => { reset(); setCurrentData(null); setIsOpen(false); };
 
-    // ── Submit: dùng actions.createOffice / actions.updateOffice ──────────────
     const handleSubmitForm = async (formData: OfficeFormData) => {
         try {
             setIsLoading(true);
@@ -165,7 +156,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                 await updateOffice({
                     ...finalData,
                     id: String(data!.id),
-                    _oldParentId: oldParentId,  // truyền để OfficeContext biết refresh
+                    _oldParentId: oldParentId,
                 } as any);
             } else {
                 await createOffice(finalData as any);
@@ -178,7 +169,6 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
         }
     };
 
-    // ── Delete: dùng actions.deleteOffice ─────────────────────────────────────
     const handleDelete = async () => {
         setConfirmDeleteOpen(false);
         if (!isUpdate) return;
@@ -209,91 +199,107 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                 </Box>
             )}
 
-            <ConfirmDialog
+            <CommonDialog
                 open={confirmDeleteOpen}
                 onClose={() => setConfirmDeleteOpen(false)}
                 onConfirm={handleDelete}
-                title="Thông báo"
-                message={`Có thực sự muốn xóa Đơn vị: "${data?.ten || (data as any)?.tendaydu || data?.id}"?`}
-                confirmText="Xóa" cancelText="Hủy" confirmColor="error"
-            />
+                mode="delete"
+                title="Xác nhận xóa"
+                subtitle="Hành động này không thể hoàn tác và sẽ ảnh hưởng đến các cấp trực thuộc"
+                confirmText="Xóa vĩnh viễn"
+                loading={isLoading}
+            >
+                <Typography>
+                    Bạn có thực sự muốn xóa Đơn vị: <strong>"{data?.ten || (data as any)?.tendaydu || data?.id}"</strong>?
+                </Typography>
+            </CommonDialog>
 
-            <Dialog open={isOpen} onClose={handleClose} maxWidth="sm" fullWidth
-                disableEnforceFocus disableRestoreFocus keepMounted={false}>
-                <DialogTitle>{isUpdate ? 'Cập nhật thông tin đơn vị' : 'Tạo mới đơn vị'}</DialogTitle>
-                <DialogContent dividers>
-                    {isLoading && isOpen ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-                            <Typography>Đang tải dữ liệu…</Typography>
-                        </Box>
-                    ) : (
-                        <Box component="form" autoComplete="off" sx={{ py: 2 }}>
-                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Thông tin Cơ bản</Typography>
-                            <Grid container spacing={2} sx={{ mb: 3 }}>
-                                <Grid item xs={12}>
-                                    <Controller name="ten" control={control} render={({ field }) => (
-                                        <TextField {...field} label="Tên đơn vị *" fullWidth size="small"
-                                            error={!!errors.ten} helperText={errors.ten?.message} />
-                                    )} />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <Controller name="tenDayDu" control={control} render={({ field }) => (
-                                        <TextField {...field} label="Tên đầy đủ" fullWidth size="small"
-                                            error={!!errors.tenDayDu} helperText={errors.tenDayDu?.message} />
-                                    )} />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <Controller name="vietTat" control={control} render={({ field }) => (
-                                        <TextField {...field} label="Viết tắt" fullWidth size="small"
-                                            error={!!errors.vietTat} helperText={errors.vietTat?.message} />
-                                    )} />
-                                </Grid>
+            <CommonDialog
+                open={isOpen}
+                onClose={handleClose}
+                maxWidth="sm"
+                mode={isUpdate ? 'edit' : 'add'}
+                title={isUpdate ? 'Cập nhật thông tin đơn vị' : 'Tạo mới đơn vị'}
+                subtitle="Vui lòng điền chính xác các thông tin cơ cấu tổ chức"
+                onConfirm={handleSubmit(handleSubmitForm)}
+                loading={isLoading}
+                confirmText={isUpdate ? 'Lưu thay đổi' : 'Tạo đơn vị'}
+            >
+                {isLoading && isOpen ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200, flexDirection: 'column', gap: 2 }}>
+                        <CircularProgress size={40} />
+                        <Typography color="text.secondary">Đang tải dữ liệu…</Typography>
+                    </Box>
+                ) : (
+                    <Box component="form" autoComplete="off">
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 1 }} />
+                            Thông tin Cơ bản
+                        </Typography>
+                        <Grid container spacing={2} sx={{ mb: 3 }}>
+                            <Grid size={12}>
+                                <Controller name="ten" control={control} render={({ field }) => (
+                                    <TextField {...field} label="Tên đơn vị *" fullWidth size="small"
+                                        error={!!errors.ten} helperText={errors.ten?.message} />
+                                )} />
                             </Grid>
-                            <Divider sx={{ my: 2 }} />
-                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Cấu trúc Tổ chức</Typography>
-                            <Grid container spacing={2} sx={{ mb: 3 }}>
-                                <Grid item xs={12}>
-                                    <Controller name="idCapTren" control={control} render={({ field }) => (
-                                        <FormControl fullWidth size="small" error={!!errors.idCapTren}>
-                                            <InputLabel>Cấp trên {defaultParentId && '(Đã chọn)'}</InputLabel>
-                                            <Select {...field} label="Cấp trên" disabled={!!defaultParentId}>
-                                                <MenuItem value="">-- Không có cấp trên --</MenuItem>
-                                                {allOffices.map(o => (
-                                                    <MenuItem key={String(o.id)} value={String(o.id)}>
-                                                        {(o.ten || o.tenDayDu || o.id) as string}
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                            {defaultParentId && (
-                                                <Typography variant="caption" sx={{ color: '#1976d2', mt: 0.5, display: 'block' }}>
-                                                    Đơn vị cha: {allOffices.find(o => o.id === defaultParentId)?.ten as string || defaultParentId}
-                                                </Typography>
-                                            )}
-                                        </FormControl>
-                                    )} />
-                                </Grid>
-                                <Grid item xs={12}>
+                            <Grid size={12}>
+                                <Controller name="tenDayDu" control={control} render={({ field }) => (
+                                    <TextField {...field} label="Tên đầy đủ" fullWidth size="small"
+                                        error={!!errors.tenDayDu} helperText={errors.tenDayDu?.message} />
+                                )} />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Controller name="vietTat" control={control} render={({ field }) => (
+                                    <TextField {...field} label="Viết tắt" fullWidth size="small"
+                                        error={!!errors.vietTat} helperText={errors.vietTat?.message} />
+                                )} />
+                            </Grid>
+                        </Grid>
+
+                        <Divider sx={{ my: 3 }} />
+
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 1 }} />
+                            Cấu trúc Tổ chức
+                        </Typography>
+                        <Grid container spacing={2}>
+                            <Grid size={12}>
+                                <Controller name="idCapTren" control={control} render={({ field }) => (
+                                    <FormControl fullWidth size="small" error={!!errors.idCapTren}>
+                                        <InputLabel>Cấp trên {defaultParentId && '(Đã chọn)'}</InputLabel>
+                                        <Select {...field} label="Cấp trên" disabled={!!defaultParentId}>
+                                            <MenuItem value="">-- Không có cấp trên --</MenuItem>
+                                            {allOffices.map(o => (
+                                                <MenuItem key={String(o.id)} value={String(o.id)}>
+                                                    {(o.ten || o.tenDayDu || o.id) as string}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                        {defaultParentId && (
+                                            <Typography variant="caption" sx={{ color: 'primary.main', mt: 0.5, display: 'block' }}>
+                                                Đơn vị cha: {allOffices.find(o => o.id === defaultParentId)?.ten as string || defaultParentId}
+                                            </Typography>
+                                        )}
+                                    </FormControl>
+                                )} />
+                            </Grid>
+                            <Grid size={12}>
+                                <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
                                     <Controller name="coCapDuoi" control={control} render={({ field: { value, onChange } }) => (
                                         <FormControlLabel
                                             control={<Switch checked={Boolean(value)} onChange={e => onChange(e.target.checked)} color="success" />}
-                                            label="Có cấp dưới"
+                                            label={<Typography variant="body2" fontWeight={700}>Đơn vị này có chứa các cấp trực thuộc (cấp dưới)</Typography>}
                                         />
                                     )} />
-                                </Grid>
+                                </Paper>
                             </Grid>
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button variant="outlined" color="inherit" onClick={handleClose} disabled={isLoading}>Hủy</Button>
-                    <Button variant="contained" color="success" onClick={handleSubmit(handleSubmitForm)} disabled={isLoading}>
-                        {isLoading ? 'Đang lưu…' : 'Lưu'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                        </Grid>
+                    </Box>
+                )}
+            </CommonDialog>
         </>
     );
 };
 
 export default ModalOffice;
-

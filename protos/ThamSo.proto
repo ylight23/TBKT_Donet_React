@@ -37,6 +37,9 @@ message FieldValidation {
   double min = 4;
   double max = 5;
   repeated string options = 6;
+  string data_source = 7;
+  string api_url = 8;
+  string display_type = 9;
 }
 
 message DynamicField {

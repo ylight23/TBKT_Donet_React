@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 
 
-import Dialog        from '@mui/material/Dialog';
-import DialogTitle   from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button        from '@mui/material/Button';
+import { Button, Typography } from '@mui/material';
+import CommonDialog from '../../../components/Dialog/CommonDialog';
+import BusinessIcon from '@mui/icons-material/Business';
 
 import OfficeDictionary, { OfficeNode } from '../../Office/subComponent/OfficeDictionary';
 
@@ -47,34 +45,39 @@ const OfficeDictionaryDialog: React.FC<OfficeDictionaryDialogProps> = ({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth
-            PaperProps={{ sx: { height: '70vh' } }}
-        >
-            <DialogTitle>{title}</DialogTitle>
-            <DialogContent dividers sx={{ p: 0 }}>
-                <OfficeDictionary
-                    offices={offices}
-                    selectedOffice={selectedOffice}
-                    onSelect={(node) => {
-                        setCurrentSelected(node);
-                    }}
-                />
-            </DialogContent>
-            <DialogActions sx={{ p: 2 }}>
-                <Button variant="outlined" color="inherit" onClick={onClose}>
-                    Hủy
-                </Button>
-                <Button variant="outlined" color="warning" onClick={handleClear}>
-                    Bỏ chọn
-                </Button>
-                <Button variant="contained" color="primary"
-                    onClick={handleConfirm}
-                    disabled={!currentSelected}
+        <CommonDialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            mode="info"
+            title={title}
+            subtitle="Duyệt cây đơn vị để chọn cấp quản lý hoặc đơn vị công tác"
+            icon={<BusinessIcon />}
+            onConfirm={handleConfirm}
+            confirmText="Xác nhận chọn"
+            disabled={!currentSelected}
+            contentPadding={0}
+            extraActions={
+                <Button
+                    variant="outlined"
+                    color="warning"
+                    size="small"
+                    onClick={handleClear}
+                    sx={{ fontWeight: 700, textTransform: 'none' }}
                 >
-                    Xác nhận
+                    Bỏ chọn đơn vị
                 </Button>
-            </DialogActions>
-        </Dialog>
+            }
+            sx={{ '& .MuiDialog-paper': { height: '80vh' } }}
+        >
+            <OfficeDictionary
+                offices={offices}
+                selectedOffice={selectedOffice}
+                onSelect={(node) => {
+                    setCurrentSelected(node);
+                }}
+            />
+        </CommonDialog>
     );
 };
 

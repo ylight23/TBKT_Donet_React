@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
+import {
+    Box,
+    Typography,
+    Button,
+    Tooltip,
+    tooltipClasses,
+    TooltipProps,
+    IconButton,
+    Divider,
+    Paper,
+    LinearProgress
+} from '@mui/material';
+import CommonDialog from '../Dialog/CommonDialog';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import Grid from '@mui/material/GridLegacy';
-import LinearProgress from '@mui/material/LinearProgress';
-import Divider from '@mui/material/Divider';
-import CloseIcon from '@mui/icons-material/Close';
-import IconButton from '@mui/material/IconButton';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CloseIcon from '@mui/icons-material/Close';
+import Grid from '@mui/material/Grid';
 import { styled, keyframes, useTheme } from '@mui/material/styles';
 import { getStatsByActiveMenu, CategoryStats } from '../../utils/statsCalculator';
 import { ResponsivePie } from '@nivo/pie';
@@ -89,7 +91,7 @@ const RichStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
     return (
         <Grid container spacing={4} sx={{ mt: 0 }}>
             {/* Left: Nivo Pie Chart */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
                 <Box sx={{ height: 320 }}>
                     <ResponsivePie
                         data={stats.stats.map(s => ({ ...s, id: s.label, value: s.count }))}
@@ -109,7 +111,7 @@ const RichStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
             </Grid>
 
             {/* Right: Detailed List and Metrics */}
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
                 <Box display="flex" flexDirection="column" gap={2.5}>
                     <Typography variant="h6" fontWeight={800} sx={{ opacity: 0.9, letterSpacing: '0.02em' }}>
                         PHÂN TÍCH CHI TIẾT
@@ -225,69 +227,20 @@ const StatsButton: React.FC<StatsButtonProps> = ({ activeMenu }) => {
                 </Button>
             </StatsTooltipView>
 
-            <Dialog
+            <CommonDialog
                 open={openDialog}
                 onClose={handleClose}
                 maxWidth="md"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        borderRadius: '24px',
-                        p: 1.5,
-                        boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
-                        overflow: 'hidden'
-                    }
-                }}
+                mode="info"
+                title={stats.title.toUpperCase()}
+                subtitle="BÁO CÁO PHÂN TÍCH HỆ THỐNG - CHI TIẾT CHỈ SỐ"
+                icon={<BarChartIcon />}
+                confirmText="Đóng báo cáo"
+                onConfirm={handleClose}
+                showCancel={false}
             >
-                <DialogTitle sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    pb: 1
-                }}>
-                    <Box display="flex" alignItems="center" gap={1.5}>
-                        <Box sx={{
-                            p: 1,
-                            borderRadius: '12px',
-                            bgcolor: 'primary.main',
-                            color: '#fff',
-                            display: 'flex',
-                            boxShadow: '0 4px 12px rgba(46,125,50,0.3)'
-                        }}>
-                            <BarChartIcon />
-                        </Box>
-                        <Box>
-                            <Typography variant="h5" fontWeight={900} color="primary">
-                                {stats.title.toUpperCase()}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                BÁO CÁO PHÂN TÍCH HỆ THỐNG
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <IconButton onClick={handleClose} sx={{ bgcolor: 'rgba(0,0,0,0.03)' }}>
-                        <CloseIcon />
-                    </IconButton>
-                </DialogTitle>
-                <DialogContent sx={{ py: 2 }}>
-                    <RichStatsView stats={stats} />
-                </DialogContent>
-                <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button
-                        onClick={handleClose}
-                        variant="contained"
-                        sx={{
-                            borderRadius: '12px',
-                            px: 4,
-                            py: 1.25,
-                            fontWeight: 800,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                        }}
-                    >
-                        Đóng báo cáo
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                <RichStatsView stats={stats} />
+            </CommonDialog>
         </>
     );
 };

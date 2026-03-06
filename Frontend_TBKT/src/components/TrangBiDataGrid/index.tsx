@@ -24,17 +24,11 @@ import PrintIcon from '@mui/icons-material/Print';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
+import DynamicFormIcon from '@mui/icons-material/DynamicForm';
 
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import MenuItem from '@mui/material/MenuItem';
+import { CommonDialog } from '../Dialog';
 
 import { thamSoApi } from '../../api/thamSoApiWithCache';
 import type {
@@ -49,6 +43,7 @@ import FilterTrangBi, { FilterTrangBiValues } from './FilterTrangBi';
 import OfficeDictionary, { OfficeNode } from '../../pages/Office/subComponent/OfficeDictionary';
 import { OfficeProvider } from '../../context/OfficeContext';
 import StatsButton from '../Stats/StatsButton';
+import FieldInput from '../../pages/CauHinhThamSo/subComponents/FieldInput';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -76,50 +71,7 @@ interface TrangBiDataGridProps {
   activeMenu?: 'tbNhom1' | 'tbNhom2' | string;
 }
 
-// ── Dynamic Form UI Helper Components ──────────────────────────
-interface FieldInputProps {
-  field: DynamicField;
-  value: string;
-  onChange: (v: string) => void;
-}
-
-const FieldInput: React.FC<FieldInputProps> = React.memo(({ field, value, onChange }) => {
-  if (field.type === 'select') {
-    return (
-      <TextField select fullWidth size="small" value={value} onChange={(e) => onChange(e.target.value)}>
-        {(field.validation.options ?? []).map((o) => (
-          <MenuItem key={o} value={o}>{o}</MenuItem>
-        ))}
-      </TextField>
-    );
-  }
-
-  if (field.type === 'checkbox') {
-    return (
-      <FormControlLabel
-        control={<Checkbox checked={value === 'true'} onChange={(e) => onChange(e.target.checked ? 'true' : 'false')} />}
-        label={field.label}
-      />
-    );
-  }
-
-  if (field.type === 'textarea') {
-    return <TextField fullWidth multiline rows={3} size="small" value={value} onChange={(e) => onChange(e.target.value)} />;
-  }
-
-  return (
-    <TextField
-      fullWidth
-      size="small"
-      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  );
-});
-
-FieldInput.displayName = 'FieldInput';
-
+// ── FormFieldItem: dùng FieldInput từ CauHinhThamSo ──────────
 interface FormFieldItemProps {
   field: DynamicField;
   value: string;
@@ -128,16 +80,65 @@ interface FormFieldItemProps {
 
 const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(({ field, value, onFieldChange }) => {
   const handleChange = useCallback(
-    (nextValue: string) => onFieldChange(field.key, nextValue),
-    [onFieldChange, field.key],
+    (key: string, nextValue: string) => onFieldChange(key, nextValue),
+    [onFieldChange],
   );
+
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   return (
     <Grid size={{ xs: 12, md: field.type === 'textarea' ? 12 : 6 }}>
-      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-        {field.label}{field.required ? ' *' : ''}
-      </Typography>
-      <FieldInput field={field} value={value} onChange={handleChange} />
+      <Box sx={{ mb: 1, px: 0.5 }}>
+        <Typography
+          variant="body2"
+          fontWeight={600}
+          sx={{
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            color: 'text.primary',
+            fontSize: '0.875rem',
+            opacity: 0.9
+          }}
+        >
+          {field.label}
+          {field.required && <Box component="span" sx={{ color: 'error.main', ml: 0.25 }}>*</Box>}
+        </Typography>
+
+        <Box sx={{
+          '& .MuiOutlinedInput-root': {
+            bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#f9fafb',
+            borderRadius: 1.5,
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '& fieldset': {
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+            },
+            '&:hover': {
+              bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f3f4f6',
+              '& fieldset': {
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)',
+              },
+            },
+            '&.Mui-focused': {
+              bgcolor: 'background.paper',
+              '& fieldset': {
+                borderColor: 'primary.main',
+                borderWidth: '2px',
+              },
+              boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}20`,
+            }
+          },
+          '& .MuiInputBase-input': {
+            py: 1.25,
+            px: 1.5,
+            fontSize: '0.9rem'
+          }
+        }}>
+          <FieldInput field={field} value={value} onChange={handleChange} />
+        </Box>
+      </Box>
     </Grid>
   );
 }, (prevProps, nextProps) => (
@@ -181,14 +182,33 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({ open, onClose, form
   const tabs = useMemo(() => formConfig?.tabs ?? [], [formConfig]);
   const currentTab = tabs[activeTab];
 
-  // Merge fields for current tab
-  const tabFields = useMemo(() => {
+  // Group fields by FieldSet for current tab
+  const fieldGroups = useMemo(() => {
     if (!currentTab) return [];
     const setIds = currentTab.setIds ?? [];
-    return setIds
-      .flatMap((setId: string) => fieldSetById.get(setId)?.fieldIds ?? [])
-      .map((fieldId: string) => fieldById.get(fieldId))
-      .filter((field): field is DynamicField => Boolean(field));
+
+    // Priority for sorting fields: Simple inputs -> Selects -> Textareas
+    const typePriority: Record<string, number> = {
+      number: 1,
+      text: 1,
+      date: 1,
+      select: 2,
+      textarea: 3
+    };
+
+    return setIds.map(setId => {
+      const set = fieldSetById.get(setId);
+      if (!set) return null;
+      const fields = (set.fieldIds ?? [])
+        .map((fid: string) => fieldById.get(fid))
+        .filter((f): f is DynamicField => Boolean(f))
+        .sort((a, b) => {
+          const pA = typePriority[a.type] || 99;
+          const pB = typePriority[b.type] || 99;
+          return pA - pB;
+        });
+      return { set, fields };
+    }).filter((group): group is { set: FieldSet; fields: DynamicField[] } => group !== null);
   }, [currentTab, fieldSetById, fieldById]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
@@ -209,55 +229,129 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({ open, onClose, form
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6" fontWeight={800}>Thêm trang bị mới</Typography>
-          <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
-        </Stack>
-        <Typography variant="caption" color="text.secondary">Sử dụng bộ mẫu: <strong>{formConfig.name}</strong></Typography>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 0, height: 600, display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
-          <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto">
-            {tabs.map((t: any) => (
-              <Tab key={t.id} label={t.label} sx={{ textTransform: 'none', fontWeight: 700 }} />
-            ))}
-          </Tabs>
-        </Box>
-
-        <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
-          <Grid container spacing={2.5}>
-            {tabFields.map((f) => (
-              <FormFieldItem
-                key={f.id}
-                field={f}
-                value={formData[f.key] ?? ''}
-                onFieldChange={handleFieldChange}
-              />
-            ))}
-            {tabFields.length === 0 && (
-              <Box sx={{ p: 4, width: '100%', textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">Tab này chưa có trường dữ liệu nào.</Typography>
-              </Box>
-            )}
-          </Grid>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Button onClick={onClose} color="inherit">Huỷ bỏ</Button>
-        <Button
-          variant="contained"
-          startIcon={<SaveIcon />}
-          onClick={handleSave}
-          sx={{ fontWeight: 700, px: 3 }}
+    <CommonDialog
+      open={open}
+      onClose={onClose}
+      mode="add"
+      maxWidth="lg"
+      title="Thêm trang bị kỹ thuật mới"
+      subtitle={`Sử dụng cấu hình biểu mẫu: ${formConfig.name}`}
+      icon={<AddIcon />}
+      onConfirm={handleSave}
+      confirmText="Lưu trang bị"
+      contentPadding={0}
+      sx={{ '& .MuiDialog-paper': { height: '85vh' } }}
+    >
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', zIndex: 1 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            px: 2,
+            minHeight: 56,
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '3px 3px 0 0',
+            },
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 700,
+              px: 3,
+              minHeight: 56,
+              fontSize: '0.925rem',
+              color: 'text.secondary',
+              transition: 'all 0.2s ease',
+              '&.Mui-selected': {
+                color: 'primary.main',
+              }
+            }
+          }}
         >
-          Lưu trang bị
-        </Button>
-      </DialogActions>
-    </Dialog>
+          {tabs.map((t: any, index: number) => (
+            <Tab
+              key={t.id}
+              label={
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Box sx={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.7rem',
+                    bgcolor: activeTab === index ? 'primary.main' : 'action.selected',
+                    color: activeTab === index ? '#fff' : 'text.secondary',
+                    transition: 'all 0.2s ease',
+                    fontWeight: 800
+                  }}>
+                    {index + 1}
+                  </Box>
+                  <Typography variant="inherit">{t.label}</Typography>
+                </Stack>
+              }
+            />
+          ))}
+        </Tabs>
+      </Box>
+
+      <Box sx={{ p: 4, flex: 1, overflowY: 'auto', bgcolor: 'background.default' }}>
+        {fieldGroups.map((group, index) => (
+          <Box key={group.set.id} sx={{ mb: index === fieldGroups.length - 1 ? 0 : 5 }}>
+            <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+              <Box sx={{
+                p: 1,
+                borderRadius: 1.5,
+                bgcolor: `${group.set.color}15`,
+                color: group.set.color,
+                display: 'flex',
+                fontSize: 22,
+                border: `1px solid ${group.set.color}30`
+              }}>
+                {React.isValidElement(group.set.icon)
+                  ? React.cloneElement(group.set.icon as React.ReactElement<any>, { sx: { fontSize: 'inherit' } })
+                  : group.set.icon
+                }
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" fontWeight={800} sx={{ color: 'text.primary', letterSpacing: '-0.01em' }}>
+                  {group.set.name}
+                </Typography>
+                {group.set.desc && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, opacity: 0.7 }}>
+                    {group.set.desc}
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+
+            <Grid container spacing={2}>
+              {group.fields.map((f) => (
+                <FormFieldItem
+                  key={f.id}
+                  field={f}
+                  value={formData[f.key] ?? ''}
+                  onFieldChange={handleFieldChange}
+                />
+              ))}
+            </Grid>
+            {index < fieldGroups.length - 1 && (
+              <Divider sx={{ mt: 5, opacity: 0.4 }} />
+            )}
+          </Box>
+        ))}
+
+        {fieldGroups.length === 0 && (
+          <Stack sx={{ py: 10, alignItems: 'center', textAlign: 'center' }}>
+            <DynamicFormIcon sx={{ fontSize: 64, mb: 2, color: 'text.disabled', opacity: 0.2 }} />
+            <Typography variant="h6" color="text.secondary" fontWeight={700}>Trống</Typography>
+            <Typography variant="body2" color="text.disabled">Tab này chưa có trường dữ liệu được cấu hình.</Typography>
+          </Stack>
+        )}
+      </Box>
+    </CommonDialog>
   );
 };
 

@@ -5,45 +5,16 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp, file_google_protobuf_wrappers } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { DeleteBaseResponseSchema } from "./Base_pb";
+import { file_Base } from "./Base_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ThamSo.proto.
  */
 export const file_ThamSo: GenFile = /*@__PURE__*/
-  fileDesc("CgxUaGFtU28ucHJvdG8SBlRoYW1TbyJRChJEZWxldGVCYXNlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAMgASgJInUKD0ZpZWxkVmFsaWRhdGlvbhISCgptaW5fbGVuZ3RoGAEgASgFEhIKCm1heF9sZW5ndGgYAiABKAUSDwoHcGF0dGVybhgDIAEoCRILCgNtaW4YBCABKAESCwoDbWF4GAUgASgBEg8KB29wdGlvbnMYBiADKAki9QEKDER5bmFtaWNGaWVsZBIKCgJpZBgBIAEoCRILCgNrZXkYAiABKAkSDQoFbGFiZWwYAyABKAkSDAoEdHlwZRgEIAEoCRIQCghyZXF1aXJlZBgFIAEoCBIrCgp2YWxpZGF0aW9uGAYgASgLMhcuVGhhbVNvLkZpZWxkVmFsaWRhdGlvbhIOCgZkZWxldGUYByABKAgSLwoLY3JlYXRlX2RhdGUYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC21vZGlmeV9kYXRlGAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtHZXRMaXN0RHluYW1pY0ZpZWxkc1JlcXVlc3QigAEKHEdldExpc3REeW5hbWljRmllbGRzUmVzcG9uc2USIwoFaXRlbXMYASADKAsyFC5UaGFtU28uRHluYW1pY0ZpZWxkEg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIZChFtZXNzYWdlX2V4Y2VwdGlvbhgEIAEoCSJNChdTYXZlRHluYW1pY0ZpZWxkUmVxdWVzdBIiCgRpdGVtGAEgASgLMhQuVGhhbVNvLkR5bmFtaWNGaWVsZBIOCgZpc19uZXcYAiABKAgiewoYU2F2ZUR5bmFtaWNGaWVsZFJlc3BvbnNlEiIKBGl0ZW0YASABKAsyFC5UaGFtU28uRHluYW1pY0ZpZWxkEg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIZChFtZXNzYWdlX2V4Y2VwdGlvbhgEIAEoCSI0ChlEZWxldGVEeW5hbWljRmllbGRSZXF1ZXN0EgoKAmlkGAEgASgJEgsKA2lkcxgCIAMoCSLUAQoIRmllbGRTZXQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRpY29uGAMgASgJEg0KBWNvbG9yGAQgASgJEgwKBGRlc2MYBSABKAkSEQoJZmllbGRfaWRzGAYgAygJEg4KBmRlbGV0ZRgHIAEoCBIvCgtjcmVhdGVfZGF0ZRgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLbW9kaWZ5X2RhdGUYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhkKF0dldExpc3RGaWVsZFNldHNSZXF1ZXN0IngKGEdldExpc3RGaWVsZFNldHNSZXNwb25zZRIfCgVpdGVtcxgBIAMoCzIQLlRoYW1Tby5GaWVsZFNldBIPCgdzdWNjZXNzGAIgASgIEg8KB21lc3NhZ2UYAyABKAkSGQoRbWVzc2FnZV9leGNlcHRpb24YBCABKAkiRQoTU2F2ZUZpZWxkU2V0UmVxdWVzdBIeCgRpdGVtGAEgASgLMhAuVGhhbVNvLkZpZWxkU2V0Eg4KBmlzX25ldxgCIAEoCCJzChRTYXZlRmllbGRTZXRSZXNwb25zZRIeCgRpdGVtGAEgASgLMhAuVGhhbVNvLkZpZWxkU2V0Eg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIZChFtZXNzYWdlX2V4Y2VwdGlvbhgEIAEoCSIwChVEZWxldGVGaWVsZFNldFJlcXVlc3QSCgoCaWQYASABKAkSCwoDaWRzGAIgAygJIjsKDUZvcm1UYWJDb25maWcSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSDwoHc2V0X2lkcxgDIAMoCSLLAQoKRm9ybUNvbmZpZxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGRlc2MYAyABKAkSIwoEdGFicxgEIAMoCzIVLlRoYW1Tby5Gb3JtVGFiQ29uZmlnEg4KBmRlbGV0ZRgFIAEoCBIvCgtjcmVhdGVfZGF0ZRgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLbW9kaWZ5X2RhdGUYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhsKGUdldExpc3RGb3JtQ29uZmlnc1JlcXVlc3QifAoaR2V0TGlzdEZvcm1Db25maWdzUmVzcG9uc2USIQoFaXRlbXMYASADKAsyEi5UaGFtU28uRm9ybUNvbmZpZxIPCgdzdWNjZXNzGAIgASgIEg8KB21lc3NhZ2UYAyABKAkSGQoRbWVzc2FnZV9leGNlcHRpb24YBCABKAkiSQoVU2F2ZUZvcm1Db25maWdSZXF1ZXN0EiAKBGl0ZW0YASABKAsyEi5UaGFtU28uRm9ybUNvbmZpZxIOCgZpc19uZXcYAiABKAgidwoWU2F2ZUZvcm1Db25maWdSZXNwb25zZRIgCgRpdGVtGAEgASgLMhIuVGhhbVNvLkZvcm1Db25maWcSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJIjIKF0RlbGV0ZUZvcm1Db25maWdSZXF1ZXN0EgoKAmlkGAEgASgJEgsKA2lkcxgCIAMoCTKMBgoNVGhhbVNvU2VydmljZRJhChRHZXRMaXN0RHluYW1pY0ZpZWxkcxIjLlRoYW1Tby5HZXRMaXN0RHluYW1pY0ZpZWxkc1JlcXVlc3QaJC5UaGFtU28uR2V0TGlzdER5bmFtaWNGaWVsZHNSZXNwb25zZRJVChBTYXZlRHluYW1pY0ZpZWxkEh8uVGhhbVNvLlNhdmVEeW5hbWljRmllbGRSZXF1ZXN0GiAuVGhhbVNvLlNhdmVEeW5hbWljRmllbGRSZXNwb25zZRJTChJEZWxldGVEeW5hbWljRmllbGQSIS5UaGFtU28uRGVsZXRlRHluYW1pY0ZpZWxkUmVxdWVzdBoaLlRoYW1Tby5EZWxldGVCYXNlUmVzcG9uc2USVQoQR2V0TGlzdEZpZWxkU2V0cxIfLlRoYW1Tby5HZXRMaXN0RmllbGRTZXRzUmVxdWVzdBogLlRoYW1Tby5HZXRMaXN0RmllbGRTZXRzUmVzcG9uc2USSQoMU2F2ZUZpZWxkU2V0EhsuVGhhbVNvLlNhdmVGaWVsZFNldFJlcXVlc3QaHC5UaGFtU28uU2F2ZUZpZWxkU2V0UmVzcG9uc2USSwoORGVsZXRlRmllbGRTZXQSHS5UaGFtU28uRGVsZXRlRmllbGRTZXRSZXF1ZXN0GhouVGhhbVNvLkRlbGV0ZUJhc2VSZXNwb25zZRJbChJHZXRMaXN0Rm9ybUNvbmZpZ3MSIS5UaGFtU28uR2V0TGlzdEZvcm1Db25maWdzUmVxdWVzdBoiLlRoYW1Tby5HZXRMaXN0Rm9ybUNvbmZpZ3NSZXNwb25zZRJPCg5TYXZlRm9ybUNvbmZpZxIdLlRoYW1Tby5TYXZlRm9ybUNvbmZpZ1JlcXVlc3QaHi5UaGFtU28uU2F2ZUZvcm1Db25maWdSZXNwb25zZRJPChBEZWxldGVGb3JtQ29uZmlnEh8uVGhhbVNvLkRlbGV0ZUZvcm1Db25maWdSZXF1ZXN0GhouVGhhbVNvLkRlbGV0ZUJhc2VSZXNwb25zZUIJqgIGcHJvdG9zYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_wrappers]);
-
-/**
- * ============================================================
- * Common
- * ============================================================
- *
- * @generated from message ThamSo.DeleteBaseResponse
- */
-export type DeleteBaseResponse = Message<"ThamSo.DeleteBaseResponse"> & {
-  /**
-   * @generated from field: bool success = 1;
-   */
-  success: boolean;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-
-  /**
-   * @generated from field: string message_exception = 3;
-   */
-  messageException: string;
-};
-
-/**
- * Describes the message ThamSo.DeleteBaseResponse.
- * Use `create(DeleteBaseResponseSchema)` to create a new message.
- */
-export const DeleteBaseResponseSchema: GenMessage<DeleteBaseResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 0);
+  fileDesc("CgxUaGFtU28ucHJvdG8SBlRoYW1TbyKxAQoPRmllbGRWYWxpZGF0aW9uEhIKCm1pbl9sZW5ndGgYASABKAUSEgoKbWF4X2xlbmd0aBgCIAEoBRIPCgdwYXR0ZXJuGAMgASgJEgsKA21pbhgEIAEoARILCgNtYXgYBSABKAESDwoHb3B0aW9ucxgGIAMoCRITCgtkYXRhX3NvdXJjZRgHIAEoCRIPCgdhcGlfdXJsGAggASgJEhQKDGRpc3BsYXlfdHlwZRgJIAEoCSL1AQoMRHluYW1pY0ZpZWxkEgoKAmlkGAEgASgJEgsKA2tleRgCIAEoCRINCgVsYWJlbBgDIAEoCRIMCgR0eXBlGAQgASgJEhAKCHJlcXVpcmVkGAUgASgIEisKCnZhbGlkYXRpb24YBiABKAsyFy5UaGFtU28uRmllbGRWYWxpZGF0aW9uEg4KBmRlbGV0ZRgHIAEoCBIvCgtjcmVhdGVfZGF0ZRgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLbW9kaWZ5X2RhdGUYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIh0KG0dldExpc3REeW5hbWljRmllbGRzUmVxdWVzdCKAAQocR2V0TGlzdER5bmFtaWNGaWVsZHNSZXNwb25zZRIjCgVpdGVtcxgBIAMoCzIULlRoYW1Tby5EeW5hbWljRmllbGQSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJIk0KF1NhdmVEeW5hbWljRmllbGRSZXF1ZXN0EiIKBGl0ZW0YASABKAsyFC5UaGFtU28uRHluYW1pY0ZpZWxkEg4KBmlzX25ldxgCIAEoCCJ7ChhTYXZlRHluYW1pY0ZpZWxkUmVzcG9uc2USIgoEaXRlbRgBIAEoCzIULlRoYW1Tby5EeW5hbWljRmllbGQSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJIjQKGURlbGV0ZUR5bmFtaWNGaWVsZFJlcXVlc3QSCgoCaWQYASABKAkSCwoDaWRzGAIgAygJItQBCghGaWVsZFNldBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGljb24YAyABKAkSDQoFY29sb3IYBCABKAkSDAoEZGVzYxgFIAEoCRIRCglmaWVsZF9pZHMYBiADKAkSDgoGZGVsZXRlGAcgASgIEi8KC2NyZWF0ZV9kYXRlGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgttb2RpZnlfZGF0ZRgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGQoXR2V0TGlzdEZpZWxkU2V0c1JlcXVlc3QieAoYR2V0TGlzdEZpZWxkU2V0c1Jlc3BvbnNlEh8KBWl0ZW1zGAEgAygLMhAuVGhhbVNvLkZpZWxkU2V0Eg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIZChFtZXNzYWdlX2V4Y2VwdGlvbhgEIAEoCSJFChNTYXZlRmllbGRTZXRSZXF1ZXN0Eh4KBGl0ZW0YASABKAsyEC5UaGFtU28uRmllbGRTZXQSDgoGaXNfbmV3GAIgASgIInMKFFNhdmVGaWVsZFNldFJlc3BvbnNlEh4KBGl0ZW0YASABKAsyEC5UaGFtU28uRmllbGRTZXQSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJIjAKFURlbGV0ZUZpZWxkU2V0UmVxdWVzdBIKCgJpZBgBIAEoCRILCgNpZHMYAiADKAkiOwoNRm9ybVRhYkNvbmZpZxIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIPCgdzZXRfaWRzGAMgAygJIssBCgpGb3JtQ29uZmlnEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEZGVzYxgDIAEoCRIjCgR0YWJzGAQgAygLMhUuVGhhbVNvLkZvcm1UYWJDb25maWcSDgoGZGVsZXRlGAUgASgIEi8KC2NyZWF0ZV9kYXRlGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgttb2RpZnlfZGF0ZRgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGwoZR2V0TGlzdEZvcm1Db25maWdzUmVxdWVzdCJ8ChpHZXRMaXN0Rm9ybUNvbmZpZ3NSZXNwb25zZRIhCgVpdGVtcxgBIAMoCzISLlRoYW1Tby5Gb3JtQ29uZmlnEg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIZChFtZXNzYWdlX2V4Y2VwdGlvbhgEIAEoCSJJChVTYXZlRm9ybUNvbmZpZ1JlcXVlc3QSIAoEaXRlbRgBIAEoCzISLlRoYW1Tby5Gb3JtQ29uZmlnEg4KBmlzX25ldxgCIAEoCCJ3ChZTYXZlRm9ybUNvbmZpZ1Jlc3BvbnNlEiAKBGl0ZW0YASABKAsyEi5UaGFtU28uRm9ybUNvbmZpZxIPCgdzdWNjZXNzGAIgASgIEg8KB21lc3NhZ2UYAyABKAkSGQoRbWVzc2FnZV9leGNlcHRpb24YBCABKAkiMgoXRGVsZXRlRm9ybUNvbmZpZ1JlcXVlc3QSCgoCaWQYASABKAkSCwoDaWRzGAIgAygJMoYGCg1UaGFtU29TZXJ2aWNlEmEKFEdldExpc3REeW5hbWljRmllbGRzEiMuVGhhbVNvLkdldExpc3REeW5hbWljRmllbGRzUmVxdWVzdBokLlRoYW1Tby5HZXRMaXN0RHluYW1pY0ZpZWxkc1Jlc3BvbnNlElUKEFNhdmVEeW5hbWljRmllbGQSHy5UaGFtU28uU2F2ZUR5bmFtaWNGaWVsZFJlcXVlc3QaIC5UaGFtU28uU2F2ZUR5bmFtaWNGaWVsZFJlc3BvbnNlElEKEkRlbGV0ZUR5bmFtaWNGaWVsZBIhLlRoYW1Tby5EZWxldGVEeW5hbWljRmllbGRSZXF1ZXN0GhguQmFzZS5EZWxldGVCYXNlUmVzcG9uc2USVQoQR2V0TGlzdEZpZWxkU2V0cxIfLlRoYW1Tby5HZXRMaXN0RmllbGRTZXRzUmVxdWVzdBogLlRoYW1Tby5HZXRMaXN0RmllbGRTZXRzUmVzcG9uc2USSQoMU2F2ZUZpZWxkU2V0EhsuVGhhbVNvLlNhdmVGaWVsZFNldFJlcXVlc3QaHC5UaGFtU28uU2F2ZUZpZWxkU2V0UmVzcG9uc2USSQoORGVsZXRlRmllbGRTZXQSHS5UaGFtU28uRGVsZXRlRmllbGRTZXRSZXF1ZXN0GhguQmFzZS5EZWxldGVCYXNlUmVzcG9uc2USWwoSR2V0TGlzdEZvcm1Db25maWdzEiEuVGhhbVNvLkdldExpc3RGb3JtQ29uZmlnc1JlcXVlc3QaIi5UaGFtU28uR2V0TGlzdEZvcm1Db25maWdzUmVzcG9uc2USTwoOU2F2ZUZvcm1Db25maWcSHS5UaGFtU28uU2F2ZUZvcm1Db25maWdSZXF1ZXN0Gh4uVGhhbVNvLlNhdmVGb3JtQ29uZmlnUmVzcG9uc2USTQoQRGVsZXRlRm9ybUNvbmZpZxIfLlRoYW1Tby5EZWxldGVGb3JtQ29uZmlnUmVxdWVzdBoYLkJhc2UuRGVsZXRlQmFzZVJlc3BvbnNlQgmqAgZwcm90b3NiBnByb3RvMw", [file_google_protobuf_timestamp, file_Base]);
 
 /**
  * ============================================================
@@ -82,6 +53,21 @@ export type FieldValidation = Message<"ThamSo.FieldValidation"> & {
    * @generated from field: repeated string options = 6;
    */
   options: string[];
+
+  /**
+   * @generated from field: string data_source = 7;
+   */
+  dataSource: string;
+
+  /**
+   * @generated from field: string api_url = 8;
+   */
+  apiUrl: string;
+
+  /**
+   * @generated from field: string display_type = 9;
+   */
+  displayType: string;
 };
 
 /**
@@ -89,7 +75,7 @@ export type FieldValidation = Message<"ThamSo.FieldValidation"> & {
  * Use `create(FieldValidationSchema)` to create a new message.
  */
 export const FieldValidationSchema: GenMessage<FieldValidation> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 1);
+  messageDesc(file_ThamSo, 0);
 
 /**
  * @generated from message ThamSo.DynamicField
@@ -148,7 +134,7 @@ export type DynamicField = Message<"ThamSo.DynamicField"> & {
  * Use `create(DynamicFieldSchema)` to create a new message.
  */
 export const DynamicFieldSchema: GenMessage<DynamicField> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 2);
+  messageDesc(file_ThamSo, 1);
 
 /**
  * @generated from message ThamSo.GetListDynamicFieldsRequest
@@ -161,7 +147,7 @@ export type GetListDynamicFieldsRequest = Message<"ThamSo.GetListDynamicFieldsRe
  * Use `create(GetListDynamicFieldsRequestSchema)` to create a new message.
  */
 export const GetListDynamicFieldsRequestSchema: GenMessage<GetListDynamicFieldsRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 3);
+  messageDesc(file_ThamSo, 2);
 
 /**
  * @generated from message ThamSo.GetListDynamicFieldsResponse
@@ -193,7 +179,7 @@ export type GetListDynamicFieldsResponse = Message<"ThamSo.GetListDynamicFieldsR
  * Use `create(GetListDynamicFieldsResponseSchema)` to create a new message.
  */
 export const GetListDynamicFieldsResponseSchema: GenMessage<GetListDynamicFieldsResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 4);
+  messageDesc(file_ThamSo, 3);
 
 /**
  * @generated from message ThamSo.SaveDynamicFieldRequest
@@ -215,7 +201,7 @@ export type SaveDynamicFieldRequest = Message<"ThamSo.SaveDynamicFieldRequest"> 
  * Use `create(SaveDynamicFieldRequestSchema)` to create a new message.
  */
 export const SaveDynamicFieldRequestSchema: GenMessage<SaveDynamicFieldRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 5);
+  messageDesc(file_ThamSo, 4);
 
 /**
  * @generated from message ThamSo.SaveDynamicFieldResponse
@@ -247,7 +233,7 @@ export type SaveDynamicFieldResponse = Message<"ThamSo.SaveDynamicFieldResponse"
  * Use `create(SaveDynamicFieldResponseSchema)` to create a new message.
  */
 export const SaveDynamicFieldResponseSchema: GenMessage<SaveDynamicFieldResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 6);
+  messageDesc(file_ThamSo, 5);
 
 /**
  * @generated from message ThamSo.DeleteDynamicFieldRequest
@@ -269,7 +255,7 @@ export type DeleteDynamicFieldRequest = Message<"ThamSo.DeleteDynamicFieldReques
  * Use `create(DeleteDynamicFieldRequestSchema)` to create a new message.
  */
 export const DeleteDynamicFieldRequestSchema: GenMessage<DeleteDynamicFieldRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 7);
+  messageDesc(file_ThamSo, 6);
 
 /**
  * ============================================================
@@ -332,7 +318,7 @@ export type FieldSet = Message<"ThamSo.FieldSet"> & {
  * Use `create(FieldSetSchema)` to create a new message.
  */
 export const FieldSetSchema: GenMessage<FieldSet> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 8);
+  messageDesc(file_ThamSo, 7);
 
 /**
  * @generated from message ThamSo.GetListFieldSetsRequest
@@ -345,7 +331,7 @@ export type GetListFieldSetsRequest = Message<"ThamSo.GetListFieldSetsRequest"> 
  * Use `create(GetListFieldSetsRequestSchema)` to create a new message.
  */
 export const GetListFieldSetsRequestSchema: GenMessage<GetListFieldSetsRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 9);
+  messageDesc(file_ThamSo, 8);
 
 /**
  * @generated from message ThamSo.GetListFieldSetsResponse
@@ -377,7 +363,7 @@ export type GetListFieldSetsResponse = Message<"ThamSo.GetListFieldSetsResponse"
  * Use `create(GetListFieldSetsResponseSchema)` to create a new message.
  */
 export const GetListFieldSetsResponseSchema: GenMessage<GetListFieldSetsResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 10);
+  messageDesc(file_ThamSo, 9);
 
 /**
  * @generated from message ThamSo.SaveFieldSetRequest
@@ -399,7 +385,7 @@ export type SaveFieldSetRequest = Message<"ThamSo.SaveFieldSetRequest"> & {
  * Use `create(SaveFieldSetRequestSchema)` to create a new message.
  */
 export const SaveFieldSetRequestSchema: GenMessage<SaveFieldSetRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 11);
+  messageDesc(file_ThamSo, 10);
 
 /**
  * @generated from message ThamSo.SaveFieldSetResponse
@@ -431,7 +417,7 @@ export type SaveFieldSetResponse = Message<"ThamSo.SaveFieldSetResponse"> & {
  * Use `create(SaveFieldSetResponseSchema)` to create a new message.
  */
 export const SaveFieldSetResponseSchema: GenMessage<SaveFieldSetResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 12);
+  messageDesc(file_ThamSo, 11);
 
 /**
  * @generated from message ThamSo.DeleteFieldSetRequest
@@ -453,7 +439,7 @@ export type DeleteFieldSetRequest = Message<"ThamSo.DeleteFieldSetRequest"> & {
  * Use `create(DeleteFieldSetRequestSchema)` to create a new message.
  */
 export const DeleteFieldSetRequestSchema: GenMessage<DeleteFieldSetRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 13);
+  messageDesc(file_ThamSo, 12);
 
 /**
  * ============================================================
@@ -484,7 +470,7 @@ export type FormTabConfig = Message<"ThamSo.FormTabConfig"> & {
  * Use `create(FormTabConfigSchema)` to create a new message.
  */
 export const FormTabConfigSchema: GenMessage<FormTabConfig> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 14);
+  messageDesc(file_ThamSo, 13);
 
 /**
  * @generated from message ThamSo.FormConfig
@@ -531,7 +517,7 @@ export type FormConfig = Message<"ThamSo.FormConfig"> & {
  * Use `create(FormConfigSchema)` to create a new message.
  */
 export const FormConfigSchema: GenMessage<FormConfig> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 15);
+  messageDesc(file_ThamSo, 14);
 
 /**
  * @generated from message ThamSo.GetListFormConfigsRequest
@@ -544,7 +530,7 @@ export type GetListFormConfigsRequest = Message<"ThamSo.GetListFormConfigsReques
  * Use `create(GetListFormConfigsRequestSchema)` to create a new message.
  */
 export const GetListFormConfigsRequestSchema: GenMessage<GetListFormConfigsRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 16);
+  messageDesc(file_ThamSo, 15);
 
 /**
  * @generated from message ThamSo.GetListFormConfigsResponse
@@ -576,7 +562,7 @@ export type GetListFormConfigsResponse = Message<"ThamSo.GetListFormConfigsRespo
  * Use `create(GetListFormConfigsResponseSchema)` to create a new message.
  */
 export const GetListFormConfigsResponseSchema: GenMessage<GetListFormConfigsResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 17);
+  messageDesc(file_ThamSo, 16);
 
 /**
  * @generated from message ThamSo.SaveFormConfigRequest
@@ -598,7 +584,7 @@ export type SaveFormConfigRequest = Message<"ThamSo.SaveFormConfigRequest"> & {
  * Use `create(SaveFormConfigRequestSchema)` to create a new message.
  */
 export const SaveFormConfigRequestSchema: GenMessage<SaveFormConfigRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 18);
+  messageDesc(file_ThamSo, 17);
 
 /**
  * @generated from message ThamSo.SaveFormConfigResponse
@@ -630,7 +616,7 @@ export type SaveFormConfigResponse = Message<"ThamSo.SaveFormConfigResponse"> & 
  * Use `create(SaveFormConfigResponseSchema)` to create a new message.
  */
 export const SaveFormConfigResponseSchema: GenMessage<SaveFormConfigResponse> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 19);
+  messageDesc(file_ThamSo, 18);
 
 /**
  * @generated from message ThamSo.DeleteFormConfigRequest
@@ -652,7 +638,7 @@ export type DeleteFormConfigRequest = Message<"ThamSo.DeleteFormConfigRequest"> 
  * Use `create(DeleteFormConfigRequestSchema)` to create a new message.
  */
 export const DeleteFormConfigRequestSchema: GenMessage<DeleteFormConfigRequest> = /*@__PURE__*/
-  messageDesc(file_ThamSo, 20);
+  messageDesc(file_ThamSo, 19);
 
 /**
  * ============================================================

@@ -453,6 +453,14 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
 
     }, [initialOffices, refreshTrigger, getRootNodes]);   // ← initialOffices thay đổi khi context load xong
 
+    // ── Self-fetch fallback: khi không có initialOffices (dùng ngoài OfficeProvider) ──
+    useEffect(() => {
+        if (!initialOffices?.length && !loadedByParentRef.current[ROOT_KEY]) {
+            fetchNodes(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);  // chỉ chạy 1 lần khi mount
+
     // ── Expand toggle ──────────────────────────────────────────────────────────
 
     const handleToggleExpand = useCallback((itemId: string) => {

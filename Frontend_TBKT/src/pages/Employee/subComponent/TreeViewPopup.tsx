@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 // ✅ Direct imports
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
-import InputAdornment from '@mui/material/InputAdornment';
+import {
+    Button,
+    Box,
+    Typography,
+    TextField,
+    CircularProgress,
+    Alert,
+    InputAdornment,
+    Paper,
+    Stack,
+    IconButton
+} from '@mui/material';
+import CommonDialog from '../../../components/Dialog/CommonDialog';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import Search from '@mui/icons-material/Search';
 import Close from '@mui/icons-material/Close';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 
@@ -227,78 +230,97 @@ const TreeViewPopup: React.FC<TreeViewPopupProps> = ({
     const loadingRoot = loadingByParent[ROOT_KEY];
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { height: '70vh' } }}>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-                <Box component="span" sx={{ fontWeight: 600, fontSize: '1.25rem' }}>{title}</Box>
-                {selectedNode && (
-                    <Typography variant="body2" component="span" sx={{ color: '#1976d2', fontWeight: 500 }}>
-                        Đã chọn: {selectedNode._label}
-                    </Typography>
-                )}
-            </DialogTitle>
-
-            <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
-                    <TextField
-                        size="small"
-                        fullWidth
-                        placeholder="Tìm kiếm…"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <Search />
-                                </InputAdornment>
-                            ),
-                            endAdornment: searchText && (
-                                <InputAdornment position="end">
-                                    <Close
-                                        sx={{ cursor: 'pointer', fontSize: 20 }}
-                                        onClick={() => setSearchText('')}
-                                    />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                </Box>
-
-                <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
-                    {loadingRoot ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                            <CircularProgress />
-                        </Box>
-                    ) : error ? (
-                        <Alert severity="error">{error}</Alert>
-                    ) : rootNodes.length === 0 ? (
-                        <Alert severity="info">Không có dữ liệu</Alert>
-                    ) : (
-                        <SimpleTreeView
-                            expandedItems={expanded}
-                            selectedItems={selected ?? undefined}
-                            onExpandedItemsChange={handleExpandedChange}
-                            onItemExpansionToggle={handleItemExpansionToggle}
-                            onSelectedItemsChange={handleSelect}
-                            slots={{ expandIcon: ChevronRight, collapseIcon: ExpandMore }}
-                        >
-                            {renderTree(rootNodes)}
-                        </SimpleTreeView>
-                    )}
-                </Box>
-            </DialogContent>
-
-            <DialogActions sx={{ p: 2 }}>
-                <Button variant="outlined" color="inherit" onClick={onClose}>
-                    Hủy
-                </Button>
-                <Button variant="outlined" color="warning" onClick={handleClear}>
+        <CommonDialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            mode="info"
+            title={title}
+            subtitle={selectedNode ? `Đang chọn: ${selectedNode._label}` : "Duyệt danh sách phân cấp để lựa chọn"}
+            icon={<AccountTreeIcon />}
+            onConfirm={handleConfirm}
+            confirmText="Xác nhận chọn"
+            disabled={!selectedNode}
+            contentPadding={0}
+            extraActions={
+                <Button
+                    variant="outlined"
+                    color="warning"
+                    size="small"
+                    onClick={handleClear}
+                    sx={{ fontWeight: 700, textTransform: 'none' }}
+                >
                     Bỏ chọn
                 </Button>
-                <Button variant="contained" color="primary" onClick={handleConfirm} disabled={!selectedNode}>
-                    Xác nhận
-                </Button>
-            </DialogActions>
-        </Dialog>
+            }
+            sx={{ '& .MuiDialog-paper': { height: '80vh' } }}
+        >
+            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
+                <TextField
+                    size="small"
+                    fullWidth
+                    variant="outlined"
+                    placeholder="Tìm kiếm nội dung..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <Search fontSize="small" />
+                            </InputAdornment>
+                        ),
+                        endAdornment: searchText && (
+                            <InputAdornment position="end">
+                                <IconButton size="small" onClick={() => setSearchText('')}>
+                                    <Close fontSize="small" />
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                        sx: { bgcolor: 'background.paper', borderRadius: 2 }
+                    }}
+                />
+            </Box>
+
+            <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
+                {loadingRoot ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 200, gap: 2 }}>
+                        <CircularProgress size={32} />
+                        <Typography variant="caption" color="text.secondary">Đang bóc tách dữ liệu cây...</Typography>
+                    </Box>
+                ) : error ? (
+                    <Alert severity="error" variant="outlined">{error}</Alert>
+                ) : rootNodes.length === 0 ? (
+                    <Box sx={{ p: 4, textAlign: 'center', opacity: 0.5 }}>
+                        <AccountTreeIcon sx={{ fontSize: 48, mb: 1 }} />
+                        <Typography variant="body2">Không tìm thấy dữ liệu phù hợp</Typography>
+                    </Box>
+                ) : (
+                    <SimpleTreeView
+                        expandedItems={expanded}
+                        selectedItems={selected ?? undefined}
+                        onExpandedItemsChange={handleExpandedChange}
+                        onItemExpansionToggle={handleItemExpansionToggle}
+                        onSelectedItemsChange={handleSelect}
+                        slots={{ expandIcon: ChevronRight, collapseIcon: ExpandMore }}
+                        sx={{
+                            '& .MuiTreeItem-content': {
+                                borderRadius: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: 'action.hover' },
+                                '&.Mui-selected': {
+                                    bgcolor: 'primary.lighter',
+                                    color: 'primary.main',
+                                    fontWeight: 700,
+                                    '&:hover': { bgcolor: 'primary.lighter' }
+                                }
+                            }
+                        }}
+                    >
+                        {renderTree(rootNodes)}
+                    </SimpleTreeView>
+                )}
+            </Box>
+        </CommonDialog>
     );
 };
 

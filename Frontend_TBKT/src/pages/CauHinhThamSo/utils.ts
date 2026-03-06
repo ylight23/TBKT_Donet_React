@@ -1,0 +1,73 @@
+import { LocalDynamicField as DynamicField } from '../../types/thamSo';
+import { FIELD_TYPES } from './constants';
+import { FieldSet } from './types';
+
+export const typeOf = (v: string) => FIELD_TYPES.find((item) => item.value === v) ?? FIELD_TYPES[0];
+
+export const validateFieldValue = (value: string | undefined, field: DynamicField): string | null => {
+    const validation = field.validation ?? {};
+    const input = String(value ?? '').trim();
+
+    if (field.required && !input) {
+        return 'Bắt buộc nhập';
+    }
+
+    if (!input) {
+        return null;
+    }
+
+    if (field.type === 'text' || field.type === 'textarea') {
+        if (validation.minLength !== undefined && input.length < validation.minLength) {
+            return `Tối thiểu ${validation.minLength} ký tự`;
+        }
+        if (validation.maxLength !== undefined && input.length > validation.maxLength) {
+            return `Tối đa ${validation.maxLength} ký tự`;
+        }
+        if (validation.pattern?.trim()) {
+            try {
+                if (!new RegExp(validation.pattern).test(input)) {
+                    return 'Không đúng định dạng';
+                }
+            } catch {
+                return 'Regex không hợp lệ';
+            }
+        }
+    }
+
+    if (field.type === 'number') {
+        const n = Number(input);
+        if (Number.isNaN(n)) {
+            return 'Phải là số';
+        }
+        if (validation.min !== undefined && n < validation.min) {
+            return `Tối thiểu: ${validation.min}`;
+        }
+        if (validation.max !== undefined && n > validation.max) {
+            return `Tối đa: ${validation.max}`;
+        }
+    }
+
+    return null;
+};
+
+export const mergeFieldsBySet = (
+    selectedSetIds: string[],
+    fieldSets: FieldSet[],
+    fields: DynamicField[],
+): DynamicField[] => {
+    const mergedIds = selectedSetIds
+        .flatMap((setId) => fieldSets.find((set) => set.id === setId)?.fieldIds ?? [])
+        .filter((fieldId, index, arr) => arr.indexOf(fieldId) === index);
+
+    return mergedIds
+        .map((fieldId) => fields.find((field) => field.id === fieldId))
+        .filter((field): field is DynamicField => Boolean(field));
+};
+
+export const hasValidationRules = (field: DynamicField): boolean =>
+    Object.values(field.validation ?? {}).some((value) => {
+        if (Array.isArray(value)) {
+            return value.length > 0;
+        }
+        return value !== undefined && value !== '';
+    });

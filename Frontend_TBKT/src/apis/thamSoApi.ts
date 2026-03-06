@@ -39,6 +39,9 @@ export interface LocalFieldValidation {
     min?: number;
     max?: number;
     options?: string[];
+    dataSource?: 'manual' | 'api' | string;
+    apiUrl?: string;
+    displayType?: 'dropdown' | 'tabs' | string;
 }
 
 export interface LocalDynamicField {
@@ -89,6 +92,9 @@ function protoFieldToLocal(f: DynamicFieldProto): LocalDynamicField {
             min: f.validation?.min || undefined,
             max: f.validation?.max || undefined,
             options: f.validation?.options?.length ? [...f.validation.options] : undefined,
+            dataSource: f.validation?.dataSource || undefined,
+            apiUrl: f.validation?.apiUrl || undefined,
+            displayType: f.validation?.displayType || undefined,
         },
     };
 }
@@ -107,6 +113,9 @@ function localFieldToProto(f: LocalDynamicField): any {
             min: f.validation?.min ?? 0,
             max: f.validation?.max ?? 0,
             options: f.validation?.options ?? [],
+            dataSource: f.validation?.dataSource ?? '',
+            apiUrl: f.validation?.apiUrl ?? '',
+            displayType: f.validation?.displayType ?? '',
         }),
     });
 }
