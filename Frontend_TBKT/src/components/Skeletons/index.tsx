@@ -20,7 +20,7 @@ export const GridSkeleton: React.FC<{ rows?: number; cols?: number }> = ({ rows 
         {/* Header row */}
         <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             {[...Array(cols)].map((_, i) => (
-                <Skeleton key={i} variant="rectangular" height={48} sx={{ flex: 1, borderRadius: 1 }} />
+                <Skeleton key={i} variant="rectangular" height={48} sx={{ flex: 1, borderRadius: 2.5}} />
             ))}
         </Box>
         {/* Data rows */}
@@ -33,8 +33,8 @@ export const GridSkeleton: React.FC<{ rows?: number; cols?: number }> = ({ rows 
         ))}
         {/* Footer */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, gap: 1 }}>
-            <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
-            <Skeleton variant="rectangular" width={80}  height={36} sx={{ borderRadius: 1 }} />
+            <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 2.5}} />
+            <Skeleton variant="rectangular" width={80}  height={36} sx={{ borderRadius: 2.5}} />
         </Box>
     </Box>
 );
@@ -49,15 +49,15 @@ export const PageSkeleton: React.FC = () => (
                 <Skeleton variant="text" width={300} height={24} />
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-                <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
-                <Skeleton variant="rectangular" width={140} height={36} sx={{ borderRadius: 1 }} />
+                <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 2.5}} />
+                <Skeleton variant="rectangular" width={140} height={36} sx={{ borderRadius: 2.5}} />
             </Box>
         </Box>
 
         {/* Toolbar */}
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
             {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} variant="rectangular" width={160} height={40} sx={{ borderRadius: 1 }} />
+                <Skeleton key={i} variant="rectangular" width={160} height={40} sx={{ borderRadius: 2.5}} />
             ))}
         </Box>
 

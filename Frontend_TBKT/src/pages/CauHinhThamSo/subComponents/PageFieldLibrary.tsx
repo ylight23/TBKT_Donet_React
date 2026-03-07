@@ -159,7 +159,7 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
                                         key={field.id}
                                         sx={{
                                             p: 1,
-                                            borderRadius: 1.5,
+                                            borderRadius: 2.5,
                                             border: '1px solid',
                                             borderColor: active ? 'primary.main' : 'divider',
                                             bgcolor: active ? 'action.selected' : 'background.paper',

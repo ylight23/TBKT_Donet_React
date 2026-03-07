@@ -7,13 +7,12 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useTheme } from '@mui/material/styles';
+import { useDispatch, useSelector } from 'react-redux';
 
 // Icons
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -22,20 +21,14 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import AddIcon from '@mui/icons-material/Add';
-import SaveIcon from '@mui/icons-material/Save';
-import CloseIcon from '@mui/icons-material/Close';
-import DynamicFormIcon from '@mui/icons-material/DynamicForm';
 
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import { CommonDialog } from '../Dialog';
-
-import { thamSoApi } from '../../api/thamSoApiWithCache';
 import type {
   LocalDynamicField as DynamicField,
   LocalFieldSet as FieldSet,
   LocalFormConfig as FormConfig,
 } from '../../types/thamSo';
+import type { AppDispatch, RootState } from '../../store';
+import { fetchThamSoSchema } from '../../store/reducer/thamSo';
 
 import { ITrangBi, TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
 import { militaryColors } from '../../theme';
@@ -43,7 +36,7 @@ import FilterTrangBi, { FilterTrangBiValues } from './FilterTrangBi';
 import OfficeDictionary, { OfficeNode } from '../../pages/Office/subComponent/OfficeDictionary';
 import { OfficeProvider } from '../../context/OfficeContext';
 import StatsButton from '../Stats/StatsButton';
-import FieldInput from '../../pages/CauHinhThamSo/subComponents/FieldInput';
+import AddTrangBiDialog from './AddTrangBiDialog';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -71,293 +64,22 @@ interface TrangBiDataGridProps {
   activeMenu?: 'tbNhom1' | 'tbNhom2' | string;
 }
 
-// ── FormFieldItem: dùng FieldInput từ CauHinhThamSo ──────────
-interface FormFieldItemProps {
-  field: DynamicField;
-  value: string;
-  onFieldChange: (fieldKey: string, value: string) => void;
-}
-
-const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(({ field, value, onFieldChange }) => {
-  const handleChange = useCallback(
-    (key: string, nextValue: string) => onFieldChange(key, nextValue),
-    [onFieldChange],
-  );
-
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
-
-  return (
-    <Grid size={{ xs: 12, md: field.type === 'textarea' ? 12 : 6 }}>
-      <Box sx={{ mb: 1, px: 0.5 }}>
-        <Typography
-          variant="body2"
-          fontWeight={600}
-          sx={{
-            mb: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            color: 'text.primary',
-            fontSize: '0.875rem',
-            opacity: 0.9
-          }}
-        >
-          {field.label}
-          {field.required && <Box component="span" sx={{ color: 'error.main', ml: 0.25 }}>*</Box>}
-        </Typography>
-
-        <Box sx={{
-          '& .MuiOutlinedInput-root': {
-            bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#f9fafb',
-            borderRadius: 1.5,
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            '& fieldset': {
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-            },
-            '&:hover': {
-              bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f3f4f6',
-              '& fieldset': {
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)',
-              },
-            },
-            '&.Mui-focused': {
-              bgcolor: 'background.paper',
-              '& fieldset': {
-                borderColor: 'primary.main',
-                borderWidth: '2px',
-              },
-              boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}20`,
-            }
-          },
-          '& .MuiInputBase-input': {
-            py: 1.25,
-            px: 1.5,
-            fontSize: '0.9rem'
-          }
-        }}>
-          <FieldInput field={field} value={value} onChange={handleChange} />
-        </Box>
-      </Box>
-    </Grid>
-  );
-}, (prevProps, nextProps) => (
-  prevProps.field === nextProps.field
-  && prevProps.value === nextProps.value
-  && prevProps.onFieldChange === nextProps.onFieldChange
-));
-
-FormFieldItem.displayName = 'FormFieldItem';
-
-// ── AddTrangBiDialog ───────────────────────────────────────────
-interface AddTrangBiDialogProps {
-  open: boolean;
-  onClose: () => void;
-  formConfig: FormConfig | null;
-  allFieldSets: FieldSet[];
-  allFields: DynamicField[];
-}
-
-const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({ open, onClose, formConfig, allFieldSets, allFields }) => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [formData, setFormData] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (open) {
-      setActiveTab(0);
-      setFormData({});
-    }
-  }, [open, formConfig?.id]);
-
-  const fieldSetById = useMemo(
-    () => new Map(allFieldSets.map((set) => [set.id, set])),
-    [allFieldSets],
-  );
-
-  const fieldById = useMemo(
-    () => new Map(allFields.map((field) => [field.id, field])),
-    [allFields],
-  );
-
-  const tabs = useMemo(() => formConfig?.tabs ?? [], [formConfig]);
-  const currentTab = tabs[activeTab];
-
-  // Group fields by FieldSet for current tab
-  const fieldGroups = useMemo(() => {
-    if (!currentTab) return [];
-    const setIds = currentTab.setIds ?? [];
-
-    // Priority for sorting fields: Simple inputs -> Selects -> Textareas
-    const typePriority: Record<string, number> = {
-      number: 1,
-      text: 1,
-      date: 1,
-      select: 2,
-      textarea: 3
-    };
-
-    return setIds.map(setId => {
-      const set = fieldSetById.get(setId);
-      if (!set) return null;
-      const fields = (set.fieldIds ?? [])
-        .map((fid: string) => fieldById.get(fid))
-        .filter((f): f is DynamicField => Boolean(f))
-        .sort((a, b) => {
-          const pA = typePriority[a.type] || 99;
-          const pB = typePriority[b.type] || 99;
-          return pA - pB;
-        });
-      return { set, fields };
-    }).filter((group): group is { set: FieldSet; fields: DynamicField[] } => group !== null);
-  }, [currentTab, fieldSetById, fieldById]);
-
-  const handleFieldChange = useCallback((fieldKey: string, value: string) => {
-    setFormData((prev) => {
-      if (prev[fieldKey] === value) return prev;
-      return { ...prev, [fieldKey]: value };
-    });
-  }, []);
-
-  const handleSave = useCallback(() => {
-    console.log('Add Equipment:', formData);
-    alert('Lưu thành công! (Giả lập)');
-    onClose();
-  }, [formData, onClose]);
-
-  if (!formConfig) {
-    return null;
-  }
-
-  return (
-    <CommonDialog
-      open={open}
-      onClose={onClose}
-      mode="add"
-      maxWidth="lg"
-      title="Thêm trang bị kỹ thuật mới"
-      subtitle={`Sử dụng cấu hình biểu mẫu: ${formConfig.name}`}
-      icon={<AddIcon />}
-      onConfirm={handleSave}
-      confirmText="Lưu trang bị"
-      contentPadding={0}
-      sx={{ '& .MuiDialog-paper': { height: '85vh' } }}
-    >
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper', zIndex: 1 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            px: 2,
-            minHeight: 56,
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: '3px 3px 0 0',
-            },
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 700,
-              px: 3,
-              minHeight: 56,
-              fontSize: '0.925rem',
-              color: 'text.secondary',
-              transition: 'all 0.2s ease',
-              '&.Mui-selected': {
-                color: 'primary.main',
-              }
-            }
-          }}
-        >
-          {tabs.map((t: any, index: number) => (
-            <Tab
-              key={t.id}
-              label={
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                  <Box sx={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.7rem',
-                    bgcolor: activeTab === index ? 'primary.main' : 'action.selected',
-                    color: activeTab === index ? '#fff' : 'text.secondary',
-                    transition: 'all 0.2s ease',
-                    fontWeight: 800
-                  }}>
-                    {index + 1}
-                  </Box>
-                  <Typography variant="inherit">{t.label}</Typography>
-                </Stack>
-              }
-            />
-          ))}
-        </Tabs>
-      </Box>
-
-      <Box sx={{ p: 4, flex: 1, overflowY: 'auto', bgcolor: 'background.default' }}>
-        {fieldGroups.map((group, index) => (
-          <Box key={group.set.id} sx={{ mb: index === fieldGroups.length - 1 ? 0 : 5 }}>
-            <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-              <Box sx={{
-                p: 1,
-                borderRadius: 1.5,
-                bgcolor: `${group.set.color}15`,
-                color: group.set.color,
-                display: 'flex',
-                fontSize: 22,
-                border: `1px solid ${group.set.color}30`
-              }}>
-                {React.isValidElement(group.set.icon)
-                  ? React.cloneElement(group.set.icon as React.ReactElement<any>, { sx: { fontSize: 'inherit' } })
-                  : group.set.icon
-                }
-              </Box>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" fontWeight={800} sx={{ color: 'text.primary', letterSpacing: '-0.01em' }}>
-                  {group.set.name}
-                </Typography>
-                {group.set.desc && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, opacity: 0.7 }}>
-                    {group.set.desc}
-                  </Typography>
-                )}
-              </Box>
-            </Stack>
-
-            <Grid container spacing={2}>
-              {group.fields.map((f) => (
-                <FormFieldItem
-                  key={f.id}
-                  field={f}
-                  value={formData[f.key] ?? ''}
-                  onFieldChange={handleFieldChange}
-                />
-              ))}
-            </Grid>
-            {index < fieldGroups.length - 1 && (
-              <Divider sx={{ mt: 5, opacity: 0.4 }} />
-            )}
-          </Box>
-        ))}
-
-        {fieldGroups.length === 0 && (
-          <Stack sx={{ py: 10, alignItems: 'center', textAlign: 'center' }}>
-            <DynamicFormIcon sx={{ fontSize: 64, mb: 2, color: 'text.disabled', opacity: 0.2 }} />
-            <Typography variant="h6" color="text.secondary" fontWeight={700}>Trống</Typography>
-            <Typography variant="body2" color="text.disabled">Tab này chưa có trường dữ liệu được cấu hình.</Typography>
-          </Stack>
-        )}
-      </Box>
-    </CommonDialog>
-  );
-};
+const isTrangBiGroupMenu = (value?: string): value is 'tbNhom1' | 'tbNhom2' => (
+  value === 'tbNhom1' || value === 'tbNhom2'
+);
 
 // ── TrangBiDataGrid ──────────────────────────────────────────
 const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data, activeMenu }) => {
   const theme = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
+  const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
+  const {
+    dynamicFields: allFields,
+    fieldSets: allFieldSets,
+    formConfigs: allForms,
+    loaded: thamSoLoaded,
+    loading: thamSoLoading,
+  } = useSelector((state: RootState) => state.thamSoReducer);
 
   // State bộ lọc nâng cao
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
@@ -365,39 +87,22 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
 
   // States for Dynamic Form
   const [openAdd, setOpenAdd] = useState(false);
-  const [allFields, setAllFields] = useState<DynamicField[]>([]); // (SEED_FIELDS)
-  const [allFieldSets, setAllFieldSets] = useState<FieldSet[]>([]); // (SEED_SETS)
-  const [allForms, setAllForms] = useState<FormConfig[]>([]); // (SEED_FORMS)
 
-  // Load configs on mount
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const [f, s, fc] = await Promise.all([
-          thamSoApi.getListDynamicFields(),
-          thamSoApi.getListFieldSets(),
-          thamSoApi.getListFormConfigs(),
-        ]);
-        setAllFields(f); // (f.length ? f : SEED_FIELDS)
-        setAllFieldSets(s); // (s.length ? s : SEED_SETS)
-        setAllForms(fc); // (fc.length ? fc : SEED_FORMS)
-      } catch (err) {
-        console.error('Failed to load thamSo configs', err);
-        // setAllFields(SEED_FIELDS);
-        // setAllFieldSets(SEED_SETS);
-        // setAllForms(SEED_FORMS);
-      }
-    };
-    load();
-  }, []);
+  useEffect(() => {
+    if (!thamSoLoaded && !thamSoLoading) {
+      dispatch(fetchThamSoSchema());
+    }
+  }, [dispatch, thamSoLoaded, thamSoLoading]);
 
   // Determine which form to use
   const activeForm = useMemo(() => {
-    if (!activeMenu) return allForms[0] || null;
-    const targetName = activeMenu === 'tbNhom1' ? 'Trang bị Nhóm 1' : 'Trang bị Nhóm 2';
+    if (!activeMenuForDialog) return allForms[0] || null;
+    const targetName = activeMenuForDialog === 'tbNhom1' ? 'Trang bị Nhóm 1' : 'Trang bị Nhóm 2';
     const found = allForms.find(f => f.name === targetName);
     return found || allForms[0] || null;
-  }, [allForms, activeMenu]);
+  }, [allForms, activeMenuForDialog]);
+
+  const isSchemaReady = allFields.length > 0 && allFieldSets.length > 0 && allForms.length > 0;
 
   // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
@@ -431,14 +136,12 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
     const q = fullTextSearch.toLowerCase();
 
     return data.filter(row => {
-      // 1. Tìm kiếm tổng hợp (Full text từ ô tìm kiếm nhanh)
       const matchSearch = !q || [
         row.maTrangBi, row.ten, row.loai, row.serial, row.mac, row.donVi,
       ].some(v => v && v.toLowerCase().includes(q));
 
       if (!matchSearch) return false;
 
-      // 2. Lọc chi tiết (Advanced filters)
       if (donVi && !row.donVi.toLowerCase().includes(donVi.toLowerCase())) return false;
       if (maTrangBi && !row.maTrangBi.toLowerCase().includes(maTrangBi.toLowerCase())) return false;
       if (tenTrangBi && !row.ten.toLowerCase().includes(tenTrangBi.toLowerCase())) return false;
@@ -446,7 +149,6 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
       if (tinhTrangSuDung && row.trangThai !== tinhTrangSuDung) return false;
       if (soHieu && row.serial && !row.serial.toLowerCase().includes(soHieu.toLowerCase())) return false;
 
-      // Các trường nâng cao (nếu mock data có hoặc ép kiểu để check)
       const r = row as any;
       if (nhom && r.nhom !== nhom) return false;
       if (phanNganh && r.phanNganh !== phanNganh) return false;
@@ -455,7 +157,6 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
       if (namSanXuat && r.namSanXuat !== Number(namSanXuat)) return false;
       if (namSuDung && r.namSuDung !== Number(namSuDung)) return false;
 
-      // 3. Lọc theo đơn vị từ Dictionary
       if (selectedOffice) {
         const officeName = selectedOffice.ten || selectedOffice.tenDayDu || "";
         if (!row.donVi.toLowerCase().includes(officeName.toLowerCase())) return false;
@@ -637,13 +338,18 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setOpenAdd(true)}
+                disabled={thamSoLoading || !isSchemaReady}
                 sx={{
                   bgcolor: militaryColors.navy,
                   '&:hover': { bgcolor: militaryColors.navy, filter: 'brightness(1.1)' },
+                  '&.Mui-disabled': {
+                    bgcolor: `${militaryColors.navy}66`,
+                    color: 'rgba(255,255,255,0.8)',
+                  },
                   textTransform: 'none', fontWeight: 700, px: 3, height: 40,
                 }}
               >
-                Thêm trang bị
+                {thamSoLoading ? 'Đang tải biểu mẫu...' : 'Thêm trang bị'}
               </Button>
               <Button
                 variant="contained"
@@ -671,6 +377,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             formConfig={activeForm}
             allFields={allFields}
             allFieldSets={allFieldSets}
+            activeMenu={activeMenuForDialog}
           />
 
           {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}

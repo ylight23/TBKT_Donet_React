@@ -290,7 +290,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                         <Grid container spacing={3}>
                             {/* Cột trái: Avatar & Ảnh */}
                             <Grid size={{ xs: 12, md: 3 }}>
-                                <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', borderRadius: 2, bgcolor: 'background.default', height: '100%' }}>
+                                <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', borderRadius: 2.5, bgcolor: 'background.default', height: '100%' }}>
                                     <Typography variant="subtitle2" fontWeight={800} gutterBottom>Ảnh đại diện</Typography>
                                     <Box sx={{ position: 'relative', display: 'inline-block', mt: 2 }}>
                                         <Avatar
@@ -346,7 +346,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                                 <Stack spacing={3}>
                                     <Box>
                                         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 1 }} />
+                                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 2.5}} />
                                             Thông tin tài khoản & Liên hệ
                                         </Typography>
                                         <Grid container spacing={2}>
@@ -385,7 +385,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
 
                                     <Box>
                                         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 1 }} />
+                                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 2.5}} />
                                             Thông tin cá nhân & Công tác
                                         </Typography>
                                         <Grid container spacing={2}>

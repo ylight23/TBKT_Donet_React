@@ -8,6 +8,34 @@ export const validateFieldValue = (value: string | undefined, field: DynamicFiel
     const validation = field.validation ?? {};
     const input = String(value ?? '').trim();
 
+    if (field.type === 'checkbox') {
+        if (field.required && input !== 'true') {
+            return 'Bắt buộc chọn';
+        }
+        return null;
+    }
+
+    if (field.type === 'checkboxGroup') {
+        let selectedValues: string[] = [];
+
+        if (input) {
+            try {
+                const parsed = JSON.parse(input);
+                if (Array.isArray(parsed)) {
+                    selectedValues = parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+                }
+            } catch {
+                selectedValues = input.split(',').map((item) => item.trim()).filter(Boolean);
+            }
+        }
+
+        if (field.required && selectedValues.length === 0) {
+            return 'Bắt buộc chọn ít nhất 1 giá trị';
+        }
+
+        return null;
+    }
+
     if (field.required && !input) {
         return 'Bắt buộc nhập';
     }

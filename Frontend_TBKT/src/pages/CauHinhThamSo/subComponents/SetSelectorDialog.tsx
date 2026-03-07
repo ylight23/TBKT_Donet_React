@@ -70,7 +70,7 @@ const SetSelectorDialog: React.FC<SetSelectorDialogProps> = ({
                         </Typography>
                         <Chip size="small" label={fieldSets.length} sx={{ fontWeight: 700 }} />
                     </Box>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', height: 400, overflowY: 'auto' }}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', height: 400, overflowY: 'auto' }}>
                         <Stack spacing={1.5}>
                             {fieldSets.map((set) => {
                                 const isSelected = selected.includes(set.id);
@@ -79,7 +79,7 @@ const SetSelectorDialog: React.FC<SetSelectorDialogProps> = ({
                                         key={set.id}
                                         sx={{
                                             p: 1.5,
-                                            borderRadius: 2,
+                                            borderRadius: 2.5,
                                             cursor: 'pointer',
                                             border: '2px solid',
                                             borderColor: isSelected ? set.color : 'divider',
@@ -102,7 +102,7 @@ const SetSelectorDialog: React.FC<SetSelectorDialogProps> = ({
                                                 color: set.color,
                                                 bgcolor: isSelected ? 'background.paper' : `${set.color}11`,
                                                 p: 1,
-                                                borderRadius: 1.5,
+                                                borderRadius: 2.5,
                                                 boxShadow: isSelected ? 1 : 0
                                             }}>
                                                 {set.icon}
@@ -126,7 +126,7 @@ const SetSelectorDialog: React.FC<SetSelectorDialogProps> = ({
                         </Typography>
                         <Chip size="small" color="primary" label={mergedFields.length} sx={{ fontWeight: 700 }} />
                     </Box>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: 400, display: 'flex', flexDirection: 'column' }}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, height: 400, display: 'flex', flexDirection: 'column' }}>
                         {mergedFields.length > 0 ? (
                             <Box sx={{ overflowY: 'auto', flex: 1, pr: 1 }}>
                                 {mergedFields.map((field, index) => (
@@ -145,7 +145,7 @@ const SetSelectorDialog: React.FC<SetSelectorDialogProps> = ({
                                         <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ width: 24, textAlign: 'center' }}>
                                             {String(index + 1).padStart(2, '0')}
                                         </Typography>
-                                        <Box sx={{ p: 0.5, bgcolor: 'action.hover', borderRadius: 1, color: 'text.secondary' }}>
+                                        <Box sx={{ p: 0.5, bgcolor: 'action.hover', borderRadius: 2.5, color: 'text.secondary' }}>
                                             {typeOf(field.type).icon}
                                         </Box>
                                         <Box>

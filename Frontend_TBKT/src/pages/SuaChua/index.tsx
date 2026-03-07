@@ -207,7 +207,7 @@ const SuaChua: React.FC = () => {
         mb: 1.5,
         p: 0.5,
         bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-        borderRadius: 3,
+        borderRadius: 2.5,
         display: 'inline-flex'
       }}>
         <Tabs

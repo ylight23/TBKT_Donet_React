@@ -246,7 +246,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             InputProps={{
                                 readOnly: true,
                                 startAdornment: <InputAdornment position="start"><BusinessIcon fontSize="small" color="action" /></InputAdornment>,
-                                sx: { cursor: 'pointer', borderRadius: 1.5 }
+                                sx: { cursor: 'pointer', borderRadius: 2.5}
                             }}
                         />
                     </Grid>
@@ -263,7 +263,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             InputProps={{
                                 readOnly: true,
                                 startAdornment: <InputAdornment position="start"><BusinessIcon fontSize="small" color="action" /></InputAdornment>,
-                                sx: { cursor: 'pointer', borderRadius: 1.5 }
+                                sx: { cursor: 'pointer', borderRadius: 2.5}
                             }}
                         />
                     </Grid>
@@ -277,7 +277,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             placeholder="Nhập mã..."
                             value={filters.maTrangBi}
                             onChange={(e) => handleFieldChange('maTrangBi', e.target.value)}
-                            InputProps={{ sx: { borderRadius: 1.5 } }}
+                            InputProps={{ sx: { borderRadius: 2.5} }}
                         />
                     </Grid>
 
@@ -290,7 +290,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             placeholder="Nhập số hiệu..."
                             value={filters.soHieu}
                             onChange={(e) => handleFieldChange('soHieu', e.target.value)}
-                            InputProps={{ sx: { borderRadius: 1.5 } }}
+                            InputProps={{ sx: { borderRadius: 2.5} }}
                         />
                     </Grid>
 
@@ -304,7 +304,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             value={filters.nhom}
                             onChange={(e) => handleFieldChange('nhom', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 1.5 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><CategoryIcon fontSize="small" color="action" /></InputAdornment>
                             }}
                         >
@@ -321,7 +321,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             select fullWidth size="small"
                             value={filters.phanNganh}
                             onChange={(e) => handleFieldChange('phanNganh', e.target.value)}
-                            InputProps={{ sx: { borderRadius: 1.5 } }}
+                            InputProps={{ sx: { borderRadius: 2.5} }}
                         >
                             <MenuItem value=""><em>Tất cả</em></MenuItem>
                             {PHAN_NGANH_OPTIONS.map(opt => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
@@ -337,7 +337,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             value={filters.capChatLuong}
                             onChange={(e) => handleFieldChange('capChatLuong', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 1.5 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><VerifiedIcon fontSize="small" color="action" /></InputAdornment>
                             }}
                         >
@@ -355,7 +355,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             value={filters.tinhTrangKyThuat}
                             onChange={(e) => handleFieldChange('tinhTrangKyThuat', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 1.5 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><EngineeringIcon fontSize="small" color="action" /></InputAdornment>
                             }}
                         >
@@ -374,7 +374,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             value={filters.tinhTrangSuDung}
                             onChange={(e) => handleFieldChange('tinhTrangSuDung', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 1.5 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><HistoryIcon fontSize="small" color="action" /></InputAdornment>
                             }}
                         >
@@ -393,7 +393,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             value={filters.namSanXuat}
                             onChange={(e) => handleFieldChange('namSanXuat', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 1.5 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><CalendarTodayIcon fontSize="small" color="action" /></InputAdornment>
                             }}
                         />
@@ -409,7 +409,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             value={filters.namSuDung}
                             onChange={(e) => handleFieldChange('namSuDung', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 1.5 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><CalendarTodayIcon fontSize="small" color="action" /></InputAdornment>
                             }}
                         />
@@ -424,7 +424,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             placeholder="Nhập tên..."
                             value={filters.tenTrangBi}
                             onChange={(e) => handleFieldChange('tenTrangBi', e.target.value)}
-                            InputProps={{ sx: { borderRadius: 1.5 } }}
+                            InputProps={{ sx: { borderRadius: 2.5} }}
                         />
                     </Grid>
                 </Grid>

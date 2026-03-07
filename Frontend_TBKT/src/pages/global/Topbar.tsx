@@ -116,7 +116,7 @@ const Topbar: React.FC = () => {
                 sx={{
                     bgcolor: breadcrumbBg,
                     border: breadcrumbBorder,
-                    borderRadius: '8px',
+                    borderRadius: 2.5,
                     px: 2,
                     py: 0.75,
                     transition: 'background 0.25s ease',
@@ -203,7 +203,7 @@ const Topbar: React.FC = () => {
                 sx={{
                     bgcolor: actionBg,
                     border: breadcrumbBorder,
-                    borderRadius: '8px',
+                    borderRadius: 2.5,
                     px: 0.5,
                     py: 0.25,
                 }}

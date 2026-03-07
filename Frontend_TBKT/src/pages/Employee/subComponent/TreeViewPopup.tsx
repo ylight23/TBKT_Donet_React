@@ -192,7 +192,7 @@ const TreeViewPopup: React.FC<TreeViewPopupProps> = ({
                             gap: 1,
                             py: 0.5,
                             backgroundColor: isSelectedNode ? '#e3f2fd' : 'transparent',
-                            borderRadius: 1,
+                            borderRadius: 2.5,
                             px: 1,
                             my: 0.25
                         }}>
@@ -276,7 +276,7 @@ const TreeViewPopup: React.FC<TreeViewPopupProps> = ({
                                 </IconButton>
                             </InputAdornment>
                         ),
-                        sx: { bgcolor: 'background.paper', borderRadius: 2 }
+                        sx: { bgcolor: 'background.paper', borderRadius: 2.5}
                     }}
                 />
             </Box>
@@ -304,7 +304,7 @@ const TreeViewPopup: React.FC<TreeViewPopupProps> = ({
                         slots={{ expandIcon: ChevronRight, collapseIcon: ExpandMore }}
                         sx={{
                             '& .MuiTreeItem-content': {
-                                borderRadius: 1.5,
+                                borderRadius: 2.5,
                                 py: 0.5,
                                 '&:hover': { bgcolor: 'action.hover' },
                                 '&.Mui-selected': {

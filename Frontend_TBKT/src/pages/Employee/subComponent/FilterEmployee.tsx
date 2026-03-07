@@ -147,7 +147,7 @@ const FilterEmployee: React.FC = () => {
                             startIcon={<Business fontSize="small" />}
                             onClick={(e) => handleOpenOfficeDialog(e, 'idDonVi')}
                             color={filters.idDonVi ? "primary" : "inherit"}
-                            sx={{ justifyContent: 'flex-start', borderRadius: 2, textTransform: 'none', py: 1, borderColor: filters.idDonVi ? undefined : 'divider' }}
+                            sx={{ justifyContent: 'flex-start', borderRadius: 2.5, textTransform: 'none', py: 1, borderColor: filters.idDonVi ? undefined : 'divider' }}
                         >
                             <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {officeNames.idDonVi || "Chọn đơn vị..."}
@@ -164,7 +164,7 @@ const FilterEmployee: React.FC = () => {
                             startIcon={<AccountTree fontSize="small" />}
                             onClick={(e) => handleOpenOfficeDialog(e, 'idQuanTriDonVi')}
                             color={filters.idQuanTriDonVi ? "primary" : "inherit"}
-                            sx={{ justifyContent: 'flex-start', borderRadius: 2, textTransform: 'none', py: 1, borderColor: filters.idQuanTriDonVi ? undefined : 'divider' }}
+                            sx={{ justifyContent: 'flex-start', borderRadius: 2.5, textTransform: 'none', py: 1, borderColor: filters.idQuanTriDonVi ? undefined : 'divider' }}
                         >
                             <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {officeNames.idQuanTriDonVi || "Chọn đơn vị..."}
@@ -181,7 +181,7 @@ const FilterEmployee: React.FC = () => {
                             value={filters.idCapBac}
                             onChange={(e) => handleFilterChange('idCapBac', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 2 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><Badge fontSize="small" color="action" /></InputAdornment>
                             }}
                             SelectProps={{ native: true }}
@@ -203,7 +203,7 @@ const FilterEmployee: React.FC = () => {
                             value={filters.chucVu}
                             onChange={(e) => handleFilterChange('chucVu', e.target.value)}
                             InputProps={{
-                                sx: { borderRadius: 2 },
+                                sx: { borderRadius: 2.5},
                                 startAdornment: <InputAdornment position="start"><Work fontSize="small" color="action" /></InputAdornment>
                             }}
                         />

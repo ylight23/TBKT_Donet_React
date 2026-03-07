@@ -38,7 +38,7 @@ const StatsTooltipView = styled(({ className, ...props }: TooltipProps) => (
         border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(76,175,80,0.3)' : '#C8E6C9'}`,
         boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
         padding: '12px',
-        borderRadius: '12px',
+        borderRadius: 2.5,
         animation: `${fadeIn} 0.2s ease-out forwards`
     },
     [`& .${tooltipClasses.arrow}`]: {
@@ -72,7 +72,7 @@ const SimpleStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => (
             {stats.stats.map((s, i) => (
                 <Box key={i} display="flex" justifyContent="space-between" alignItems="center">
                     <Box display="flex" alignItems="center" gap={1}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: s.color }} />
+                        <Box sx={{ width: 8, height: 8, borderRadius: 2.5, bgcolor: s.color }} />
                         <Typography variant="caption" fontWeight={600} sx={{ opacity: 0.85 }}>{s.label}</Typography>
                     </Box>
                     <Typography variant="caption" fontWeight={800} color="primary">{s.count}</Typography>
@@ -128,7 +128,7 @@ const RichStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
                                             <Box sx={{
                                                 width: 36,
                                                 height: 36,
-                                                borderRadius: 2,
+                                                borderRadius: 2.5,
                                                 bgcolor: `${s.color}15`,
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -145,7 +145,7 @@ const RichStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
                                         </Box>
                                         <Typography variant="body2" fontWeight={900} color={s.color}>{percent.toFixed(1)}%</Typography>
                                     </Box>
-                                    <Box sx={{ width: '100%', height: 8, borderRadius: 4, bgcolor: `${s.color}10`, overflow: 'hidden' }}>
+                                    <Box sx={{ width: '100%', height: 8, borderRadius: 2.5, bgcolor: `${s.color}10`, overflow: 'hidden' }}>
                                         <Box sx={{
                                             width: `${percent}%`,
                                             height: '100%',
@@ -162,7 +162,7 @@ const RichStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
                     <Box sx={{
                         mt: 4,
                         p: 2,
-                        borderRadius: '16px',
+                        borderRadius: 2.5,
                         bgcolor: 'rgba(46,125,50,0.04)',
                         border: '1px dashed rgba(46,125,50,0.2)',
                         animation: `${fadeIn} 0.6s ease-out forwards`
@@ -208,7 +208,7 @@ const StatsButton: React.FC<StatsButtonProps> = ({ activeMenu }) => {
                     startIcon={<BarChartIcon />}
                     onClick={handleOpen}
                     sx={{
-                        borderRadius: '10px',
+                        borderRadius: 2.5,
                         textTransform: 'none',
                         fontWeight: 700,
                         borderColor: 'primary.main',

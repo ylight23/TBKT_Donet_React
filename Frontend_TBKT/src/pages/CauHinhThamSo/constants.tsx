@@ -5,6 +5,8 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ListIcon from '@mui/icons-material/List';
 import SubjectIcon from '@mui/icons-material/Subject';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
+import ChecklistIcon from '@mui/icons-material/Checklist';
 import ShieldIcon from '@mui/icons-material/Shield';
 import HandymanIcon from '@mui/icons-material/Handyman';
 import ConstructionIcon from '@mui/icons-material/Construction';
@@ -21,6 +23,8 @@ export const FIELD_TYPES: Array<{ value: FieldType; label: string; icon: React.R
     { value: 'select', label: 'Danh sách chọn', icon: <ListIcon sx={{ fontSize: 14 }} />, color: '#a78bfa' },
     { value: 'textarea', label: 'Văn bản dài', icon: <SubjectIcon sx={{ fontSize: 14 }} />, color: '#fbbf24' },
     { value: 'checkbox', label: 'Có / Không', icon: <CheckBoxIcon sx={{ fontSize: 14 }} />, color: '#fb923c' },
+    { value: 'radio', label: 'Radio button', icon: <RadioButtonCheckedIcon sx={{ fontSize: 14 }} />, color: '#ec4899' },
+    { value: 'checkboxGroup', label: 'Tick box nhiều chọn', icon: <ChecklistIcon sx={{ fontSize: 14 }} />, color: '#14b8a6' },
 ];
 
 export const LOG_TYPES: Record<LogType, { label: string; color: string; icon: React.ReactNode; fields: string[] }> = {

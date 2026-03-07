@@ -154,7 +154,7 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 pl: `${depth * 20}px`,
                 pr: 1,
                 cursor: 'pointer',
-                borderRadius: 1.5,
+                borderRadius: 2.5,
                 backgroundColor: isSelected ? `${theme.palette.primary.main}15` : 'transparent',
                 '&:hover': { backgroundColor: isSelected ? `${theme.palette.primary.main}25` : theme.palette.action.hover },
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',

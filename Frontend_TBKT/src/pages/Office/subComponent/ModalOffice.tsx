@@ -233,7 +233,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                 ) : (
                     <Box component="form" autoComplete="off">
                         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 1 }} />
+                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 2.5}} />
                             Thông tin Cơ bản
                         </Typography>
                         <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -260,7 +260,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                         <Divider sx={{ my: 3 }} />
 
                         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 1 }} />
+                            <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 2.5}} />
                             Cấu trúc Tổ chức
                         </Typography>
                         <Grid container spacing={2}>

@@ -109,7 +109,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                     key={set.id}
                                     onClick={() => setActiveSetId(set.id)}
                                     sx={{
-                                        p: 1.25, borderRadius: 1.5, cursor: 'pointer',
+                                        p: 1.25, borderRadius: 2.5, cursor: 'pointer',
                                         border: '1px solid',
                                         borderColor: isActive ? 'primary.main' : 'divider',
                                         bgcolor: isActive ? 'action.selected' : 'background.paper',
@@ -165,7 +165,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                             <Chip size="small" icon={<LibraryBooksIcon sx={{ fontSize: 14 }} />} label={`${activeFields.length} trường`} color="primary" variant="outlined" />
                             <Box
                                 sx={{
-                                    width: 16, height: 16, borderRadius: '50%',
+                                    width: 16, height: 16, borderRadius: 2.5,
                                     bgcolor: activeSet.color, border: '2px solid',
                                     borderColor: 'background.paper',
                                     boxShadow: `0 0 0 1px ${activeSet.color}`,
@@ -183,7 +183,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                         </Typography>
 
                         {activeFields.length === 0 && (
-                            <Box sx={{ p: 3, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+                            <Box sx={{ p: 3, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2.5}}>
                                 <Typography color="text.secondary">Bộ dữ liệu này chưa có trường nào.</Typography>
                                 <Button variant="outlined" sx={{ mt: 1 }} onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}>
                                     Thêm trường ngay
@@ -195,10 +195,10 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                             {activeFields.map((field, idx) => {
                                 const meta = typeOf(field.type);
                                 return (
-                                    <Card key={field.id} variant="outlined" sx={{ border: `1px solid ${meta.color}44`, borderRadius: 1.5 }}>
+                                    <Card key={field.id} variant="outlined" sx={{ border: `1px solid ${meta.color}44`, borderRadius: 2.5}}>
                                         <CardContent sx={{ p: 1.5 }}>
                                             <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                                <Box sx={{ p: 0.75, borderRadius: 1, bgcolor: `${meta.color}18`, color: meta.color, display: 'flex', mt: 0.25 }}>{meta.icon}</Box>
+                                                <Box sx={{ p: 0.75, borderRadius: 2.5, bgcolor: `${meta.color}18`, color: meta.color, display: 'flex', mt: 0.25 }}>{meta.icon}</Box>
                                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                                     <Stack direction="row" alignItems="center" spacing={0.75} mb={0.25}>
                                                         <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>{idx + 1}</Typography>

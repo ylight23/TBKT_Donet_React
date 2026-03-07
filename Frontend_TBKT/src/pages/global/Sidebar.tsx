@@ -180,7 +180,7 @@ const Sidebar: React.FC = () => {
                                         width: "70px",
                                         cursor: "pointer",
                                         filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))',
-                                        borderRadius: '50%',
+                                        borderRadius: 2.5,
                                     },
                                 }}
                             >

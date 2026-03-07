@@ -73,7 +73,7 @@ const StyledSection: React.FC<{ title: string; children: React.ReactNode }> = ({
             sx={{
                 overflow: 'hidden',
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 3,
+                borderRadius: 2.5,
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#fff',
             }}
         >
@@ -104,7 +104,7 @@ const BreadcrumbNav: React.FC<{
                     return (
                         <Stack key={String(item.id)} direction="row" alignItems="center" spacing={1}>
                             {isLast ? (
-                                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'primary.main', px: 1, py: 0.5, bgcolor: 'primary.light', borderRadius: 1.5, opacity: 0.9 }}>
+                                <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'primary.main', px: 1, py: 0.5, bgcolor: 'primary.light', borderRadius: 2.5, opacity: 0.9 }}>
                                     {item.name}
                                 </Typography>
                             ) : (
@@ -113,7 +113,7 @@ const BreadcrumbNav: React.FC<{
                                     sx={{
                                         fontSize: '0.9rem', fontWeight: 500, color: 'text.secondary',
                                         cursor: 'pointer', background: 'none', border: 'none',
-                                        fontFamily: 'inherit', px: 1, py: 0.5, borderRadius: 1.5,
+                                        fontFamily: 'inherit', px: 1, py: 0.5, borderRadius: 2.5,
                                         '&:hover': { color: 'primary.main', bgcolor: 'action.hover' }
                                     }}
                                 >

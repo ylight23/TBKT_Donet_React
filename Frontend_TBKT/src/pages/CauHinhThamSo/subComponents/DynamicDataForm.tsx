@@ -27,7 +27,7 @@ const DynamicDataForm: React.FC<DynamicDataFormProps> = ({ fields, data, errors,
     >
         {fields.map((field) => {
             const meta = typeOf(field.type);
-            const isWide = field.type === 'textarea' || field.type === 'checkbox';
+            const isWide = field.type === 'textarea' || field.type === 'checkbox' || field.type === 'checkboxGroup';
 
             return (
                 <Box key={field.id} sx={{ gridColumn: { xs: '1', md: isWide ? '1 / -1' : 'auto' } }}>

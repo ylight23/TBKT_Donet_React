@@ -35,6 +35,7 @@ interface FieldConfigPanelProps {
 const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onClose }) => {
     const [draft, setDraft] = useState<DynamicField>(field);
     const [activePanel, setActivePanel] = useState(0);
+    const supportsOptionSource = draft.type === 'select' || draft.type === 'radio' || draft.type === 'checkboxGroup';
 
     const updateValidation = (key: keyof FieldValidation, value: any) => {
         setDraft((prev) => ({
@@ -82,7 +83,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                         icon={<StorageIcon sx={{ fontSize: 18 }} />}
                         iconPosition="start"
                         label="Dữ liệu"
-                        disabled={draft.type !== 'select'}
+                        disabled={!supportsOptionSource}
                     />
                 </Tabs>
 
@@ -112,13 +113,22 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                             label="Kiểu nhập liệu"
                             size="small"
                             value={draft.type}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                                const nextType = event.target.value as FieldType;
                                 setDraft((prev) => ({
                                     ...prev,
-                                    type: event.target.value as FieldType,
-                                    validation: prev.type === event.target.value ? prev.validation : {},
-                                }))
-                            }
+                                    type: nextType,
+                                    validation: prev.type === nextType
+                                        ? prev.validation
+                                        : (nextType === 'select' || nextType === 'radio' || nextType === 'checkboxGroup'
+                                            ? {
+                                                dataSource: 'manual',
+                                                displayType: nextType === 'select' ? 'dropdown' : undefined,
+                                                options: [],
+                                            }
+                                            : {}),
+                                }));
+                            }}
                         >
                             {FIELD_TYPES.map((typeItem) => (
                                 <MenuItem key={typeItem.value} value={typeItem.value}>
@@ -142,11 +152,12 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                 select
                                 fullWidth
                                 size="small"
-                                label="Kiểu hiển thị (Dropdown / Tabs)"
+                                label="Kiểu hiển thị"
                                 value={(draft.validation as FieldValidation).displayType ?? 'dropdown'}
                                 onChange={(e) => updateValidation('displayType', e.target.value)}
                             >
                                 <MenuItem value="dropdown">Dropdown (Danh sách thả xuống)</MenuItem>
+                                <MenuItem value="autocomplete">Autocomplete / tìm kiếm</MenuItem>
                                 <MenuItem value="tabs">Tabs (Dải nút ngăn cách)</MenuItem>
                                 <MenuItem value="tree">Hệ thống cây (Tree)</MenuItem>
                             </TextField>
@@ -215,20 +226,36 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                     </Stack>
                 )}
 
-                {activePanel === 1 && draft.type === 'select' && (() => {
+                {activePanel === 1 && supportsOptionSource && (() => {
                     const validation = draft.validation as FieldValidation;
                     return (
                         <Stack spacing={2}>
-                            <Box sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 2 }}>
-                                <Tabs
-                                    value={validation.dataSource === 'api' ? 1 : 0}
-                                    onChange={(_, val) => updateValidation('dataSource', val === 1 ? 'api' : 'manual')}
-                                    sx={{ minHeight: 40 }}
-                                >
-                                    <Tab label="Nhập thủ công" sx={{ minHeight: 40, py: 0 }} />
-                                    <Tab label="API Backend" sx={{ minHeight: 40, py: 0 }} />
-                                </Tabs>
-                            </Box>
+                            <TextField
+                                select
+                                fullWidth
+                                size="small"
+                                label="Nguồn dữ liệu lựa chọn"
+                                value={validation.dataSource ?? 'manual'}
+                                onChange={(e) => {
+                                    const nextSource = e.target.value as FieldValidation['dataSource'];
+                                    setDraft((prev) => ({
+                                        ...prev,
+                                        validation: {
+                                            ...(prev.validation || {}),
+                                            dataSource: nextSource,
+                                            apiUrl: nextSource === 'api' ? prev.validation.apiUrl ?? '' : undefined,
+                                            options: nextSource === 'manual' ? prev.validation.options ?? [] : undefined,
+                                            displayType: nextSource === 'country' && prev.type === 'select'
+                                                ? 'dropdown'
+                                                : prev.validation.displayType,
+                                        },
+                                    }));
+                                }}
+                            >
+                                <MenuItem value="manual">Nhập thủ công</MenuItem>
+                                <MenuItem value="api">API Backend</MenuItem>
+                                <MenuItem value="country">react-country-region-selector</MenuItem>
+                            </TextField>
 
                             {validation.dataSource === 'api' ? (
                                 <Stack spacing={2}>
@@ -241,12 +268,21 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                         onChange={(e) => updateValidation('apiUrl', e.target.value)}
                                         helperText="URL API trả về mảng danh sách các lựa chọn."
                                     />
-                                    <Box sx={{ p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 2, bgcolor: 'info.main' + '08' }}>
+                                    <Box sx={{ p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 2.5, bgcolor: 'info.main' + '08' }}>
                                         <Typography variant="caption" color="info.main" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <PlayArrowIcon fontSize="inherit" /> Dữ liệu sẽ được tải động khi mở Form.
                                         </Typography>
                                     </Box>
                                 </Stack>
+                            ) : validation.dataSource === 'country' ? (
+                                <Box sx={{ p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 2.5, bgcolor: 'success.main' + '08' }}>
+                                    <Typography variant="body2" fontWeight={700} color="success.dark" sx={{ mb: 0.5 }}>
+                                        Danh sách quốc gia dùng `react-country-region-selector`
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Trường này sẽ render bằng popover tìm kiếm lấy dữ liệu từ `react-country-region-selector`, có hiển thị cờ quốc gia và phù hợp cho nước xuất xứ, quốc gia sản xuất, quốc tịch hoặc nước đăng ký.
+                                    </Typography>
+                                </Box>
                             ) : (
                                 <Box>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
@@ -269,7 +305,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                                     p: 1,
                                                     border: '1px solid',
                                                     borderColor: 'divider',
-                                                    borderRadius: 1.5,
+                                                    borderRadius: 2.5,
                                                     bgcolor: 'background.paper',
                                                 }}
                                             >
@@ -291,7 +327,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                             </Box>
                                         ))}
                                         {(validation.options ?? []).length === 0 && (
-                                            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3, border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+                                            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3, border: '1px dashed', borderColor: 'divider', borderRadius: 2.5}}>
                                                 Chưa có dữ liệu. Hãy nhấn "Thêm giá trị".
                                             </Typography>
                                         )}

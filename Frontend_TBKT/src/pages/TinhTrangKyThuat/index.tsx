@@ -78,7 +78,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ label, count, total, color, i
     <Card
       elevation={0}
       sx={{
-        borderRadius: 4,
+        borderRadius: 2.5,
         border: `1px solid ${color}33`,
         bgcolor: `${color}05`,
         position: 'relative',
@@ -90,7 +90,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ label, count, total, color, i
       <CardContent sx={{ p: 2.5 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
           <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</Typography>
-          <Box sx={{ p: 1, borderRadius: 2, bgcolor: `${color}15`, color }}>
+          <Box sx={{ p: 1, borderRadius: 2.5, bgcolor: `${color}15`, color }}>
             {React.cloneElement(icon as React.ReactElement<{ sx?: object }>, { sx: { fontSize: 20 } })}
           </Box>
         </Box>
@@ -103,8 +103,8 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ label, count, total, color, i
           variant="determinate"
           value={pct}
           sx={{
-            height: 6, borderRadius: 3, bgcolor: `${color}15`,
-            '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 3 }
+            height: 6, borderRadius: 2.5, bgcolor: `${color}15`,
+            '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 2.5}
           }}
         />
       </CardContent>

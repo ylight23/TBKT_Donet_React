@@ -279,7 +279,7 @@ export const topbarTokens = {
 export const cardTokens = {
   bg: '#112233',
   border: '#1E3248',
-  borderRadius: '10px',
+  borderRadius: 2.5,
   shadow: '0 2px 8px rgba(0,0,0,0.40)',
   headerBg: '#0D1B2A',
   headerText: '#D6E0ED',

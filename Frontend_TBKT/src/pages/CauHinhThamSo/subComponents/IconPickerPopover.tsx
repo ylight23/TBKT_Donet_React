@@ -179,7 +179,7 @@ const IconPickerPopover: React.FC<IconPickerPopoverProps> = React.memo(({
                     overflowX: 'hidden',
                     position: 'relative',
                     '&::-webkit-scrollbar': { width: 6 },
-                    '&::-webkit-scrollbar-thumb': { borderRadius: 3, bgcolor: 'divider' },
+                    '&::-webkit-scrollbar-thumb': { borderRadius: 2.5, bgcolor: 'divider' },
                 }}
             >
                 {filtered.length === 0 ? (
@@ -254,7 +254,7 @@ const IconCell: React.FC<IconCellProps> = React.memo(({ entry, isSelected, selec
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 0.5,
-                    borderRadius: 1.5,
+                    borderRadius: 2.5,
                     cursor: 'pointer',
                     border: '1px solid',
                     borderColor: isSelected ? selectedColor : 'divider',

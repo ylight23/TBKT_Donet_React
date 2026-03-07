@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -8,20 +8,31 @@ import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
+import { useDispatch, useSelector } from 'react-redux';
 import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import BuildIcon from '@mui/icons-material/Build';
 
-import { thamSoApi } from '../../api/thamSoApiWithCache';
 import type {
   LocalDynamicField as DynamicField,
   LocalFormConfig as FormConfig,
+  LocalFieldSet,
 } from '../../types/thamSo';
+import type { AppDispatch, RootState } from '../../store';
 import {
   iconToName,
   nameToIcon,
 } from '../../utils/thamSoUtils';
+import {
+  deleteDynamicField,
+  deleteFieldSet,
+  deleteFormConfig,
+  fetchThamSoSchema,
+  saveDynamicField,
+  saveFieldSet,
+  saveFormConfig,
+} from '../../store/reducer/thamSo';
 
 import { MainTab, FieldSet } from './types';
 import PageFieldLibrary from './subComponents/PageFieldLibrary';
@@ -29,70 +40,194 @@ import PageDatasets from './subComponents/PageDatasets';
 import PageFormConfig from './subComponents/PageFormConfig';
 import { OfficeProvider } from '../../context/OfficeContext';
 
+const mapStoreFieldSetToUi = (fieldSet: LocalFieldSet): FieldSet => ({
+  ...fieldSet,
+  icon: nameToIcon(fieldSet.icon),
+});
+
+const mapUiFieldSetToStore = (fieldSet: FieldSet): LocalFieldSet => ({
+  ...fieldSet,
+  icon: iconToName(fieldSet.icon),
+  desc: fieldSet.desc ?? '',
+});
+
+const replaceFieldIdInFieldSets = (fieldSets: FieldSet[], oldId: string, nextId: string): FieldSet[] => (
+  fieldSets.map((fieldSet) => ({
+    ...fieldSet,
+    fieldIds: fieldSet.fieldIds.map((fieldId) => (fieldId === oldId ? nextId : fieldId)),
+  }))
+);
+
+const replaceFieldSetIdInForms = (forms: FormConfig[], oldId: string, nextId: string): FormConfig[] => (
+  forms.map((form) => ({
+    ...form,
+    tabs: form.tabs.map((tabItem) => ({
+      ...tabItem,
+      setIds: tabItem.setIds.map((setId) => (setId === oldId ? nextId : setId)),
+    })),
+  }))
+);
+
+const AUTO_SAVE_DEBOUNCE_MS = 500;
+const isTempFieldId = (id: string) => id.startsWith('field_');
+const isTempFieldSetId = (id: string) => id.startsWith('set_');
+const isTempFormId = (id: string) => id.startsWith('form_');
+
 const CauHinhThamSo: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const {
+    dynamicFields: storeFields,
+    fieldSets: storeFieldSets,
+    formConfigs: storeForms,
+    loading,
+    syncing,
+    loaded,
+  } = useSelector((state: RootState) => state.thamSoReducer);
   const [tab, setTab] = useState<MainTab>('fields');
   const [fields, setFields] = useState<DynamicField[]>([]);
   const [fieldSets, setFieldSets] = useState<FieldSet[]>([]);
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
   const [forms, setForms] = useState<FormConfig[]>([]);
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false, message: '', severity: 'info',
   });
+  const hasLoadedMessageRef = useRef(false);
+  const fieldSaveTimersRef = useRef<Map<string, number>>(new Map());
+  const fieldSetSaveTimersRef = useRef<Map<string, number>>(new Map());
+  const formSaveTimersRef = useRef<Map<string, number>>(new Map());
+  const pendingFieldCreatesRef = useRef<Set<string>>(new Set());
+  const pendingFieldSetCreatesRef = useRef<Set<string>>(new Set());
+  const pendingFormCreatesRef = useRef<Set<string>>(new Set());
+  const queuedFieldUpdatesRef = useRef<Map<string, DynamicField>>(new Map());
+  const queuedFieldSetUpdatesRef = useRef<Map<string, FieldSet>>(new Map());
+  const queuedFormUpdatesRef = useRef<Map<string, FormConfig>>(new Map());
+  const queuedFieldDeletesRef = useRef<Set<string>>(new Set());
+  const queuedFieldSetDeletesRef = useRef<Set<string>>(new Set());
+  const queuedFormDeletesRef = useRef<Set<string>>(new Set());
 
-  // Load data from API on mount
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadData = async () => {
-      try {
-        const [apiFields, apiSets, apiForms] = await Promise.all([
-          thamSoApi.getListDynamicFields().catch(() => []),
-          thamSoApi.getListFieldSets().catch(() => []),
-          thamSoApi.getListFormConfigs().catch(() => []),
-        ]);
-
-        if (cancelled) return;
-
-        const finalFields = apiFields;
-        const finalSets = (apiSets).map((s: any) => ({
-          ...s,
-          icon: typeof s.icon === 'string' ? nameToIcon(s.icon) : s.icon
-        }));
-        const finalForms = apiForms;
-
-        setFields(finalFields as any);
-        setFieldSets(finalSets as any);
-        setForms(finalForms as any);
-
-        if (finalSets.length > 0) setActiveSetId(finalSets[0].id);
-        if (finalForms.length > 0) setActiveFormId(finalForms[0].id);
-
-        setSnack({ open: true, message: `Đã cập nhật cấu hình: ${finalFields.length} trường, ${finalSets.length} bộ dữ liệu`, severity: 'success' });
-      } catch (err) {
-        console.error('[CauHinhThamSo] Failed to load from API', err);
-        setSnack({ open: true, message: 'Lỗi tải cấu hình từ server', severity: 'error' });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    loadData();
-    return () => { cancelled = true; };
+  const clearScheduledSave = useCallback((timers: React.MutableRefObject<Map<string, number>>, key: string) => {
+    const timeoutId = timers.current.get(key);
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+      timers.current.delete(key);
+    }
   }, []);
+
+  const scheduleSave = useCallback(
+    (timers: React.MutableRefObject<Map<string, number>>, key: string, task: () => void | Promise<void>) => {
+      clearScheduledSave(timers, key);
+      const timeoutId = window.setTimeout(() => {
+        timers.current.delete(key);
+        void task();
+      }, AUTO_SAVE_DEBOUNCE_MS);
+      timers.current.set(key, timeoutId);
+    },
+    [clearScheduledSave],
+  );
+
+  useEffect(() => () => {
+    [fieldSaveTimersRef, fieldSetSaveTimersRef, formSaveTimersRef].forEach((timersRef) => {
+      timersRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timersRef.current.clear();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!loaded && !loading) {
+      dispatch(fetchThamSoSchema())
+        .unwrap()
+        .catch((error: unknown) => {
+          console.error('[CauHinhThamSo] Failed to load from Redux thunk', error);
+          setSnack({ open: true, message: 'Lỗi tải cấu hình từ server', severity: 'error' });
+        });
+    }
+  }, [dispatch, loaded, loading]);
+
+  useEffect(() => {
+    setFields(storeFields);
+    setFieldSets(storeFieldSets.map(mapStoreFieldSetToUi));
+    setForms(storeForms);
+  }, [storeFields, storeFieldSets, storeForms]);
+
+  useEffect(() => {
+    if (!loaded || hasLoadedMessageRef.current) {
+      return;
+    }
+
+    hasLoadedMessageRef.current = true;
+    setSnack({
+      open: true,
+      message: `Đã cập nhật cấu hình: ${storeFields.length} trường, ${storeFieldSets.length} bộ dữ liệu`,
+      severity: 'success',
+    });
+  }, [loaded, storeFields.length, storeFieldSets.length]);
+
+  useEffect(() => {
+    if (fieldSets.length === 0) {
+      if (activeSetId !== null) {
+        setActiveSetId(null);
+      }
+      return;
+    }
+
+    if (!activeSetId || !fieldSets.some((set) => set.id === activeSetId)) {
+      setActiveSetId(fieldSets[0].id);
+    }
+  }, [fieldSets, activeSetId]);
+
+  useEffect(() => {
+    if (forms.length === 0) {
+      if (activeFormId !== null) {
+        setActiveFormId(null);
+      }
+      return;
+    }
+
+    if (!activeFormId || !forms.some((form) => form.id === activeFormId)) {
+      setActiveFormId(forms[0].id);
+    }
+  }, [forms, activeFormId]);
 
   // ── Persist helpers ──
   const handleSaveField = async (field: DynamicField, isNew: boolean) => {
-    try {
-      const response = await thamSoApi.saveDynamicField(field as any, isNew);
+    const currentId = field.id;
 
-      if (response && isNew) {
-        setFields(prev => prev.map(f => f.id === field.id ? { ...f, id: response.id } : f));
+    try {
+      if (isNew) {
+        pendingFieldCreatesRef.current.add(currentId);
       }
 
-      setSnack({ open: true, message: `Đã lưu trường "${field.label}"`, severity: 'success' });
+      const response = await dispatch(saveDynamicField({ field, isNew })).unwrap();
+
+      if (response && isNew && response.field.id !== field.id) {
+        setFields((prev) => prev.map((item) => (item.id === field.id ? response.field : item)));
+        setFieldSets((prev) => replaceFieldIdInFieldSets(prev, field.id, response.field.id));
+      }
+
+      if (isNew) {
+        pendingFieldCreatesRef.current.delete(currentId);
+
+        if (queuedFieldDeletesRef.current.has(currentId)) {
+          queuedFieldDeletesRef.current.delete(currentId);
+          await dispatch(deleteDynamicField(response.field.id)).unwrap();
+          return;
+        }
+
+        const queuedUpdate = queuedFieldUpdatesRef.current.get(currentId);
+        if (queuedUpdate) {
+          queuedFieldUpdatesRef.current.delete(currentId);
+          scheduleSave(fieldSaveTimersRef, response.field.id, async () => {
+            await handleSaveField({ ...queuedUpdate, id: response.field.id }, false);
+          });
+        }
+      }
+
+      setSnack({ open: true, message: isNew ? `Đã tạo trường "${field.label}"` : `Đã lưu trường "${field.label}"`, severity: 'success' });
     } catch (err) {
+      if (isNew) {
+        pendingFieldCreatesRef.current.delete(currentId);
+      }
       console.error('[CauHinhThamSo] saveDynamicField error', err);
       setSnack({ open: true, message: 'Lỗi lưu trường dữ liệu', severity: 'error' });
     }
@@ -100,7 +235,20 @@ const CauHinhThamSo: React.FC = () => {
 
   const handleDeleteField = async (id: string) => {
     try {
-      await thamSoApi.deleteDynamicField(id);
+      clearScheduledSave(fieldSaveTimersRef, id);
+
+      if (pendingFieldCreatesRef.current.has(id)) {
+        queuedFieldDeletesRef.current.add(id);
+        return;
+      }
+
+      if (isTempFieldId(id) && !storeFields.some((field) => field.id === id)) {
+        queuedFieldUpdatesRef.current.delete(id);
+        queuedFieldDeletesRef.current.delete(id);
+        return;
+      }
+
+      await dispatch(deleteDynamicField(id)).unwrap();
       setSnack({ open: true, message: 'Đã xoá trường', severity: 'success' });
     } catch (err) {
       console.error('[CauHinhThamSo] deleteDynamicField error', err);
@@ -109,25 +257,50 @@ const CauHinhThamSo: React.FC = () => {
   };
 
   const handleSaveFieldSet = async (fieldSet: FieldSet, isNew: boolean) => {
-    try {
-      const response = await thamSoApi.saveFieldSet({
-        ...fieldSet,
-        icon: iconToName(fieldSet.icon),
-        desc: fieldSet.desc ?? '',
-      } as any, isNew);
+    const currentId = fieldSet.id;
 
-      if (response && isNew) {
-        const newItem: FieldSet = {
-          ...fieldSet,
-          id: response.id,
-          icon: fieldSet.icon
-        };
-        setFieldSets(prev => prev.map(s => s.id === fieldSet.id ? newItem : s));
+    try {
+      if (isNew) {
+        pendingFieldSetCreatesRef.current.add(currentId);
+      }
+
+      const response = await dispatch(
+        saveFieldSet({
+          fieldSet: mapUiFieldSetToStore(fieldSet),
+          isNew,
+        }),
+      ).unwrap();
+
+      if (response && isNew && response.fieldSet.id !== fieldSet.id) {
+        const newItem = mapStoreFieldSetToUi(response.fieldSet);
+        setFieldSets((prev) => prev.map((item) => (item.id === fieldSet.id ? newItem : item)));
+        setForms((prev) => replaceFieldSetIdInForms(prev, fieldSet.id, response.fieldSet.id));
         setActiveSetId(newItem.id);
       }
 
-      setSnack({ open: true, message: `Đã lưu bộ dữ liệu "${fieldSet.name}"`, severity: 'success' });
+      if (isNew) {
+        pendingFieldSetCreatesRef.current.delete(currentId);
+
+        if (queuedFieldSetDeletesRef.current.has(currentId)) {
+          queuedFieldSetDeletesRef.current.delete(currentId);
+          await dispatch(deleteFieldSet(response.fieldSet.id)).unwrap();
+          return;
+        }
+
+        const queuedUpdate = queuedFieldSetUpdatesRef.current.get(currentId);
+        if (queuedUpdate) {
+          queuedFieldSetUpdatesRef.current.delete(currentId);
+          scheduleSave(fieldSetSaveTimersRef, response.fieldSet.id, async () => {
+            await handleSaveFieldSet({ ...queuedUpdate, id: response.fieldSet.id }, false);
+          });
+        }
+      }
+
+      setSnack({ open: true, message: isNew ? `Đã tạo bộ dữ liệu "${fieldSet.name}"` : `Đã lưu bộ dữ liệu "${fieldSet.name}"`, severity: 'success' });
     } catch (err) {
+      if (isNew) {
+        pendingFieldSetCreatesRef.current.delete(currentId);
+      }
       console.error('[CauHinhThamSo] saveFieldSet error', err);
       setSnack({ open: true, message: 'Lỗi lưu bộ dữ liệu', severity: 'error' });
     }
@@ -135,7 +308,20 @@ const CauHinhThamSo: React.FC = () => {
 
   const handleDeleteFieldSet = async (id: string) => {
     try {
-      await thamSoApi.deleteFieldSet(id);
+      clearScheduledSave(fieldSetSaveTimersRef, id);
+
+      if (pendingFieldSetCreatesRef.current.has(id)) {
+        queuedFieldSetDeletesRef.current.add(id);
+        return;
+      }
+
+      if (isTempFieldSetId(id) && !storeFieldSets.some((fieldSet) => fieldSet.id === id)) {
+        queuedFieldSetUpdatesRef.current.delete(id);
+        queuedFieldSetDeletesRef.current.delete(id);
+        return;
+      }
+
+      await dispatch(deleteFieldSet(id)).unwrap();
       setSnack({ open: true, message: 'Đã xoá bộ dữ liệu', severity: 'success' });
     } catch (err) {
       console.error('[CauHinhThamSo] deleteFieldSet error', err);
@@ -144,14 +330,44 @@ const CauHinhThamSo: React.FC = () => {
   };
 
   const handleSaveFormConfig = async (form: FormConfig, isNew: boolean) => {
+    const currentId = form.id;
+
     try {
-      const response = await thamSoApi.saveFormConfig(form as any, isNew);
-      if (response && isNew) {
-        setForms(prev => prev.map(f => f.id === form.id ? response : f));
-        setActiveFormId(response.id);
+      if (isNew) {
+        pendingFormCreatesRef.current.add(currentId);
       }
-      setSnack({ open: true, message: `Đã lưu cấu hình form "${form.name}"`, severity: 'success' });
+
+      const response = await dispatch(saveFormConfig({ formConfig: form, isNew })).unwrap();
+      if (response && isNew && response.formConfig.id !== form.id) {
+        setForms(prev => prev.map(f => f.id === form.id ? response.formConfig : f));
+        setActiveFormId(response.formConfig.id);
+      }
+
+      if (isNew) {
+        pendingFormCreatesRef.current.delete(currentId);
+
+        if (queuedFormDeletesRef.current.has(currentId)) {
+          queuedFormDeletesRef.current.delete(currentId);
+          await dispatch(deleteFormConfig(response.formConfig.id)).unwrap();
+          return;
+        }
+
+        const queuedUpdate = queuedFormUpdatesRef.current.get(currentId);
+        if (queuedUpdate) {
+          queuedFormUpdatesRef.current.delete(currentId);
+          scheduleSave(formSaveTimersRef, response.formConfig.id, async () => {
+            await handleSaveFormConfig({ ...queuedUpdate, id: response.formConfig.id }, false);
+          });
+        }
+      }
+
+      if (isNew) {
+        setSnack({ open: true, message: `Đã tạo cấu hình form "${form.name}"`, severity: 'success' });
+      }
     } catch (err) {
+      if (isNew) {
+        pendingFormCreatesRef.current.delete(currentId);
+      }
       console.error('[CauHinhThamSo] saveFormConfig error', err);
       setSnack({ open: true, message: 'Lỗi lưu cấu hình form', severity: 'error' });
     }
@@ -159,7 +375,20 @@ const CauHinhThamSo: React.FC = () => {
 
   const handleDeleteFormConfig = async (id: string) => {
     try {
-      await thamSoApi.deleteFormConfig(id);
+      clearScheduledSave(formSaveTimersRef, id);
+
+      if (pendingFormCreatesRef.current.has(id)) {
+        queuedFormDeletesRef.current.add(id);
+        return;
+      }
+
+      if (isTempFormId(id) && !storeForms.some((form) => form.id === id)) {
+        queuedFormUpdatesRef.current.delete(id);
+        queuedFormDeletesRef.current.delete(id);
+        return;
+      }
+
+      await dispatch(deleteFormConfig(id)).unwrap();
       setSnack({ open: true, message: 'Đã xoá cấu hình form', severity: 'success' });
     } catch (err) {
       console.error('[CauHinhThamSo] deleteFormConfig error', err);
@@ -175,7 +404,17 @@ const CauHinhThamSo: React.FC = () => {
         if (!existing) {
           handleSaveField(f, true);
         } else if (JSON.stringify(existing) !== JSON.stringify(f)) {
-          handleSaveField(f, false);
+          if (pendingFieldCreatesRef.current.has(f.id)) {
+            queuedFieldUpdatesRef.current.set(f.id, f);
+          } else if (isTempFieldId(f.id) && !storeFields.some((field) => field.id === f.id)) {
+            scheduleSave(fieldSaveTimersRef, f.id, async () => {
+              await handleSaveField(f, true);
+            });
+          } else {
+            scheduleSave(fieldSaveTimersRef, f.id, async () => {
+              await handleSaveField(f, false);
+            });
+          }
         }
       }
       for (const p of prev) {
@@ -195,7 +434,17 @@ const CauHinhThamSo: React.FC = () => {
         if (!existing) {
           handleSaveFormConfig(f, true);
         } else if (JSON.stringify(existing) !== JSON.stringify(f)) {
-          handleSaveFormConfig(f, false);
+          if (pendingFormCreatesRef.current.has(f.id)) {
+            queuedFormUpdatesRef.current.set(f.id, f);
+          } else if (isTempFormId(f.id) && !storeForms.some((form) => form.id === f.id)) {
+            scheduleSave(formSaveTimersRef, f.id, async () => {
+              await handleSaveFormConfig(f, true);
+            });
+          } else {
+            scheduleSave(formSaveTimersRef, f.id, async () => {
+              await handleSaveFormConfig(f, false);
+            });
+          }
         }
       }
       for (const p of prev) {
@@ -223,7 +472,17 @@ const CauHinhThamSo: React.FC = () => {
             JSON.stringify(existing.fieldIds) !== JSON.stringify(s.fieldIds)
           )
         ) {
-          handleSaveFieldSet(s, false);
+          if (pendingFieldSetCreatesRef.current.has(s.id)) {
+            queuedFieldSetUpdatesRef.current.set(s.id, s);
+          } else if (isTempFieldSetId(s.id) && !storeFieldSets.some((fieldSet) => fieldSet.id === s.id)) {
+            scheduleSave(fieldSetSaveTimersRef, s.id, async () => {
+              await handleSaveFieldSet(s, true);
+            });
+          } else {
+            scheduleSave(fieldSetSaveTimersRef, s.id, async () => {
+              await handleSaveFieldSet(s, false);
+            });
+          }
         }
       }
       for (const p of prev) {
@@ -249,7 +508,7 @@ const CauHinhThamSo: React.FC = () => {
         <Stack direction="row" spacing={1}>
           <Chip icon={<LibraryBooksIcon />} label={`${fields.length} trường`} color="primary" variant="outlined" />
           <Chip icon={<SettingsIcon />} label={`${fieldSets.length} bộ`} color="secondary" variant="outlined" />
-          {loading && <Chip label="Đang tải..." variant="outlined" />}
+          {(loading || syncing) && <Chip label={loading ? 'Đang tải...' : 'Đang đồng bộ...'} variant="outlined" />}
         </Stack>
       </Stack>
 
@@ -322,7 +581,7 @@ const CauHinhThamSo: React.FC = () => {
             minWidth: 300,
             bgcolor: snack.severity === 'success' ? '#2e7d32' : snack.severity === 'error' ? '#d32f2f' : '#0288d1',
             color: '#fff',
-            borderRadius: 2,
+            borderRadius: 2.5,
             px: 2.5,
             py: 1.5,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',

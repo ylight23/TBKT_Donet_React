@@ -205,10 +205,10 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                     <Stack spacing={3} sx={{ height: '100%' }}>
                         <Box flex={1}>
                             <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 1 }} />
+                                <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
                                 Thông tin chung
                             </Typography>
-                            <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2, bgcolor: 'background.default' }}>
+                            <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, bgcolor: 'background.default' }}>
                                 <Stack spacing={2.5}>
                                     <TextField
                                         fullWidth
@@ -236,7 +236,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
 
                         <Box>
                             <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 1 }} />
+                                <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
                                 Biểu tượng (Icon)
                             </Typography>
                             <Button
@@ -249,7 +249,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     textTransform: 'none',
                                     borderStyle: 'dashed',
                                     borderWidth: 2,
-                                    borderRadius: 2,
+                                    borderRadius: 2.5,
                                     py: 1.5,
                                     px: 2,
                                     borderColor: 'divider',
@@ -264,7 +264,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                         alignItems: 'center',
                                         p: 1,
                                         bgcolor: `${displayColor}10`,
-                                        borderRadius: 1.5
+                                        borderRadius: 2.5
                                     }}>
                                         {currentIconNode}
                                     </Box>
@@ -277,7 +277,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                         </Typography>
                                     </Box>
                                 </Stack>
-                                <Box sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1, color: 'text.secondary', fontSize: 10, fontWeight: 700 }}>
+                                <Box sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 2.5, color: 'text.secondary', fontSize: 10, fontWeight: 700 }}>
                                     THAY ĐỔI
                                 </Box>
                             </Button>
@@ -297,11 +297,11 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                 <Grid size={{ xs: 12, md: 6 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                         <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 1 }} />
+                            <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
                             Màu sắc chủ đạo
                         </Typography>
 
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+                        <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="center" sx={{ mb: 2 }}>
                                 {SET_COLORS.map((c) => (
                                     <Box
@@ -310,7 +310,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                         sx={{
                                             width: 32,
                                             height: 32,
-                                            borderRadius: '50%',
+                                            borderRadius: 2.5,
                                             bgcolor: c,
                                             cursor: 'pointer',
                                             border: color === c ? '3px solid' : '2px solid transparent',
@@ -332,13 +332,13 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     width: '100%',
                                     maxWidth: 260,
                                     height: 140,
-                                    borderRadius: 2,
+                                    borderRadius: 2.5,
                                     border: '1px solid',
                                     borderColor: 'divider',
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                                 },
-                                '.react-colorful__saturation': { borderRadius: '8px 8px 0 0' },
-                                '.react-colorful__hue': { height: 16, borderRadius: '0 0 8px 8px' },
+                                '.react-colorful__saturation': { borderRadius: 2.5},
+                                '.react-colorful__hue': { height: 16, borderRadius: 2.5},
                                 '.react-colorful__hue-pointer': { width: 16, height: 16 }
                             }}>
                                 <HexColorPicker color={displayColor} onChange={handleColorPickerChange} />
@@ -370,7 +370,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                 <Box sx={{
                                     width: 40,
                                     height: 40,
-                                    borderRadius: 1.5,
+                                    borderRadius: 2.5,
                                     bgcolor: displayColor,
                                     border: '4px solid',
                                     borderColor: 'background.paper',
@@ -386,7 +386,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                     <Divider sx={{ mb: 3 }} />
                     <Box>
                         <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                            <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 1 }} />
+                            <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
                             Danh sách trường áp dụng
                         </Typography>
                         <FieldSelectionPanel

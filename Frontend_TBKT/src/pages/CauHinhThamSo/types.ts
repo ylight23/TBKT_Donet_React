@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'radio' | 'checkboxGroup';
 
 export interface FieldValidation {
     minLength?: number;
@@ -9,9 +9,9 @@ export interface FieldValidation {
     min?: number;
     max?: number;
     options?: string[];
-    dataSource?: 'manual' | 'api';
+    dataSource?: 'manual' | 'api' | 'country';
     apiUrl?: string;
-    displayType?: 'dropdown' | 'tabs' | 'tree';
+    displayType?: 'dropdown' | 'tabs' | 'tree' | 'autocomplete';
 }
 
 // Local FieldSet uses React.ReactNode for the icon to support JSX icons in the UI

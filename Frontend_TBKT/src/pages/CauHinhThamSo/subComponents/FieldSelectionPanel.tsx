@@ -57,7 +57,7 @@ const FieldSelectionPanel: React.FC<FieldSelectionPanelProps> = React.memo(({
                 sx={{ mb: 1 }}
             />
 
-            <Box sx={{ maxHeight: 300, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+            <Box sx={{ maxHeight: 300, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2.5}}>
                 {filteredAllFields.map((field, idx) => {
                     const checked = selectedIds.includes(field.id);
                     const meta = typeOf(field.type);

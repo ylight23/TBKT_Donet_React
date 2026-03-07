@@ -51,6 +51,7 @@ interface CommonFilterProps {
 
     // Customization
     showSearchButton?: boolean;
+    endActions?: React.ReactNode;
 }
 
 const CommonFilter: React.FC<CommonFilterProps> = ({
@@ -69,6 +70,7 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
     children,
     onApply,
     showSearchButton = false,
+    endActions,
 }) => {
     const theme = useTheme();
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -125,7 +127,7 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                                                         textTransform: 'none',
                                                         fontWeight: 700,
                                                         fontSize: '0.75rem',
-                                                        borderRadius: 2,
+                                                        borderRadius: 2.5,
                                                         px: 1.5,
                                                         minWidth: 'auto',
                                                         position: 'relative',
@@ -140,7 +142,7 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                                                         <Box sx={{
                                                             position: 'absolute', top: 4, right: 4,
                                                             width: 6, height: 6, bgcolor: 'error.main',
-                                                            borderRadius: '50%', border: `1px solid ${theme.palette.background.paper}`
+                                                            borderRadius: 2.5, border: `1px solid ${theme.palette.background.paper}`
                                                         }} />
                                                     )}
                                                 </Button>
@@ -151,6 +153,8 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                             }}
                             sx={{ flex: 1 }}
                         />
+
+                        {endActions}
 
                         {showSearchButton && (
                             <Button
@@ -184,7 +188,7 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                                     size="small"
                                     variant="outlined"
                                     onDelete={() => onRemoveFilter?.(f.key)}
-                                    sx={{ borderRadius: 1.5, fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                                    sx={{ borderRadius: 2.5, fontWeight: 600, height: 24, fontSize: '0.75rem' }}
                                 />
                             ))}
                             <Button
@@ -210,7 +214,7 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                                 mt: 1.5,
                                 p: 3,
                                 width: popoverWidth,
-                                borderRadius: 4,
+                                borderRadius: 2.5,
                                 boxShadow: theme.palette.mode === 'dark' ? '0 16px 48px rgba(0,0,0,0.7)' : '0 16px 48px rgba(0,0,0,0.15)',
                                 border: `1px solid ${theme.palette.divider}`,
                                 overflow: 'visible',
@@ -237,19 +241,19 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                             <Chip
                                 label={`Đã chọn ${activeFilterCount}`}
                                 size="small" color="primary" variant="filled"
-                                sx={{ fontWeight: 700, visibility: activeFilterCount > 0 ? 'visible' : 'hidden', borderRadius: 1.5 }}
+                                sx={{ fontWeight: 700, visibility: activeFilterCount > 0 ? 'visible' : 'hidden', borderRadius: 2.5}}
                             />
                         </Box>
 
                         {activeFilters.length > 0 && (
-                            <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 1, bgcolor: 'action.hover', borderRadius: 2 }}>
+                            <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 1, bgcolor: 'action.hover', borderRadius: 2.5}}>
                                 {activeFilters.map((f) => (
                                     <Chip
                                         key={f.key}
                                         label={f.label}
                                         size="small"
                                         onDelete={() => onRemoveFilter?.(f.key)}
-                                        sx={{ borderRadius: 1, height: 22, fontSize: '0.7rem' }}
+                                        sx={{ borderRadius: 2.5, height: 22, fontSize: '0.7rem' }}
                                     />
                                 ))}
                             </Box>
@@ -262,13 +266,13 @@ const CommonFilter: React.FC<CommonFilterProps> = ({
                         <Box sx={{ mt: 4, pt: 2, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', gap: 1.5, justifyContent: 'flex-end' }}>
                             <Button
                                 variant="outlined" color="inherit" onClick={onClearAll}
-                                sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, px: 3 }}
+                                sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}
                             >
                                 Thiết lập lại
                             </Button>
                             <Button
                                 variant="contained" color="primary" onClick={() => { onApply?.(); handleClosePopover(); }}
-                                sx={{ borderRadius: 1.5, px: 5, textTransform: 'none', fontWeight: 700 }}
+                                sx={{ borderRadius: 2.5, px: 5, textTransform: 'none', fontWeight: 700 }}
                             >
                                 Áp dụng
                             </Button>

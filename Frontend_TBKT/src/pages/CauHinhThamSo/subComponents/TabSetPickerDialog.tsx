@@ -84,7 +84,7 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, fiel
                         <Typography variant="subtitle2" fontWeight={800} color="text.secondary"> BỘ DỮ LIỆU CÓ SẴN</Typography>
                         <Chip size="small" label={fieldSets.length} />
                     </Box>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', height: 400, overflowY: 'auto' }}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default', height: 400, overflowY: 'auto' }}>
                         <Stack spacing={1.5}>
                             {fieldSets.map((set) => {
                                 const selected = draft.setIds.includes(set.id);
@@ -94,7 +94,7 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, fiel
                                         onClick={() => toggle(set.id)}
                                         sx={{
                                             p: 1.5,
-                                            borderRadius: 2,
+                                            borderRadius: 2.5,
                                             cursor: 'pointer',
                                             border: '2px solid',
                                             borderColor: selected ? set.color : 'divider',
@@ -105,7 +105,7 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, fiel
                                     >
                                         <Stack direction="row" alignItems="center" spacing={2}>
                                             <Checkbox checked={selected} size="small" sx={{ color: set.color, '&.Mui-checked': { color: set.color }, p: 0 }} />
-                                            <Box sx={{ color: set.color, bgcolor: selected ? 'background.paper' : `${set.color}11`, p: 1, borderRadius: 1.5, boxShadow: selected ? 1 : 0 }}>{set.icon}</Box>
+                                            <Box sx={{ color: set.color, bgcolor: selected ? 'background.paper' : `${set.color}11`, p: 1, borderRadius: 2.5, boxShadow: selected ? 1 : 0 }}>{set.icon}</Box>
                                             <Box sx={{ flex: 1 }}>
                                                 <Typography variant="body2" fontWeight={800}>{set.name}</Typography>
                                                 <Typography variant="caption" color="text.secondary">{set.fieldIds.length} trường</Typography>
@@ -123,12 +123,12 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, fiel
                         <Typography variant="subtitle2" fontWeight={800} color="text.secondary"> ĐÃ CHỌN CHO TAB</Typography>
                         <Chip size="small" color="primary" label={selectedSets.length} sx={{ fontWeight: 700 }} />
                     </Box>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: 400, display: 'flex', flexDirection: 'column' }}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, height: 400, display: 'flex', flexDirection: 'column' }}>
                         {selectedSets.length > 0 ? (
                             <Box sx={{ overflowY: 'auto', flex: 1, pr: 1 }}>
                                 <Stack spacing={1}>
                                     {selectedSets.map((set) => (
-                                        <Box key={set.id} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${set.color}22`, bgcolor: `${set.color}05` }}>
+                                        <Box key={set.id} sx={{ p: 1.5, borderRadius: 2.5, border: `1px solid ${set.color}22`, bgcolor: `${set.color}05` }}>
                                             <Stack direction="row" alignItems="center" spacing={2}>
                                                 <Box sx={{ color: set.color, display: 'flex', alignItems: 'center' }}>{set.icon}</Box>
                                                 <Box sx={{ flex: 1 }}>

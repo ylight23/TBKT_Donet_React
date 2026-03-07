@@ -479,7 +479,7 @@ export const themeSetting = (mode: PaletteMode) => {
       },
       divider: dt.divider,
     },
-    shape: { borderRadius: 8 },
+    shape: { borderRadius: 2.5},
     typography: {
       fontFamily: ['Inter', 'Roboto', 'sans-serif'].join(','),
       fontSize: 13,
@@ -516,13 +516,13 @@ export const themeSetting = (mode: PaletteMode) => {
       MuiCard: {
         styleOverrides: {
           root: ({ ownerState, theme }: { ownerState: any; theme: Theme }) => ({
-            borderRadius: 10,
+            borderRadius: 2.5,
             border: '1px solid ' + dt.cardBorder,
             boxShadow: isDark
               ? '0 2px 12px rgba(0,0,0,0.55)'
               : '0 1px 4px rgba(46,125,50,0.10)',
             ...(ownerState.variant === 'filterPanel' && {
-              borderRadius: 16,
+              borderRadius: 2.5,
               border: `1px solid ${theme.palette.divider}`,
               background: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -538,7 +538,7 @@ export const themeSetting = (mode: PaletteMode) => {
       MuiOutlinedInput: {
         styleOverrides: {
           root: ({ theme }: { theme: Theme }) => ({
-            borderRadius: 12,
+            borderRadius: 2.5,
             backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             '& fieldset': {
@@ -568,13 +568,13 @@ export const themeSetting = (mode: PaletteMode) => {
       MuiButton: {
         styleOverrides: {
           root: ({ ownerState, theme }: { ownerState: any; theme: Theme }) => ({
-            borderRadius: 6,
+            borderRadius: 2.5,
             textTransform: 'none' as const,
             fontWeight: 600,
             letterSpacing: '0.2px',
             transition: 'background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
             ...(ownerState.variant === 'militaryAction' && {
-              borderRadius: 12,
+              borderRadius: 2.5,
               paddingLeft: 24,
               paddingRight: 24,
               height: 40,
@@ -613,7 +613,7 @@ export const themeSetting = (mode: PaletteMode) => {
       },
       MuiChip: {
         styleOverrides: {
-          root: { borderRadius: 6, fontWeight: 600, fontSize: 12 },
+          root: { borderRadius: 2.5, fontWeight: 600, fontSize: 12 },
           colorPrimary: {
             background: isDark ? gradientGreen.darkSubtle : gradientGreen.lightSubtle,
             color: isDark ? '#A5D6A7' : '#1B5E20',
@@ -627,7 +627,7 @@ export const themeSetting = (mode: PaletteMode) => {
             background: isDark ? gradientGreen.dark : gradientGreen.light,
             color: '#FFFFFF',
             fontSize: 12,
-            borderRadius: 6,
+            borderRadius: 2.5,
             boxShadow: '0 4px 10px rgba(0,0,0,0.25)',
           },
           arrow: {
@@ -675,7 +675,7 @@ export const themeSetting = (mode: PaletteMode) => {
       },
       MuiLinearProgress: {
         styleOverrides: {
-          root: { borderRadius: 4 },
+          root: { borderRadius: 2.5},
           bar: {
             background: isDark ? gradientGreen.darkBtn : gradientGreen.lightBtn,
           },
@@ -707,7 +707,7 @@ export const themeSetting = (mode: PaletteMode) => {
         styleOverrides: {
           root: {
             border: `1px solid ${dt.divider}`,
-            borderRadius: "6px",
+            borderRadius: 2.5,
             backgroundColor: dt.contentBg,
             boxShadow: isDark
               ? "0 8px 32px rgba(0,0,0,0.4)"
@@ -719,7 +719,7 @@ export const themeSetting = (mode: PaletteMode) => {
               background: dt.tableHeaderGradient,
               color: "#FFFFFF",
               borderBottom: "none",
-              borderRadius: 0,
+              borderRadius: 2.5,
 
               "& .MuiDataGrid-columnHeaderRow": {
                 background: "transparent",
@@ -867,7 +867,7 @@ export const themeSetting = (mode: PaletteMode) => {
             '& ::-webkit-scrollbar-track': { background: 'transparent' },
             '& ::-webkit-scrollbar-thumb': {
               background: dt.divider,
-              borderRadius: 4,
+              borderRadius: 2.5,
               '&:hover': { background: dt.textSecondary }
             },
           },

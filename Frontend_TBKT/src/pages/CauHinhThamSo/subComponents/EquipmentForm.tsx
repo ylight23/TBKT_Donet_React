@@ -171,7 +171,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ equipment, fields, fieldS
                                         p: 4,
                                         border: '1px dashed',
                                         borderColor: 'divider',
-                                        borderRadius: 2,
+                                        borderRadius: 2.5,
                                         textAlign: 'center',
                                     }}
                                 >

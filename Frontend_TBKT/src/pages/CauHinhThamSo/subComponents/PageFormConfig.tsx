@@ -107,7 +107,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                     key={form.id}
                                     onClick={() => setActiveFormId(form.id)}
                                     sx={{
-                                        p: 1.5, borderRadius: 1.5, cursor: 'pointer', border: '1px solid',
+                                        p: 1.5, borderRadius: 2.5, cursor: 'pointer', border: '1px solid',
                                         borderColor: isActive ? 'primary.main' : 'divider',
                                         bgcolor: isActive ? 'action.selected' : 'background.paper',
                                         '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
@@ -171,7 +171,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                         </Stack>
 
                         {activeForm.tabs.length === 0 && (
-                            <Box sx={{ p: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+                            <Box sx={{ p: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2.5}}>
                                 <LibraryBooksIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
                                 <Typography color="text.secondary" mb={1}>Form chưa có tab nào.</Typography>
                                 <Button variant="outlined" startIcon={<AddIcon />} onClick={addTab}>Thêm tab đầu tiên</Button>
@@ -189,7 +189,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                     <Card
                                         key={tab.id}
                                         variant="outlined"
-                                        sx={{ borderRadius: 2, borderColor: 'divider', '&:hover': { boxShadow: 2 }, transition: 'box-shadow 0.2s' }}
+                                        sx={{ borderRadius: 2.5, borderColor: 'divider', '&:hover': { boxShadow: 2 }, transition: 'box-shadow 0.2s' }}
                                     >
                                         <CardContent sx={{ p: 1.5 }}>
                                             <Stack direction="row" alignItems="flex-start" spacing={1}>
@@ -260,7 +260,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                     sx={{ textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
                                     Xem trước cấu trúc form
                                 </Typography>
-                                <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                                <Card variant="outlined" sx={{ borderRadius: 2.5}}>
                                     <CardContent sx={{ p: 0 }}>
                                         {/* Mock tab header */}
                                         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
@@ -290,7 +290,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                                         return (set?.fieldIds ?? []).map((fid: string) => fields.find((f: DynamicField) => f.id === fid)).filter(Boolean) as DynamicField[];
                                                     })
                                                     .map((field: DynamicField) => (
-                                                        <Box key={field.id} sx={{ p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                                                        <Box key={field.id} sx={{ p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 2.5}}>
                                                             <Typography variant="caption" fontWeight={600} noWrap>{field.label}</Typography>
                                                             <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontFamily: 'monospace' }}>{field.type}</Typography>
                                                         </Box>
