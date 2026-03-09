@@ -87,7 +87,7 @@ message FieldSet {
   string icon = 3; // MUI icon name, e.g. "Assignment", "Shield"
   string color = 4;
   string desc = 5;
-  repeated string field_ids = 6;
+  repeated DynamicField fields = 6; // danh sách dynamic fields thuộc set này
   bool delete = 7;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
@@ -123,7 +123,7 @@ message DeleteFieldSetRequest {
 message FormTabConfig {
   string id = 1;
   string label = 2;
-  repeated string set_ids = 3;
+  repeated FieldSet field_sets = 3; // danh sách field sets thuộc tab này
 }
 
 message FormConfig {

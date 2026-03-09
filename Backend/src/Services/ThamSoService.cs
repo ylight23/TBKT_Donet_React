@@ -177,10 +177,12 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         try
         {
             var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            var items = await Global.CollectionFieldSet!.Find(filter).ToListAsync();
-            response.Items.AddRange(items.Select(MapFieldSet));
+            var bsonItems = Global.CollectionBsonFieldSet!.Find(filter).ToList();
+
+            response.Items.AddRange(bsonItems.Select(b => MapFieldSetWithFields(b)));
+
             response.Success = true;
-            logger.LogInformation("GetListFieldSets: {Count} items", items.Count);
+            logger.LogInformation("GetListFieldSets: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
@@ -206,25 +208,38 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 return response;
             }
 
+            // Lưu FieldSet dưới dạng BsonDocument với field_ids (chỉ ID, không embed)
+            var fieldIds = item.Fields.Select(f => f.Id).ToList();
+            var bsonDoc = new BsonDocument
+            {
+                { "Name",   item.Name },
+                { "Icon",   item.Icon },
+                { "Color",  item.Color },
+                { "Desc",   item.Desc },
+                { "Delete", item.Delete },
+                { "FieldIds", new BsonArray(fieldIds) },
+            };
+
             if (request.IsNew)
             {
-                // Luôn sinh ObjectId mới cho bản ghi mới
-                item.Id = ObjectId.GenerateNewId().ToString();
+                var newId = ObjectId.GenerateNewId().ToString();
+                bsonDoc["_id"] = newId;
+                bsonDoc["CreateDate"] = FromTimestamp(Timestamp.FromDateTime(DateTime.UtcNow));
+                await Global.CollectionBsonFieldSet!.InsertOneAsync(bsonDoc);
+                item.Id = newId;
                 item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                item.Delete = false;
-                await Global.CollectionFieldSet!.InsertOneAsync(item);
                 response.Message = "Thêm bộ dữ liệu mới thành công!";
-                logger.LogInformation("SaveFieldSet: Created {Id} with {Count} field(s)",
-                    item.Id, item.FieldIds.Count);
+                logger.LogInformation("SaveFieldSet: Created {Id} with {Count} field(s)", newId, fieldIds.Count);
             }
             else
             {
+                bsonDoc["_id"] = item.Id;
+                bsonDoc["ModifyDate"] = FromTimestamp(Timestamp.FromDateTime(DateTime.UtcNow));
+                var f = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
+                await Global.CollectionBsonFieldSet!.FindOneAndReplaceAsync(f, bsonDoc);
                 item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                var filter = Builders<FieldSet>.Filter.Eq(x => x.Id, item.Id);
-                await Global.CollectionFieldSet!.FindOneAndReplaceAsync(filter, item);
                 response.Message = "Cập nhật thành công!";
-                logger.LogInformation("SaveFieldSet: Updated {Id} with {Count} field(s)",
-                    item.Id, item.FieldIds.Count);
+                logger.LogInformation("SaveFieldSet: Updated {Id} with {Count} field(s)", item.Id, fieldIds.Count);
             }
 
             response.Item = item;
@@ -279,7 +294,8 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         {
             var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
             var items = await Global.CollectionBsonFormConfig!.Find(filter).ToListAsync();
-            response.Items.AddRange(items.Select(MapFormConfig));
+            response.Items.AddRange(items.Select(MapFormConfigWithSets));
+
             response.Success = true;
             logger.LogInformation("GetListFormConfigs: {Count} items", items.Count);
         }
@@ -307,22 +323,40 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 return response;
             }
 
+            // Lưu FormConfig với set_ids (chỉ ID, không embed FieldSet)
+            var tabsArray = new BsonArray(item.Tabs.Select(tab => new BsonDocument
+            {
+                { "Id",     tab.Id },
+                { "Label",  tab.Label },
+                { "SetIds", new BsonArray(tab.FieldSets.Select(fs => fs.Id)) },
+            }));
+
+            var bsonDoc = new BsonDocument
+            {
+                { "Name",   item.Name },
+                { "Desc",   item.Desc },
+                { "Delete", item.Delete },
+                { "Tabs",   tabsArray },
+            };
+
             if (request.IsNew)
             {
-                // Luôn sinh ObjectId mới cho bản ghi mới
-                item.Id = ObjectId.GenerateNewId().ToString();
-
+                var newId = ObjectId.GenerateNewId().ToString();
+                bsonDoc["_id"] = newId;
+                bsonDoc["CreateDate"] = FromTimestamp(Timestamp.FromDateTime(DateTime.UtcNow));
+                await Global.CollectionBsonFormConfig!.InsertOneAsync(bsonDoc);
+                item.Id = newId;
                 item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                item.Delete = false;
-                await Global.CollectionFormConfig!.InsertOneAsync(item);
                 response.Message = "Thêm form mới thành công!";
-                logger.LogInformation("SaveFormConfig: Created {Id}", item.Id);
+                logger.LogInformation("SaveFormConfig: Created {Id}", newId);
             }
             else
             {
+                bsonDoc["_id"] = item.Id;
+                bsonDoc["ModifyDate"] = FromTimestamp(Timestamp.FromDateTime(DateTime.UtcNow));
+                var f = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
+                await Global.CollectionBsonFormConfig!.FindOneAndReplaceAsync(f, bsonDoc);
                 item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                var filter = Builders<FormConfig>.Filter.Eq(x => x.Id, item.Id);
-                await Global.CollectionFormConfig!.FindOneAndReplaceAsync(filter, item);
                 response.Message = "Cập nhật thành công!";
                 logger.LogInformation("SaveFormConfig: Updated {Id}", item.Id);
             }
@@ -365,5 +399,100 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             response.MessageException = ex.Message;
         }
         return response;
+    }
+
+    // ================================================================
+    // Helpers
+    // ================================================================
+    private static DynamicField MapDynamicField(BsonDocument b)
+    {
+        var f = BsonSerializer.Deserialize<DynamicField>(b);
+        if (b.Contains("Validation") && b["Validation"].IsBsonDocument)
+            f.Validation = BsonSerializer.Deserialize<FieldValidation>(b["Validation"].AsBsonDocument);
+        return f;
+    }
+
+    /// <summary>
+    /// Map FieldSet BsonDocument → proto FieldSet với Fields được resolve từ DB
+    /// </summary>
+    private static FieldSet MapFieldSetWithFields(BsonDocument bson)
+    {
+        var fieldSet = new FieldSet
+        {
+            Id     = bson.GetValue("_id", BsonNull.Value).ToString() ?? "",
+            Name   = bson.GetValue("Name", "").AsString,
+            Icon   = bson.GetValue("Icon", "").AsString,
+            Color  = bson.GetValue("Color", "").AsString,
+            Desc   = bson.GetValue("Desc", "").AsString,
+            Delete = bson.GetValue("Delete", false).ToBoolean(),
+        };
+        if (bson.Contains("CreateDate"))
+            fieldSet.CreateDate = ToTimestamp(bson["CreateDate"]);
+        if (bson.Contains("ModifyDate"))
+            fieldSet.ModifyDate = ToTimestamp(bson["ModifyDate"]);
+
+        // Resolve field_ids → DynamicField objects
+        if (bson.Contains("FieldIds") && bson["FieldIds"].IsBsonArray)
+        {
+            var fieldIds = bson["FieldIds"].AsBsonArray.Select(v => v.AsString).ToList();
+            if (fieldIds.Count > 0)
+            {
+                var filter = Builders<BsonDocument>.Filter.In("_id", fieldIds)
+                           & Builders<BsonDocument>.Filter.Ne("Delete", true);
+                var fieldBsons = Global.CollectionBsonDynamicField!.Find(filter).ToList();
+                fieldSet.Fields.AddRange(fieldBsons.Select(MapDynamicField));
+            }
+        }
+
+        return fieldSet;
+    }
+
+    /// <summary>
+    /// Map FormConfig BsonDocument → proto FormConfig với embedded FieldSet+DynamicField
+    /// </summary>
+    private static FormConfig MapFormConfigWithSets(BsonDocument bson)
+    {
+        var config = new FormConfig
+        {
+            Id     = bson.GetValue("_id", BsonNull.Value).ToString() ?? "",
+            Name   = bson.GetValue("Name", "").AsString,
+            Desc   = bson.GetValue("Desc", "").AsString,
+            Delete = bson.GetValue("Delete", false).ToBoolean(),
+        };
+        if (bson.Contains("CreateDate"))
+            config.CreateDate = ToTimestamp(bson["CreateDate"]);
+        if (bson.Contains("ModifyDate"))
+            config.ModifyDate = ToTimestamp(bson["ModifyDate"]);
+
+        if (bson.Contains("Tabs") && bson["Tabs"].IsBsonArray)
+        {
+            foreach (var tabBson in bson["Tabs"].AsBsonArray)
+            {
+                if (!tabBson.IsBsonDocument) continue;
+                var tabDoc = tabBson.AsBsonDocument;
+                var tab = new FormTabConfig
+                {
+                    Id    = tabDoc.GetValue("Id", "").AsString,
+                    Label = tabDoc.GetValue("Label", "").AsString,
+                };
+
+                // Resolve set_ids → FieldSet objects (with embedded DynamicFields)
+                if (tabDoc.Contains("SetIds") && tabDoc["SetIds"].IsBsonArray)
+                {
+                    var setIds = tabDoc["SetIds"].AsBsonArray.Select(v => v.AsString).ToList();
+                    if (setIds.Count > 0)
+                    {
+                        var setFilter = Builders<BsonDocument>.Filter.In("_id", setIds)
+                                      & Builders<BsonDocument>.Filter.Ne("Delete", true);
+                        var setBsons = Global.CollectionBsonFieldSet!.Find(setFilter).ToList();
+                        tab.FieldSets.AddRange(setBsons.Select(MapFieldSetWithFields));
+                    }
+                }
+
+                config.Tabs.Add(tab);
+            }
+        }
+
+        return config;
     }
 }
