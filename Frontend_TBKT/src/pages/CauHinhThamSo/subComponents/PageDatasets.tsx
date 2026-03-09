@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
@@ -73,6 +74,39 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
         const next = fieldSets.filter((s) => s.id !== setId);
         setFieldSets(next);
         setActiveSetId(next[0]?.id ?? null);
+    };
+
+    const generateUniqueSetId = (existingSets: FieldSet[]): string => {
+        let nextId = '';
+        do {
+            nextId = `set_${Math.random().toString(36).slice(2, 9)}`;
+        } while (existingSets.some((set) => set.id === nextId));
+        return nextId;
+    };
+
+    const generateDuplicateName = (sourceName: string, existingSets: FieldSet[]): string => {
+        const baseName = `${sourceName} (Bản sao)`;
+        if (!existingSets.some((set) => set.name === baseName)) {
+            return baseName;
+        }
+
+        let index = 2;
+        while (existingSets.some((set) => set.name === `${baseName} ${index}`)) {
+            index += 1;
+        }
+        return `${baseName} ${index}`;
+    };
+
+    const handleDuplicate = (setToDuplicate: FieldSet) => {
+        const duplicatedSet: FieldSet = {
+            ...setToDuplicate,
+            id: generateUniqueSetId(fieldSets),
+            name: generateDuplicateName(setToDuplicate.name, fieldSets),
+            fieldIds: [...setToDuplicate.fieldIds],
+        };
+
+        setFieldSets((prev) => [...prev, duplicatedSet]);
+        setActiveSetId(duplicatedSet.id);
     };
 
     return (
@@ -145,6 +179,13 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                 <Typography variant="body2" color="text.secondary">{activeSet.desc}</Typography>
                             </Box>
                             <Stack direction="row" spacing={1}>
+                                <Button
+                                    variant="outlined" size="small"
+                                    startIcon={<ContentCopyIcon />}
+                                    onClick={() => handleDuplicate(activeSet)}
+                                >
+                                    Nhân bản
+                                </Button>
                                 <Button
                                     variant="outlined" size="small"
                                     startIcon={<EditIcon />}

@@ -23,8 +23,10 @@ import type {
   LocalDynamicField as DynamicField,
   LocalFieldSet as FieldSet,
   LocalFormConfig as FormConfig,
+  LocalFormTabConfig as FormTabConfig,
 } from '../../types/thamSo';
 import FieldInput from '../../pages/CauHinhThamSo/subComponents/FieldInput';
+import { getRealSetIds, parseTabMeta } from '../../pages/CauHinhThamSo/subComponents/formTabMeta';
 import { militaryColors } from '../../theme';
 
 // ── Props ───────────────────────────────────────────────────
@@ -183,6 +185,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   activeMenu,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const [activeChildTabByParent, setActiveChildTabByParent] = useState<Record<string, number>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
 
   const theme = useTheme();
@@ -192,6 +195,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   useEffect(() => {
     if (open) {
       setActiveTab(0);
+      setActiveChildTabByParent({});
       setFormData({});
     }
   }, [open, formConfig?.id]);
@@ -207,15 +211,44 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     [allFields],
   );
 
-  // Get tabs from formConfig
-  const tabs = useMemo(() => formConfig?.tabs ?? [], [formConfig]);
-  const currentTab = tabs[activeTab];
+  // Build parent-child structure from tab metadata
+  const tabStructure = useMemo(() => {
+    const tabs = formConfig?.tabs ?? [];
+    const roots = tabs.filter((tab) => !parseTabMeta(tab).parentTabId);
+    const childrenByParent = tabs.reduce<Record<string, FormTabConfig[]>>((acc, tab) => {
+      const parentId = parseTabMeta(tab).parentTabId;
+      if (parentId) {
+        if (!acc[parentId]) acc[parentId] = [];
+        acc[parentId].push(tab);
+      }
+      return acc;
+    }, {});
+    return { roots, childrenByParent };
+  }, [formConfig]);
+
+  const rootTabs = tabStructure.roots;
+  const currentRootTab = rootTabs[activeTab];
+  const currentRootMeta = currentRootTab ? parseTabMeta(currentRootTab) : null;
+  const currentRootChildren = currentRootTab ? (tabStructure.childrenByParent[currentRootTab.id] || []) : [];
+
+  const activeChildTabIndex = currentRootTab
+    ? Math.min(activeChildTabByParent[currentRootTab.id] ?? 0, Math.max(currentRootChildren.length - 1, 0))
+    : 0;
+
+  const effectiveTab = useMemo(() => {
+    if (!currentRootTab) return null;
+    if (currentRootMeta?.tabType === 'sync-group' && currentRootChildren.length > 0) {
+      return currentRootChildren[activeChildTabIndex] ?? currentRootChildren[0] ?? currentRootTab;
+    }
+    return currentRootTab;
+  }, [currentRootTab, currentRootMeta, currentRootChildren, activeChildTabIndex]);
 
   // Get fieldSets and fields for current tab
   const currentTabContent = useMemo(() => {
-    if (!currentTab) return [];
+    if (!effectiveTab) return [];
 
-    const setIds = currentTab.setIds ?? [];
+    // Keep only unique set IDs to avoid duplicate render keys when a set is selected multiple times.
+    const setIds = Array.from(new Set(getRealSetIds(effectiveTab)));
 
     return setIds
       .map((setId) => {
@@ -229,7 +262,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         return { fieldSet, fields };
       })
       .filter((item): item is { fieldSet: FieldSet; fields: DynamicField[] } => item !== null);
-  }, [currentTab, fieldSetById, fieldById]);
+  }, [effectiveTab, fieldSetById, fieldById]);
 
   // Get all fields in current tab
   const currentTabFields = useMemo(() => {
@@ -249,47 +282,31 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     let totalFields = 0;
     let filledFields = 0;
 
-    tabs.forEach((tab) => {
-      const setIds = tab.setIds ?? [];
-      setIds.forEach((setId) => {
-        const fieldSet = fieldSetById.get(setId);
-        if (fieldSet) {
-          const fields = (fieldSet.fieldIds ?? [])
-            .map((fid: string) => fieldById.get(fid))
-            .filter((f): f is DynamicField => Boolean(f));
+    rootTabs.forEach((rootTab) => {
+      const rootMeta = parseTabMeta(rootTab);
+      const tabsToCount = rootMeta.tabType === 'sync-group'
+        ? (tabStructure.childrenByParent[rootTab.id] || [])
+        : [rootTab];
 
-          totalFields += fields.length;
-          filledFields += fields.filter(f => formData[f.key]?.trim()).length;
-        }
+      tabsToCount.forEach((tab) => {
+        const setIds = getRealSetIds(tab);
+        setIds.forEach((setId) => {
+          const fieldSet = fieldSetById.get(setId);
+          if (fieldSet) {
+            const fields = (fieldSet.fieldIds ?? [])
+              .map((fid: string) => fieldById.get(fid))
+              .filter((f): f is DynamicField => Boolean(f));
+
+            totalFields += fields.length;
+            filledFields += fields.filter(f => formData[f.key]?.trim()).length;
+          }
+        });
       });
     });
 
     if (totalFields === 0) return 0;
     return Math.round((filledFields / totalFields) * 100);
-  }, [tabs, formData, fieldSetById, fieldById]);
-
-  // Calculate field stats per tab
-  const tabFieldStats = useMemo(() => {
-    return tabs.map((tab) => {
-      let total = 0;
-      let filled = 0;
-
-      const setIds = tab.setIds ?? [];
-      setIds.forEach((setId) => {
-        const fieldSet = fieldSetById.get(setId);
-        if (fieldSet) {
-          const fields = (fieldSet.fieldIds ?? [])
-            .map((fid: string) => fieldById.get(fid))
-            .filter((f): f is DynamicField => Boolean(f));
-
-          total += fields.length;
-          filled += fields.filter(f => formData[f.key]?.trim()).length;
-        }
-      });
-
-      return { total, filled };
-    });
-  }, [tabs, formData, fieldSetById, fieldById]);
+  }, [rootTabs, tabStructure, formData, fieldSetById, fieldById]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
     setFormData((prev) => {
@@ -305,12 +322,65 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }, [formData, onClose]);
 
   const handlePreviousTab = useCallback(() => {
-    setActiveTab((prev) => Math.max(prev - 1, 0));
-  }, []);
+    if (!currentRootTab || !currentRootMeta) return;
+
+    if (currentRootMeta.tabType === 'sync-group' && currentRootChildren.length > 0 && activeChildTabIndex > 0) {
+      setActiveChildTabByParent((prev) => ({
+        ...prev,
+        [currentRootTab.id]: activeChildTabIndex - 1,
+      }));
+      return;
+    }
+
+    if (activeTab <= 0) return;
+
+    const prevRootIndex = activeTab - 1;
+    const prevRoot = rootTabs[prevRootIndex];
+    if (!prevRoot) {
+      setActiveTab(prevRootIndex);
+      return;
+    }
+
+    const prevRootMeta = parseTabMeta(prevRoot);
+    const prevChildren = tabStructure.childrenByParent[prevRoot.id] || [];
+
+    setActiveTab(prevRootIndex);
+
+    if (prevRootMeta.tabType === 'sync-group' && prevChildren.length > 0) {
+      setActiveChildTabByParent((prev) => ({
+        ...prev,
+        [prevRoot.id]: prevChildren.length - 1,
+      }));
+    }
+  }, [activeChildTabIndex, activeTab, currentRootChildren, currentRootMeta, currentRootTab, rootTabs, tabStructure]);
 
   const handleNextTab = useCallback(() => {
-    setActiveTab((prev) => Math.min(prev + 1, Math.max(tabs.length - 1, 0)));
-  }, [tabs.length]);
+    if (!currentRootTab || !currentRootMeta) return;
+
+    if (currentRootMeta.tabType === 'sync-group' && currentRootChildren.length > 0 && activeChildTabIndex < currentRootChildren.length - 1) {
+      setActiveChildTabByParent((prev) => ({
+        ...prev,
+        [currentRootTab.id]: activeChildTabIndex + 1,
+      }));
+      return;
+    }
+
+    setActiveTab((prev) => Math.min(prev + 1, Math.max(rootTabs.length - 1, 0)));
+  }, [activeChildTabIndex, currentRootChildren, currentRootMeta, currentRootTab, rootTabs.length]);
+
+  useEffect(() => {
+    if (rootTabs.length === 0) {
+      if (activeTab !== 0) setActiveTab(0);
+      return;
+    }
+    if (activeTab > rootTabs.length - 1) {
+      setActiveTab(rootTabs.length - 1);
+    }
+  }, [activeTab, rootTabs.length]);
+
+  const isAtStart = activeTab === 0 && !(currentRootMeta?.tabType === 'sync-group' && activeChildTabIndex > 0);
+  const isAtEnd = activeTab >= rootTabs.length - 1
+    && !(currentRootMeta?.tabType === 'sync-group' && currentRootChildren.length > 0 && activeChildTabIndex < currentRootChildren.length - 1);
 
   if (!formConfig) {
     return null;
@@ -340,7 +410,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           <Button
             variant="outlined"
             onClick={handlePreviousTab}
-            disabled={activeTab === 0}
+            disabled={isAtStart}
             sx={{
               textTransform: 'none',
               fontWeight: 600,
@@ -372,7 +442,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
               Hủy
             </Button>
 
-            {activeTab < tabs.length - 1 ? (
+            {!isAtEnd ? (
               <Button
                 variant="contained"
                 onClick={handleNextTab}
@@ -466,12 +536,14 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
             },
           }}
         >
-          {tabs.map((tab, index) => {
+          {rootTabs.map((tab, index) => {
             const isActive = activeTab === index;
+            const meta = parseTabMeta(tab);
+            const childCount = (tabStructure.childrenByParent[tab.id] || []).length;
 
             return (
               <Tab
-                key={tab.id}
+                key={`${tab.id}-${index}`}
                 value={index}
                 label={
                   <Stack direction="row" alignItems="center" spacing={1}>
@@ -483,6 +555,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                       }}
                     >
                       {tab.label}
+                      {meta.tabType === 'sync-group' && childCount > 0 ? ` (${childCount} tab con)` : ''}
                     </Typography>
                   </Stack>
                 }
@@ -490,6 +563,36 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
             );
           })}
         </Tabs>
+
+        {currentRootMeta?.tabType === 'sync-group' && currentRootChildren.length > 0 && currentRootTab && (
+          <Tabs
+            value={activeChildTabIndex}
+            onChange={(_, v) => {
+              setActiveChildTabByParent((prev) => ({
+                ...prev,
+                [currentRootTab.id]: v,
+              }));
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              px: 3,
+              minHeight: 44,
+              bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'grey.50',
+              '& .MuiTab-root': { minHeight: 44, py: 0.75 },
+              '& .MuiTabs-indicator': { bgcolor: 'secondary.main' },
+            }}
+          >
+            {currentRootChildren.map((child, index) => (
+              <Tab
+                key={`${child.id}-${index}`}
+                value={index}
+                label={child.label}
+                sx={{ textTransform: 'none', fontSize: '0.8rem', fontWeight: activeChildTabIndex === index ? 700 : 500 }}
+              />
+            ))}
+          </Tabs>
+        )}
       </Box>
 
       {/* Tab Content - Hiển thị theo FieldSets từ formConfig */}
@@ -505,7 +608,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           {currentTabContent.length > 0 ? (
             currentTabContent.map((item, index) => (
               <FieldSetGroup
-                key={item.fieldSet.id}
+                key={`${item.fieldSet.id}-${index}`}
                 fieldSet={item.fieldSet}
                 fields={item.fields}
                 formData={formData}
@@ -523,7 +626,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                 Chưa có trường dữ liệu được cấu hình
               </Typography>
               <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
-                Vui lòng cấu hình form trong phần "Cấu hình tham số"
+                {currentRootMeta?.tabType === 'sync-group'
+                  ? 'Tab cha đồng bộ không chứa trực tiếp bộ dữ liệu. Hãy chọn tab con ở phía trên.'
+                  : 'Vui lòng cấu hình form trong phần "Cấu hình tham số"'}
               </Typography>
             </Box>
           )}

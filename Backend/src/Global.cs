@@ -113,39 +113,69 @@ public static class Global
     }
 
     // ── ThamSo collections (Using BsonDocument for manual mapping) ───
-    private static IMongoCollection<BsonDocument>? _collectionDynamicField;
-    public static IMongoCollection<BsonDocument>? CollectionDynamicField
+    private static IMongoCollection<BsonDocument>? _collectionBsonDynamicField;
+    public static IMongoCollection<BsonDocument>? CollectionBsonDynamicField
     {
         get
         {
-            if (_collectionDynamicField == null)
-                _collectionDynamicField = MongoDB?.GetCollection<BsonDocument>("DynamicField");
-            return _collectionDynamicField;
+            if (_collectionBsonDynamicField == null)
+                _collectionBsonDynamicField = MongoDB?.GetCollection<BsonDocument>("DynamicField");
+            return _collectionBsonDynamicField;
         }
     }
 
-    private static IMongoCollection<BsonDocument>? _collectionFieldSet;
-    public static IMongoCollection<BsonDocument>? CollectionFieldSet
+    private static IMongoCollection<DynamicField>? collectionDynamicField;
+    public static IMongoCollection<DynamicField>? CollectionDynamicField
     {
         get
         {
-            if (_collectionFieldSet == null)
-                _collectionFieldSet = MongoDB?.GetCollection<BsonDocument>("FieldSet");
-            return _collectionFieldSet;
+            if (collectionDynamicField == null)
+                collectionDynamicField = MongoDB?.GetCollection<DynamicField>("DynamicField");
+            return collectionDynamicField;
         }
     }
 
-    private static IMongoCollection<BsonDocument>? _collectionFormConfig;
-    public static IMongoCollection<BsonDocument>? CollectionFormConfig
+    private static IMongoCollection<BsonDocument>? _collectionBsonFieldSet;
+    public static IMongoCollection<BsonDocument>? CollectionBsonFieldSet
     {
         get
         {
-            if (_collectionFormConfig == null)
-                _collectionFormConfig = MongoDB?.GetCollection<BsonDocument>("FormConfig");
-            return _collectionFormConfig;
+            if (_collectionBsonFieldSet == null)
+                _collectionBsonFieldSet = MongoDB?.GetCollection<BsonDocument>("FieldSet");
+            return _collectionBsonFieldSet;
         }
     }
 
+    private static IMongoCollection<FieldSet>? collectionFieldSet;
+    public static IMongoCollection<FieldSet>? CollectionFieldSet
+    {
+        get
+        {
+            if (collectionFieldSet == null)
+                collectionFieldSet = MongoDB?.GetCollection<FieldSet>("FieldSet");
+            return collectionFieldSet;
+        }
+    }
+    private static IMongoCollection<BsonDocument>? _collectionBsonFormConfig;
+    public static IMongoCollection<BsonDocument>? CollectionBsonFormConfig
+    {
+        get
+        {
+            if (_collectionBsonFormConfig == null)
+                _collectionBsonFormConfig = MongoDB?.GetCollection<BsonDocument>("FormConfig");
+            return _collectionBsonFormConfig;
+        }
+    }
+    private static IMongoCollection<FormConfig>? collectionFormConfig;
+    public static IMongoCollection<FormConfig>? CollectionFormConfig
+    {
+        get
+        {
+            if (collectionFormConfig == null)
+                collectionFormConfig = MongoDB?.GetCollection<FormConfig>("FormConfig");
+            return collectionFormConfig;
+        }
+    }
 
     public static void UseEmployeeServices(this WebApplication app, IConfiguration config, string version)
     {

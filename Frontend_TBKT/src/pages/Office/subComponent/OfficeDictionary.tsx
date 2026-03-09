@@ -1,6 +1,6 @@
 import React, {
     useEffect, useMemo, useState, useCallback, useRef,
-    useTransition, startTransition, CSSProperties, useContext,
+    useTransition, startTransition, CSSProperties, useContext, SetStateAction,
 } from 'react';
 
 
@@ -80,6 +80,44 @@ const officeNodeCache = new Map<string, OfficeNode[]>();
 const ROOT_KEY = 'root';
 const ROW_HEIGHT = 40;
 
+function getNodeId(node: OfficeNode): string {
+    return node.id?.toString() ?? '';
+}
+
+function getParentNodeId(node: OfficeNode): string | null {
+    const parentId = node.idcaptren || node.idCapTren || node.id_cap_tren || node.IDCapTren;
+    return parentId ? String(parentId) : null;
+}
+
+function hasChildren(node: OfficeNode): boolean {
+    return Boolean(node.cocapduoi ?? node.coCapDuoi ?? node.CoCapDuoi ?? false);
+}
+
+function isLoadingRow(row: VisibleRow): row is LoadingRow {
+    return 'loading' in row;
+}
+
+function isTreeRow(row: VisibleRow): row is TreeRow {
+    return 'node' in row;
+}
+
+function useSyncedStateRef<T>(initialState: T): [T, React.MutableRefObject<T>, (nextValue: SetStateAction<T>) => T] {
+    const [state, setState] = useState<T>(initialState);
+    const stateRef = useRef<T>(initialState);
+
+    const setSyncedState = useCallback((nextValue: SetStateAction<T>) => {
+        const next = typeof nextValue === 'function'
+            ? (nextValue as (prev: T) => T)(stateRef.current)
+            : nextValue;
+
+        stateRef.current = next;
+        setState(next);
+        return next;
+    }, []);
+
+    return [state, stateRef, setSyncedState];
+}
+
 // ── computeVisibleList ─────────────────────────────────────────────────────────
 
 function computeVisibleList(
@@ -89,27 +127,32 @@ function computeVisibleList(
     parentKey: string = ROOT_KEY,
     depth: number = 0,
 ): VisibleRow[] {
-    const nodes = nodesByParent[parentKey] || [];
     const rows: VisibleRow[] = [];
 
-    for (const node of nodes) {
-        const id = node.id?.toString() ?? '';
-        const isExpanded = expandedSet.has(id);
-        const isLoading = !!loadingByParent[id];
-        const childNodes = nodesByParent[id];
-        const coCapDuoi = Boolean(node.cocapduoi ?? node.coCapDuoi ?? node.CoCapDuoi ?? false);
-        const canExpand = coCapDuoi || !!(childNodes && childNodes.length > 0);
+    const appendRows = (currentParentKey: string, currentDepth: number) => {
+        const nodes = nodesByParent[currentParentKey] || [];
 
-        rows.push({ node, depth, isExpanded, isLoading, canExpand });
+        for (const node of nodes) {
+            const id = getNodeId(node);
+            const isExpanded = expandedSet.has(id);
+            const isLoading = !!loadingByParent[id];
+            const childNodes = nodesByParent[id];
+            const canExpand = hasChildren(node) || !!(childNodes && childNodes.length > 0);
 
-        if (isExpanded) {
-            if (isLoading) {
-                rows.push({ loading: true, depth: depth + 1 });
-            } else {
-                rows.push(...computeVisibleList(nodesByParent, expandedSet, loadingByParent, id, depth + 1));
+            rows.push({ node, depth: currentDepth, isExpanded, isLoading, canExpand });
+
+            if (isExpanded) {
+                if (isLoading) {
+                    rows.push({ loading: true, depth: currentDepth + 1 });
+                } else {
+                    appendRows(id, currentDepth + 1);
+                }
             }
         }
-    }
+    };
+
+    appendRows(parentKey, depth);
+
     return rows;
 }
 
@@ -208,18 +251,21 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             ? props.selectedOffice
             : officeCtx?.state.selectedOffice ?? null;  // ← state.selectedOffice
 
-    const [nodesByParent, setNodesByParent] = useState<NodesByParent>({ [ROOT_KEY]: [] });
-    const [nodeMap, setNodeMap] = useState<Record<string, OfficeNode>>({});
-    const [expandedSet, setExpandedSet] = useState<Set<string>>(() => new Set());
-    const [loadingByParent, setLoadingByParent] = useState<LoadingByParent>({});
+    const [nodesByParent, nodesByParentRef, setNodesByParentSynced] = useSyncedStateRef<NodesByParent>({ [ROOT_KEY]: [] });
+    const [expandedSet, expandedSetRef, setExpandedSetSynced] = useSyncedStateRef<Set<string>>(new Set());
+    const [loadingByParent, loadingByParentRef, setLoadingByParentSynced] = useSyncedStateRef<LoadingByParent>({});
+    const [visibleTreeRows, visibleTreeRowsRef, setVisibleTreeRowsSynced] = useSyncedStateRef<VisibleRow[]>([]);
     const [internalSelected, setInternalSelected] = useState<OfficeNode | null>(selectedOffice ?? null);
     const loadedByParentRef = useRef<Record<string, boolean>>({});
+    const nodeMapRef = useRef<Record<string, OfficeNode>>({});
+    const parentByNodeIdRef = useRef<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
     const [searchText, setSearchText] = useState<string>('');
     const [searchLoading, setSearchLoading] = useState<boolean>(false);
     const [searchResults, setSearchResults] = useState<OfficeNode[] | null>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchRequestIdRef = useRef<number>(0);
     const [, startExpandTransition] = useTransition();
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -230,6 +276,176 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
         return offices.filter(o => !(o.idcaptren || o.idCapTren || o.id_cap_tren || o.IDCapTren));
     }, []);
 
+    const indexNodes = useCallback((nodes: OfficeNode[], parentKey: string) => {
+        for (const node of nodes) {
+            const id = getNodeId(node);
+            if (!id) continue;
+            nodeMapRef.current[id] = node;
+            parentByNodeIdRef.current[id] = parentKey;
+        }
+    }, []);
+
+    const findVisibleRowIndex = useCallback((rows: VisibleRow[], nodeId: string) => {
+        return rows.findIndex(row => isTreeRow(row) && getNodeId(row.node) === nodeId);
+    }, []);
+
+    const getVisibleDescendantCount = useCallback((rows: VisibleRow[], parentIndex: number) => {
+        const parentRow = rows[parentIndex];
+        if (!parentRow || !isTreeRow(parentRow)) {
+            return 0;
+        }
+
+        const parentDepth = parentRow.depth;
+        let count = 0;
+        for (let index = parentIndex + 1; index < rows.length; index += 1) {
+            if (rows[index].depth <= parentDepth) {
+                break;
+            }
+            count += 1;
+        }
+
+        return count;
+    }, []);
+
+    const getTreeRowMeta = useCallback((node: OfficeNode, depth: number): TreeRow => {
+        const id = getNodeId(node);
+        const childNodes = nodesByParentRef.current[id];
+
+        return {
+            node,
+            depth,
+            isExpanded: expandedSetRef.current.has(id),
+            isLoading: !!loadingByParentRef.current[id],
+            canExpand: hasChildren(node) || !!(childNodes && childNodes.length > 0),
+        };
+    }, []);
+
+    const rebuildVisibleTree = useCallback(() => {
+        setVisibleTreeRowsSynced(computeVisibleList(
+            nodesByParentRef.current,
+            expandedSetRef.current,
+            loadingByParentRef.current,
+        ));
+    }, [setVisibleTreeRowsSynced]);
+
+    const syncVisibleBranch = useCallback((parentKey: string) => {
+        if (parentKey === ROOT_KEY) {
+            rebuildVisibleTree();
+            return;
+        }
+
+        setVisibleTreeRowsSynced(prev => {
+            const parentIndex = findVisibleRowIndex(prev, parentKey);
+            if (parentIndex === -1) {
+                return prev;
+            }
+
+            const currentParentRow = prev[parentIndex];
+            if (!isTreeRow(currentParentRow)) {
+                return prev;
+            }
+
+            const nextRows = [...prev];
+            const nextParentRow = getTreeRowMeta(currentParentRow.node, currentParentRow.depth);
+            nextRows[parentIndex] = nextParentRow;
+
+            const descendantCount = getVisibleDescendantCount(nextRows, parentIndex);
+            const branchRows: VisibleRow[] = nextParentRow.isExpanded
+                ? (nextParentRow.isLoading
+                    ? [{ loading: true, depth: nextParentRow.depth + 1 } as LoadingRow]
+                    : computeVisibleList(
+                        nodesByParentRef.current,
+                        expandedSetRef.current,
+                        loadingByParentRef.current,
+                        parentKey,
+                        nextParentRow.depth + 1,
+                    ))
+                : [];
+
+            nextRows.splice(parentIndex + 1, descendantCount, ...branchRows);
+            return nextRows;
+        });
+    }, [findVisibleRowIndex, getTreeRowMeta, getVisibleDescendantCount, rebuildVisibleTree, setVisibleTreeRowsSynced]);
+
+    const syncVisibleNode = useCallback((nodeId: string) => {
+        setVisibleTreeRowsSynced(prev => {
+            const rowIndex = findVisibleRowIndex(prev, nodeId);
+            if (rowIndex === -1) {
+                return prev;
+            }
+
+            const currentRow = prev[rowIndex];
+            if (!isTreeRow(currentRow)) {
+                return prev;
+            }
+
+            const nextNode = nodeMapRef.current[nodeId] ?? currentRow.node;
+            const nextRow = getTreeRowMeta(nextNode, currentRow.depth);
+            const nextRows = [...prev];
+            nextRows[rowIndex] = nextRow;
+            return nextRows;
+        });
+    }, [findVisibleRowIndex, getTreeRowMeta, setVisibleTreeRowsSynced]);
+
+    const removeNodeIndexes = useCallback((nodeId: string) => {
+        const stack = [nodeId];
+
+        while (stack.length > 0) {
+            const currentId = stack.pop();
+            if (!currentId) continue;
+
+            const children = nodesByParentRef.current[currentId] || [];
+            children.forEach(child => {
+                const childId = getNodeId(child);
+                if (childId) {
+                    stack.push(childId);
+                }
+            });
+
+            delete nodeMapRef.current[currentId];
+            delete parentByNodeIdRef.current[currentId];
+            delete loadedByParentRef.current[currentId];
+            officeNodeCache.delete(currentId);
+        }
+    }, []);
+
+    const collectSubtreeNodeIds = useCallback((nodeId: string, source: NodesByParent = nodesByParentRef.current) => {
+        const collectedIds: string[] = [];
+        const stack = [nodeId];
+
+        while (stack.length > 0) {
+            const currentId = stack.pop();
+            if (!currentId) continue;
+
+            collectedIds.push(currentId);
+            const children = source[currentId] || [];
+            children.forEach(child => {
+                const childId = getNodeId(child);
+                if (childId) {
+                    stack.push(childId);
+                }
+            });
+        }
+
+        return collectedIds;
+    }, []);
+
+    const findParentKeyForNode = useCallback((nodeId: string, source: NodesByParent = nodesByParentRef.current): string | null => {
+        const indexedParentKey = parentByNodeIdRef.current[nodeId];
+        if (indexedParentKey && source[indexedParentKey]?.some(node => getNodeId(node) === nodeId)) {
+            return indexedParentKey;
+        }
+
+        for (const key of Object.keys(source)) {
+            if (source[key].some(node => getNodeId(node) === nodeId)) {
+                parentByNodeIdRef.current[nodeId] = key;
+                return key;
+            }
+        }
+
+        return null;
+    }, []);
+
     // ── Fetch ──────────────────────────────────────────────────────────────────
 
     const fetchNodes = useCallback(async (parentId?: string | number | null) => {
@@ -237,33 +453,34 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
 
         if (officeNodeCache.has(parentKey)) {
             const cached = officeNodeCache.get(parentKey)!;
+            indexNodes(cached, parentKey);
             startTransition(() => {
-                setNodesByParent(prev => ({ ...prev, [parentKey]: cached }));
-                setNodeMap(prev => {
-                    const next = { ...prev };
-                    cached.forEach(n => { if (n.id != null) next[String(n.id)] = n; });
-                    return next;
-                });
+                setNodesByParentSynced(prev => ({ ...prev, [parentKey]: cached }));
+                if (parentKey === ROOT_KEY || expandedSetRef.current.has(parentKey)) {
+                    syncVisibleBranch(parentKey);
+                }
             });
             loadedByParentRef.current[parentKey] = true;
             return;
         }
 
-        setLoadingByParent(prev => ({ ...prev, [parentKey]: true }));
+        setLoadingByParentSynced(prev => ({ ...prev, [parentKey]: true }));
+        if (parentKey !== ROOT_KEY && expandedSetRef.current.has(parentKey)) {
+            syncVisibleBranch(parentKey);
+        }
         try {
             const result = await officeApi.getListOffices(
                 parentId ? { parentID: String(parentId), loadAll: false } : undefined
             );
             const children: OfficeNode[] = result || [];
             officeNodeCache.set(parentKey, children);
+            indexNodes(children, parentKey);
 
             startTransition(() => {
-                setNodesByParent(prev => ({ ...prev, [parentKey]: children }));
-                setNodeMap(prev => {
-                    const next = { ...prev };
-                    children.forEach(n => { if (n.id != null) next[String(n.id)] = n; });
-                    return next;
-                });
+                setNodesByParentSynced(prev => ({ ...prev, [parentKey]: children }));
+                if (parentKey === ROOT_KEY || expandedSetRef.current.has(parentKey)) {
+                    syncVisibleBranch(parentKey);
+                }
             });
             loadedByParentRef.current[parentKey] = true;
             setError(null);
@@ -271,9 +488,12 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             console.error('[fetchNodes] Error:', err);
             setError('Không thể tải danh sách đơn vị');
         } finally {
-            setLoadingByParent(prev => ({ ...prev, [parentKey]: false }));
+            setLoadingByParentSynced(prev => ({ ...prev, [parentKey]: false }));
+            if (parentKey === ROOT_KEY || expandedSetRef.current.has(parentKey)) {
+                syncVisibleBranch(parentKey);
+            }
         }
-    }, []);
+    }, [indexNodes, setLoadingByParentSynced, setNodesByParentSynced, syncVisibleBranch]);
 
     // ── Refresh (exposed qua ref) ──────────────────────────────────────────────
 
@@ -294,23 +514,17 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             const serialized = (Array.isArray(children) ? children : [])
                 .map(c => serializeProtoObject(c) as unknown as OfficeNode);
 
-            setNodesByParent(prev => ({ ...prev, [key]: serialized }));
+            indexNodes(serialized, key);
 
-            setNodeMap(prev => {
-                const next = { ...prev };
-                for (const node of serialized) {
-                    const nid = node.id?.toString() ?? '';
-                    if (nid) next[nid] = node;
-                }
-                return next;
-            });
+            setNodesByParentSynced(prev => ({ ...prev, [key]: serialized }));
+            syncVisibleBranch(key);
 
             loadedByParentRef.current[key] = true;
 
         } catch (error) {
             console.error('[OfficeDictionary] refreshChildrenForParent error:', error);
         }
-    }, []);
+    }, [indexNodes, setNodesByParentSynced, syncVisibleBranch]);
 
     const refreshNode = useCallback(async (nodeId: string | number) => {
         const id = String(nodeId);
@@ -319,28 +533,41 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             if (!freshNode) return;
 
             const serialized = serializeProtoObject(freshNode) as unknown as OfficeNode;
+            const parentKey = findParentKeyForNode(id);
 
-            setNodesByParent(prev => {
-                const next: NodesByParent = { ...prev };
-                for (const key of Object.keys(next)) {
-                    const idx = next[key].findIndex(n => n.id?.toString() === id);
-                    if (idx !== -1) {
-                        const updated = [...next[key]];
-                        updated[idx] = serialized;
-                        next[key] = updated;
-                        break;
-                    }
+            nodeMapRef.current[id] = serialized;
+            if (parentKey) {
+                parentByNodeIdRef.current[id] = parentKey;
+            }
+
+            const nextNodesByParent = setNodesByParentSynced(prev => {
+                const resolvedParentKey = parentKey ?? findParentKeyForNode(id, prev);
+                if (!resolvedParentKey) {
+                    return prev;
                 }
-                return next;
-            });
 
-            setNodeMap(prev => ({ ...prev, [id]: serialized }));
+                const siblings = prev[resolvedParentKey] || [];
+                const idx = siblings.findIndex(n => getNodeId(n) === id);
+                if (idx === -1) {
+                    return prev;
+                }
+
+                const updated = [...siblings];
+                updated[idx] = serialized;
+
+                return { ...prev, [resolvedParentKey]: updated };
+            });
+            const resolvedParentKey = parentKey ?? findParentKeyForNode(id, nextNodesByParent);
+            syncVisibleNode(id);
+            if (resolvedParentKey) {
+                syncVisibleBranch(resolvedParentKey);
+            }
             officeNodeCache.delete(id);
 
         } catch (error) {
             console.error('[OfficeDictionary] refreshNode error:', error);
         }
-    }, []);
+    }, [findParentKeyForNode, setNodesByParentSynced, syncVisibleBranch, syncVisibleNode]);
 
     const refreshNodeAndChildren = useCallback(async (nodeId: string | number) => {
         await refreshNode(nodeId);
@@ -350,44 +577,50 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
     const refreshTree = useCallback(() => {
         officeNodeCache.clear();
         loadedByParentRef.current = {};
-        setNodesByParent({ [ROOT_KEY]: [] });
-        setNodeMap({});
-        setExpandedSet(new Set());
+        nodeMapRef.current = {};
+        parentByNodeIdRef.current = {};
+        loadingByParentRef.current = {};
+        visibleTreeRowsRef.current = [];
+        setNodesByParentSynced({ [ROOT_KEY]: [] });
+        setExpandedSetSynced(new Set());
+        setLoadingByParentSynced({});
+        setVisibleTreeRowsSynced([]);
         setRefreshTrigger(prev => prev + 1);
-    }, []);
+    }, [setExpandedSetSynced, setLoadingByParentSynced, setNodesByParentSynced, setVisibleTreeRowsSynced]);
 
     const removeNode = useCallback((nodeId: string | number) => {
         const id = String(nodeId);
+        const removedSubtreeIds = collectSubtreeNodeIds(id);
 
-        const parentId = (() => {
-            for (const key of Object.keys(nodesByParent)) {
-                const found = nodesByParent[key].find(n => n.id?.toString() === id);
-                if (found) return key;
-            }
-            return null;
-        })();
+        const parentId = findParentKeyForNode(id);
+        removeNodeIndexes(id);
 
-        officeNodeCache.delete(id);
-        delete loadedByParentRef.current[id];
+        const nextNodesByParent = setNodesByParentSynced(prev => {
+            const next: NodesByParent = { ...prev };
 
-        setNodesByParent(prev => {
-            const next: NodesByParent = {};
             for (const key of Object.keys(prev)) {
-                next[key] = prev[key].filter(n => n.id?.toString() !== id);
+                const filtered = prev[key].filter(n => getNodeId(n) !== id);
+                if (filtered.length !== prev[key].length) {
+                    next[key] = filtered;
+                }
             }
+
             delete next[id];
 
             // Nếu parent hết con → coCapDuoi = false
             if (parentId && parentId !== ROOT_KEY) {
                 const siblings = next[parentId] || [];
                 if (siblings.length === 0) {
-                    for (const key of Object.keys(next)) {
-                        const idx = next[key].findIndex(n => n.id?.toString() === parentId);
+                    const grandParentKey = findParentKeyForNode(parentId, next);
+                    if (grandParentKey) {
+                        const parentSiblings = next[grandParentKey] || [];
+                        const idx = parentSiblings.findIndex(n => getNodeId(n) === parentId);
                         if (idx !== -1) {
-                            const updated = [...next[key]];
-                            updated[idx] = { ...updated[idx], coCapDuoi: false, cocapduoi: false };
-                            next[key] = updated;
-                            break;
+                            const updated = [...parentSiblings];
+                            const updatedParent = { ...updated[idx], coCapDuoi: false, cocapduoi: false };
+                            updated[idx] = updatedParent;
+                            next[grandParentKey] = updated;
+                            nodeMapRef.current[parentId] = updatedParent;
                         }
                     }
                 }
@@ -396,40 +629,36 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             return next;
         });
 
-        setNodeMap(prev => {
-            const next = { ...prev };
-            delete next[id];
-            return next;
-        });
-
-        setExpandedSet(prev => {
+        setExpandedSetSynced(prev => {
             const next = new Set(prev);
-            next.delete(id);
+            removedSubtreeIds.forEach(removedId => next.delete(removedId));
             return next;
         });
 
-    }, [nodesByParent]);
+        if (!parentId || parentId === ROOT_KEY) {
+            rebuildVisibleTree();
+        } else {
+            syncVisibleBranch(parentId);
+        }
 
-    React.useImperativeHandle(ref, () => ({
-        refreshChildrenForParent,
-        refreshNode,
-        refreshTree,
-        refreshNodeAndChildren,
-        removeNode,
-    }), [refreshChildrenForParent, refreshNode, refreshTree, refreshNodeAndChildren, removeNode]);
+    }, [collectSubtreeNodeIds, findParentKeyForNode, rebuildVisibleTree, removeNodeIndexes, setExpandedSetSynced, setNodesByParentSynced, syncVisibleBranch]);
 
     // ── Init từ initialOffices (đọc từ context hoặc props) ──────────────
     useEffect(() => {
         if (!initialOffices?.length) return;
 
         const rootNodes = getRootNodes(initialOffices);
-
-        const map: Record<string, OfficeNode> = {};
-        initialOffices.forEach(n => { if (n.id != null) map[String(n.id)] = n; });
+        nodeMapRef.current = {};
+        parentByNodeIdRef.current = {};
 
         const byParent: NodesByParent = { [ROOT_KEY]: rootNodes };
         initialOffices.forEach(n => {
-            const parentId = (n.idCapTren || n.idcaptren || n.IDCapTren) as string | undefined;
+            const parentId = getParentNodeId(n);
+            const nodeId = getNodeId(n);
+            if (nodeId) {
+                nodeMapRef.current[nodeId] = n;
+                parentByNodeIdRef.current[nodeId] = parentId ?? ROOT_KEY;
+            }
             if (parentId) {
                 if (!byParent[parentId]) byParent[parentId] = [];
                 const siblings = byParent[parentId];   // cache ref, tránh 3 lần lookup
@@ -439,19 +668,18 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             }
         });
 
-        setNodesByParent(prev => {
+        setNodesByParentSynced(prev => {
             const next = { ...prev };
             for (const key of Object.keys(byParent)) {
                 next[key] = byParent[key];
             }
             return next;
         });
-
-        setNodeMap(prev => ({ ...prev, ...map }));
         loadedByParentRef.current[ROOT_KEY] = true;
         setError(null);
+        rebuildVisibleTree();
 
-    }, [initialOffices, refreshTrigger, getRootNodes]);   // ← initialOffices thay đổi khi context load xong
+    }, [initialOffices, rebuildVisibleTree, refreshTrigger, getRootNodes, setNodesByParentSynced]);   // ← initialOffices thay đổi khi context load xong
 
     // ── Self-fetch fallback: khi không có initialOffices (dùng ngoài OfficeProvider) ──
     useEffect(() => {
@@ -464,17 +692,22 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
     // ── Expand toggle ──────────────────────────────────────────────────────────
 
     const handleToggleExpand = useCallback((itemId: string) => {
-        let willExpand = false;
-        setExpandedSet(prev => {
-            const next = new Set(prev);
-            if (next.has(itemId)) { next.delete(itemId); }
-            else { next.add(itemId); willExpand = true; }
-            return next;
-        });
-        if (willExpand && !loadedByParentRef.current[itemId] && !loadingByParent[itemId]) {
+        const nextExpanded = new Set(expandedSetRef.current);
+        const willExpand = !nextExpanded.has(itemId);
+
+        if (willExpand) {
+            nextExpanded.add(itemId);
+        } else {
+            nextExpanded.delete(itemId);
+        }
+
+        setExpandedSetSynced(nextExpanded);
+        syncVisibleBranch(itemId);
+
+        if (willExpand && !loadedByParentRef.current[itemId] && !loadingByParentRef.current[itemId]) {
             startExpandTransition(() => { fetchNodes(itemId); });
         }
-    }, [loadingByParent, fetchNodes, startExpandTransition]);
+    }, [fetchNodes, setExpandedSetSynced, startExpandTransition, syncVisibleBranch]);
 
     // ── FIX: sync internalSelected khi selectedOffice prop thay đổi từ ngoài ──
     useEffect(() => {
@@ -501,31 +734,68 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
         }
     }, [onSelect, onSelectOffice, officeCtx]);  //  bỏ internalSelected khỏi deps
 
+    React.useImperativeHandle(ref, () => ({
+        refreshChildrenForParent,
+        refreshNode,
+        refreshTree,
+        refreshNodeAndChildren,
+        removeNode,
+        selectNode: (nodeId: string) => {
+            const node = nodeMapRef.current[nodeId];
+            if (node) {
+                handleSelect(node);
+            }
+        },
+    }), [refreshChildrenForParent, refreshNode, refreshTree, refreshNodeAndChildren, removeNode, handleSelect]);
+
     // ── Search ─────────────────────────────────────────────────────────────────
 
     const performSearch = useCallback(async (query: string) => {
-        if (!query?.trim()) { setSearchResults(null); return; }
+        const trimmedQuery = query.trim();
+        const requestId = searchRequestIdRef.current + 1;
+        searchRequestIdRef.current = requestId;
+
+        if (!trimmedQuery) {
+            setSearchLoading(false);
+            setSearchResults(null);
+            return;
+        }
+
         setSearchLoading(true);
         try {
-            const result: OfficeNode[] = await officeApi.getListOffices({ searchText: query.trim() });
-            setSearchResults(result || []);
-            if (result?.length) {
-                setNodeMap(prev => {
-                    const next = { ...prev };
-                    result.forEach(n => { if (n.id != null) next[String(n.id)] = n; });
-                    return next;
-                });
+            const result: OfficeNode[] = await officeApi.getListOffices({ searchText: trimmedQuery });
+            if (requestId !== searchRequestIdRef.current) {
+                return;
             }
+
+            (result || []).forEach(node => {
+                const nodeId = getNodeId(node);
+                if (nodeId) {
+                    nodeMapRef.current[nodeId] = node;
+                }
+            });
+
+            setSearchResults(result || []);
         } catch (err) {
+            if (requestId !== searchRequestIdRef.current) {
+                return;
+            }
             console.error('[Search] Error:', err);
             setSearchResults([]);
         } finally {
-            setSearchLoading(false);
+            if (requestId === searchRequestIdRef.current) {
+                setSearchLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
-        if (!searchText?.trim()) { setSearchResults(null); return; }
+        if (!searchText?.trim()) {
+            searchRequestIdRef.current += 1;
+            setSearchLoading(false);
+            setSearchResults(null);
+            return;
+        }
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         searchTimeoutRef.current = setTimeout(() => performSearch(searchText), 500);
         return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
@@ -545,7 +815,9 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
     }, [searchText, performSearch]);
 
     const handleClearSearch = useCallback(() => {
+        searchRequestIdRef.current += 1;
         setSearchText('');
+        setSearchLoading(false);
         setSearchResults(null);
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     }, []);
@@ -563,8 +835,8 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
                 node, depth: 0, isExpanded: false, isLoading: false, canExpand: false,
             }));
         }
-        return computeVisibleList(nodesByParent, expandedSet, loadingByParent);
-    }, [isSearchMode, searchResults, nodesByParent, expandedSet, loadingByParent]);
+        return visibleTreeRows;
+    }, [isSearchMode, searchResults, visibleTreeRows]);
 
     // ── Virtualization ─────────────────────────────────────────────────────────
 
@@ -572,6 +844,18 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
         count: visibleList.length,
         getScrollElement: () => scrollContainerRef.current,
         estimateSize: () => ROW_HEIGHT,
+        getItemKey: (index) => {
+            const row = visibleList[index];
+            if (!row) {
+                return `row-${index}`;
+            }
+
+            if ('loading' in row) {
+                return `loading-${index}-${row.depth}`;
+            }
+
+            return getNodeId(row.node) || `node-${index}`;
+        },
         overscan: 10,
     });
 
