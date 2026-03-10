@@ -127,18 +127,21 @@ function protoSetToLocal(s: FieldSetProto): LocalFieldSet {
         icon: s.icon,
         color: s.color,
         desc: s.desc,
-        fieldIds: [...s.fieldIds],
+        fieldIds: s.fields.map(f => f.id),
     };
 }
 
-function localSetToProto(s: LocalFieldSet): any {
+function localSetToProto(s: LocalFieldSet, allFields?: LocalDynamicField[]): any {
     return create(FieldSetSchema, {
         id: s.id,
         name: s.name,
         icon: s.icon,
         color: s.color,
         desc: s.desc || '',
-        fieldIds: s.fieldIds,
+        fields: s.fieldIds.map(id => {
+            const f = allFields?.find(x => x.id === id);
+            return f ? localFieldToProto(f) : create(DynamicFieldSchema, { id });
+        }),
     });
 }
 
@@ -150,7 +153,7 @@ function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
         tabs: fc.tabs.map((t) => ({
             id: t.id,
             label: t.label,
-            setIds: [...t.setIds],
+            setIds: t.fieldSets.map(fs => fs.id),
         })),
     };
 }
@@ -164,7 +167,7 @@ function localFormToProto(fc: LocalFormConfig): any {
             create(FormTabConfigSchema, {
                 id: t.id,
                 label: t.label,
-                setIds: t.setIds,
+                fieldSets: t.setIds.map(id => create(FieldSetSchema, { id })),
             }),
         ),
     });
@@ -228,11 +231,11 @@ const thamSoApi = {
         }
     },
 
-    async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean): Promise<LocalFieldSet> {
+    async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean, allFields?: LocalDynamicField[]): Promise<LocalFieldSet> {
         try {
             const request = create(SaveFieldSetRequestSchema, {
                 isNew,
-                item: localSetToProto(fieldSet),
+                item: localSetToProto(fieldSet, allFields),
             });
             const res = await thamSoClient.saveFieldSet(request);
             if (!res.success || !res.item) throw new Error(res.message || 'Lưu bộ dữ liệu thất bại');

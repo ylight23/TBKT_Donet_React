@@ -50,14 +50,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new GetListDynamicFieldsResponse();
         try
         {
-            //  if (request.SearchItem.ModifyDate != null)
-            //     {
-            //         var fromDate = request.SearchItem.FromDate.ToDateTime();
-            //         var fromSeconds = new BsonInt64(new DateTimeOffset(fromDate).ToUnixTimeSeconds());
-            //         defaultFilter &= builder.Gte("CreateDate.Seconds", fromSeconds);
-            //         logger.LogInformation($"Filter FromDate: {fromDate:yyyy-MM-dd HH:mm:ss.fff} UTC");
-            //     }
-
+           
 
             var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
             var bsonItems = Global.CollectionBsonDynamicField!.Find(filter).ToList();
@@ -70,10 +63,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 {
                     module.Validation = BsonSerializer.Deserialize<FieldValidation>(itemBson["Validation"].AsBsonDocument);
                 }
-                // if (itemBson.Contains("ModifyDate") && itemBson["ModifyDate"].IsBsonDocument)
-                // {
-                //     module.ModifyDate = BsonSerializer.Deserialize<Timestamp>(itemBson["ModifyDate"].AsBsonDocument);
-                // }
+                
 
                 return module;
             }));
@@ -177,9 +167,34 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         try
         {
             var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            var bsonItems = Global.CollectionBsonFieldSet!.Find(filter).ToList();
+            var bsonItems = await Global.CollectionBsonFieldSet!.Find(filter).ToListAsync();
 
-            response.Items.AddRange(bsonItems.Select(b => MapFieldSetWithFields(b)));
+           // response.Items.AddRange(bsonItems.Select(b => MapFieldSetWithFields(b)));
+
+
+          //  var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
+          //  var bsonItems = Global.CollectionBsonDynamicField!.Find(filter).ToList();
+
+
+            response.Items.AddRange(bsonItems.Select(itemBson =>
+            {
+                var module = BsonSerializer.Deserialize<FieldSet>(itemBson);
+                if (itemBson.Contains("Fields") && itemBson["Fields"].IsBsonArray)
+                {
+                    foreach (var fieldBson in itemBson["Fields"].AsBsonArray)
+                    {
+                        if (!fieldBson.IsBsonDocument) continue;
+                        var field = BsonSerializer.Deserialize<DynamicField>(fieldBson.AsBsonDocument);
+                        if (fieldBson.AsBsonDocument.Contains("Validation") && fieldBson.AsBsonDocument["Validation"].IsBsonDocument)
+                            field.Validation = BsonSerializer.Deserialize<FieldValidation>(fieldBson.AsBsonDocument["Validation"].AsBsonDocument);
+                        module.Fields.Add(field);
+                    }
+                }
+
+                return module;
+            }));
+
+
 
             response.Success = true;
             logger.LogInformation("GetListFieldSets: {Count} items", response.Items.Count);
@@ -208,42 +223,42 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 return response;
             }
 
-            // Lưu FieldSet dưới dạng BsonDocument với field_ids (chỉ ID, không embed)
-            var fieldIds = item.Fields.Select(f => f.Id).ToList();
-            var bsonDoc = new BsonDocument
-            {
-                { "Name",   item.Name },
-                { "Icon",   item.Icon },
-                { "Color",  item.Color },
-                { "Desc",   item.Desc },
-                { "Delete", item.Delete },
-                { "FieldIds", new BsonArray(fieldIds) },
-            };
 
             if (request.IsNew)
             {
-                var newId = ObjectId.GenerateNewId().ToString();
-                bsonDoc["_id"] = newId;
-                bsonDoc["CreateDate"] = FromTimestamp(Timestamp.FromDateTime(DateTime.UtcNow));
-                await Global.CollectionBsonFieldSet!.InsertOneAsync(bsonDoc);
-                item.Id = newId;
+                item.Id = ObjectId.GenerateNewId().ToString();
+
+                
                 item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                await Global.CollectionFieldSet!.InsertOneAsync(item);
+                response.Item = item;
                 response.Message = "Thêm bộ dữ liệu mới thành công!";
-                logger.LogInformation("SaveFieldSet: Created {Id} with {Count} field(s)", newId, fieldIds.Count);
+
+                logger.LogInformation("SaveFieldSet: Created {Id} with {Count} field(s)", item.Id, item.Fields.Count);
             }
             else
             {
-                bsonDoc["_id"] = item.Id;
-                bsonDoc["ModifyDate"] = FromTimestamp(Timestamp.FromDateTime(DateTime.UtcNow));
-                var f = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-                await Global.CollectionBsonFieldSet!.FindOneAndReplaceAsync(f, bsonDoc);
+                var filter = Builders<FieldSet>.Filter.Eq(x => x.Id, item.Id);
                 item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+
+                var updateItem = await Global.CollectionFieldSet!.FindOneAndReplaceAsync(filter, item);
+
+                if (updateItem != null)
+                {
+                    response.Item = item;
+                    response.Success = true;
+                    response.Message = "Cập nhật thành công!";
+
+                }
+                else
+                {
+                    response.Success = false;
+                    response.Message = "Cập nhật không thành công!";
+                }
                 response.Message = "Cập nhật thành công!";
-                logger.LogInformation("SaveFieldSet: Updated {Id} with {Count} field(s)", item.Id, fieldIds.Count);
+                logger.LogInformation("SaveFieldSet: Updated {Id} with {Count} field(s)", item.Id, item.Fields.Count);
             }
 
-            response.Item = item;
-            response.Success = true;
         }
         catch (Exception ex)
         {
@@ -293,11 +308,34 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         try
         {
             var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            var items = await Global.CollectionBsonFormConfig!.Find(filter).ToListAsync();
-            response.Items.AddRange(items.Select(MapFormConfigWithSets));
+            var bsonItems = await Global.CollectionBsonFormConfig!.Find(filter).ToListAsync();
+
+            response.Items.AddRange(bsonItems.Select(itemBson =>
+            {
+                var module = BsonSerializer.Deserialize<FormConfig>(itemBson);
+                if (itemBson.Contains("Tabs") && itemBson["Tabs"].IsBsonArray)
+                {
+                    foreach (var tabBson in itemBson["Tabs"].AsBsonArray)
+                    {
+                        if (!tabBson.IsBsonDocument) continue;
+                        var tab = BsonSerializer.Deserialize<FormTabConfig>(tabBson.AsBsonDocument);
+                        var tabDoc = tabBson.AsBsonDocument;
+                        if (tabDoc.Contains("FieldSets") && tabDoc["FieldSets"].IsBsonArray)
+                        {
+                            foreach (var fsBson in tabDoc["FieldSets"].AsBsonArray)
+                                if (fsBson.IsBsonDocument)
+                                    tab.FieldSets.Add(BsonSerializer.Deserialize<FieldSet>(fsBson.AsBsonDocument));
+                        }
+                        module.Tabs.Add(tab);
+                    }
+                }
+
+                return module;
+            }));
+
 
             response.Success = true;
-            logger.LogInformation("GetListFormConfigs: {Count} items", items.Count);
+            logger.LogInformation("GetListFormConfigs: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
@@ -401,98 +439,6 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         return response;
     }
 
-    // ================================================================
-    // Helpers
-    // ================================================================
-    private static DynamicField MapDynamicField(BsonDocument b)
-    {
-        var f = BsonSerializer.Deserialize<DynamicField>(b);
-        if (b.Contains("Validation") && b["Validation"].IsBsonDocument)
-            f.Validation = BsonSerializer.Deserialize<FieldValidation>(b["Validation"].AsBsonDocument);
-        return f;
-    }
+    
 
-    /// <summary>
-    /// Map FieldSet BsonDocument → proto FieldSet với Fields được resolve từ DB
-    /// </summary>
-    private static FieldSet MapFieldSetWithFields(BsonDocument bson)
-    {
-        var fieldSet = new FieldSet
-        {
-            Id     = bson.GetValue("_id", BsonNull.Value).ToString() ?? "",
-            Name   = bson.GetValue("Name", "").AsString,
-            Icon   = bson.GetValue("Icon", "").AsString,
-            Color  = bson.GetValue("Color", "").AsString,
-            Desc   = bson.GetValue("Desc", "").AsString,
-            Delete = bson.GetValue("Delete", false).ToBoolean(),
-        };
-        if (bson.Contains("CreateDate"))
-            fieldSet.CreateDate = ToTimestamp(bson["CreateDate"]);
-        if (bson.Contains("ModifyDate"))
-            fieldSet.ModifyDate = ToTimestamp(bson["ModifyDate"]);
-
-        // Resolve field_ids → DynamicField objects
-        if (bson.Contains("FieldIds") && bson["FieldIds"].IsBsonArray)
-        {
-            var fieldIds = bson["FieldIds"].AsBsonArray.Select(v => v.AsString).ToList();
-            if (fieldIds.Count > 0)
-            {
-                var filter = Builders<BsonDocument>.Filter.In("_id", fieldIds)
-                           & Builders<BsonDocument>.Filter.Ne("Delete", true);
-                var fieldBsons = Global.CollectionBsonDynamicField!.Find(filter).ToList();
-                fieldSet.Fields.AddRange(fieldBsons.Select(MapDynamicField));
-            }
-        }
-
-        return fieldSet;
-    }
-
-    /// <summary>
-    /// Map FormConfig BsonDocument → proto FormConfig với embedded FieldSet+DynamicField
-    /// </summary>
-    private static FormConfig MapFormConfigWithSets(BsonDocument bson)
-    {
-        var config = new FormConfig
-        {
-            Id     = bson.GetValue("_id", BsonNull.Value).ToString() ?? "",
-            Name   = bson.GetValue("Name", "").AsString,
-            Desc   = bson.GetValue("Desc", "").AsString,
-            Delete = bson.GetValue("Delete", false).ToBoolean(),
-        };
-        if (bson.Contains("CreateDate"))
-            config.CreateDate = ToTimestamp(bson["CreateDate"]);
-        if (bson.Contains("ModifyDate"))
-            config.ModifyDate = ToTimestamp(bson["ModifyDate"]);
-
-        if (bson.Contains("Tabs") && bson["Tabs"].IsBsonArray)
-        {
-            foreach (var tabBson in bson["Tabs"].AsBsonArray)
-            {
-                if (!tabBson.IsBsonDocument) continue;
-                var tabDoc = tabBson.AsBsonDocument;
-                var tab = new FormTabConfig
-                {
-                    Id    = tabDoc.GetValue("Id", "").AsString,
-                    Label = tabDoc.GetValue("Label", "").AsString,
-                };
-
-                // Resolve set_ids → FieldSet objects (with embedded DynamicFields)
-                if (tabDoc.Contains("SetIds") && tabDoc["SetIds"].IsBsonArray)
-                {
-                    var setIds = tabDoc["SetIds"].AsBsonArray.Select(v => v.AsString).ToList();
-                    if (setIds.Count > 0)
-                    {
-                        var setFilter = Builders<BsonDocument>.Filter.In("_id", setIds)
-                                      & Builders<BsonDocument>.Filter.Ne("Delete", true);
-                        var setBsons = Global.CollectionBsonFieldSet!.Find(setFilter).ToList();
-                        tab.FieldSets.AddRange(setBsons.Select(MapFieldSetWithFields));
-                    }
-                }
-
-                config.Tabs.Add(tab);
-            }
-        }
-
-        return config;
-    }
 }

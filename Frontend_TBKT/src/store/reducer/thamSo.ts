@@ -113,9 +113,11 @@ export const saveFieldSet = createAsyncThunk<
     { rejectValue: string }
 >(
     'thamSo/saveFieldSet',
-    async ({ fieldSet, isNew }, { rejectWithValue }) => {
+    async ({ fieldSet, isNew }, { rejectWithValue, getState }) => {
         try {
-            const savedFieldSet = await thamSoApi.saveFieldSet(fieldSet, isNew);
+            const state = getState() as { thamSoReducer?: ThamSoState };
+            const allFields = state.thamSoReducer?.dynamicFields ?? [];
+            const savedFieldSet = await thamSoApi.saveFieldSet(fieldSet, isNew, allFields);
             return { tempId: fieldSet.id, fieldSet: savedFieldSet };
         } catch (error) {
             return rejectWithValue((error as Error).message || 'Không thể lưu bộ dữ liệu');
