@@ -5,7 +5,7 @@ const V = 'v1';
 export const STORAGE_KEYS = {
     IS_AUTHENTICATED: `isAuthenticated:${V}`,
     CURRENT_USER:     `currentUser:${V}`,
-    // ❌ KHÔNG có key cho token → OIDC tự quản lý
+    //  KHÔNG có key cho token → OIDC tự quản lý
 } as const;
 
 // ── In-memory cache (tránh đọc sessionStorage nhiều lần) ─────────────────────
@@ -51,7 +51,7 @@ export const safeSessionRemove = (key: string): void => {
 export const getLocalStorage = safeSessionGet;
 
 export const removeLocalStorage = (): void => {
-    // ✅ Chỉ xóa keys của app, không xóa keys của OIDC library
+    //  Chỉ xóa keys của app, không xóa keys của OIDC library
     Object.values(STORAGE_KEYS).forEach(key => safeSessionRemove(key));
 
     // Xóa keys cũ không có version (migration cleanup)
@@ -66,7 +66,7 @@ export interface MinimalUser {
     name:     string;
     username: string;
     is_admin?: number;
-    // ❌ Không store: email, phone, address, PII
+    //  Không store: email, phone, address, PII
 }
 
 // ── App helpers ───────────────────────────────────────────────────────────────
@@ -109,6 +109,13 @@ export const getActiveMenuName = (): string => {
     if (url.includes('/chuyen-cap-chat-luong'))     return 'chuyenCap';
     if (url.includes('/thong-ke-bao-cao'))          return 'thongKe';
     if (url.includes('/cau-hinh-tham-so'))          return 'cauHinhThamSo';
+    if (url.includes('/cau-hinh-menu-dong'))        return 'cauHinhMenuDong';
+    if (url.includes('/cau-hinh-data-source')) return 'cauHinhDataSource';
+    if (url.includes('/menu-dong/')) {
+        const segments = url.split('/').filter(Boolean);
+        const menuId = segments[1] || '';
+        if (menuId) return `menuDong_${menuId}`;
+    }
     // ── Legacy routes ─────────────────────────────────────────
     if (url.includes('/employee'))                  return 'employee';
     if (url.includes('/office'))                    return 'office';

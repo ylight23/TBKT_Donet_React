@@ -26,6 +26,9 @@ const DieuDong             = React.lazy(() => import('../pages/DieuDong'));
 const ChuyenCapChatLuong   = React.lazy(() => import('../pages/ChuyenCapChatLuong'));
 const ThongKeBaoCao        = React.lazy(() => import('../pages/ThongKeBaoCao'));
 const CauHinhThamSo        = React.lazy(() => import('../pages/CauHinhThamSo'));
+const CauHinhMenuDong      = React.lazy(() => import('../pages/CauHinhMenuDong'));
+const CauHinhDataSource    = React.lazy(() => import('../pages/CauHinhDataSource'));
+const MenuDong             = React.lazy(() => import('../pages/MenuDong'));
 
 // ── Hoisted static JSX (Rule: hoist-jsx) ──────────────────────────────────────
 const loadingSpinner = (
@@ -160,6 +163,30 @@ const MainRoute: RouteObject = {
                 </Suspense>
             )
         },
+        {
+            path: "/cau-hinh-menu-dong",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <CauHinhMenuDong />
+                </Suspense>
+            )
+        },
+        {
+            path: "/cau-hinh-data-source",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <CauHinhDataSource />
+                </Suspense>
+            )
+        },
+        {
+            path: "/menu-dong/:menuId",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <MenuDong />
+                </Suspense>
+            )
+        },
         // ── Legacy routes ─────────────────────────────────────────────────
         {
             path: "/employee",
@@ -174,6 +201,14 @@ const MainRoute: RouteObject = {
             element: (
                 <Suspense fallback={<PageSkeleton />}>
                     <Office />
+                </Suspense>
+            )
+        },
+        {
+            path: "*",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <MenuDong />
                 </Suspense>
             )
         },

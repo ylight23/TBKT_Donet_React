@@ -175,7 +175,7 @@ app.UseGrpcWeb();
 // Configure the HTTP request pipeline.
 app.MapGet("/", () => "gRPC Server is running");
 
-app.UseEmployeeServices(builder.Configuration, "v1");
+app.UseTBKTServices(builder.Configuration, "v1");
 
 // Front-Channel Logout is handled by FrontChannelLogoutController
 

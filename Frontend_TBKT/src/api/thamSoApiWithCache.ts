@@ -82,8 +82,8 @@ export const thamSoApi = {
     return data;
   },
 
-  async saveFormConfig(form: LocalFormConfig, isNew: boolean): Promise<LocalFormConfig> {
-    const result = await grpcThamSoApi.saveFormConfig(form, isNew);
+  async saveFormConfig(form: LocalFormConfig, isNew: boolean, allFieldSets: LocalFieldSet[], allFields: LocalDynamicField[]): Promise<LocalFormConfig> {
+    const result = await grpcThamSoApi.saveFormConfig(form, isNew, allFieldSets, allFields);
     schemaCache.clear(KEYS.FORM_CONFIGS);
     console.log('[cache] FormConfigs cache invalidated after save');
     return result;

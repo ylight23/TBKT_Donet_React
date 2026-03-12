@@ -147,9 +147,12 @@ export const saveFormConfig = createAsyncThunk<
     { rejectValue: string }
 >(
     'thamSo/saveFormConfig',
-    async ({ formConfig, isNew }, { rejectWithValue }) => {
+    async ({ formConfig, isNew }, { rejectWithValue, getState }) => {
         try {
-            const savedFormConfig = await thamSoApi.saveFormConfig(formConfig, isNew);
+            const state = getState() as { thamSoReducer?: ThamSoState };
+            const allFieldSets = state.thamSoReducer?.fieldSets ?? [];
+            const allFields = state.thamSoReducer?.dynamicFields ?? [];
+            const savedFormConfig = await thamSoApi.saveFormConfig(formConfig, isNew, allFieldSets, allFields);
             return { tempId: formConfig.id, formConfig: savedFormConfig };
         } catch (error) {
             return rejectWithValue((error as Error).message || 'Không thể lưu cấu hình form');

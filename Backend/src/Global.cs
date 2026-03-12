@@ -1,3 +1,4 @@
+using Backend.Models;
 using Backend.Services;
 using protos;
 
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using Google.Protobuf.Collections;
 
 namespace Backend.Services;
 
@@ -177,11 +179,33 @@ public static class Global
         }
     }
 
-    public static void UseEmployeeServices(this WebApplication app, IConfiguration config, string version)
+    private static IMongoCollection<BsonDocument>? _collectionBsonDynamicMenu;
+    public static IMongoCollection<BsonDocument>? CollectionBsonDynamicMenu
+    {
+        get
+        {
+            if (_collectionBsonDynamicMenu == null)
+                _collectionBsonDynamicMenu = MongoDB?.GetCollection<BsonDocument>("DynamicMenu");
+            return _collectionBsonDynamicMenu;
+        }
+    }
+
+    private static IMongoCollection<BsonDocument>? _collectionBsonDynamicMenuDataSource;
+    public static IMongoCollection<BsonDocument>? CollectionBsonDynamicMenuDataSource
+    {
+        get
+        {
+            if (_collectionBsonDynamicMenuDataSource == null)
+                _collectionBsonDynamicMenuDataSource = MongoDB?.GetCollection<BsonDocument>("DynamicMenuDataSource");
+            return _collectionBsonDynamicMenuDataSource;
+        }
+    }
+
+    public static void UseTBKTServices(this WebApplication app, IConfiguration config, string version)
     {
         // Initialize global logger
         Logger = app.Services.GetRequiredService<ILogger<object>>();
-        
+
         // Khởi tạo MongoDB connection
         var mongoUri = config.GetValue<string>("MongoDB:Uri") ?? "mongodb://localhost:27017";
         var dbName = config.GetValue<string>("MongoDB:Database") ?? "quanly_dmcanbo";
@@ -198,10 +222,19 @@ public static class Global
             throw;
         }
 
-        
-        // BsonSerializer.RegisterSerializer(
-        //     typeof(Google.Protobuf.Collections.RepeatedField<string>),
-        //     Backend.Models.RepeatedFieldStringSerializer.Instance);
+
+        // Đăng ký cho mọi RepeatedField type đang dùng
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<string>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<DynamicField>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<FieldSet>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<FormTabConfig>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<FormConfig>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<Office>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<Employee>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<RelationShipObject>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<DynamicMenuDataSourceField>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<DynamicMenuDataSource>());
+        BsonSerializer.RegisterSerializer(new RepeatedFieldSerializer<DynamicMenu>());
 
         BsonClassMap.RegisterClassMap<Employee>(c =>
         {
@@ -212,8 +245,69 @@ public static class Global
             c.AutoMap();
             c.MapProperty(x => x.Parameters);
         });
+        BsonClassMap.RegisterClassMap<FieldValidation>(c =>
+        {
+            c.AutoMap();
+            c.MapProperty(x => x.Options);
+            c.SetIgnoreExtraElements(true);
+
+        });
+        BsonClassMap.RegisterClassMap<DynamicField>(c =>
+        {
+            c.AutoMap();
+            c.SetIgnoreExtraElements(true);
+            c.MapProperty(x => x.Validation);
+            c.MapIdProperty(x => x.Id);
+        });
+        BsonClassMap.RegisterClassMap<FieldSet>(c =>
+        {
+            c.AutoMap();
+            c.MapProperty(x => x.Fields);
+            c.SetIgnoreExtraElements(true);
+            c.MapIdProperty(x => x.Id);
+        });
+        BsonClassMap.RegisterClassMap<FormTabConfig>(c =>
+        {
+            c.AutoMap();
+            c.MapProperty(x => x.FieldSets);
+            c.SetIgnoreExtraElements(true);
+            c.MapIdProperty(x => x.Id);
+        });
+        BsonClassMap.RegisterClassMap<FormConfig>(c =>
+        {
+            c.AutoMap();
+            c.SetIgnoreExtraElements(true);
+            c.MapIdProperty(x => x.Id);
+            c.MapProperty(x => x.Tabs);
+        });
 
         // ── ThamSo BsonClassMap ──────────────────────────────────────────
+        // DynamicMenuDataSource entities
+        BsonClassMap.RegisterClassMap<DynamicMenuDataSourceField>(c =>
+        {
+            c.AutoMap();
+            c.SetIgnoreExtraElements(true);
+
+        });
+        BsonClassMap.RegisterClassMap<DynamicMenuDataSource>(c =>
+        {
+            c.AutoMap();
+            c.SetIgnoreExtraElements(true);
+            c.MapIdProperty(x => x.Id); 
+            c.MapProperty(x => x.Fields);
+
+        });
+        BsonClassMap.RegisterClassMap<DynamicMenu>(c =>
+        {
+            c.AutoMap();
+            c.SetIgnoreExtraElements(true);
+            c.MapIdProperty(x => x.Id); 
+            c.MapProperty(x => x.ColumnKeys);
+            c.MapProperty(x => x.ColumnNames);
+
+        });
+
+
         // Note: Using BsonDocument and manual mapping for Proto classes to handle RepeatedField correctly.
 
         // Initialize default Office item with ID "000"
@@ -226,7 +320,7 @@ public static class Global
 
         app.UseStaticFiles(new StaticFileOptions
         {
-            ServeUnknownFileTypes = true, 
+            ServeUnknownFileTypes = true,
             DefaultContentType = "application/octet-stream"
         });
         app.UseRouting();

@@ -74,6 +74,8 @@ const menu: MenuEntry[] = [
     { title: 'Chuyển cấp chất lượng',   path: '/chuyen-cap-chat-luong',  icon: <StarRateIcon />,              active: 'chuyenCap'            },
     { title: 'Thống kê báo cáo',        path: '/thong-ke-bao-cao',       icon: <BarChartIcon />,              active: 'thongKe'              },
     { title: 'Cấu hình tham số',        path: '/cau-hinh-tham-so',       icon: <SettingsSuggestIcon />,       active: 'cauHinhThamSo'        },
+    { title: 'Cấu hình menu động',      path: '/cau-hinh-menu-dong',     icon: <SettingsSuggestIcon />,       active: 'cauHinhMenuDong'      },
+    { title: 'Cấu hình datasource', path: '/cau-hinh-data-source', icon: <SettingsSuggestIcon />, active: 'cauHinhDataSourceMenuDong' },
     // Cũ (giữ lại tương thích)
     { title: 'Nhân Viên',               path: '/employee',               icon: <AssessmentIcon />,            active: 'employee'             },
 ];

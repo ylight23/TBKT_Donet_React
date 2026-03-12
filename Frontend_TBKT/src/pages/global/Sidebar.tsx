@@ -4,7 +4,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
-import type { PaletteMode } from '@mui/material';
 
 import {
     Sidebar as SideBarLibrary,
@@ -15,15 +14,17 @@ import {
 } from "react-pro-sidebar";
 import ReorderIcon from "@mui/icons-material/Reorder";
 import {
-    tokens,
     dashboardTokensDark,
     dashboardTokensLight,
     gradientGreen,
 } from "../../theme";
 import userImage from "../../assets/user.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import menu, { isSubMenu, type MenuEntry, type MenuItem as MenuItemType } from "../../constants/menu";
+import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
+import menu, { isSubMenu } from "../../constants/menu";
+import { useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
 import { getActiveMenuName } from "../../utils";
+import { nameToIcon } from '../../utils/thamSoUtils';
 
 // ── Preload map: path → lazy import ───────────────────────────────────────────
 const preloadMap: Record<string, () => Promise<unknown>> = {
@@ -39,6 +40,8 @@ const preloadMap: Record<string, () => Promise<unknown>> = {
     '/chuyen-cap-chat-luong': () => import('../ChuyenCapChatLuong'),
     '/thong-ke-bao-cao': () => import('../ThongKeBaoCao'),
     '/cau-hinh-tham-so': () => import('../CauHinhThamSo'),
+    '/cau-hinh-menu-dong': () => import('../CauHinhMenuDong'),
+    '/cau-hinh-data-source': () => import('../CauHinhDataSource'),
     '/office': () => import('../Office'),
     '/employee': () => import('../Employee'),
 };
@@ -46,8 +49,19 @@ const preloadMap: Record<string, () => Promise<unknown>> = {
 const preloadRoute = (path: string): void => {
     if (typeof window === 'undefined') return;
     const cleanPath = path.split('?')[0];
+    if (cleanPath.startsWith('/menu-dong/')) {
+        void import('../MenuDong');
+        return;
+    }
     const loader = preloadMap[cleanPath];
-    if (loader) void loader();
+    if (loader) {
+        void loader();
+        return;
+    }
+    // Dynamic menu custom paths (e.g. /kiem-dinh) still resolve to MenuDong page
+    if (cleanPath.startsWith('/')) {
+        void import('../MenuDong');
+    }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,20 +105,24 @@ const Item: React.FC<ItemProps> = ({ path, title, icon, selected, setSelected, a
 
 const Sidebar: React.FC = () => {
     const theme = useTheme();
-    const colors = tokens(theme.palette.mode as PaletteMode);
     const isDark = theme.palette.mode === 'dark';
     const dt = isDark ? dashboardTokensDark : dashboardTokensLight;
+    const { items: dynamicMenuItems } = useDynamicMenuConfig();
 
     const [isCollapse, setIsCollapse] = useState<boolean>(false);
-    const navigate = useNavigate();
     const location = useLocation();
     const [selected, setSelected] = useState<string>("dashboard");
     const { collapseSidebar } = useProSidebar();
 
     useEffect(() => {
+        const dynamicActive = dynamicMenuItems.find((item) => item.path === location.pathname)?.active;
+        if (dynamicActive) {
+            setSelected(dynamicActive);
+            return;
+        }
         const activeMenuName = getActiveMenuName();
         setSelected(activeMenuName);
-    }, [location.pathname]);
+    }, [location.pathname, dynamicMenuItems]);
 
     const handleCollapse = (): void => {
         collapseSidebar();
@@ -269,6 +287,42 @@ const Sidebar: React.FC = () => {
                             />
                         );
                     })}
+
+                    {dynamicMenuItems.length > 0 && (
+                        // <SubMenu
+                        //     label="Menu động"
+                        //     icon={<DashboardCustomizeIcon />}
+                        //     active={dynamicMenuItems.some((item) => item.active === selected)}
+                        //     defaultOpen={dynamicMenuItems.some((item) => item.active === selected)}
+                        //     rootStyles={{
+                        //         ['& > .ps-menu-button']: {
+                        //             color: `${isDark ? 'rgba(255,255,255,0.87)' : '#1B2A1C'} !important`,
+                        //             backgroundColor: 'transparent !important',
+                        //             transition: 'background-color 0.2s ease, color 0.2s ease',
+                        //         },
+                        //         ['& > .ps-menu-button:hover']: {
+                        //             color: `${isDark ? '#FFFFFF' : '#1B5E20'} !important`,
+                        //             backgroundColor: `${isDark ? 'rgba(76,175,80,0.12)' : 'rgba(46,125,50,0.08)'} !important`,
+                        //         },
+                        //     }}
+                        // >
+                        <>
+                            {dynamicMenuItems
+                                .filter((item) => item.enabled)
+                                .map((item) => (
+                                    <Item
+                                        key={item.id}
+                                        title={item.title}
+                                        path={item.path}
+                                        icon={nameToIcon(item.icon || 'Assignment') || <DashboardCustomizeIcon fontSize="small" />}
+                                        selected={selected}
+                                        setSelected={setSelected}
+                                        active={item.active}
+                                    />
+                                ))}
+                        </>        
+                        
+                    )}
                 </Menu>
             </SideBarLibrary>
         </Box>

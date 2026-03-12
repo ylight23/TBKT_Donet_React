@@ -162,7 +162,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
             desc,
             color: finalColor,
             icon: iconNode,
-            fieldIds: selectedIds
+            fieldIds: [...new Set(selectedIds)]
         });
     };
 
