@@ -5,6 +5,7 @@ option csharp_namespace = "protos";
 package ThamSo;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 import "Base.proto";
 
 // ============================================================
@@ -38,6 +39,11 @@ service ThamSoService {
   rpc SyncDynamicMenuDataSourcesFromProto(SyncDynamicMenuDataSourcesFromProtoRequest) returns (SyncDynamicMenuDataSourcesFromProtoResponse);
   rpc DiscoverCollectionFields(DiscoverCollectionFieldsRequest) returns (DiscoverCollectionFieldsResponse);
   rpc GetDynamicMenuRows(GetDynamicMenuRowsRequest) returns (GetDynamicMenuRowsResponse);
+
+  // Puck template layout
+  rpc GetListTemplateLayouts(GetListTemplateLayoutsRequest) returns (GetListTemplateLayoutsResponse);
+  rpc SaveTemplateLayout(SaveTemplateLayoutRequest) returns (SaveTemplateLayoutResponse);
+  rpc DeleteTemplateLayout(DeleteTemplateLayoutRequest) returns (Base.DeleteBaseResponse);
 }
 
 // ============================================================
@@ -62,7 +68,7 @@ message DynamicField {
   string type = 4; // text | number | date | select | textarea | checkbox
   bool required = 5;
   FieldValidation validation = 6;
-  bool delete = 7;
+  reserved 7; // was: delete (internal DB flag)
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
 }
@@ -70,25 +76,20 @@ message DynamicField {
 message GetListDynamicFieldsRequest {}
 message GetListDynamicFieldsResponse {
   repeated DynamicField items = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
+// id="" → INSERT (server generates ObjectId), id="abc" → UPDATE
 message SaveDynamicFieldRequest {
   DynamicField item = 1;
-  bool is_new = 2;
 }
 message SaveDynamicFieldResponse {
   DynamicField item = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message DeleteDynamicFieldRequest {
-  string id = 1;
-  repeated string ids = 2;
+  repeated string ids = 1;
 }
 
 // ============================================================
@@ -100,8 +101,8 @@ message FieldSet {
   string icon = 3; // MUI icon name, e.g. "Assignment", "Shield"
   string color = 4;
   string desc = 5;
-  repeated DynamicField fields = 6; // danh sách dynamic fields thuộc set này
-  bool delete = 7;
+  repeated string field_ids = 6;   // reference by ID, not embedded
+  reserved 7; // was: delete
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
 }
@@ -109,25 +110,19 @@ message FieldSet {
 message GetListFieldSetsRequest {}
 message GetListFieldSetsResponse {
   repeated FieldSet items = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message SaveFieldSetRequest {
   FieldSet item = 1;
-  bool is_new = 2;
 }
 message SaveFieldSetResponse {
   FieldSet item = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message DeleteFieldSetRequest {
-  string id = 1;
-  repeated string ids = 2;
+  repeated string ids = 1;
 }
 
 // ============================================================
@@ -136,7 +131,7 @@ message DeleteFieldSetRequest {
 message FormTabConfig {
   string id = 1;
   string label = 2;
-  repeated FieldSet field_sets = 3; // danh sách field sets thuộc tab này
+  repeated string field_set_ids = 3;  // reference by ID, not embedded
 }
 
 message FormConfig {
@@ -144,7 +139,7 @@ message FormConfig {
   string name = 2;
   string desc = 3;
   repeated FormTabConfig tabs = 4;
-  bool delete = 5;
+  reserved 5; // was: delete
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
 }
@@ -152,30 +147,30 @@ message FormConfig {
 message GetListFormConfigsRequest {}
 message GetListFormConfigsResponse {
   repeated FormConfig items = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message SaveFormConfigRequest {
   FormConfig item = 1;
-  bool is_new = 2;
 }
 message SaveFormConfigResponse {
   FormConfig item = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message DeleteFormConfigRequest {
-  string id = 1;
-  repeated string ids = 2;
+  repeated string ids = 1;
 }
 
 // ============================================================
 // DynamicMenu
 // ============================================================
+// Couples key and display name so they can never go out of sync.
+message ColumnConfig {
+  string key = 1;
+  string name = 2;
+}
+
 message DynamicMenu {
   string id = 1;
   string title = 2;
@@ -183,38 +178,34 @@ message DynamicMenu {
   string active = 4;
   int32 grid_count = 5;
   bool enabled = 6;
-  bool delete = 7;
+  reserved 7;  // was: delete
   string icon = 8;
   int32 column_count = 9;
-  string data_source = 13;
-  repeated string column_keys = 14;
-  repeated string column_names = 12;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
+  reserved 12; // was: column_names
+  string data_source = 13;
+  reserved 14; // was: column_keys
+  string template_key = 15;
+  repeated ColumnConfig columns = 16;
 }
 
 message GetListDynamicMenusRequest {}
 message GetListDynamicMenusResponse {
   repeated DynamicMenu items = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message SaveDynamicMenuRequest {
   DynamicMenu item = 1;
-  bool is_new = 2;
 }
 message SaveDynamicMenuResponse {
   DynamicMenu item = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message DeleteDynamicMenuRequest {
-  string id = 1;
-  repeated string ids = 2;
+  repeated string ids = 1;
 }
 
 // ============================================================
@@ -233,7 +224,7 @@ message DynamicMenuDataSource {
   string collection_name = 4;
   repeated DynamicMenuDataSourceField fields = 5;
   bool enabled = 6;
-  bool delete = 7;
+  reserved 7; // was: delete
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
 }
@@ -241,26 +232,20 @@ message DynamicMenuDataSource {
 message GetListDynamicMenuDataSourcesRequest {}
 message GetListDynamicMenuDataSourcesResponse {
   repeated DynamicMenuDataSource items = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message SaveDynamicMenuDataSourceRequest {
   DynamicMenuDataSource item = 1;
-  bool is_new = 2;
 }
 
 message SaveDynamicMenuDataSourceResponse {
   DynamicMenuDataSource item = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 message DeleteDynamicMenuDataSourceRequest {
-  string id = 1;
-  repeated string ids = 2;
+  repeated string ids = 1;
 }
 
 // source_key: nếu rỗng → sync tất cả các entry đã đăng ký trong proto map
@@ -271,9 +256,7 @@ message SyncDynamicMenuDataSourcesFromProtoRequest {
 
 message SyncDynamicMenuDataSourcesFromProtoResponse {
   repeated DynamicMenuDataSource items = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  Base.ResponseMeta meta = 2;
 }
 
 // Scan tối đa 50 documents trong collection để tự động phát hiện fields
@@ -285,9 +268,7 @@ message DiscoverCollectionFieldsResponse {
   string collection_name = 1;
   repeated DynamicMenuDataSourceField fields = 2;
   int32 documents_scanned = 3;
-  bool success = 4;
-  string message = 5;
-  string message_exception = 6;
+  Base.ResponseMeta meta = 4;
 }
 
 // Generic data rows for dynamic menu rendering.
@@ -297,8 +278,40 @@ message GetDynamicMenuRowsRequest {
 }
 
 message GetDynamicMenuRowsResponse {
-  repeated string rows_json = 1;
-  bool success = 2;
-  string message = 3;
-  string message_exception = 4;
+  repeated google.protobuf.Struct rows = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ============================================================
+// Puck template layout
+// ============================================================
+message TemplateLayout {
+  string id = 1;
+  string key = 2;
+  string name = 3;
+  string schema_json = 4;
+  bool published = 5;
+  reserved 6; // was: delete
+  google.protobuf.Timestamp create_date = 10;
+  google.protobuf.Timestamp modify_date = 11;
+}
+
+message GetListTemplateLayoutsRequest {}
+
+message GetListTemplateLayoutsResponse {
+  repeated TemplateLayout items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+message SaveTemplateLayoutRequest {
+  TemplateLayout item = 1;
+}
+
+message SaveTemplateLayoutResponse {
+  TemplateLayout item = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+message DeleteTemplateLayoutRequest {
+  repeated string ids = 1;
 }

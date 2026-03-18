@@ -1,3 +1,4 @@
+﻿using Backend.Utils;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -185,20 +186,37 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         return requestedName;
     }
 
+    // ================================================================
+    // Proto Registry — lazy-cached + async
+    // ================================================================
+    private static Dictionary<string, (string SourceName, string CollectionName, Google.Protobuf.Reflection.MessageDescriptor Descriptor)>? _protoRegistry;
+    private static readonly SemaphoreSlim _registryLock = new(1, 1);
+
+    private async Task<Dictionary<string, (string SourceName, string CollectionName, Google.Protobuf.Reflection.MessageDescriptor Descriptor)>>
+        GetProtoRegistryAsync()
+    {
+        if (_protoRegistry != null) return _protoRegistry;
+        await _registryLock.WaitAsync();
+        try
+        {
+            if (_protoRegistry != null) return _protoRegistry; // double-check
+            var collectionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (Global.MongoDB != null)
+            {
+                using var cursor = await Global.MongoDB.ListCollectionNamesAsync();
+                await cursor.ForEachAsync(n => collectionNames.Add(n));
+            }
+            _protoRegistry = BuildProtoRegistryMap(collectionNames);
+            return _protoRegistry;
+        }
+        finally { _registryLock.Release(); }
+    }
+
     private Dictionary<string, (string SourceName, string CollectionName, Google.Protobuf.Reflection.MessageDescriptor Descriptor)>
-        BuildProtoRegistryMap()
+        BuildProtoRegistryMap(HashSet<string> collectionNames)
     {
         var result = new Dictionary<string, (string SourceName, string CollectionName, Google.Protobuf.Reflection.MessageDescriptor Descriptor)>(
             StringComparer.OrdinalIgnoreCase);
-
-        var collectionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (Global.MongoDB != null)
-        {
-            foreach (var collectionName in Global.MongoDB.ListCollectionNames().ToList())
-            {
-                collectionNames.Add(collectionName);
-            }
-        }
 
         var descriptorTypes = typeof(protos.Employee).Assembly
             .GetTypes()
@@ -328,42 +346,49 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         string sourceKey,
         IEnumerable<DynamicMenuDataSourceField> sourceFields)
     {
-        var synced = new List<DynamicField>();
+        var fieldsList = sourceFields.Where(f => !string.IsNullOrWhiteSpace(f.Key)).ToList();
+        if (fieldsList.Count == 0) return [];
 
-        foreach (var sourceField in sourceFields.Where(f => !string.IsNullOrWhiteSpace(f.Key)))
+        // 1) Batch fetch all existing fields for this sourceKey (1 query instead of N)
+        var existingDocs = await Global.CollectionBsonDynamicField!
+            .Find(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("Validation.DataSource", sourceKey),
+                CommonUtils.NotDeleted))
+            .ToListAsync();
+
+        var existingMap = existingDocs.ToDictionary(
+            d => d.GetValue("Key", "").AsString,
+            d => d,
+            StringComparer.OrdinalIgnoreCase);
+
+        // 2) Build all operations in memory
+        var synced = new List<DynamicField>();
+        var bulkOps = new List<WriteModel<BsonDocument>>();
+
+        foreach (var sourceField in fieldsList)
         {
             var key = sourceField.Key.Trim();
             var label = string.IsNullOrWhiteSpace(sourceField.Label) ? ToTitleLabel(key) : sourceField.Label.Trim();
             var dynamicType = MapSourceDataTypeToDynamicFieldType(sourceField.DataType);
 
-            var existingFilter = Builders<BsonDocument>.Filter.And(
-                Builders<BsonDocument>.Filter.Eq("Key", key),
-                Builders<BsonDocument>.Filter.Eq("Validation.DataSource", sourceKey),
-                Builders<BsonDocument>.Filter.Ne("Delete", true)
-            );
-
-            var existingBson = await Global.CollectionBsonDynamicField!
-                .Find(existingFilter)
-                .FirstOrDefaultAsync();
-
             DynamicField item;
-            if (existingBson != null)
+            if (existingMap.TryGetValue(key, out var existingBson))
             {
                 item = BsonSerializer.Deserialize<DynamicField>(existingBson);
                 item.Label = label;
                 item.Type = dynamicType;
                 item.Required = false;
-                item.Delete = false;
-                item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
                 item.Validation ??= new FieldValidation();
                 item.Validation.DataSource = sourceKey;
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
+                bsonDoc["Delete"] = false;
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
 
-                var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-                await Global.CollectionBsonDynamicField.FindOneAndReplaceAsync(filter, bsonDoc);
+                bulkOps.Add(new ReplaceOneModel<BsonDocument>(
+                    Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc));
             }
             else
             {
@@ -374,24 +399,24 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                     Label = label,
                     Type = dynamicType,
                     Required = false,
-                    Delete = false,
-                    CreateDate = Timestamp.FromDateTime(DateTime.UtcNow),
-                    Validation = new FieldValidation
-                    {
-                        DataSource = sourceKey,
-                    },
+                    CreateDate = CommonUtils.GetNowTimestamp(),
+                    Validation = new FieldValidation { DataSource = sourceKey },
                 };
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
                 bsonDoc["Delete"] = false;
 
-                await Global.CollectionBsonDynamicField!.InsertOneAsync(bsonDoc);
+                bulkOps.Add(new InsertOneModel<BsonDocument>(bsonDoc));
             }
 
             synced.Add(item);
         }
+
+        // 3) Single BulkWrite (1 round-trip instead of 2N)
+        if (bulkOps.Count > 0)
+            await Global.CollectionBsonDynamicField.BulkWriteAsync(bulkOps);
 
         return synced;
     }
@@ -403,10 +428,11 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
     {
         if (fields.Count == 0) return null;
 
+        var fieldIds = fields.Select(f => f.Id).ToList();
         var marker = $"AUTO_PROTO_SOURCE:{sourceKey}";
         var existingFilter = Builders<BsonDocument>.Filter.And(
             Builders<BsonDocument>.Filter.Eq("Desc", marker),
-            Builders<BsonDocument>.Filter.Ne("Delete", true)
+            CommonUtils.NotDeleted
         );
         var existingBson = await Global.CollectionBsonFieldSet!
             .Find(existingFilter)
@@ -420,17 +446,17 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             fieldSet.Icon = string.IsNullOrWhiteSpace(fieldSet.Icon) ? "Dataset" : fieldSet.Icon;
             fieldSet.Color = string.IsNullOrWhiteSpace(fieldSet.Color) ? "#1976d2" : fieldSet.Color;
             fieldSet.Desc = marker;
-            fieldSet.Delete = false;
-            fieldSet.Fields.Clear();
-            fieldSet.Fields.AddRange(fields);
-            fieldSet.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+            fieldSet.FieldIds.Clear();
+            fieldSet.FieldIds.AddRange(fieldIds);
+            fieldSet.ModifyDate = CommonUtils.GetNowTimestamp();
 
             var bsonDoc = fieldSet.ToBsonDocument();
             bsonDoc["_id"] = fieldSet.Id;
-            bsonDoc["ModifyDate"] = FromTimestamp(fieldSet.ModifyDate);
+            bsonDoc["Delete"] = false;
+            bsonDoc["ModifyDate"] = CommonUtils.TsToBson(fieldSet.ModifyDate);
 
             var filter = Builders<BsonDocument>.Filter.Eq("_id", fieldSet.Id);
-            await Global.CollectionBsonFieldSet.FindOneAndReplaceAsync(filter, bsonDoc);
+            await Global.CollectionBsonFieldSet.ReplaceOneAsync(filter, bsonDoc);
         }
         else
         {
@@ -441,14 +467,13 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 Icon = "Dataset",
                 Color = "#1976d2",
                 Desc = marker,
-                Delete = false,
-                CreateDate = Timestamp.FromDateTime(DateTime.UtcNow),
+                CreateDate = CommonUtils.GetNowTimestamp(),
             };
-            fieldSet.Fields.AddRange(fields);
+            fieldSet.FieldIds.AddRange(fieldIds);
 
             var bsonDoc = fieldSet.ToBsonDocument();
             bsonDoc["_id"] = fieldSet.Id;
-            bsonDoc["CreateDate"] = FromTimestamp(fieldSet.CreateDate);
+            bsonDoc["CreateDate"] = CommonUtils.TsToBson(fieldSet.CreateDate);
             bsonDoc["Delete"] = false;
 
             await Global.CollectionBsonFieldSet!.InsertOneAsync(bsonDoc);
@@ -517,14 +542,13 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 SourceName = seed.SourceName,
                 CollectionName = seed.CollectionName,
                 Enabled = true,
-                Delete = false,
-                CreateDate = Timestamp.FromDateTime(DateTime.UtcNow),
+                CreateDate = CommonUtils.GetNowTimestamp(),
             };
             item.Fields.AddRange(fields);
 
             var bsonDoc = item.ToBsonDocument();
             bsonDoc["_id"] = item.Id;
-            bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+            bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
             bsonDoc["Delete"] = false;
 
             await Global.CollectionBsonDynamicMenuDataSource!.InsertOneAsync(bsonDoc);
@@ -533,31 +557,13 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
 
 
 
-    private static Timestamp? ToTimestamp(BsonValue? value)
-    {
-        if (value == null || value.IsBsonNull) return null;
-        if (value.IsBsonDateTime) return Timestamp.FromDateTime(value.ToUniversalTime());
-        if (value.IsBsonDocument)
-        {
-            var doc = value.AsBsonDocument;
-            return new Timestamp
-            {
-                Seconds = doc.GetValue("Seconds", 0L).ToInt64(),
-                Nanos = doc.GetValue("Nanos", 0).ToInt32()
-            };
-        }
-        return null;
-    }
 
-
-
-    private static BsonValue FromTimestamp(Timestamp? ts)
-    {
-        if (ts == null) return BsonNull.Value;
-        // Store as subdocument to keep precision and ease of proto mapping
-        return new BsonDocument { { "Seconds", ts.Seconds }, { "Nanos", ts.Nanos } };
-    }
-
+    // ================================================================
+    // Helper: build ResponseMeta
+    // ================================================================
+    private static ResponseMeta OkMeta(string message) => new() { Success = true, Message = message };
+    private static ResponseMeta FailMeta(string message, string? exception = null) =>
+        new() { Success = false, Message = message, MessageException = exception ?? "" };
 
     // DynamicField CRUD
     // ================================================================
@@ -568,15 +574,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new GetListDynamicFieldsResponse();
         try
         {
-            // Debug: Get collection name and total count
-            var collectionName = Global.CollectionBsonDynamicField?.CollectionNamespace.CollectionName;
-            var totalCount = await Global.CollectionBsonDynamicField!.CountDocumentsAsync(Builders<BsonDocument>.Filter.Empty);
-            logger.LogInformation("GetListDynamicFields: Collection '{Collection}' has {Total} total documents", collectionName, totalCount);
-
-            var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            var bsonItems = await Global.CollectionBsonDynamicField.Find(filter).ToListAsync();
-
-            logger.LogInformation("GetListDynamicFields: Found {Count} non-deleted items (filter: Delete != true)", bsonItems.Count);
+            var bsonItems = await Global.CollectionBsonDynamicField!.Find(CommonUtils.NotDeleted).ToListAsync();
 
             response.Items.AddRange(bsonItems.Select(itemBson =>
             {
@@ -592,14 +590,13 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 }
                 return module;
             }));
-            response.Success = true;
-            logger.LogInformation($"GetListDynamicFields: {response.Items.Count} items");
+            response.Meta = OkMeta($"{response.Items.Count} items");
+            logger.LogInformation("GetListDynamicFields: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "GetListDynamicFields error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi tải danh sách trường", ex.Message);
         }
         return response;
     }
@@ -614,56 +611,49 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var item = request.Item;
             if (item == null)
             {
-                response.Success = false;
-                response.Message = "Dữ liệu không hợp lệ";
+                response.Meta = FailMeta("Dữ liệu không hợp lệ");
                 return response;
             }
-            // item.Validation.Options.AddRange(request.Item.Validation.Options.ToList());
-            var bsonDoc = item.ToBsonDocument();
-            if (request.IsNew)
-            {
-                // Always generate new ObjectId, ignore temp ID from frontend
-                item.Id = ObjectId.GenerateNewId().ToString();
-                item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                item.Delete = false;
 
+            var isNew = string.IsNullOrWhiteSpace(item.Id);
+
+            if (isNew)
+            {
+                item.Id = ObjectId.GenerateNewId().ToString();
+                item.CreateDate = CommonUtils.GetNowTimestamp();
+
+                var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
                 bsonDoc["Delete"] = false;
 
-                //await Global.CollectionDynamicField!.InsertOneAsync(item);
                 await Global.CollectionBsonDynamicField!.InsertOneAsync(bsonDoc);
-                response.Success = true;
-                response.Message = "Thêm trường mới thành công!";
+                response.Meta = OkMeta("Thêm trường mới thành công!");
                 logger.LogInformation("SaveDynamicField: Created {Id}", item.Id);
             }
             else
             {
-                item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
 
-                bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
+                var bsonDoc = item.ToBsonDocument();
+                bsonDoc["_id"] = item.Id;
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                bsonDoc["Delete"] = false;
 
-                //var filter = Builders<DynamicField>.Filter.Eq(x => x.Id, item.Id);
                 var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-
-                //await Global.CollectionDynamicField!.FindOneAndReplaceAsync(filter, item);
-                await Global.CollectionBsonDynamicField!.FindOneAndReplaceAsync(filter, bsonDoc);
-                response.Message = "Cập nhật thành công!";
+                await Global.CollectionBsonDynamicField!.ReplaceOneAsync(filter, bsonDoc);
+                response.Meta = OkMeta("Cập nhật trường mới thành công!");
                 logger.LogInformation("SaveDynamicField: Updated {Id}", item.Id);
             }
 
             response.Item = item;
-            response.Success = true;
         }
         catch (Exception ex)
         {
-            logger.LogError($"{ex.Message} [{ex.StackTrace}]");
-            response.Success = false;
-            response.Message = "Có lỗi xảy ra khi lưu!";
-            response.MessageException = ex.Message;
+            logger.LogError(ex, "SaveDynamicField error");
+            response.Meta = FailMeta("Có lỗi xảy ra khi lưu!", ex.Message);
         }
 
-        GC.Collect();
         return response;
     }
 
@@ -674,16 +664,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new DeleteBaseResponse();
         try
         {
-            var ids = new List<string>();
-            if (!string.IsNullOrEmpty(request.Id)) ids.Add(request.Id);
-            ids.AddRange(request.Ids);
-
-            var filter = Builders<BsonDocument>.Filter.In("_id", ids);
-            var result = await Global.CollectionBsonDynamicField!.DeleteManyAsync(filter);
-
-            response.Success = result.DeletedCount > 0;
-            response.Message = $"Đã xoá {result.DeletedCount} trường";
-            logger.LogInformation("DeleteDynamicField: Deleted {Count}", result.DeletedCount);
+            var count = await CommonUtils.DeleteByIdsAsync(Global.CollectionBsonDynamicField!, request.Ids);
+            response.Success = count > 0;
+            response.Message = $"Đã xoá {count} trường";
+            logger.LogInformation("DeleteDynamicField: Deleted {Count}", count);
         }
         catch (Exception ex)
         {
@@ -704,45 +688,22 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new GetListFieldSetsResponse();
         try
         {
-            var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            var bsonItems = await Global.CollectionBsonFieldSet!.Find(filter).ToListAsync();
-
-            // response.Items.AddRange(bsonItems.Select(b => MapFieldSetWithFields(b)));
-
-
-            //  var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            //  var bsonItems = Global.CollectionBsonDynamicField!.Find(filter).ToList();
-
+            var bsonItems = await Global.CollectionBsonFieldSet!.Find(CommonUtils.NotDeleted).ToListAsync();
 
             response.Items.AddRange(bsonItems.Select(itemBson =>
             {
-                var module = BsonSerializer.Deserialize<FieldSet>(itemBson);
-                module.Fields.Clear();
-                if (itemBson.Contains("Fields") && itemBson["Fields"].IsBsonArray)
-                {
-                    foreach (var fieldBson in itemBson["Fields"].AsBsonArray)
-                    {
-                        if (!fieldBson.IsBsonDocument) continue;
-                        var field = BsonSerializer.Deserialize<DynamicField>(fieldBson.AsBsonDocument);
-                        if (fieldBson.AsBsonDocument.Contains("Validation") && fieldBson.AsBsonDocument["Validation"].IsBsonDocument)
-                            field.Validation = BsonSerializer.Deserialize<FieldValidation>(fieldBson.AsBsonDocument["Validation"].AsBsonDocument);
-                        module.Fields.Add(field);
-                    }
-                }
-
-                return module;
+                var fieldSet = BsonSerializer.Deserialize<FieldSet>(itemBson);
+                // FieldIds is now a simple string array — BsonSerializer handles it
+                return fieldSet;
             }));
 
-
-
-            response.Success = true;
+            response.Meta = OkMeta($"{response.Items.Count} items");
             logger.LogInformation("GetListFieldSets: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "GetListFieldSets error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi tải danh sách bộ dữ liệu", ex.Message);
         }
         return response;
     }
@@ -757,64 +718,55 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var item = request.Item;
             if (item == null)
             {
-                response.Success = false;
-                response.Message = "Dữ liệu không hợp lệ";
+                response.Meta = FailMeta("Dữ liệu không hợp lệ");
                 return response;
             }
-            //item.Fields.Clear();
-            // item.Fields.AddRange(request.Item.Fields);
 
-            if (request.IsNew)
+            var isNew = string.IsNullOrWhiteSpace(item.Id);
+
+            if (isNew)
             {
-                var bsonDoc = item.ToBsonDocument();
                 item.Id = ObjectId.GenerateNewId().ToString();
-                item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.CreateDate = CommonUtils.GetNowTimestamp();
 
+                var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
+                bsonDoc["Delete"] = false;
 
-                //await Global.CollectionFieldSet!.InsertOneAsync(item);
                 await Global.CollectionBsonFieldSet!.InsertOneAsync(bsonDoc);
                 response.Item = item;
-                response.Success = true;
-                response.Message = "Thêm bộ dữ liệu mới thành công!";
-
-                logger.LogInformation("SaveFieldSet: Created {Id} with {Count} field(s)", item.Id, item.Fields.Count);
+                response.Meta = OkMeta("Thêm bộ dữ liệu mới thành công!");
+                logger.LogInformation("SaveFieldSet: Created {Id} with {Count} field(s)", item.Id, item.FieldIds.Count);
             }
             else
             {
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
+
                 var bsonDoc = item.ToBsonDocument();
-                //var filter = Builders<FieldSet>.Filter.Eq(x => x.Id, item.Id);
-                item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                bsonDoc["_id"] = item.Id;
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                bsonDoc["Delete"] = false;
 
-                bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
                 var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
+                var result = await Global.CollectionBsonFieldSet!.ReplaceOneAsync(filter, bsonDoc);
 
-                //var updateItem = await Global.CollectionFieldSet!.FindOneAndReplaceAsync(filter, item);
-                var updateItem = await Global.CollectionBsonFieldSet!.FindOneAndReplaceAsync(filter, bsonDoc);
-
-                if (updateItem != null)
+                if (result.MatchedCount > 0)
                 {
                     response.Item = item;
-                    response.Success = true;
-                    response.Message = "Cập nhật thành công!";
-
+                    response.Meta = OkMeta("Cập nhật thành công!");
                 }
                 else
                 {
-                    response.Success = false;
-                    response.Message = "Cập nhật không thành công!";
+                    response.Meta = FailMeta("Cập nhật không thành công!");
                 }
-                response.Message = "Cập nhật thành công!";
-                logger.LogInformation("SaveFieldSet: Updated {Id} with {Count} field(s)", item.Id, item.Fields.Count);
+                logger.LogInformation("SaveFieldSet: Updated {Id} with {Count} field(s)", item.Id, item.FieldIds.Count);
             }
-
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "SaveFieldSet error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi lưu bộ dữ liệu", ex.Message);
         }
         return response;
     }
@@ -826,16 +778,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new DeleteBaseResponse();
         try
         {
-            var ids = new List<string>();
-            if (!string.IsNullOrEmpty(request.Id)) ids.Add(request.Id);
-            ids.AddRange(request.Ids);
-
-            var filter = Builders<BsonDocument>.Filter.In("_id", ids);
-            var result = await Global.CollectionBsonFieldSet!.DeleteManyAsync(filter);
-
-            response.Success = result.DeletedCount > 0;
-            response.Message = $"Đã xoá {result.DeletedCount} bộ dữ liệu";
-            logger.LogInformation("DeleteFieldSet: Deleted {Count}", result.DeletedCount);
+            var count = await CommonUtils.DeleteByIdsAsync(Global.CollectionBsonFieldSet!, request.Ids);
+            response.Success = count > 0;
+            response.Message = $"Đã xoá {count} bộ dữ liệu";
+            logger.LogInformation("DeleteFieldSet: Deleted {Count}", count);
         }
         catch (Exception ex)
         {
@@ -856,53 +802,22 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new GetListFormConfigsResponse();
         try
         {
-            var bsonItems = await Global.CollectionBsonFormConfig!.Find(Builders<BsonDocument>.Filter.Ne("Delete", true)).ToListAsync();
-
+            var bsonItems = await Global.CollectionBsonFormConfig!.Find(CommonUtils.NotDeleted).ToListAsync();
 
             response.Items.AddRange(bsonItems.Select(itemBson =>
             {
-                var module = BsonSerializer.Deserialize<FormConfig>(itemBson);
-                module.Tabs.Clear();
-                if (itemBson.Contains("Tabs") && itemBson["Tabs"].IsBsonArray)
-                {
-
-                    module.Tabs.AddRange(itemBson["Tabs"].AsBsonArray.Select(tabBson =>
-                    {
-                        if (!tabBson.IsBsonDocument) return null;
-                        var tab = BsonSerializer.Deserialize<FormTabConfig>(tabBson.AsBsonDocument);
-                        tab.FieldSets.Clear();
-                        var tabDoc = tabBson.AsBsonDocument;
-                        if (tabDoc.Contains("FieldSets") && tabDoc["FieldSets"].IsBsonArray)
-                        {
-                            foreach (var fsBson in tabDoc["FieldSets"].AsBsonArray)
-                                if (fsBson.IsBsonDocument)
-                                    tab.FieldSets.Add(BsonSerializer.Deserialize<FieldSet>(fsBson.AsBsonDocument));
-                        }
-                        return tab;
-                    }).Where(t => t != null));
-                }
-
-                return module;
+                var formConfig = BsonSerializer.Deserialize<FormConfig>(itemBson);
+                // Tabs & FieldSetIds are simple types — BsonSerializer handles them
+                return formConfig;
             }));
 
-            // response.Items.AddRange(bsonItems.Select(itemBson =>
-            // {
-            //     logger.LogInformation("FormConfig raw: {Json}", itemBson.ToJson());
-            //     var module = BsonSerializer.Deserialize<FormConfig>(itemBson);
-            //     return module;
-            // }));
-
-
-
-
-            response.Success = true;
+            response.Meta = OkMeta($"{response.Items.Count} items");
             logger.LogInformation("GetListFormConfigs: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "GetListFormConfigs error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi tải danh sách form", ex.Message);
         }
         return response;
     }
@@ -917,53 +832,47 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var item = request.Item;
             if (item == null)
             {
-                response.Success = false;
-                response.Message = "Dữ liệu không hợp lệ";
+                response.Meta = FailMeta("Dữ liệu không hợp lệ");
                 return response;
             }
-            if (request.IsNew)
+
+            var isNew = string.IsNullOrWhiteSpace(item.Id);
+
+            if (isNew)
             {
                 item.Id = ObjectId.GenerateNewId().ToString();
-                item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.CreateDate = CommonUtils.GetNowTimestamp();
                 var bsonDoc = item.ToBsonDocument();
 
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
                 bsonDoc["Delete"] = false;
 
-                //await Global.CollectionFormConfig!.InsertOneAsync(item);
                 await Global.CollectionBsonFormConfig!.InsertOneAsync(bsonDoc);
-                response.Success = true;
-                response.Message = "Thêm form mới thành công!";
+                response.Meta = OkMeta("Thêm form mới thành công!");
                 logger.LogInformation("SaveFormConfig: Created {Id}", item.Id);
             }
             else
             {
-
-                // var filter = Builders<FormConfig>.Filter.Eq(x => x.Id, item.Id);
-                // await Global.CollectionFormConfig!.FindOneAndReplaceAsync(filter, item);
-                // item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
-
-                item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                bsonDoc["Delete"] = false;
 
                 var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-                await Global.CollectionBsonFormConfig!.FindOneAndReplaceAsync(filter, bsonDoc);
+                await Global.CollectionBsonFormConfig!.ReplaceOneAsync(filter, bsonDoc);
 
-                response.Message = "Cập nhật thành công!";
+                response.Meta = OkMeta("Cập nhật thành công!");
                 logger.LogInformation("SaveFormConfig: Updated {Id}", item.Id);
             }
 
             response.Item = item;
-            response.Success = true;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "SaveFormConfig error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi lưu form", ex.Message);
         }
         return response;
     }
@@ -975,16 +884,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new DeleteBaseResponse();
         try
         {
-            var ids = new List<string>();
-            if (!string.IsNullOrEmpty(request.Id)) ids.Add(request.Id);
-            ids.AddRange(request.Ids);
-
-            var filter = Builders<BsonDocument>.Filter.In("_id", ids);
-            var result = await Global.CollectionBsonFormConfig!.DeleteManyAsync(filter);
-
-            response.Success = result.DeletedCount > 0;
-            response.Message = $"Đã xoá {result.DeletedCount} form";
-            logger.LogInformation("DeleteFormConfig: Deleted {Count}", result.DeletedCount);
+            var count = await CommonUtils.DeleteByIdsAsync(Global.CollectionBsonFormConfig!, request.Ids);
+            response.Success = count > 0;
+            response.Message = $"Đã xoá {count} form";
+            logger.LogInformation("DeleteFormConfig: Deleted {Count}", count);
         }
         catch (Exception ex)
         {
@@ -1005,45 +908,53 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new GetListDynamicMenusResponse();
         try
         {
-            var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
-            var bsonItems = await Global.CollectionBsonDynamicMenu!.Find(filter).ToListAsync();
+            var bsonItems = await Global.CollectionBsonDynamicMenu!.Find(CommonUtils.NotDeleted).ToListAsync();
             response.Items.AddRange(bsonItems.Select(itemBson =>
             {
                 var menu = BsonSerializer.Deserialize<DynamicMenu>(itemBson);
 
-                // RepeatedField<string> can be dropped by plain BSON deserialize in some documents.
-                menu.ColumnNames.Clear();
-                if (itemBson.Contains("ColumnNames") && itemBson["ColumnNames"].IsBsonArray)
+                // Migrate legacy ColumnNames/ColumnKeys → Columns
+                menu.Columns.Clear();
+                if (itemBson.Contains("Columns") && itemBson["Columns"].IsBsonArray)
                 {
-                    foreach (var nameBson in itemBson["ColumnNames"].AsBsonArray)
+                    foreach (var colBson in itemBson["Columns"].AsBsonArray)
                     {
-                        var value = nameBson.IsString ? nameBson.AsString : nameBson.ToString();
-                        if (!string.IsNullOrWhiteSpace(value))
-                            menu.ColumnNames.Add(value.Trim());
+                        if (!colBson.IsBsonDocument) continue;
+                        var doc = colBson.AsBsonDocument;
+                        menu.Columns.Add(new ColumnConfig
+                        {
+                            Key = doc.GetValue("Key", "").AsString,
+                            Name = doc.GetValue("Name", "").AsString,
+                        });
                     }
                 }
-
-                menu.ColumnKeys.Clear();
-                if (itemBson.Contains("ColumnKeys") && itemBson["ColumnKeys"].IsBsonArray)
+                else if (itemBson.Contains("ColumnKeys") && itemBson["ColumnKeys"].IsBsonArray)
                 {
-                    foreach (var keyBson in itemBson["ColumnKeys"].AsBsonArray)
+                    // Legacy format: read parallel arrays
+                    var keys = itemBson["ColumnKeys"].AsBsonArray;
+                    var names = itemBson.Contains("ColumnNames") && itemBson["ColumnNames"].IsBsonArray
+                        ? itemBson["ColumnNames"].AsBsonArray
+                        : new BsonArray();
+
+                    for (var i = 0; i < keys.Count; i++)
                     {
-                        var value = keyBson.IsString ? keyBson.AsString : keyBson.ToString();
-                        if (!string.IsNullOrWhiteSpace(value))
-                            menu.ColumnKeys.Add(value.Trim());
+                        menu.Columns.Add(new ColumnConfig
+                        {
+                            Key = keys[i].IsString ? keys[i].AsString : keys[i].ToString()!,
+                            Name = i < names.Count && names[i].IsString ? names[i].AsString : $"Cot {i + 1}",
+                        });
                     }
                 }
 
                 return menu;
             }));
-            response.Success = true;
+            response.Meta = OkMeta($"{response.Items.Count} items");
             logger.LogInformation("GetListDynamicMenus: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "GetListDynamicMenus error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi tải danh sách menu động", ex.Message);
         }
         return response;
     }
@@ -1058,78 +969,130 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var sourceKey = (request.SourceKey ?? string.Empty).Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(sourceKey))
             {
-                response.Success = false;
-                response.Message = "source_key là bắt buộc";
+                response.Meta = FailMeta("source_key là bắt buộc");
                 return response;
             }
 
             var dsFilter = Builders<BsonDocument>.Filter.And(
                 Builders<BsonDocument>.Filter.Eq("SourceKey", sourceKey),
-                Builders<BsonDocument>.Filter.Ne("Delete", true));
+                CommonUtils.NotDeleted);
 
+            // Only need CollectionName + Enabled — skip heavy Fields array
             var dsBson = await Global.CollectionBsonDynamicMenuDataSource!
                 .Find(dsFilter)
+                .Project(Builders<BsonDocument>.Projection
+                    .Include("CollectionName")
+                    .Include("Enabled"))
                 .FirstOrDefaultAsync();
 
             if (dsBson == null)
             {
-                response.Success = false;
-                response.Message = $"Không tìm thấy datasource với source_key '{sourceKey}'";
+                response.Meta = FailMeta($"Không tìm thấy datasource với source_key '{sourceKey}'");
                 return response;
             }
 
-            var ds = BsonSerializer.Deserialize<DynamicMenuDataSource>(dsBson);
-            if (!ds.Enabled)
+            if (!dsBson.GetValue("Enabled", false).AsBoolean)
             {
-                response.Success = false;
-                response.Message = $"Datasource '{sourceKey}' đang tắt";
+                response.Meta = FailMeta($"Datasource '{sourceKey}' đang tắt");
                 return response;
             }
 
-            var collectionName = string.IsNullOrWhiteSpace(ds.CollectionName)
+            var dsCollectionName = dsBson.GetValue("CollectionName", "").AsString;
+            var collectionName = string.IsNullOrWhiteSpace(dsCollectionName)
                 ? sourceKey
-                : ds.CollectionName.Trim();
+                : dsCollectionName.Trim();
 
             var collection = Global.MongoDB?.GetCollection<BsonDocument>(collectionName);
             if (collection == null)
             {
-                response.Success = false;
-                response.Message = $"Không thể truy cập collection '{collectionName}'";
+                response.Meta = FailMeta($"Không thể truy cập collection '{collectionName}'");
                 return response;
             }
 
             var safeLimit = request.Limit <= 0 ? 500 : Math.Clamp(request.Limit, 1, 2000);
 
-            var docs = await collection
+            // Try to get column_keys from DynamicMenu for projection
+            var menuBson = await Global.CollectionBsonDynamicMenu!
+                .Find(Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("DataSource", sourceKey),
+                    CommonUtils.NotDeleted))
+                .Project(Builders<BsonDocument>.Projection.Include("Columns").Include("ColumnKeys"))
+                .FirstOrDefaultAsync();
+
+            var columnKeys = ExtractColumnKeys(menuBson);
+            var projection = columnKeys.Count > 0
+                ? BuildProjection(columnKeys)
+                : (ProjectionDefinition<BsonDocument>?)null;
+
+            var findFluent = collection
                 .Find(Builders<BsonDocument>.Filter.Empty)
-                .Limit(safeLimit)
-                .ToListAsync();
+                .Sort(Builders<BsonDocument>.Sort.Ascending("_id"))
+                .Limit(safeLimit);
+
+            if (projection != null)
+                findFluent = findFluent.Project<BsonDocument>(projection);
+
+            var docs = await findFluent.ToListAsync();
+
+            var jsonSettings = new MongoDB.Bson.IO.JsonWriterSettings
+            {
+                OutputMode = MongoDB.Bson.IO.JsonOutputMode.RelaxedExtendedJson,
+            };
 
             foreach (var doc in docs)
             {
-                var json = doc.ToJson(new MongoDB.Bson.IO.JsonWriterSettings
-                {
-                    OutputMode = MongoDB.Bson.IO.JsonOutputMode.RelaxedExtendedJson,
-                });
-                response.RowsJson.Add(json);
+                var json = doc.ToJson(jsonSettings);
+                var structValue = Struct.Parser.ParseJson(json);
+                response.Rows.Add(structValue);
             }
 
-            response.Success = true;
-            response.Message = $"Lấy {response.RowsJson.Count} bản ghi từ '{collectionName}'";
+            response.Meta = OkMeta($"Lấy {response.Rows.Count} bản ghi từ '{collectionName}'");
             logger.LogInformation(
                 "GetDynamicMenuRows: source_key={SourceKey}, collection={Collection}, count={Count}",
-                sourceKey,
-                collectionName,
-                response.RowsJson.Count);
+                sourceKey, collectionName, response.Rows.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "GetDynamicMenuRows error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi tải dữ liệu menu động", ex.Message);
         }
 
         return response;
+    }
+
+    private static List<string> ExtractColumnKeys(BsonDocument? menuBson)
+    {
+        if (menuBson == null) return [];
+
+        // New format: Columns array of {Key, Name}
+        if (menuBson.Contains("Columns") && menuBson["Columns"].IsBsonArray)
+        {
+            return menuBson["Columns"].AsBsonArray
+                .Where(c => c.IsBsonDocument)
+                .Select(c => c.AsBsonDocument.GetValue("Key", "").AsString)
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .ToList();
+        }
+
+        // Legacy format: ColumnKeys string array
+        if (menuBson.Contains("ColumnKeys") && menuBson["ColumnKeys"].IsBsonArray)
+        {
+            return menuBson["ColumnKeys"].AsBsonArray
+                .Where(k => k.IsString)
+                .Select(k => k.AsString)
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .ToList();
+        }
+
+        return [];
+    }
+
+    private static ProjectionDefinition<BsonDocument> BuildProjection(List<string> keys)
+    {
+        var proj = Builders<BsonDocument>.Projection.Include("_id");
+        foreach (var key in keys)
+            proj = proj.Include(key);
+        return proj;
     }
 
     [Authorize]
@@ -1142,8 +1105,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var item = request.Item;
             if (item == null)
             {
-                response.Success = false;
-                response.Message = "Dữ liệu không hợp lệ";
+                response.Meta = FailMeta("Dữ liệu không hợp lệ");
                 return response;
             }
 
@@ -1151,55 +1113,50 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             item.ColumnCount = Math.Clamp(item.ColumnCount <= 0 ? 4 : item.ColumnCount, 1, 12);
             item.DataSource = string.IsNullOrWhiteSpace(item.DataSource) ? "employee" : item.DataSource.Trim().ToLowerInvariant();
 
-            var sanitizedColumnNames = item.ColumnNames
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name.Trim())
+            // Sanitize columns
+            var sanitized = item.Columns
+                .Where(c => !string.IsNullOrWhiteSpace(c.Key))
+                .Select(c => new ColumnConfig
+                {
+                    Key = c.Key.Trim(),
+                    Name = string.IsNullOrWhiteSpace(c.Name) ? c.Key.Trim() : c.Name.Trim(),
+                })
                 .Take(item.ColumnCount)
                 .ToList();
-            while (sanitizedColumnNames.Count < item.ColumnCount)
-                sanitizedColumnNames.Add($"Cot {sanitizedColumnNames.Count + 1}");
-            item.ColumnNames.Clear();
-            item.ColumnNames.AddRange(sanitizedColumnNames);
+            while (sanitized.Count < item.ColumnCount)
+                sanitized.Add(new ColumnConfig { Key = "id", Name = $"Cot {sanitized.Count + 1}" });
+            item.Columns.Clear();
+            item.Columns.AddRange(sanitized);
 
-            var sanitizedColumnKeys = item.ColumnKeys
-                .Where(key => !string.IsNullOrWhiteSpace(key))
-                .Select(key => key.Trim())
-                .Take(item.ColumnCount)
-                .ToList();
-            while (sanitizedColumnKeys.Count < item.ColumnCount)
-                sanitizedColumnKeys.Add("id");
-            item.ColumnKeys.Clear();
-            item.ColumnKeys.AddRange(sanitizedColumnKeys);
+            var isNew = string.IsNullOrWhiteSpace(item.Id);
 
-            if (request.IsNew)
+            if (isNew)
             {
                 item.Id = ObjectId.GenerateNewId().ToString();
-                item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                item.Delete = false;
+                item.CreateDate = CommonUtils.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
                 bsonDoc["Delete"] = false;
 
                 await Global.CollectionBsonDynamicMenu!.InsertOneAsync(bsonDoc);
-                response.Success = true;
-                response.Message = "Thêm menu động thành công!";
+                response.Meta = OkMeta("Thêm menu động thành công!");
                 logger.LogInformation("SaveDynamicMenu: Created {Id}", item.Id);
             }
             else
             {
-                item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                bsonDoc["Delete"] = false;
 
                 var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-                await Global.CollectionBsonDynamicMenu!.FindOneAndReplaceAsync(filter, bsonDoc);
+                await Global.CollectionBsonDynamicMenu!.ReplaceOneAsync(filter, bsonDoc);
 
-                response.Success = true;
-                response.Message = "Cập nhật menu động thành công!";
+                response.Meta = OkMeta("Cập nhật menu động thành công!");
                 logger.LogInformation("SaveDynamicMenu: Updated {Id}", item.Id);
             }
 
@@ -1208,8 +1165,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         catch (Exception ex)
         {
             logger.LogError(ex, "SaveDynamicMenu error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi lưu menu động", ex.Message);
         }
         return response;
     }
@@ -1221,16 +1177,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new DeleteBaseResponse();
         try
         {
-            var ids = new List<string>();
-            if (!string.IsNullOrEmpty(request.Id)) ids.Add(request.Id);
-            ids.AddRange(request.Ids);
-
-            var filter = Builders<BsonDocument>.Filter.In("_id", ids);
-            var result = await Global.CollectionBsonDynamicMenu!.DeleteManyAsync(filter);
-
-            response.Success = result.DeletedCount > 0;
-            response.Message = $"Đã xoá {result.DeletedCount} menu động";
-            logger.LogInformation("DeleteDynamicMenu: Deleted {Count}", result.DeletedCount);
+            var count = await CommonUtils.DeleteByIdsAsync(Global.CollectionBsonDynamicMenu!, request.Ids);
+            response.Success = count > 0;
+            response.Message = $"Đã xoá {count} menu động";
+            logger.LogInformation("DeleteDynamicMenu: Deleted {Count}", count);
         }
         catch (Exception ex)
         {
@@ -1248,7 +1198,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new GetListDynamicMenuDataSourcesResponse();
         try
         {
-            var filter = Builders<BsonDocument>.Filter.Ne("Delete", true);
+            var filter = CommonUtils.NotDeleted;
             var bsonItems = await Global.CollectionBsonDynamicMenuDataSource!.Find(filter).ToListAsync();
             if (bsonItems.Count == 0)
             {
@@ -1272,16 +1222,13 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                 return ds;
             }));
 
-            response.Success = true;
-            logger.LogInformation("GetListDynamicMenuDataSources: {Count} items, fields per source: {Detail}",
-                response.Items.Count,
-                string.Join("; ", response.Items.Select(i => $"{i.SourceKey}={i.Fields.Count}fields")));
+            response.Meta = OkMeta($"{response.Items.Count} items");
+            logger.LogInformation("GetListDynamicMenuDataSources: {Count} items", response.Items.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "GetListDynamicMenuDataSources error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi tải danh sách datasource", ex.Message);
         }
         return response;
     }
@@ -1296,8 +1243,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var item = request.Item;
             if (item == null)
             {
-                response.Success = false;
-                response.Message = "Dữ liệu không hợp lệ";
+                response.Meta = FailMeta("Dữ liệu không hợp lệ");
                 return response;
             }
 
@@ -1336,36 +1282,36 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             item.Fields.Clear();
             item.Fields.AddRange(normalizedFields);
 
-            if (request.IsNew)
+            var isNew = string.IsNullOrWhiteSpace(item.Id);
+
+            if (isNew)
             {
                 item.Id = ObjectId.GenerateNewId().ToString();
-                item.CreateDate = Timestamp.FromDateTime(DateTime.UtcNow);
-                item.Delete = false;
+                item.CreateDate = CommonUtils.GetNowTimestamp();
                 item.Enabled = true;
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
                 bsonDoc["Delete"] = false;
 
                 await Global.CollectionBsonDynamicMenuDataSource!.InsertOneAsync(bsonDoc);
-                response.Success = true;
-                response.Message = "Thêm datasource menu động thành công!";
+                response.Meta = OkMeta("Thêm datasource menu động thành công!");
                 logger.LogInformation("SaveDynamicMenuDataSource: Created {Id}", item.Id);
             }
             else
             {
-                item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
-                bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                bsonDoc["Delete"] = false;
 
                 var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-                await Global.CollectionBsonDynamicMenuDataSource!.FindOneAndReplaceAsync(filter, bsonDoc);
+                await Global.CollectionBsonDynamicMenuDataSource!.ReplaceOneAsync(filter, bsonDoc);
 
-                response.Success = true;
-                response.Message = "Cập nhật datasource menu động thành công!";
+                response.Meta = OkMeta("Cập nhật datasource menu động thành công!");
                 logger.LogInformation("SaveDynamicMenuDataSource: Updated {Id}", item.Id);
             }
 
@@ -1374,8 +1320,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         catch (Exception ex)
         {
             logger.LogError(ex, "SaveDynamicMenuDataSource error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi lưu datasource", ex.Message);
         }
         return response;
     }
@@ -1387,16 +1332,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new DeleteBaseResponse();
         try
         {
-            var ids = new List<string>();
-            if (!string.IsNullOrWhiteSpace(request.Id)) ids.Add(request.Id);
-            ids.AddRange(request.Ids);
-
-            var filter = Builders<BsonDocument>.Filter.In("_id", ids);
-            var result = await Global.CollectionBsonDynamicMenuDataSource!.DeleteManyAsync(filter);
-
-            response.Success = result.DeletedCount > 0;
-            response.Message = $"Đã xoá {result.DeletedCount} datasource menu động";
-            logger.LogInformation("DeleteDynamicMenuDataSource: Deleted {Count}", result.DeletedCount);
+            var count = await CommonUtils.DeleteByIdsAsync(Global.CollectionBsonDynamicMenuDataSource!, request.Ids);
+            response.Success = count > 0;
+            response.Message = $"Đã xoá {count} datasource menu động";
+            logger.LogInformation("DeleteDynamicMenuDataSource: Deleted {Count}", count);
         }
         catch (Exception ex)
         {
@@ -1407,8 +1346,120 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         return response;
     }
 
+    [Authorize]
+    public override async Task<GetListTemplateLayoutsResponse> GetListTemplateLayouts(
+        GetListTemplateLayoutsRequest request, ServerCallContext context)
+    {
+        var response = new GetListTemplateLayoutsResponse();
+        try
+        {
+            var items = await Global.CollectionBsonTemplateLayout!
+                .Find(CommonUtils.NotDeleted)
+                .ToListAsync();
+
+            response.Items.AddRange(items.Select(itemBson =>
+            {
+                var layout = BsonSerializer.Deserialize<TemplateLayout>(itemBson);
+                if (itemBson.Contains("CreateDate")) layout.CreateDate = CommonUtils.BsonToTs(itemBson["CreateDate"]);
+                if (itemBson.Contains("ModifyDate")) layout.ModifyDate = CommonUtils.BsonToTs(itemBson["ModifyDate"]);
+                return layout;
+            }));
+
+            response.Meta = OkMeta($"{response.Items.Count} items");
+            logger.LogInformation("GetListTemplateLayouts: {Count} items", response.Items.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GetListTemplateLayouts error");
+            response.Meta = FailMeta("Lỗi khi tải danh sách template", ex.Message);
+        }
+
+        return response;
+    }
+
+    [Authorize]
+    public override async Task<SaveTemplateLayoutResponse> SaveTemplateLayout(
+        SaveTemplateLayoutRequest request, ServerCallContext context)
+    {
+        var response = new SaveTemplateLayoutResponse();
+        try
+        {
+            var item = request.Item;
+            if (item == null)
+            {
+                response.Meta = FailMeta("Dữ liệu không hợp lệ");
+                return response;
+            }
+
+            item.Key = string.IsNullOrWhiteSpace(item.Key)
+                ? (item.Name ?? string.Empty).Trim().ToLowerInvariant().Replace(" ", "-")
+                : item.Key.Trim().ToLowerInvariant();
+            item.Name = string.IsNullOrWhiteSpace(item.Name) ? item.Key : item.Name.Trim();
+            item.SchemaJson = string.IsNullOrWhiteSpace(item.SchemaJson) ? "{}" : item.SchemaJson;
+
+            var isNew = string.IsNullOrWhiteSpace(item.Id);
+
+            if (isNew)
+            {
+                item.Id = ObjectId.GenerateNewId().ToString();
+                item.CreateDate = CommonUtils.GetNowTimestamp();
+
+                var bsonDoc = item.ToBsonDocument();
+                bsonDoc["_id"] = item.Id;
+                bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
+                bsonDoc["Delete"] = false;
+
+                await Global.CollectionBsonTemplateLayout!.InsertOneAsync(bsonDoc);
+                response.Meta = OkMeta("Thêm template layout thành công");
+            }
+            else
+            {
+                item.ModifyDate = CommonUtils.GetNowTimestamp();
+
+                var bsonDoc = item.ToBsonDocument();
+                bsonDoc["_id"] = item.Id;
+                bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                bsonDoc["Delete"] = false;
+
+                var filter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
+                await Global.CollectionBsonTemplateLayout!.ReplaceOneAsync(filter, bsonDoc);
+
+                response.Meta = OkMeta("Cập nhật template layout thành công");
+            }
+
+            response.Item = item;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "SaveTemplateLayout error");
+            response.Meta = FailMeta("Lỗi khi lưu template", ex.Message);
+        }
+
+        return response;
+    }
+
+    [Authorize]
+    public override async Task<DeleteBaseResponse> DeleteTemplateLayout(
+        DeleteTemplateLayoutRequest request, ServerCallContext context)
+    {
+        var response = new DeleteBaseResponse();
+        try
+        {
+            var count = await CommonUtils.DeleteByIdsAsync(Global.CollectionBsonTemplateLayout!, request.Ids);
+            response.Success = count > 0;
+            response.Message = $"Đã xoá {count} template layout";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DeleteTemplateLayout error");
+            response.Success = false;
+            response.MessageException = ex.Message;
+        }
+        return response;
+    }
+
     // ================================================================
-    // Sync DynamicMenuDataSources từ proto schema
+    // Sync DynamicMenuDataSources từ proto schema — BulkWrite
     // ================================================================
     [Authorize]
     public override async Task<SyncDynamicMenuDataSourcesFromProtoResponse> SyncDynamicMenuDataSourcesFromProto(
@@ -1417,20 +1468,18 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
         var response = new SyncDynamicMenuDataSourcesFromProtoResponse();
         try
         {
-            var protoRegistryMap = BuildProtoRegistryMap();
+            var protoRegistryMap = await GetProtoRegistryAsync();
             logger.LogInformation(
                 "SyncFromProto: registry candidates={Count}, keys={Keys}",
                 protoRegistryMap.Count,
                 string.Join(", ", protoRegistryMap.Keys.OrderBy(k => k)));
 
-            // Nếu source_key trống → sync tất cả entries đọc được từ proto build output
             var requestedKey = request.SourceKey?.Trim() ?? "";
             var toSync = string.IsNullOrWhiteSpace(requestedKey)
                 ? protoRegistryMap
                 : protoRegistryMap
                     .Where(kvp =>
                         kvp.Key.Equals(requestedKey, StringComparison.OrdinalIgnoreCase)
-                        // match theo tên message proto (catalog → Catalog descriptor)
                         || kvp.Value.Descriptor.Name.Equals(requestedKey, StringComparison.OrdinalIgnoreCase)
                         || ToKebabCase(kvp.Value.Descriptor.Name).Equals(requestedKey, StringComparison.OrdinalIgnoreCase)
                     )
@@ -1438,61 +1487,51 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
 
             if (toSync.Count == 0)
             {
-                response.Success = false;
-                response.Message = $"Không tìm thấy proto mapping cho source_key '{request.SourceKey}'. " +
-                                   $"Các key hợp lệ: {string.Join(", ", protoRegistryMap.Keys)}";
-                logger.LogWarning("SyncFromProto: no matched source. request={Req}, available={Keys}",
-                    request.SourceKey,
-                    string.Join(", ", protoRegistryMap.Keys.OrderBy(k => k)));
+                response.Meta = FailMeta(
+                    $"Không tìm thấy proto mapping cho source_key '{request.SourceKey}'. " +
+                    $"Các key hợp lệ: {string.Join(", ", protoRegistryMap.Keys)}");
                 return response;
             }
 
-            var syncedItems = new List<DynamicMenuDataSource>();
+            var F = Builders<BsonDocument>.Filter;
+            var col = Global.CollectionBsonDynamicMenuDataSource!;
+            var keys = toSync.Keys.ToList();
 
+            // 1 query: fetch all existing docs matching any of the sync keys
+            var existingDocs = await col
+                .Find(F.And(F.In("SourceKey", keys), CommonUtils.NotDeleted))
+                .ToListAsync();
+            var existingMap = existingDocs.ToDictionary(
+                d => d.GetValue("SourceKey", "").AsString,
+                d => d,
+                StringComparer.OrdinalIgnoreCase);
+
+            // Build all ops in memory
+            var bulkOps = new List<WriteModel<BsonDocument>>();
+            var syncedItems = new List<DynamicMenuDataSource>();
 
             foreach (var (sourceKey, (sourceName, collectionName, descriptor)) in toSync)
             {
                 var fields = GetFieldsFromProtoDescriptor(descriptor);
-                var fieldKeysLog = string.Join(", ", fields.Select(field => field.Key).Where(key => !string.IsNullOrWhiteSpace(key)));
-
-                logger.LogInformation(
-                    "SyncFromProto Detail: sourceKey={SourceKey}, collectionName={CollectionName}, fields.Count={FieldsCount}, fieldKeys=[{FieldKeys}]",
-                    sourceKey,
-                    collectionName,
-                    fields.Count,
-                    fieldKeysLog);
-
-                // Kiểm tra đã tồn tại chưa (theo sourceKey, chưa bị xoá)
-                var existingFilter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("SourceKey", sourceKey),
-                    Builders<BsonDocument>.Filter.Ne("Delete", true)
-                );
-                var existingBson = await Global.CollectionBsonDynamicMenuDataSource!
-                    .Find(existingFilter).FirstOrDefaultAsync();
 
                 DynamicMenuDataSource item;
-
-                if (existingBson != null)
+                if (existingMap.TryGetValue(sourceKey, out var existingBson))
                 {
-                    // Cập nhật fields từ proto, giữ nguyên các thông tin khác
                     item = BsonSerializer.Deserialize<DynamicMenuDataSource>(existingBson);
                     item.Fields.Clear();
                     item.Fields.AddRange(fields);
-                    item.ModifyDate = Timestamp.FromDateTime(DateTime.UtcNow);
+                    item.ModifyDate = CommonUtils.GetNowTimestamp();
 
                     var bsonDoc = item.ToBsonDocument();
                     bsonDoc["_id"] = item.Id;
-                    bsonDoc["ModifyDate"] = FromTimestamp(item.ModifyDate);
+                    bsonDoc["ModifyDate"] = CommonUtils.TsToBson(item.ModifyDate);
+                    bsonDoc["Delete"] = false;
 
-                    var replaceFilter = Builders<BsonDocument>.Filter.Eq("_id", item.Id);
-                    await Global.CollectionBsonDynamicMenuDataSource
-                        .FindOneAndReplaceAsync(replaceFilter, bsonDoc);
-
-                    logger.LogInformation("SyncFromProto: Updated source_key={Key} → {Count} fields", sourceKey, fields.Count);
+                    bulkOps.Add(new ReplaceOneModel<BsonDocument>(
+                        F.Eq("_id", item.Id), bsonDoc));
                 }
                 else
                 {
-                    // Tạo mới
                     item = new DynamicMenuDataSource
                     {
                         Id = ObjectId.GenerateNewId().ToString(),
@@ -1500,34 +1539,36 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                         SourceName = sourceName,
                         CollectionName = collectionName,
                         Enabled = true,
-                        Delete = false,
-                        CreateDate = Timestamp.FromDateTime(DateTime.UtcNow),
+                        CreateDate = CommonUtils.GetNowTimestamp(),
                     };
                     item.Fields.AddRange(fields);
 
                     var bsonDoc = item.ToBsonDocument();
                     bsonDoc["_id"] = item.Id;
-                    bsonDoc["CreateDate"] = FromTimestamp(item.CreateDate);
+                    bsonDoc["CreateDate"] = CommonUtils.TsToBson(item.CreateDate);
                     bsonDoc["Delete"] = false;
 
-                    await Global.CollectionBsonDynamicMenuDataSource!.InsertOneAsync(bsonDoc);
-                    logger.LogInformation("SyncFromProto: Created source_key={Key} → {Count} fields", sourceKey, fields.Count);
+                    bulkOps.Add(new InsertOneModel<BsonDocument>(bsonDoc));
                 }
 
                 syncedItems.Add(item);
             }
 
+            // 1 round-trip for all writes
+            if (bulkOps.Count > 0)
+                await col.BulkWriteAsync(bulkOps);
+
             response.Items.AddRange(syncedItems);
-            response.Success = true;
-            response.Message =
+            response.Meta = OkMeta(
                 $"Đồng bộ thành công {syncedItems.Count} datasource từ proto schema. " +
-                $"Synced keys: {string.Join(", ", toSync.Keys.OrderBy(k => k))}";
+                $"Synced keys: {string.Join(", ", toSync.Keys.OrderBy(k => k))}");
+
+            logger.LogInformation("SyncFromProto: synced {Count} items", syncedItems.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "SyncDynamicMenuDataSourcesFromProto error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi đồng bộ từ proto", ex.Message);
         }
         return response;
     }
@@ -1545,12 +1586,10 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var rawCollectionName = request.CollectionName?.Trim();
             if (string.IsNullOrEmpty(rawCollectionName))
             {
-                response.Success = false;
-                response.Message = "Vui lòng nhập tên collection.";
+                response.Meta = FailMeta("Vui lòng nhập tên collection.");
                 return response;
             }
 
-            // Resolve alias: "Catalog" → "CapBac" (tên thật trong MongoDB)
             var collectionName = ResolveActualCollectionName(rawCollectionName);
             if (!collectionName.Equals(rawCollectionName, StringComparison.OrdinalIgnoreCase))
                 logger.LogInformation("DiscoverCollectionFields: alias resolved {From} → {To}", rawCollectionName, collectionName);
@@ -1558,21 +1597,14 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             var collection = Global.MongoDB?.GetCollection<BsonDocument>(collectionName);
             if (collection == null)
             {
-                response.Success = false;
-                response.Message = "Không thể kết nối MongoDB.";
+                response.Meta = FailMeta("Không thể kết nối MongoDB.");
                 return response;
             }
 
-            // Đếm tổng docs (tối đa 1000 để không chậm)
-            var total = (int)await collection.CountDocumentsAsync(
-                Builders<BsonDocument>.Filter.Empty,
-                new CountOptions { Limit = 1000 });
-
-            var scanLimit = Math.Min(total, 50);
-
+            // Scan 50 docs directly — no need for separate count query
             var documents = await collection
                 .Find(Builders<BsonDocument>.Filter.Empty)
-                .Limit(scanLimit)
+                .Limit(50)
                 .ToListAsync();
 
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1586,7 +1618,7 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
                     if (!seen.Add(element.Name)) continue;
 
                     var dataType = ResolveBsonDataType(element.Value);
-                    if (dataType == null) continue; // bỏ qua null/undefined
+                    if (dataType == null) continue;
 
                     fields.Add(new DynamicMenuDataSourceField
                     {
@@ -1598,21 +1630,19 @@ public class ThamSoServiceImpl(ILogger<ThamSoServiceImpl> logger) :
             }
 
             response.CollectionName = collectionName;
-            response.DocumentsScanned = scanLimit;
+            response.DocumentsScanned = documents.Count;
             response.Fields.AddRange(fields);
-            response.Success = true;
-            response.Message = fields.Count > 0
-                ? $"Tìm thấy {fields.Count} fields từ {scanLimit}/{total} documents"
-                : $"Collection '{collectionName}' rỗng hoặc không có fields";
+            response.Meta = OkMeta(fields.Count > 0
+                ? $"Tìm thấy {fields.Count} fields từ {documents.Count} documents"
+                : $"Collection '{collectionName}' rỗng hoặc không có fields");
 
             logger.LogInformation("DiscoverCollectionFields: {Col} → {Fields} fields / {Scanned} docs scanned",
-                collectionName, fields.Count, scanLimit);
+                collectionName, fields.Count, documents.Count);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "DiscoverCollectionFields error");
-            response.Success = false;
-            response.MessageException = ex.Message;
+            response.Meta = FailMeta("Lỗi khi khám phá collection", ex.Message);
         }
         return response;
     }

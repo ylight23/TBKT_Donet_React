@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -21,8 +21,9 @@ import {
 import userImage from "../../assets/user.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
-import menu, { isSubMenu } from "../../constants/menu";
+import menu, { isSubMenu, type MenuEntry } from "../../constants/menu";
 import { useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 import { getActiveMenuName } from "../../utils";
 import { nameToIcon } from '../../utils/thamSoUtils';
 
@@ -40,8 +41,9 @@ const preloadMap: Record<string, () => Promise<unknown>> = {
     '/chuyen-cap-chat-luong': () => import('../ChuyenCapChatLuong'),
     '/thong-ke-bao-cao': () => import('../ThongKeBaoCao'),
     '/cau-hinh-tham-so': () => import('../CauHinhThamSo'),
-    '/cau-hinh-menu-dong': () => import('../CauHinhMenuDong'),
+    '/cau-hinh-menu': () => import('../CauHinhMenu'),
     '/cau-hinh-data-source': () => import('../CauHinhDataSource'),
+    '/cau-hinh-template': () => import('../CauHinhTemplate'),
     '/office': () => import('../Office'),
     '/employee': () => import('../Employee'),
 };
@@ -108,6 +110,25 @@ const Sidebar: React.FC = () => {
     const isDark = theme.palette.mode === 'dark';
     const dt = isDark ? dashboardTokensDark : dashboardTokensLight;
     const { items: dynamicMenuItems } = useDynamicMenuConfig();
+    const { canFunc, canPhanHe, isAdmin, loaded: permLoaded } = useMyPermissions();
+
+    // Lọc menu tĩnh theo quyền chức năng
+    const visibleMenu = useMemo<MenuEntry[]>(() => {
+        if (!permLoaded || isAdmin) return menu; // chưa load xong hoặc admin → hiện tất cả
+        return menu.filter(entry => {
+            const code = entry.maChucNang;
+            if (!code) return true; // không gắn maChucNang → luôn hiện
+            return canFunc(code, 'view');
+        }).map(entry => {
+            if (!isSubMenu(entry)) return entry;
+            // Lọc children của SubMenu
+            const children = entry.children.filter(child => {
+                if (!child.maChucNang) return true;
+                return canFunc(child.maChucNang, 'view');
+            });
+            return children.length > 0 ? { ...entry, children } : null;
+        }).filter(Boolean) as MenuEntry[];
+    }, [permLoaded, isAdmin, canFunc]);
 
     const [isCollapse, setIsCollapse] = useState<boolean>(false);
     const location = useLocation();
@@ -231,7 +252,7 @@ const Sidebar: React.FC = () => {
                     )}
 
                     {/* MenuItem */}
-                    {menu.map((entry, index) => {
+                    {visibleMenu.map((entry, index) => {
                         if (isSubMenu(entry)) {
                             const isChildActive = entry.children.some(c => c.active === selected);
                             return (
@@ -308,7 +329,7 @@ const Sidebar: React.FC = () => {
                         // >
                         <>
                             {dynamicMenuItems
-                                .filter((item) => item.enabled)
+                                .filter((item) => item.enabled && (!permLoaded || isAdmin || canPhanHe(item.dataSource || '')))
                                 .map((item) => (
                                     <Item
                                         key={item.id}

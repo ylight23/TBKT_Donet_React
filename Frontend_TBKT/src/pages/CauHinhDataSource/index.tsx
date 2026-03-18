@@ -22,8 +22,8 @@ import SyncIcon from '@mui/icons-material/Sync';
 import SearchIcon from '@mui/icons-material/Search';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import thamSoApi, {
-  type LocalDynamicMenuDataSource,
-  type LocalDynamicMenuDataSourceField,
+  type DataSourceConfig,
+  type DataSourceField,
 } from '../../apis/thamSoApi';
 
 interface DataSourceFormState {
@@ -32,10 +32,10 @@ interface DataSourceFormState {
   sourceName: string;
   collectionName: string;
   enabled: boolean;
-  fields: LocalDynamicMenuDataSourceField[];
+  fields: DataSourceField[];
 }
 
-const EMPTY_FIELD: LocalDynamicMenuDataSourceField = {
+const EMPTY_FIELD: DataSourceField = {
   key: '',
   label: '',
   dataType: 'string',
@@ -59,7 +59,7 @@ const toSourceKey = (value: string): string =>
     .replace(/-+/g, '-');
 
 const CauHinhDataSource: React.FC = () => {
-  const [items, setItems] = useState<LocalDynamicMenuDataSource[]>([]);
+  const [items, setItems] = useState<DataSourceConfig[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
@@ -69,7 +69,7 @@ const CauHinhDataSource: React.FC = () => {
   // discover states
   const [discovering, setDiscovering] = useState<boolean>(false);
   const [browseCollectionName, setBrowseCollectionName] = useState<string>('');
-  const [browseFields, setBrowseFields] = useState<LocalDynamicMenuDataSourceField[]>([]);
+  const [browseFields, setBrowseFields] = useState<DataSourceField[]>([]);
   const [browseInfo, setBrowseInfo] = useState<string>('');
   const [browseError, setBrowseError] = useState<string>('');
 
@@ -111,7 +111,7 @@ const CauHinhDataSource: React.FC = () => {
     setEditingId('');
   };
 
-  const sanitizeFields = (fields: LocalDynamicMenuDataSourceField[]): LocalDynamicMenuDataSourceField[] => {
+  const sanitizeFields = (fields: DataSourceField[]): DataSourceField[] => {
     const result = fields
       .map((field) => ({
         key: field.key.trim(),
@@ -124,7 +124,7 @@ const CauHinhDataSource: React.FC = () => {
       return [{ key: 'id', label: 'ID', dataType: 'string' }];
     }
 
-    const map = new Map<string, LocalDynamicMenuDataSourceField>();
+    const map = new Map<string, DataSourceField>();
     result.forEach((field) => {
       if (!map.has(field.key)) map.set(field.key, field);
     });
@@ -148,7 +148,7 @@ const CauHinhDataSource: React.FC = () => {
       return;
     }
 
-    const payload: LocalDynamicMenuDataSource = {
+    const payload: DataSourceConfig = {
       id: editingId,
       sourceKey,
       sourceName,
@@ -170,7 +170,7 @@ const CauHinhDataSource: React.FC = () => {
     }
   };
 
-  const handleEdit = (item: LocalDynamicMenuDataSource): void => {
+  const handleEdit = (item: DataSourceConfig): void => {
     setEditingId(item.id);
     setForm({
       id: item.id,
@@ -215,7 +215,7 @@ const CauHinhDataSource: React.FC = () => {
 
   const handleFieldChange = (
     index: number,
-    fieldName: keyof LocalDynamicMenuDataSourceField,
+    fieldName: keyof DataSourceField,
     value: string,
   ): void => {
     setForm((prev) => {
@@ -476,7 +476,7 @@ const CauHinhDataSource: React.FC = () => {
                 columns={columns}
                 loading={loading}
                 disableRowSelectionOnClick
-                onRowClick={(params) => handleEdit(params.row as LocalDynamicMenuDataSource)}
+                onRowClick={(params) => handleEdit(params.row as DataSourceConfig)}
                 pageSizeOptions={[5, 10, 20]}
               />
             </Box>

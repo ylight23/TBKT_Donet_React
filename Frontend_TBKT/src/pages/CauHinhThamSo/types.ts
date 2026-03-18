@@ -50,4 +50,4 @@ export interface EquipmentItem {
     logs: EquipmentLog[];
 }
 
-export type MainTab = 'fields' | 'datasets' | 'equip';
+export type MainTab = 'fields' | 'datasets';

@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package NhomChuyenNganh;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// NhomChuyenNganh - Nhóm chuyên ngành (mới)
+// Dùng để gom nhóm các chuyên ngành lại với nhau
+// ============================================================
+
+message NhomChuyenNganh {
+  string id = 1;                           // "nhom_tc_dien_tu" - slug format
+  google.protobuf.StringValue ten = 2;    // "Tác chiến điện tử"
+  google.protobuf.StringValue mo_ta = 3;   // mô tả thêm
+  repeated string danh_sach_cn = 4;        // danh sách IDChuyenNganh trong nhóm
+  bool kich_hoat = 5;                      // có kích hoạt không
+  google.protobuf.StringValue nguoi_tao = 6;
+  google.protobuf.StringValue nguoi_sua = 7;
+  google.protobuf.Timestamp ngay_tao = 8;
+  google.protobuf.Timestamp ngay_sua = 9;
+}
+
+// ============================================================
+// Service
+// ============================================================
+
+service NhomChuyenNganhService {
+  rpc GetList (NhomChuyenNganhListRequest) returns (NhomChuyenNganhListResponse);
+  rpc Get (NhomChuyenNganhGetRequest) returns (NhomChuyenNganhGetResponse);
+  rpc Save (NhomChuyenNganhSaveRequest) returns (NhomChuyenNganhSaveResponse);
+  rpc Delete (NhomChuyenNganhDeleteRequest) returns (NhomChuyenNganhDeleteResponse);
+}
+
+message NhomChuyenNganhListRequest {
+  google.protobuf.StringValue search_text = 1;
+  google.protobuf.BoolValue kich_hoat = 2;
+}
+
+message NhomChuyenNganhListResponse {
+  repeated NhomChuyenNganh items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message NhomChuyenNganhGetRequest {
+  string id = 1;
+}
+
+message NhomChuyenNganhGetResponse {
+  NhomChuyenNganh item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message NhomChuyenNganhSaveRequest {
+  NhomChuyenNganh item = 1;
+  bool is_new = 2;
+}
+
+message NhomChuyenNganhSaveResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message NhomChuyenNganhDeleteRequest {
+  string id = 1;
+}
+
+message NhomChuyenNganhDeleteResponse {
+  bool success = 1;
+  string message = 2;
+  string ids_deleted = 3;
+}

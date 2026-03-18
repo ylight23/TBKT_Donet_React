@@ -25,7 +25,11 @@ message Office {
   repeated Office danh_sach_cap_duoi = 13;
   repeated ExtendedField.ExtendedField parameters = 12;
   google.protobuf.StringValue ten_tai_khoan_chia_se_du_lieu = 16;
-  google.protobuf.StringValue mat_khau_chia_se_du_lieu = 17;  
+  google.protobuf.StringValue mat_khau_chia_se_du_lieu = 17;
+
+  // NEW: for Siblings query
+  google.protobuf.StringValue path = 18;  // slash format: "/000/050/017/"
+  google.protobuf.Int32Value depth = 19; // number of segments in id
 
   google.protobuf.StringValue nguoi_tao = 30;
   google.protobuf.StringValue nguoi_sua = 31;

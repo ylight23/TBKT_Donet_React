@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Backend.utils;
+using Backend.Utils;
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using MongoDB.Driver;
@@ -307,7 +308,7 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
 
             var update = Builders<Employee>.Update
                 .Set(x => x.Delete, true)
-                .Set(x => x.DeleteDate, Timestamp.FromDateTime(DateTime.UtcNow));
+                .Set(x => x.DeleteDate, CommonUtils.GetNowTimestamp());
 
             if (Global.CollectionEmployee != null)
             {
@@ -372,7 +373,7 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
                 if (request.IsNew)
                 {
                     item.Id = Guid.NewGuid().ToString();
-                    item.CreateDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.UtcNow);
+                    item.CreateDate = CommonUtils.GetNowTimestamp();
                     item.Delete = false;
                     // item.CreateBy = context.GetUserID();
 

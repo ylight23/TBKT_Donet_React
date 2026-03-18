@@ -3,8 +3,9 @@ import { Alert, Box, Chip, Divider, Stack, Typography } from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import { useLocation, useParams } from 'react-router-dom';
 import { useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
-import { normalizeColumnKeys, normalizeColumnNames, normalizeDataSource } from '../../configs/dynamicMenuConfig';
+import { normalizeColumns, normalizeDataSource } from '../../configs/dynamicMenuConfig';
 import thamSoApi from '../../apis/thamSoApi';
+import TemplateRenderer from '../../components/TemplateRenderer';
 
 const MAX_COLUMNS = 12;
 
@@ -35,17 +36,20 @@ const MenuDong: React.FC = () => {
 
   const hasConfig = !!menuConfig;
 
+  // If the menu has a templateKey, render via TemplateRenderer (new pipeline)
+  const useTemplate = hasConfig && !!menuConfig!.templateKey;
+
+  // Legacy DataGrid fields (backward compat)
   const gridCount = hasConfig ? Math.max(1, menuConfig!.gridCount) : 1;
   const dataSource = hasConfig ? normalizeDataSource(menuConfig!.dataSource) : '';
   const columnCount = hasConfig ? Math.min(MAX_COLUMNS, Math.max(1, menuConfig!.columnCount || 4)) : 4;
-  const columnNames = hasConfig ? normalizeColumnNames(columnCount, menuConfig!.columnNames) : [];
-  const columnKeys = hasConfig
-    ? normalizeColumnKeys(dataSource, columnCount, menuConfig!.columnKeys, dataSources)
+  const columns = hasConfig
+    ? normalizeColumns(dataSource, columnCount, menuConfig!.columns, dataSources)
     : [];
 
-  const gridColumns: GridColDef[] = columnNames.map((columnName, idx) => ({
+  const gridColumns: GridColDef[] = columns.map((col, idx) => ({
     field: `col${idx + 1}`,
-    headerName: columnName,
+    headerName: col.name,
     flex: 1,
     minWidth: 140,
   }));
@@ -55,7 +59,7 @@ const MenuDong: React.FC = () => {
   const dsDisplayName = dsConfig?.sourceName || dataSource;
 
   useEffect(() => {
-    if (!hasConfig || !dataSource) return;
+    if (!hasConfig || !dataSource || useTemplate) return;
 
     const loadRows = async (): Promise<void> => {
       try {
@@ -72,7 +76,7 @@ const MenuDong: React.FC = () => {
     };
 
     void loadRows();
-  }, [dataSource, hasConfig, dsDisplayName]);
+  }, [dataSource, hasConfig, useTemplate, dsDisplayName]);
 
   const mappedRows = useMemo(() => {
     if (!backendRows.length) return [];
@@ -80,12 +84,12 @@ const MenuDong: React.FC = () => {
       const row: Record<string, string> = {
         id: String(source.id ?? `row-${rowIndex + 1}`),
       };
-      columnKeys.forEach((key, colIdx) => {
-        row[`col${colIdx + 1}`] = getValueByKey(source, key);
+      columns.forEach((col, colIdx) => {
+        row[`col${colIdx + 1}`] = getValueByKey(source, col.key);
       });
       return row;
     });
-  }, [backendRows, columnKeys]);
+  }, [backendRows, columns]);
 
   if (!hasConfig) {
     return (
@@ -97,6 +101,19 @@ const MenuDong: React.FC = () => {
     );
   }
 
+  // ── New pipeline: render via Puck template ──
+  if (useTemplate) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5 }}>
+          {menuConfig!.title}
+        </Typography>
+        <TemplateRenderer templateKey={menuConfig!.templateKey} />
+      </Box>
+    );
+  }
+
+  // ── Legacy pipeline: DataGrid ──
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5 }}>

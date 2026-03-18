@@ -23,6 +23,11 @@ builder.Services.AddMemoryCache();
 // SignalR removed - using Front-Channel Logout instead
 builder.Services.AddSingleton<ITokenRevocationService, TokenRevocationService>();
 
+// Precomputed permission rebuild infrastructure
+builder.Services.AddSingleton<Backend.Services.RebuildQueue>();
+builder.Services.AddSingleton<Backend.Services.RebuildService>();
+builder.Services.AddHostedService<Backend.Services.RebuildWorker>();
+
 builder.Services.AddGrpc(options => 
 {
     options.EnableDetailedErrors = true;

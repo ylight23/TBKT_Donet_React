@@ -26,9 +26,11 @@ const DieuDong             = React.lazy(() => import('../pages/DieuDong'));
 const ChuyenCapChatLuong   = React.lazy(() => import('../pages/ChuyenCapChatLuong'));
 const ThongKeBaoCao        = React.lazy(() => import('../pages/ThongKeBaoCao'));
 const CauHinhThamSo        = React.lazy(() => import('../pages/CauHinhThamSo'));
-const CauHinhMenuDong      = React.lazy(() => import('../pages/CauHinhMenuDong'));
+const CauHinhMenu          = React.lazy(() => import('../pages/CauHinhMenu'));
 const CauHinhDataSource    = React.lazy(() => import('../pages/CauHinhDataSource'));
+const CauHinhTemplate      = React.lazy(() => import('../pages/CauHinhTemplate'));
 const MenuDong             = React.lazy(() => import('../pages/MenuDong'));
+const PhanQuyen            = React.lazy(() => import('../pages/PhanQuyen'));
 
 // ── Hoisted static JSX (Rule: hoist-jsx) ──────────────────────────────────────
 const loadingSpinner = (
@@ -164,10 +166,10 @@ const MainRoute: RouteObject = {
             )
         },
         {
-            path: "/cau-hinh-menu-dong",
+            path: "/cau-hinh-menu",
             element: (
                 <Suspense fallback={<PageSkeleton />}>
-                    <CauHinhMenuDong />
+                    <CauHinhMenu />
                 </Suspense>
             )
         },
@@ -180,10 +182,27 @@ const MainRoute: RouteObject = {
             )
         },
         {
+            path: "/cau-hinh-template",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <CauHinhTemplate />
+                </Suspense>
+            )
+        },
+        {
             path: "/menu-dong/:menuId",
             element: (
                 <Suspense fallback={<PageSkeleton />}>
                     <MenuDong />
+                </Suspense>
+            )
+        },
+        // ── Phân quyền ────────────────────────────────────────────────────
+        {
+            path: "/phan-quyen",
+            element: (
+                <Suspense fallback={<PageSkeleton />}>
+                    <PhanQuyen />
                 </Suspense>
             )
         },

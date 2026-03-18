@@ -9,7 +9,7 @@ export interface DynamicMenuConfigItem {
   dataSource: DynamicMenuDataSource;
   gridCount: number;
   columnCount: number;
-  columnNames: string[];
-  columnKeys: string[];
+  columns: Array<{ key: string; name: string }>;
+  templateKey: string;
   enabled: boolean;
 }

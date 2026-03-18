@@ -23,6 +23,10 @@ import {
     DeleteDynamicMenuRequestSchema,
     GetDynamicMenuRowsRequestSchema,
     DynamicMenuSchema,
+    GetListTemplateLayoutsRequestSchema,
+    SaveTemplateLayoutRequestSchema,
+    DeleteTemplateLayoutRequestSchema,
+    TemplateLayoutSchema,
     GetListDynamicMenuDataSourcesRequestSchema,
     SaveDynamicMenuDataSourceRequestSchema,
     DeleteDynamicMenuDataSourceRequestSchema,
@@ -30,6 +34,7 @@ import {
     DynamicMenuDataSourceFieldSchema,
     SyncDynamicMenuDataSourcesFromProtoRequestSchema,
     DiscoverCollectionFieldsRequestSchema,
+    ColumnConfigSchema,
 } from '../grpc/generated/ThamSo_pb';
 
 import type {
@@ -40,6 +45,7 @@ import type {
     FormTabConfig as FormTabConfigProto,
     DynamicMenu as DynamicMenuProto,
     DynamicMenuDataSource as DynamicMenuDataSourceProto,
+    TemplateLayout as TemplateLayoutProto,
 } from '../grpc/generated/ThamSo_pb';
 
 import { thamSoClient } from '../grpc/grpcClient';
@@ -99,24 +105,38 @@ export interface LocalDynamicMenu {
     dataSource: string;
     gridCount: number;
     columnCount: number;
-    columnNames: string[];
-    columnKeys: string[];
+    columns: Array<{ key: string; name: string }>;
+    templateKey: string;
     enabled: boolean;
 }
 
-export interface LocalDynamicMenuDataSourceField {
+export interface DataSourceField {
     key: string;
     label: string;
     dataType: string;
 }
 
-export interface LocalDynamicMenuDataSource {
+/** @deprecated Use DataSourceField */
+export type LocalDynamicMenuDataSourceField = DataSourceField;
+
+export interface DataSourceConfig {
     id: string;
     sourceKey: string;
     sourceName: string;
     collectionName: string;
-    fields: LocalDynamicMenuDataSourceField[];
+    fields: DataSourceField[];
     enabled: boolean;
+}
+
+/** @deprecated Use DataSourceConfig */
+export type LocalDynamicMenuDataSource = DataSourceConfig;
+
+export interface LocalTemplateLayout {
+    id: string;
+    key: string;
+    name: string;
+    schemaJson: string;
+    published: boolean;
 }
 
 // ============================================================
@@ -165,32 +185,24 @@ function localFieldToProto(f: LocalDynamicField): any {
 }
 
 function protoSetToLocal(s: FieldSetProto): LocalFieldSet {
-    const seen = new Set<string>();
-    const fieldIds: string[] = [];
-    for (const f of s.fields) {
-        if (f.id && !seen.has(f.id)) { seen.add(f.id); fieldIds.push(f.id); }
-    }
     return {
         id: s.id,
         name: s.name,
         icon: s.icon,
         color: s.color,
         desc: s.desc,
-        fieldIds,
+        fieldIds: [...s.fieldIds],
     };
 }
 
-function localSetToProto(s: LocalFieldSet, allFields?: LocalDynamicField[]): any {
+function localSetToProto(s: LocalFieldSet): any {
     return create(FieldSetSchema, {
         id: s.id,
         name: s.name,
         icon: s.icon,
         color: s.color,
         desc: s.desc || '',
-        fields: s.fieldIds.map(id => {
-            const f = allFields?.find(x => x.id === id);
-            return f ? localFieldToProto(f) : create(DynamicFieldSchema, { id });
-        }),
+        fieldIds: s.fieldIds,
     });
 }
 
@@ -202,12 +214,12 @@ function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
         tabs: fc.tabs.map((t) => ({
             id: t.id,
             label: t.label,
-            setIds: t.fieldSets.map(fs => fs.id),
+            setIds: [...t.fieldSetIds],
         })),
     };
 }
 
-function localFormToProto(fc: LocalFormConfig, allFieldSets?: LocalFieldSet[], allFields?: LocalDynamicField[]): any {
+function localFormToProto(fc: LocalFormConfig): any {
     return create(FormConfigSchema, {
         id: fc.id,
         name: fc.name,
@@ -216,10 +228,7 @@ function localFormToProto(fc: LocalFormConfig, allFieldSets?: LocalFieldSet[], a
             create(FormTabConfigSchema, {
                 id: t.id,
                 label: t.label,
-                fieldSets: t.setIds.map(id => {
-                    const fs = allFieldSets?.find(s => s.id === id);
-                    return fs ? localSetToProto(fs, allFields) : create(FieldSetSchema, { id });
-                }),
+                fieldSetIds: t.setIds,
             }),
         ),
     });
@@ -235,8 +244,8 @@ function protoDynamicMenuToLocal(item: DynamicMenuProto): LocalDynamicMenu {
         dataSource: item.dataSource || 'employee',
         gridCount: item.gridCount,
         columnCount: item.columnCount || 4,
-        columnNames: item.columnNames?.length ? [...item.columnNames] : [],
-        columnKeys: item.columnKeys?.length ? [...item.columnKeys] : [],
+        columns: item.columns?.map(c => ({ key: c.key, name: c.name })) ?? [],
+        templateKey: item.templateKey || '',
         enabled: item.enabled,
     };
 }
@@ -251,13 +260,13 @@ function localDynamicMenuToProto(item: LocalDynamicMenu): any {
         dataSource: item.dataSource || 'employee',
         gridCount: item.gridCount,
         columnCount: item.columnCount || 4,
-        columnNames: item.columnNames ?? [],
-        columnKeys: item.columnKeys ?? [],
+        columns: (item.columns ?? []).map(c => create(ColumnConfigSchema, { key: c.key, name: c.name })),
+        templateKey: item.templateKey || '',
         enabled: item.enabled,
     });
 }
 
-function protoDynamicMenuDataSourceToLocal(item: DynamicMenuDataSourceProto): LocalDynamicMenuDataSource {
+function protoDynamicMenuDataSourceToLocal(item: DynamicMenuDataSourceProto): DataSourceConfig {
     return {
         id: item.id,
         sourceKey: item.sourceKey,
@@ -272,7 +281,27 @@ function protoDynamicMenuDataSourceToLocal(item: DynamicMenuDataSourceProto): Lo
     };
 }
 
-function localDynamicMenuDataSourceToProto(item: LocalDynamicMenuDataSource): any {
+function protoTemplateLayoutToLocal(item: TemplateLayoutProto): LocalTemplateLayout {
+    return {
+        id: item.id,
+        key: item.key,
+        name: item.name,
+        schemaJson: item.schemaJson || '{}',
+        published: item.published,
+    };
+}
+
+function localTemplateLayoutToProto(item: LocalTemplateLayout): any {
+    return create(TemplateLayoutSchema, {
+        id: item.id,
+        key: item.key,
+        name: item.name,
+        schemaJson: item.schemaJson || '{}',
+        published: item.published,
+    });
+}
+
+function localDynamicMenuDataSourceToProto(item: DataSourceConfig): any {
     return create(DynamicMenuDataSourceSchema, {
         id: item.id,
         sourceKey: item.sourceKey,
@@ -306,12 +335,13 @@ const thamSoApi = {
 
     async saveDynamicField(field: LocalDynamicField, isNew: boolean): Promise<LocalDynamicField> {
         try {
+            const proto = localFieldToProto(field);
+            if (isNew) proto.id = '';
             const request = create(SaveDynamicFieldRequestSchema, {
-                isNew,
-                item: localFieldToProto(field),
+                item: proto,
             });
             const res = await thamSoClient.saveDynamicField(request);
-            if (!res.success || !res.item) throw new Error(res.message || 'Lưu trường thất bại');
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu trường thất bại');
             console.log('[thamSoApi] saveDynamicField:', res.item.id);
             return protoFieldToLocal(res.item);
         } catch (err) {
@@ -322,7 +352,7 @@ const thamSoApi = {
 
     async deleteDynamicField(id: string): Promise<boolean> {
         try {
-            const request = create(DeleteDynamicFieldRequestSchema, { id });
+            const request = create(DeleteDynamicFieldRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteDynamicField(request);
             console.log('[thamSoApi] deleteDynamicField:', res.success);
             return res.success;
@@ -345,14 +375,15 @@ const thamSoApi = {
         }
     },
 
-    async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean, allFields?: LocalDynamicField[]): Promise<LocalFieldSet> {
+    async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean): Promise<LocalFieldSet> {
         try {
+            const proto = localSetToProto(fieldSet);
+            if (isNew) proto.id = '';
             const request = create(SaveFieldSetRequestSchema, {
-                isNew,
-                item: localSetToProto(fieldSet, allFields),
+                item: proto,
             });
             const res = await thamSoClient.saveFieldSet(request);
-            if (!res.success || !res.item) throw new Error(res.message || 'Lưu bộ dữ liệu thất bại');
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu bộ dữ liệu thất bại');
             console.log('[thamSoApi] saveFieldSet:', res.item.id);
             return protoSetToLocal(res.item);
         } catch (err) {
@@ -363,7 +394,7 @@ const thamSoApi = {
 
     async deleteFieldSet(id: string): Promise<boolean> {
         try {
-            const request = create(DeleteFieldSetRequestSchema, { id });
+            const request = create(DeleteFieldSetRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteFieldSet(request);
             console.log('[thamSoApi] deleteFieldSet:', res.success);
             return res.success;
@@ -386,14 +417,15 @@ const thamSoApi = {
         }
     },
 
-    async saveFormConfig(form: LocalFormConfig, isNew: boolean, allFieldSets?: LocalFieldSet[], allFields?: LocalDynamicField[]): Promise<LocalFormConfig> {
+    async saveFormConfig(form: LocalFormConfig, isNew: boolean): Promise<LocalFormConfig> {
         try {
+            const proto = localFormToProto(form);
+            if (isNew) proto.id = '';
             const request = create(SaveFormConfigRequestSchema, {
-                isNew,
-                item: localFormToProto(form, allFieldSets, allFields),
+                item: proto,
             });
             const res = await thamSoClient.saveFormConfig(request);
-            if (!res.success || !res.item) throw new Error(res.message || 'Lưu form thất bại');
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu form thất bại');
             console.log('[thamSoApi] saveFormConfig:', res.item.id);
             return protoFormToLocal(res.item);
         } catch (err) {
@@ -404,7 +436,7 @@ const thamSoApi = {
 
     async deleteFormConfig(id: string): Promise<boolean> {
         try {
-            const request = create(DeleteFormConfigRequestSchema, { id });
+            const request = create(DeleteFormConfigRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteFormConfig(request);
             console.log('[thamSoApi] deleteFormConfig:', res.success);
             return res.success;
@@ -429,12 +461,13 @@ const thamSoApi = {
 
     async saveDynamicMenu(item: LocalDynamicMenu, isNew: boolean): Promise<LocalDynamicMenu> {
         try {
+            const proto = localDynamicMenuToProto(item);
+            if (isNew) proto.id = '';
             const request = create(SaveDynamicMenuRequestSchema, {
-                isNew,
-                item: localDynamicMenuToProto(item),
+                item: proto,
             });
             const res = await thamSoClient.saveDynamicMenu(request);
-            if (!res.success || !res.item) throw new Error(res.message || 'Lưu menu động thất bại');
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu menu động thất bại');
             console.log('[thamSoApi] saveDynamicMenu:', res.item.id);
             return protoDynamicMenuToLocal(res.item);
         } catch (err) {
@@ -445,7 +478,7 @@ const thamSoApi = {
 
     async deleteDynamicMenu(id: string): Promise<boolean> {
         try {
-            const request = create(DeleteDynamicMenuRequestSchema, { id });
+            const request = create(DeleteDynamicMenuRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteDynamicMenu(request);
             console.log('[thamSoApi] deleteDynamicMenu:', res.success);
             return res.success;
@@ -455,56 +488,120 @@ const thamSoApi = {
         }
     },
 
+    // ── Puck Template Layout ─────────────────────────────────
+    async getListTemplateLayouts(): Promise<LocalTemplateLayout[]> {
+        try {
+            const request = create(GetListTemplateLayoutsRequestSchema, {});
+            const res = await thamSoClient.getListTemplateLayouts(request);
+            return res.items.map(protoTemplateLayoutToLocal);
+        } catch (err) {
+            console.error('[thamSoApi] getListTemplateLayouts error:', err);
+            throw err;
+        }
+    },
+
+    async saveTemplateLayout(item: LocalTemplateLayout, isNew: boolean): Promise<LocalTemplateLayout> {
+        try {
+            const proto = localTemplateLayoutToProto(item);
+            if (isNew) proto.id = '';
+            const request = create(SaveTemplateLayoutRequestSchema, {
+                item: proto,
+            });
+            const res = await thamSoClient.saveTemplateLayout(request);
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu template thất bại');
+            return protoTemplateLayoutToLocal(res.item);
+        } catch (err) {
+            console.error('[thamSoApi] saveTemplateLayout error:', err);
+            throw err;
+        }
+    },
+
+    async deleteTemplateLayout(id: string): Promise<boolean> {
+        try {
+            const request = create(DeleteTemplateLayoutRequestSchema, { ids: [id] });
+            const res = await thamSoClient.deleteTemplateLayout(request);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] deleteTemplateLayout error:', err);
+            throw err;
+        }
+    },
+
+    /** Gọi .NET backend ghi 1 file JSON vào public/templates/{key}.json */
+    async exportTemplateToServer(item: LocalTemplateLayout): Promise<void> {
+        const res = await fetch('/api/export-template', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: item.key, name: item.name, schemaJson: item.schemaJson }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            throw new Error((err as any).message || 'Export thất bại');
+        }
+    },
+
+    /** Gọi .NET backend ghi tất cả published templates cùng 1 request */
+    async exportAllTemplatesToServer(items: LocalTemplateLayout[]): Promise<{ saved: string[]; errors: string[] }> {
+        const published = items.filter((t) => t.published);
+        const res = await fetch('/api/export-template/all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(published.map((t) => ({ key: t.key, name: t.name, schemaJson: t.schemaJson }))),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            throw new Error((err as any).message || 'Export tất cả thất bại');
+        }
+        return res.json();
+    },
+
+    /** Xoá file JSON tĩnh tại public/templates/{key}.json */
+    async deleteTemplateFile(key: string): Promise<void> {
+        const res = await fetch(`/api/export-template/${encodeURIComponent(key)}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            throw new Error((err as any).message || 'Xoá file thất bại');
+        }
+    },
+
     async getDynamicMenuRows(sourceKey: string, limit = 500): Promise<Record<string, unknown>[]> {
         try {
             const request = create(GetDynamicMenuRowsRequestSchema, { sourceKey, limit });
             const res = await thamSoClient.getDynamicMenuRows(request);
-            if (!res.success) {
-                throw new Error(res.message || 'Không thể tải dữ liệu menu động');
-            }
-
-            const rows: Record<string, unknown>[] = [];
-            for (const rowJson of res.rowsJson) {
-                try {
-                    const parsed = JSON.parse(rowJson) as Record<string, unknown>;
-                    rows.push(parsed);
-                } catch {
-                    // Bỏ qua row lỗi parse để không làm fail toàn bộ màn hình.
-                }
-            }
-            return rows;
+            return res.rows as Record<string, unknown>[];
         } catch (err) {
             console.error('[thamSoApi] getDynamicMenuRows error:', err);
             throw err;
         }
     },
 
-    async getListDynamicMenuDataSources(): Promise<LocalDynamicMenuDataSource[]> {
+    async getListDynamicMenuDataSources(): Promise<DataSourceConfig[]> {
         try {
-        const request = create(GetListDynamicMenuDataSourcesRequestSchema, {});
-        const res = await thamSoClient.getListDynamicMenuDataSources(request);
-        
-        
-        console.log('[API] raw items count:', res.items.length);
-        res.items.forEach(item => {
-            console.log(`[API] source=${item.sourceKey}, fields.length=${item.fields.length}`, item.fields);
-        });
-        
-        return res.items.map(protoDynamicMenuDataSourceToLocal);
-    } catch (err) {
-        console.error('[thamSoApi] getListDynamicMenuDataSources error:', err);
-        throw err;
-    }
+            const request = create(GetListDynamicMenuDataSourcesRequestSchema, {});
+            const res = await thamSoClient.getListDynamicMenuDataSources(request);
+
+
+            console.log('[API] raw items count:', res.items.length);
+            res.items.forEach(item => {
+                console.log(`[API] source=${item.sourceKey}, fields.length=${item.fields.length}`, item.fields);
+            });
+
+            return res.items.map(protoDynamicMenuDataSourceToLocal);
+        } catch (err) {
+            console.error('[thamSoApi] getListDynamicMenuDataSources error:', err);
+            throw err;
+        }
     },
 
-    async saveDynamicMenuDataSource(item: LocalDynamicMenuDataSource, isNew: boolean): Promise<LocalDynamicMenuDataSource> {
+    async saveDynamicMenuDataSource(item: DataSourceConfig, isNew: boolean): Promise<DataSourceConfig> {
         try {
+            const proto = localDynamicMenuDataSourceToProto(item);
+            if (isNew) proto.id = '';
             const request = create(SaveDynamicMenuDataSourceRequestSchema, {
-                isNew,
-                item: localDynamicMenuDataSourceToProto(item),
+                item: proto,
             });
             const res = await thamSoClient.saveDynamicMenuDataSource(request);
-            if (!res.success || !res.item) throw new Error(res.message || 'Lưu datasource menu động thất bại');
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu datasource menu động thất bại');
             return protoDynamicMenuDataSourceToLocal(res.item);
         } catch (err) {
             console.error('[thamSoApi] saveDynamicMenuDataSource error:', err);
@@ -514,7 +611,7 @@ const thamSoApi = {
 
     async deleteDynamicMenuDataSource(id: string): Promise<boolean> {
         try {
-            const request = create(DeleteDynamicMenuDataSourceRequestSchema, { id });
+            const request = create(DeleteDynamicMenuDataSourceRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteDynamicMenuDataSource(request);
             return res.success;
         } catch (err) {
@@ -528,36 +625,37 @@ const thamSoApi = {
      * - sourceKey rỗng: sync tất cả (employee + office + ...)
      * - có sourceKey: chỉ sync source đó
      */
-    async syncDynamicMenuDataSourcesFromProto(sourceKey = ''): Promise<LocalDynamicMenuDataSource[]> {
+    async syncDynamicMenuDataSourcesFromProto(sourceKey = ''): Promise<DataSourceConfig[]> {
         try {
             const request = create(SyncDynamicMenuDataSourcesFromProtoRequestSchema, { sourceKey });
             const res = await thamSoClient.syncDynamicMenuDataSourcesFromProto(request);
-            if (!res.success) throw new Error(res.message || 'Đồng bộ từ proto thất bại');
+            if (!res.meta?.success) throw new Error(res.meta?.message || 'Đồng bộ từ proto thất bại');
             return res.items.map(protoDynamicMenuDataSourceToLocal);
         } catch (err) {
             console.error('[thamSoApi] syncDynamicMenuDataSourcesFromProto error:', err);
             throw err;
         }
     },
-    
+
     async discoverCollectionFields(collectionName: string): Promise<{
-        fields: LocalDynamicMenuDataSourceField[];
+        fields: DataSourceField[];
         documentsScanned: number;
         message: string;
     }> {
         try {
             const request = create(DiscoverCollectionFieldsRequestSchema, { collectionName });
             const res = await thamSoClient.discoverCollectionFields(request);
-            if (!res.success) throw new Error(res.message || 'Kh\u00f4ng th\u1ec3 kh\u00e1m ph\u00e1 collection');
+            if (!res.meta?.success) throw new Error(res.meta?.message || 'Không thể khám phá collection');
             return {
                 fields: res.fields.map((f) => ({ key: f.key, label: f.label, dataType: f.dataType })),
                 documentsScanned: res.documentsScanned,
-                message: res.message,
+                message: res.meta.message,
             };
         } catch (err) {
             console.error('[thamSoApi] discoverCollectionFields error:', err);
             throw err;
         }
-    },};
+    },
+};
 
 export default thamSoApi;

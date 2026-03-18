@@ -109,8 +109,9 @@ export const getActiveMenuName = (): string => {
     if (url.includes('/chuyen-cap-chat-luong'))     return 'chuyenCap';
     if (url.includes('/thong-ke-bao-cao'))          return 'thongKe';
     if (url.includes('/cau-hinh-tham-so'))          return 'cauHinhThamSo';
-    if (url.includes('/cau-hinh-menu-dong'))        return 'cauHinhMenuDong';
+    if (url.includes('/cau-hinh-menu'))        return 'cauHinhMenu';
     if (url.includes('/cau-hinh-data-source')) return 'cauHinhDataSource';
+    if (url.includes('/cau-hinh-template'))    return 'cauHinhTemplate';
     if (url.includes('/menu-dong/')) {
         const segments = url.split('/').filter(Boolean);
         const menuId = segments[1] || '';

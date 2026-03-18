@@ -2,8 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { useAuth }     from "react-oidc-context";
 import { useDispatch } from 'react-redux';
 import { setAuth, logout } from '../../store/authReducer/auth';
+import { setPermissions, clearPermissions } from '../../store/reducer/permissionReducer';
 import { AppDispatch }     from '../../store';
 import { safeSessionGet, safeSessionRemove } from '../../utils';
+import { getMyPermissions } from '../../apis/phanQuyenApi';
 
 const AuthSync: React.FC = () => {
     const auth     = useAuth();
@@ -18,6 +20,9 @@ const AuthSync: React.FC = () => {
         if (forceLogoutFlag === 'true') {
             safeSessionRemove('force_logout');
             dispatch(logout());
+
+            dispatch(clearPermissions());
+
             auth.signoutRedirect().catch(() => {
                 window.location.href = '/login?reason=revoked';
             });
@@ -56,6 +61,15 @@ const AuthSync: React.FC = () => {
                         user:            preferred_username || sub || null,
                         currentUser:     { id: sub, name, username: preferred_username }
                     }));
+
+                    // Fetch permissions sau khi auth thành công
+                    try {
+                        const perms = await getMyPermissions();
+                        console.log('[AuthSync] Permissions loaded:', perms);
+                        dispatch(setPermissions(perms));
+                    } catch (e) {
+                        console.error('[AuthSync] Không thể tải quyền:', e);
+                    }
 
                 } else if (!auth.isAuthenticated && !auth.isLoading) {
                     // ✅ Chỉ dispatch logout khi:

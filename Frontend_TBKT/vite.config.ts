@@ -15,6 +15,15 @@ export default defineConfig({
         port: 3001,
         strictPort: true,
         open: true,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:5213',
+                changeOrigin: true,
+            },
+        },
+    },
+    optimizeDeps: {
+        include: ['@puckeditor/core'],
     },
     build: {
         outDir: 'build',

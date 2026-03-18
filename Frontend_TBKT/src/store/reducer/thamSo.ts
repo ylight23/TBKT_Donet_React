@@ -113,11 +113,9 @@ export const saveFieldSet = createAsyncThunk<
     { rejectValue: string }
 >(
     'thamSo/saveFieldSet',
-    async ({ fieldSet, isNew }, { rejectWithValue, getState }) => {
+    async ({ fieldSet, isNew }, { rejectWithValue }) => {
         try {
-            const state = getState() as { thamSoReducer?: ThamSoState };
-            const allFields = state.thamSoReducer?.dynamicFields ?? [];
-            const savedFieldSet = await thamSoApi.saveFieldSet(fieldSet, isNew, allFields);
+            const savedFieldSet = await thamSoApi.saveFieldSet(fieldSet, isNew);
             return { tempId: fieldSet.id, fieldSet: savedFieldSet };
         } catch (error) {
             return rejectWithValue((error as Error).message || 'Không thể lưu bộ dữ liệu');
@@ -147,12 +145,9 @@ export const saveFormConfig = createAsyncThunk<
     { rejectValue: string }
 >(
     'thamSo/saveFormConfig',
-    async ({ formConfig, isNew }, { rejectWithValue, getState }) => {
+    async ({ formConfig, isNew }, { rejectWithValue }) => {
         try {
-            const state = getState() as { thamSoReducer?: ThamSoState };
-            const allFieldSets = state.thamSoReducer?.fieldSets ?? [];
-            const allFields = state.thamSoReducer?.dynamicFields ?? [];
-            const savedFormConfig = await thamSoApi.saveFormConfig(formConfig, isNew, allFieldSets, allFields);
+            const savedFormConfig = await thamSoApi.saveFormConfig(formConfig, isNew);
             return { tempId: formConfig.id, formConfig: savedFormConfig };
         } catch (error) {
             return rejectWithValue((error as Error).message || 'Không thể lưu cấu hình form');

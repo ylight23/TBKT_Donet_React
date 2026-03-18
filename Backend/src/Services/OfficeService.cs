@@ -1,3 +1,4 @@
+using Backend.Utils;
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
@@ -693,7 +694,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                 request.Item.TenVietTatDayDu = parent != null && !string.IsNullOrEmpty(parent.IdCapTren) && !string.IsNullOrEmpty(parent.TenDayDu)
                     ? request.Item.VietTat + "/ " + parent.TenVietTatDayDu
                     : request.Item.VietTat;
-                var currentTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.UtcNow);
+                var currentTime = CommonUtils.GetNowTimestamp();
                 #region  Is New
                 if (request.IsNew)
                 {
@@ -858,7 +859,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                                             if (parentOfChild == null)
                                                 parentOfChild = request.Item;
                                             child.ThuTuSapXep = parentOfChild?.ThuTuSapXep + child.ThuTu.ToString().PadLeft(lengthOfLevel, '0');
-                                            child.NgaySua = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
+                                            child.NgaySua = CommonUtils.GetNowTimestamp();
                                             await Global.CollectionOffice.InsertOneAsync(child);
                                             response.VirtualOrderings.TryAdd(child.Id, child.ThuTuSapXep);
                                             Backend.Utils.CommonUtils.UpdateRelationShip("Office", oldId, child.Id);

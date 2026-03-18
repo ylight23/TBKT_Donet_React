@@ -1,5 +1,6 @@
 using Backend.Converter;
 using Backend.utils;
+using Backend.Utils;
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
@@ -284,7 +285,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                         response.Message = "Đã tồn tại tên: " + request.Item.Ten;
                         return response;
                     }
-                    request.Item.NgayTao = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
+                    request.Item.NgayTao = CommonUtils.GetNowTimestamp();
                     collection?.InsertOne(request.Item);
                     response.Id = request.Item.Id;
                     response.Message = "Thêm mới thành công!";
@@ -296,7 +297,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                         .Set(x => x.Ten, request.Item.Ten)
                         .Set(x => x.VietTat, request.Item.VietTat)
                         .Set(x => x.NguoiSua, request.Item.NguoiSua)
-                        .Set(x => x.NgaySua, Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime()))
+                        .Set(x => x.NgaySua, CommonUtils.GetNowTimestamp())
                         .Set(x => x.ThuTu, request.Item.ThuTu)
                         .Set(x => x.Parameters, request.Item.Parameters)
                         .Set(x => x.Tags, request.Item.Tags);
@@ -318,7 +319,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                             return response;
                         }
                         await collection!.DeleteOneAsync(filter);
-                        request.Item.NgaySua = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
+                        request.Item.NgaySua = CommonUtils.GetNowTimestamp();
 
                         await collection!.InsertOneAsync(request.Item);
                        // Utils.UpdateRelationShip(request.CatalogName, request.OldID, request.Item.Id);
@@ -862,7 +863,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                             request.Item.TenDayDu = request.Item.Ten + (!string.IsNullOrEmpty(parent?.TenDayDu) ? ", " + parent?.TenDayDu : "");
                             request.Item.ThuTu = max != null ? max.ThuTu + 1 : 1;
                             request.Item.ThuTuSapXep = parent?.ThuTuSapXep + request.Item.ThuTu.ToString().PadLeft(request.LevelLength, '0');
-                            request.Item.NgaySua = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
+                            request.Item.NgaySua = CommonUtils.GetNowTimestamp();
                             request.Item.CoCapDuoi = listChild.Count > 0;
                             await collection.InsertOneAsync(request.Item);
                             var updater = Builders<CatalogTree>.Update.Set(x => x.CoCapDuoi, true);
@@ -886,7 +887,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                                             if (parentOfChild == null)
                                                 parentOfChild = request.Item;
                                             child.ThuTuSapXep = parentOfChild?.ThuTuSapXep + child.ThuTu.ToString().PadLeft(request.LevelLength, '0');
-                                            child.NgaySua = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
+                                            child.NgaySua = CommonUtils.GetNowTimestamp();
                                             await collection.InsertOneAsync(child);
                                         }
                                     }

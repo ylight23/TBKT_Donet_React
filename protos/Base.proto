@@ -19,6 +19,13 @@ message DeleteBaseResponse {
   string message_exception = 3;
 }
 
+// Reusable response metadata — embed in any response to avoid repeating success/message/message_exception.
+message ResponseMeta {
+  bool   success          = 1;
+  string message          = 2;
+  string message_exception = 3;
+}
+
 message Parameters {
   map<string, google.protobuf.StringValue> items=1;
 }

@@ -24,8 +24,59 @@ namespace Backend.Utils;
     {
         public static Timestamp GetNowTimestamp()
         {
-            return Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
+            return Timestamp.FromDateTime(DateTime.UtcNow);
         }
+
+        /// <summary>
+        /// Converts a BsonValue (BsonDateTime or {Seconds, Nanos} subdocument) to a Protobuf Timestamp.
+        /// </summary>
+        public static Timestamp? BsonToTs(BsonValue? value)
+        {
+            if (value == null || value.IsBsonNull) return null;
+            if (value.IsBsonDateTime) return Timestamp.FromDateTime(value.ToUniversalTime());
+            if (value.IsBsonDocument)
+            {
+                var doc = value.AsBsonDocument;
+                return new Timestamp
+                {
+                    Seconds = doc.GetValue("Seconds", 0L).ToInt64(),
+                    Nanos = doc.GetValue("Nanos", 0).ToInt32()
+                };
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Converts a Protobuf Timestamp to a BsonDocument {Seconds, Nanos} for MongoDB storage.
+        /// </summary>
+        public static BsonValue TsToBson(Timestamp? ts)
+        {
+            if (ts == null) return BsonNull.Value;
+            return new BsonDocument { { "Seconds", ts.Seconds }, { "Nanos", ts.Nanos } };
+        }
+
+        /// <summary>Shared soft-delete filter: exclude docs where Delete == true.</summary>
+        public static readonly FilterDefinition<BsonDocument> NotDeleted =
+            Builders<BsonDocument>.Filter.Ne("Delete", true);
+
+        /// <summary>Delete multiple BsonDocuments by _id. Supports single + batch ids.</summary>
+        public static async Task<long> DeleteByIdsAsync(
+            IMongoCollection<BsonDocument> collection,
+            string? singleId,
+            IEnumerable<string> multipleIds)
+        {
+            var ids = new List<string>();
+            if (!string.IsNullOrWhiteSpace(singleId)) ids.Add(singleId);
+            ids.AddRange(multipleIds.Where(id => !string.IsNullOrWhiteSpace(id)));
+            if (ids.Count == 0) return 0;
+            return (await collection.DeleteManyAsync(
+                Builders<BsonDocument>.Filter.In("_id", ids))).DeletedCount;
+        }
+
+        /// <summary>Delete multiple BsonDocuments by _id (batch-only overload).</summary>
+        public static Task<long> DeleteByIdsAsync(
+            IMongoCollection<BsonDocument> collection,
+            IEnumerable<string> ids) => DeleteByIdsAsync(collection, null, ids);
 
         public static string? GetIP(HttpContext context)
         {
@@ -124,7 +175,7 @@ namespace Backend.Utils;
         //     try
         //     {
         //         var listPhanQuyenNhomNguoiDungBson = Global.CollectionPhanQuyenNhomNguoiDungBson
-        //             .Find(Builders<BsonDocument>.Filter.In("IDNhomNguoiDung", groupIds)).ToList();
+        //             .Find(Builders<BsonDocument>.Filter.In("IdNhomNguoiDung", groupIds)).ToList();
         //         var listPhanQuyenNhomNguoiDung = listPhanQuyenNhomNguoiDungBson.Select(c =>
         //         {
         //             var userGroupPermission = BsonSerializer.Deserialize<PhanQuyenNhomNguoiDung>(c);
@@ -142,15 +193,15 @@ namespace Backend.Utils;
         //                 Builders<PhanQuyenPhanHeNhomNguoiDung>.Filter.In(x => x.IDNhomNguoiDung, groupIds)).ToList();
         //         var listPhanQuyenNhomNguoiDungNganhDocBson =
         //             Global.CollectionPhanQuyenNhomNguoiDungNganhDocBson.Find(
-        //                 Builders<BsonDocument>.Filter.In("IDNhomNguoiDung", groupIds)).ToList();
+        //                 Builders<BsonDocument>.Filter.In("IdNhomNguoiDung", groupIds)).ToList();
         //         var listPhanQuyenNhomNguoiDungNganhDoc = listPhanQuyenNhomNguoiDungNganhDocBson.Select(c =>
         //         {
         //             var phanQuyenNhomNguoiDungNganhDoc =
         //                 BsonSerializer.Deserialize<PhanQuyenNhomNguoiDungNganhDoc>(c);
-        //             if (c.Contains("IDNganhDoc") && c["IDNganhDoc"].AsBsonArray.Any())
+        //             if (c.Contains("IdNganhDoc") && c["IdNganhDoc"].AsBsonArray.Any())
         //             {
         //                 phanQuyenNhomNguoiDungNganhDoc.IDNganhDoc.AddRange(
-        //                     c["IDNganhDoc"].AsBsonArray.Select(c => c.AsString));
+        //                     c["IdNganhDoc"].AsBsonArray.Select(c => c.AsString));
         //             }
 
         //             return phanQuyenNhomNguoiDungNganhDoc;
@@ -287,11 +338,11 @@ namespace Backend.Utils;
         //             var dictPhanQuyenNguoiDungNganhDoc = new Dictionary<string, PhanQuyenNguoiDungNganhDoc>();
         //             var listPhanQuyenNhomNguoiDungNganhDoc =
         //                 Global.CollectionPhanQuyenNhomNguoiDungNganhDocBson.Find(
-        //                     Builders<BsonDocument>.Filter.In("IDNhomNguoiDung", nhomNguoiDungIDs)).ToList();
+        //                     Builders<BsonDocument>.Filter.In("IdNhomNguoiDung", nhomNguoiDungIDs)).ToList();
 
         //             foreach (var phanQuyenNhomNguoiDungNganhDocBson in listPhanQuyenNhomNguoiDungNganhDoc)
         //             {
-        //                 if (!phanQuyenNhomNguoiDungNganhDocBson["IDNganhDoc"].AsBsonArray.Any())
+        //                 if (!phanQuyenNhomNguoiDungNganhDocBson["IdNganhDoc"].AsBsonArray.Any())
         //                     continue;
         //                 var phanQuyenNhomNguoiDungNganhDoc =
         //                     BsonSerializer.Deserialize<PhanQuyenNhomNguoiDungNganhDoc>(
@@ -299,7 +350,7 @@ namespace Backend.Utils;
         //                 if (dictPhanQuyenNguoiDungNganhDoc.ContainsKey(phanQuyenNhomNguoiDungNganhDoc.MaPhanHe))
         //                 {
         //                     dictPhanQuyenNguoiDungNganhDoc[phanQuyenNhomNguoiDungNganhDoc.MaPhanHe].IDNganhDoc
-        //                         .AddRange(phanQuyenNhomNguoiDungNganhDocBson["IDNganhDoc"].AsBsonArray
+        //                         .AddRange(phanQuyenNhomNguoiDungNganhDocBson["IdNganhDoc"].AsBsonArray
         //                             .Select(c => c.AsString));
         //                 }
         //                 else
@@ -314,7 +365,7 @@ namespace Backend.Utils;
         //                     };
         //                     dictPhanQuyenNguoiDungNganhDoc.Add(phanQuyenNhomNguoiDungNganhDoc.MaPhanHe, phanQuyenNguoiDungNganhDoc);
         //                     phanQuyenNguoiDungNganhDoc.IDNganhDoc.AddRange(
-        //                         phanQuyenNhomNguoiDungNganhDocBson["IDNganhDoc"].AsBsonArray
+        //                         phanQuyenNhomNguoiDungNganhDocBson["IdNganhDoc"].AsBsonArray
         //                             .Select(c => c.AsString));
         //                 }
         //             }
@@ -380,7 +431,7 @@ namespace Backend.Utils;
         //                 if (!string.IsNullOrEmpty(idNhomNguoiDung))
         //                 {
         //                     var phanQuyenNhomNguoiDung = Global.CollectionPhanQuyenNhomNguoiDungBson.Find(
-        //                             Builders<BsonDocument>.Filter.Eq(x => x["IDNhomNguoiDung"], idNhomNguoiDung))
+        //                             Builders<BsonDocument>.Filter.Eq(x => x["IdNhomNguoiDung"], idNhomNguoiDung))
         //                         .ToList().Select(c =>
         //                         {
         //                             var userGroupPermission = BsonSerializer.Deserialize<PhanQuyenNhomNguoiDung>(c);

@@ -6,6 +6,7 @@ import { EmployeeService } from "./generated/Employee_pb";
 import { OfficeService } from "./generated/Office_pb";
 import { CatalogService } from "./generated/Catalog_pb";
 import { ThamSoService } from "./generated/ThamSo_pb";
+import { PhanQuyenService } from "./generated/PhanQuyen_pb";
 
 // =====================
 // Auth interceptor
@@ -58,3 +59,5 @@ export const officeClient = createClient(OfficeService, transport);
 export const catalogClient = createClient(CatalogService, transport);
 
 export const thamSoClient = createClient(ThamSoService, transport);
+
+export const phanQuyenClient = createClient(PhanQuyenService, transport);

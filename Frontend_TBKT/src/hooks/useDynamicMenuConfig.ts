@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import thamSoApi, { type LocalDynamicMenuDataSource } from '../apis/thamSoApi';
+import thamSoApi, { type DataSourceConfig } from '../apis/thamSoApi';
 import type { DynamicMenuConfigItem } from '../types/dynamicMenu';
 import { sanitizeDynamicMenuItem } from '../configs/dynamicMenuConfig';
 
 export const useDynamicMenuConfig = () => {
   const [items, setItems] = useState<DynamicMenuConfigItem[]>([]);
-  const [dataSources, setDataSources] = useState<LocalDynamicMenuDataSource[]>([]);
+  const [dataSources, setDataSources] = useState<DataSourceConfig[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 

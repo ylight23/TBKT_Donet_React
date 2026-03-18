@@ -15,15 +15,20 @@ export const normalizeColumnCount = (value: number): number => {
   return Math.min(12, Math.max(1, Math.floor(value)));
 };
 
-export const normalizeColumnNames = (
+export const normalizeColumns = (
+  source: DynamicMenuDataSource,
   columnCount: number,
-  names?: string[],
-): string[] => {
+  columns?: Array<{ key: string; name: string }>,
+  dataSources: Array<{ sourceKey: string; fields: Array<{ key: string }> }> = [],
+): Array<{ key: string; name: string }> => {
   const safeCount = normalizeColumnCount(columnCount);
-  const source = Array.isArray(names) ? names : [];
-  return Array.from({ length: safeCount }, (_, index) => {
-    const value = (source[index] || "").trim();
-    return value.length > 0 ? value : `Cot ${index + 1}`;
+  const defaults = getDefaultColumnKeysBySource(source, safeCount, dataSources);
+  const src = Array.isArray(columns) ? columns : [];
+  return Array.from({ length: safeCount }, (_, i) => {
+    const col = src[i];
+    const key = (col?.key || '').trim() || defaults[i] || 'id';
+    const name = (col?.name || '').trim() || `Cot ${i + 1}`;
+    return { key, name };
   });
 };
 
@@ -32,25 +37,6 @@ export const normalizeDataSource = (value?: string): DynamicMenuDataSource => {
   if (normalized.length > 0) return normalized;
   const values = DYNAMIC_MENU_SOURCE_OPTIONS_FALLBACK.map((item) => item.value);
   return values[0] || "employee";
-};
-
-// Thêm tham số dataSources vào normalizeColumnKeys
-export const normalizeColumnKeys = (
-  source: DynamicMenuDataSource,
-  columnCount: number,
-  keys?: string[],
-  dataSources: Array<{ sourceKey: string; fields: Array<{ key: string }> }> = [], // ← thêm
-): string[] => {
-  const safeCount = normalizeColumnCount(columnCount);
-  const defaults = getDefaultColumnKeysBySource(source, safeCount, dataSources); // ← truyền qua
-  const sourceKeys = Array.isArray(keys)
-    ? keys.map((key) => (key || '').trim()).filter((key) => key.length > 0)
-    : [];
-  const normalized = sourceKeys.slice(0, safeCount);
-  while (normalized.length < safeCount) {
-    normalized.push(defaults[normalized.length]);
-  }
-  return normalized;
 };
 
 export const normalizeMenuPath = (
@@ -74,12 +60,12 @@ export const sanitizeDynamicMenuItem = (
   dataSource: normalizeDataSource(item.dataSource),
   gridCount: normalizeGridCount(item.gridCount),
   columnCount: normalizeColumnCount(item.columnCount),
-  columnNames: normalizeColumnNames(item.columnCount, item.columnNames),
-  columnKeys: normalizeColumnKeys(
+  columns: normalizeColumns(
     normalizeDataSource(item.dataSource),
     item.columnCount,
-    item.columnKeys,
+    item.columns,
   ),
+  templateKey: (item.templateKey || '').trim(),
 });
 
 export const createDynamicMenuItem = (
@@ -90,8 +76,7 @@ export const createDynamicMenuItem = (
   icon?: string,
   dataSource?: DynamicMenuDataSource,
   columnCount?: number,
-  columnNames?: string[],
-  columnKeys?: string[],
+  columns?: Array<{ key: string; name: string }>,
 ): DynamicMenuConfigItem => {
   const safeId = id.trim();
   const safeColumnCount = normalizeColumnCount(columnCount ?? 4);
@@ -105,12 +90,12 @@ export const createDynamicMenuItem = (
     dataSource: safeDataSource,
     gridCount: normalizeGridCount(gridCount),
     columnCount: safeColumnCount,
-    columnNames: normalizeColumnNames(safeColumnCount, columnNames),
-    columnKeys: normalizeColumnKeys(
+    columns: normalizeColumns(
       safeDataSource,
       safeColumnCount,
-      columnKeys,
+      columns,
     ),
+    templateKey: '',
     enabled: true,
   };
 };

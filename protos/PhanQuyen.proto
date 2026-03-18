@@ -1,0 +1,345 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package PhanQuyen;
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// Service
+// ============================================================
+service PhanQuyenService {
+  rpc GetMyPermissions(GetMyPermissionsRequest) returns (GetMyPermissionsResponse);
+
+  // Quản lý nhóm người dùng (roles)
+  rpc ListNhomNguoiDung(ListNhomNguoiDungRequest) returns (ListNhomNguoiDungResponse);
+  rpc SaveNhomNguoiDung(SaveNhomNguoiDungRequest) returns (NhomNguoiDung);
+  rpc DeleteNhomNguoiDung(DeleteRequest) returns (DeleteResponse);
+
+  // Quyền của nhóm
+  rpc GetGroupPermissions(GetGroupPermissionsRequest) returns (GetGroupPermissionsResponse);
+  rpc SaveGroupPermissions(SaveGroupPermissionsRequest) returns (DeleteResponse);
+
+  // Gán người dùng vào nhóm
+  rpc ListGroupUsers(ListGroupUsersRequest) returns (ListGroupUsersResponse);
+  rpc ListAllAssignments(ListAllAssignmentsRequest) returns (ListAllAssignmentsResponse);
+  rpc AssignUserToGroup(AssignUserRequest) returns (NguoiDungNhomNguoiDung);
+  rpc RemoveUserFromGroup(RemoveUserRequest) returns (DeleteResponse);
+}
+
+// ============================================================
+// Request
+// ============================================================
+message GetMyPermissionsRequest {}
+
+// ============================================================
+// Permission sub-messages
+// ============================================================
+
+// Thuộc tính lọc đơn vị theo chuyên ngành (ByAttribute scope — ABAC)
+message ScopeAttribute {
+  string field = 1;  // tên parameter trong Office.Parameters (e.g. "IDChuyenNganh")
+  string value = 2;  // giá trị lọc (e.g. "radar", "thongtin", "tauthuyen")
+}
+
+// Quyền truy cập phân hệ
+message PhanHeAccess {
+  string ma_phan_he       = 1;
+  bool   duoc_truy_cap    = 2;
+  bool   duoc_quan_tri    = 3;
+}
+
+// Map các hành động trên một chức năng
+message ActionsMap {
+  bool view     = 1;
+  bool add      = 2;
+  bool edit     = 3;
+  bool delete   = 4;
+  bool approve  = 5;
+  bool download = 6;
+  bool print    = 7;
+}
+
+// Quyền trên một chức năng cụ thể
+message ChucNangAccess {
+  string     ma_chuc_nang = 1;
+  string     ma_phan_he   = 2;
+  ActionsMap actions      = 3;
+}
+
+// ============================================================
+// Response
+// ============================================================
+message GetMyPermissionsResponse {
+  repeated PhanHeAccess     phan_he           = 1;
+  repeated ChucNangAccess   chuc_nang         = 2;
+  string                    scope_type        = 3;
+  string                    anchor_node_id    = 4;
+  repeated string           nganh_doc_ids     = 5;
+  google.protobuf.Timestamp ngay_het_han      = 6;  // DELEGATED: ngày hết hạn ủy quyền
+  string                    id_nguoi_uy_quyen = 7;  // DELEGATED: người thực hiện ủy quyền
+  string                    anchor_parent_id  = 8;  // SIBLINGS:  IDCapTren của anchor node
+  ScopeAttribute            scope_attribute   = 9;  // BY_ATTRIBUTE: field+value lọc theo thuộc tính
+}
+
+// ============================================================
+// MongoDB permission model messages
+// ============================================================
+
+// Nhóm người dùng
+message NhomNguoiDung {
+  string id = 1;
+  string ma_phan_he = 2;
+  string ten = 3;
+  string mo_ta = 4;
+  bool is_default = 5;
+  string nguoi_tao = 6;
+  google.protobuf.Timestamp ngay_tao = 7;
+  string nguoi_sua = 8;
+  google.protobuf.Timestamp ngay_sua = 9;
+  // Extended fields for management UI
+  string color          = 10;  // hex color
+  string loai           = 11;  // "System" | "Custom"
+  string cloned_from_id = 12;
+  int32  user_count     = 13;  // computed
+  string scope_type     = 14;  // default scope for this group
+}
+
+// Ánh xạ người dùng vào nhóm
+message NguoiDungNhomNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string id_nhom_nguoi_dung = 3;
+  string loai = 4;                               // "Direct" | "Delegated"
+  google.protobuf.Timestamp ngay_het_han = 5;    // NgayHetHan (dùng cho Delegated)
+  string nguoi_tao = 6;
+  google.protobuf.Timestamp ngay_tao = 7;
+  string nguoi_sua = 8;
+  google.protobuf.Timestamp ngay_sua = 9;
+  string id_nguoi_uy_quyen = 10;                 // Delegated: người giao ủy quyền
+
+  // Chiều 1: Cây đơn vị (NEW 6 fields)
+  // scope_type: Self | NodeOnly | Subtree | Siblings | MultiNode | Delegated | All
+  // - Self: dữ liệu đi theo người tạo (created_by)
+  // - NodeOnly: chỉ đúng 1 node
+  // - Subtree: node + toàn bộ cây con
+  // - Siblings: tất cả node cùng cấp
+  // - MultiNode: nhiều nhánh riêng lẻ (dùng id_nganh_doc)
+  // - Delegated: ủy quyền tạm thời
+  // - All: không giới hạn đơn vị
+  string scope_type = 12;
+  // id_don_vi_scope: anchor node - dùng khi scope_type != MultiNode
+  // null = dùng IDQuanTriDonVi của user
+  string id_don_vi_scope = 13;
+  // id_nganh_doc: anchor list - CHỈ dùng khi scope_type = MultiNode
+  repeated string id_nganh_doc = 14;
+
+  // Chiều 2: Chuyên ngành (AND với chiều 1)
+  // null = thấy tất cả chuyên ngành trong phạm vi cây
+  repeated string id_nhom_chuyen_nganh = 15;
+
+  // DEPRECATED: scope_attribute - dùng id_nhom_chuyen_nganh thay thế
+  // ScopeAttribute scope_attribute = 11;
+}
+
+// Quyền người dùng trên phân hệ
+message PhanQuyenPhanHeNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ma_phan_he = 3;
+  string tieu_de_phan_he = 4;
+  bool duoc_truy_cap = 5;
+  bool duoc_quan_tri = 6;
+  string id_nhom_nguoi_dung = 7;
+  string nguoi_tao = 8;
+  string nguoi_sua = 9;
+  google.protobuf.Timestamp ngay_tao = 10;
+  google.protobuf.Timestamp ngay_sua = 11;
+
+  // NEW: cho phép phân hệ này có scope riêng
+  // null = dùng scope từ NguoiDungNhomNguoiDung (Subtree @ IDQuanTriDonVi)
+  string scope_type = 12;
+  // scope riêng cho phân hệ này - ghi đè scope từ assignment
+  string id_don_vi_scope = 13;
+}
+
+// Quyền nhóm người dùng trên phân hệ
+message PhanQuyenPhanHeNhomNguoiDung {
+  string id = 1;
+  string id_nhom_nguoi_dung = 2;
+  string ma_phan_he = 3;
+  string tieu_de_phan_he = 4;
+  bool duoc_truy_cap = 5;
+  bool duoc_quan_tri = 6;
+  string nguoi_tao = 7;
+  google.protobuf.Timestamp ngay_tao = 8;
+
+  // NEW: cho phép phân hệ này có scope riêng cho cả nhóm
+  // null = mỗi thành viên dùng IDQuanTriDonVi riêng
+  string scope_type = 9;
+  // scope ghi đè toàn bộ thành viên nhóm
+  string id_don_vi_scope = 10;
+}
+
+// Quyền người dùng trên chức năng (Actions lưu dưới dạng map)
+message PhanQuyenNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ma_chuc_nang = 3;
+  string tieu_de_chuc_nang = 4;
+  string ma_phan_he = 5;
+  string tieu_de_nhom = 6;
+  string id_nhom_nguoi_dung = 7;
+  map<string, bool> actions = 8;
+  string nguoi_tao = 9;
+  string nguoi_sua = 10;
+  google.protobuf.Timestamp ngay_tao = 11;
+  google.protobuf.Timestamp ngay_sua = 12;
+}
+
+// Quyền nhóm người dùng trên chức năng
+message PhanQuyenNhomNguoiDung {
+  string id = 1;
+  string id_nhom_nguoi_dung = 2;
+  string ma_chuc_nang = 3;
+  string tieu_de_chuc_nang = 4;
+  string ma_phan_he = 5;
+  string tieu_de_nhom_quyen = 6;
+  map<string, bool> actions = 7;
+}
+
+// ============================================================
+// DEPRECATED: Quyền người dùng theo ngành dọc
+// ĐÃ XOÁ - gộp vào NguoiDungNhomNguoiDung.id_nganh_doc
+// Không còn dùng - chỉ giữ lại để backward compatible
+// ============================================================
+message PhanQuyenNguoiDungNganhDoc {
+  option deprecated = true;
+  string id = 1 [deprecated = true];
+  string id_nguoi_dung = 2 [deprecated = true];
+  string ma_phan_he = 3 [deprecated = true];
+  string id_nhom_nguoi_dung = 4 [deprecated = true];
+  repeated string id_nganh_doc = 5 [deprecated = true];
+  string nguoi_tao = 6 [deprecated = true];
+  string nguoi_sua = 7 [deprecated = true];
+  google.protobuf.Timestamp ngay_tao = 8 [deprecated = true];
+  google.protobuf.Timestamp ngay_sua = 9 [deprecated = true];
+}
+
+// ============================================================
+// DEPRECATED: Quyền nhóm người dùng theo ngành dọc
+// ĐÃ XOÁ - gộp vào NguoiDungNhomNguoiDung.id_nganh_doc
+// Không còn dùng - chỉ giữ lại để backward compatible
+// ============================================================
+message PhanQuyenNhomNguoiDungNganhDoc {
+  option deprecated = true;
+  string id = 1 [deprecated = true];
+  string id_nhom_nguoi_dung = 2 [deprecated = true];
+  string ma_phan_he = 3 [deprecated = true];
+  repeated string id_nganh_doc = 4 [deprecated = true];
+}
+
+// ============================================================
+// Management Messages
+// ============================================================
+
+message ListNhomNguoiDungRequest {}
+message ListNhomNguoiDungResponse {
+  repeated NhomNguoiDung items = 1;
+}
+
+message SaveNhomNguoiDungRequest {
+  string id             = 1;
+  string ten            = 2;
+  string mo_ta          = 3;
+  string color          = 4;
+  string cloned_from_id = 5;
+  string loai           = 6;
+}
+
+message DeleteRequest {
+  string id = 1;
+}
+message DeleteResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message GetGroupPermissionsRequest {
+  string id_nhom = 1;
+}
+message GetGroupPermissionsResponse {
+  repeated string checked_codes = 1;
+  string          scope_type    = 2;
+}
+message SaveGroupPermissionsRequest {
+  string          id_nhom       = 1;
+  repeated string checked_codes = 2;
+  string          scope_type    = 3;
+}
+
+message ListGroupUsersRequest {
+  string id_nhom = 1;
+}
+message UserInGroup {
+  string                    id_assignment  = 1;
+  string                    id_nguoi_dung  = 2;
+  string                    ho_ten         = 3;
+  string                    don_vi         = 4;
+  string                    scope_type     = 5;
+  string                    anchor_node_id = 6;
+  bool                      is_expired     = 7;
+  google.protobuf.Timestamp ngay_het_han   = 8;
+  ScopeAttribute            scope_attribute = 9;  // BY_ATTRIBUTE scope
+}
+message ListGroupUsersResponse {
+  repeated UserInGroup users = 1;
+}
+
+message ListAllAssignmentsRequest {
+  int32 page      = 1;  // 1-based, default 1
+  int32 page_size = 2;  // default 50
+}
+message AssignmentDetail {
+  string                    id               = 1;
+  string                    id_nguoi_dung    = 2;
+  string                    ho_ten           = 3;
+  string                    don_vi           = 4;
+  string                    id_nhom          = 5;
+  string                    ten_nhom         = 6;
+  string                    color_nhom       = 7;
+  string                    scope_type       = 8;
+  string                    anchor_node_id   = 9;
+  string                    anchor_node_name = 10;
+  string                    loai             = 11;
+  google.protobuf.Timestamp ngay_tao         = 12;
+  google.protobuf.Timestamp ngay_het_han     = 13;
+  ScopeAttribute            scope_attribute  = 14; // BY_ATTRIBUTE scope
+}
+message ListAllAssignmentsResponse {
+  repeated AssignmentDetail items = 1;
+  int32 total_count = 2;
+}
+
+message AssignUserRequest {
+  string                    id_nguoi_dung     = 1;
+  string                    id_nhom           = 2;
+  string                    scope_type        = 3;
+  string                    anchor_node_id    = 4;
+  string                    loai              = 5;
+  google.protobuf.Timestamp ngay_het_han      = 6;
+  string                    id_nguoi_uy_quyen = 7;  // DELEGATED: người thực hiện ủy quyền
+  ScopeAttribute            scope_attribute   = 8;  // BY_ATTRIBUTE: field+value lọc chuyên ngành
+}
+message RemoveUserRequest {
+  string id_assignment = 1;
+}
+
+// Tham số người dùng
+message ThamSoNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ten_tham_so = 3;
+  string gia_tri = 4;
+}
