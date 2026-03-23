@@ -19,8 +19,9 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
 import type { Role, ScopeType, PermissionTabKey, Assignment, SampleUser } from '../../types/permission';
-import { PERMISSION_GROUPS } from './data/permissionData';
+import { FALLBACK_PERMISSION_GROUPS } from './data/permissionData';
 import {
+    getPermissionCatalog,
     listNhomNguoiDung,
     saveNhomNguoiDung,
     deleteNhomNguoiDung,
@@ -77,7 +78,9 @@ function usersInGroupToSample(users: UserInGroupInfo[]): SampleUser[] {
         avatar:            (u.hoTen || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
         currentOffice:     u.donVi,
         currentOfficePath: u.anchorNodeId,
+        anchorNodeName:    u.anchorNodeName || u.anchorNodeId,
         scopeType:         u.scopeType || undefined,
+        scopeAttribute:    u.scopeAttribute,
         idAssignment:      u.idAssignment,
     }));
 }
@@ -96,6 +99,7 @@ function assignmentDetailToAssignment(a: AssignmentDetailInfo): Assignment {
         anchorNodeName: a.anchorNodeName || a.anchorNodeId,
         anchorNodePath: a.anchorNodeId,
         scopeType:     (a.scopeType || 'SUBTREE') as ScopeType,
+        scopeAttribute: a.scopeAttribute,
         expiresAt:     a.ngayHetHan,
         isExpired:     a.ngayHetHan ? new Date(a.ngayHetHan) < new Date() : false,
         createdAt:     a.ngayTao ?? new Date(0).toISOString(),
@@ -117,6 +121,7 @@ const PhanQuyenPage: React.FC = () => {
     const [permLoading, setPermLoading]         = useState(false);
     const [usersInGroup, setUsersInGroup]       = useState<UserInGroupInfo[]>([]);
     const [assignments, setAssignments]         = useState<AssignmentDetailInfo[]>([]);
+    const [permissionGroups, setPermissionGroups] = useState(FALLBACK_PERMISSION_GROUPS);
     const [activeTab, setActiveTab]             = useState<PermissionTabKey>('permissions');
     const [unsaved, setUnsaved]                 = useState(false);
     const [savedFlash, setSavedFlash]           = useState(false);
@@ -144,6 +149,20 @@ const PhanQuyenPage: React.FC = () => {
                 console.error('[PhanQuyen] loadGroups error:', e);
             } finally {
                 if (!cancelled) setGroupsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const groups = await getPermissionCatalog();
+                if (!cancelled && groups.length > 0)
+                    setPermissionGroups(groups);
+            } catch (e) {
+                console.warn('[PhanQuyen] getPermissionCatalog fallback to local data:', e);
             }
         })();
         return () => { cancelled = true; };
@@ -199,7 +218,7 @@ const PhanQuyenPage: React.FC = () => {
 
     const handleToggleGroup = useCallback((groupName: string) => {
         if (isSystem) return;
-        const groupCodes = PERMISSION_GROUPS.find(g => g.group === groupName)
+        const groupCodes = permissionGroups.find(g => g.group === groupName)
             ?.permissions.map(p => p.code) ?? [];
         setCheckedPerms(prev => {
             const allChecked = groupCodes.every(c => prev.includes(c));
@@ -208,7 +227,7 @@ const PhanQuyenPage: React.FC = () => {
                 : [...new Set([...prev, ...groupCodes])];
         });
         setUnsaved(true);
-    }, [isSystem]);
+    }, [isSystem, permissionGroups]);
 
     const handleScopeChange = useCallback((scope: ScopeType) => {
         if (isSystem) return;
@@ -385,7 +404,7 @@ const PhanQuyenPage: React.FC = () => {
                                     }}
                                 />
                                 <Typography variant="caption" sx={{ color: 'text.disabled', ml: 0.5 }}>
-                                    {checkedPerms.length}/{PERMISSION_GROUPS.flatMap(g => g.permissions).length} quyền
+                                    {checkedPerms.length}/{permissionGroups.flatMap(g => g.permissions).length} quyền
                                     · {selectedRole?.userCount ?? 0} người dùng
                                     {!isSystem && selectedRole?.clonedFrom && (
                                         <> · Clone từ <Typography component="span" sx={{ color: 'primary.main', fontSize: 'inherit' }}>
@@ -473,7 +492,7 @@ const PhanQuyenPage: React.FC = () => {
                             {activeTab === 'permissions' && (
                                 <RolePermissionPanel
                                     selectedRole={selectedRole}
-                                    permissionGroups={PERMISSION_GROUPS}
+                                    permissionGroups={permissionGroups}
                                     checkedPermissions={checkedPerms}
                                     onTogglePermission={handleTogglePermission}
                                     onToggleGroup={handleToggleGroup}

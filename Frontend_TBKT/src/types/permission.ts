@@ -25,6 +25,11 @@ export type RoleType = 'SYSTEM' | 'CUSTOM';
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+export interface ScopeAttributeInfo {
+    field: string;
+    value: string;
+}
+
 // ── Core Interfaces ────────────────────────────────────────────────────────────
 
 export interface Permission {
@@ -65,7 +70,9 @@ export interface SampleUser {
     rank?: string;
     currentOffice?: string;
     currentOfficePath?: string;
+    anchorNodeName?: string;
     scopeType?: string;
+    scopeAttribute?: ScopeAttributeInfo;
     idAssignment?: string;
 }
 
@@ -83,6 +90,7 @@ export interface Assignment {
     anchorNodeName: string;
     anchorNodePath: string;
     scopeType: ScopeType;
+    scopeAttribute?: ScopeAttributeInfo;
     multiNodeIds?: string[];
     multiNodeNames?: string[];
     delegatedBy?: string;

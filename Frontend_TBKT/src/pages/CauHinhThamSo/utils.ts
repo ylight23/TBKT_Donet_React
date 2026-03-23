@@ -83,13 +83,17 @@ export const mergeFieldsBySet = (
     fieldSets: FieldSet[],
     fields: DynamicField[],
 ): DynamicField[] => {
-    const mergedIds = selectedSetIds
-        .flatMap((setId) => fieldSets.find((set) => set.id === setId)?.fieldIds ?? [])
-        .filter((fieldId, index, arr) => arr.indexOf(fieldId) === index);
+    const merged = selectedSetIds.flatMap((setId) => {
+        const fieldSet = fieldSets.find((set) => set.id === setId);
+        if (!fieldSet) return [];
+        if (fieldSet.fields && fieldSet.fields.length > 0) return fieldSet.fields;
 
-    return mergedIds
-        .map((fieldId) => fields.find((field) => field.id === fieldId))
-        .filter((field): field is DynamicField => Boolean(field));
+        return (fieldSet.fieldIds ?? [])
+            .map((fieldId) => fields.find((field) => field.id === fieldId))
+            .filter((field): field is DynamicField => Boolean(field));
+    });
+
+    return merged.filter((field, index, arr) => arr.findIndex((item) => item.id === field.id) === index);
 };
 
 export const hasValidationRules = (field: DynamicField): boolean =>

@@ -3,7 +3,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 
-namespace Backend.Models;
+namespace Backend.Common.Mongo;
 
 public class RepeatedFieldSerializer<T> : SerializerBase<RepeatedField<T>>
 {

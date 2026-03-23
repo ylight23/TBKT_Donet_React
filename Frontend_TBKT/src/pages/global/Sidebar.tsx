@@ -112,23 +112,46 @@ const Sidebar: React.FC = () => {
     const { items: dynamicMenuItems } = useDynamicMenuConfig();
     const { canFunc, canPhanHe, isAdmin, loaded: permLoaded } = useMyPermissions();
 
+    const canAccessMenuCode = React.useCallback((code?: string | string[]) => {
+        if (!code) return true;
+        const codes = Array.isArray(code) ? code : [code];
+        return codes.some((item) => canFunc(item, 'view'));
+    }, [canFunc]);
+
     // Lọc menu tĩnh theo quyền chức năng
     const visibleMenu = useMemo<MenuEntry[]>(() => {
         if (!permLoaded || isAdmin) return menu; // chưa load xong hoặc admin → hiện tất cả
         return menu.filter(entry => {
-            const code = entry.maChucNang;
-            if (!code) return true; // không gắn maChucNang → luôn hiện
-            return canFunc(code, 'view');
+            return canAccessMenuCode(entry.maChucNang);
         }).map(entry => {
             if (!isSubMenu(entry)) return entry;
             // Lọc children của SubMenu
             const children = entry.children.filter(child => {
-                if (!child.maChucNang) return true;
-                return canFunc(child.maChucNang, 'view');
+                return canAccessMenuCode(child.maChucNang);
             });
             return children.length > 0 ? { ...entry, children } : null;
         }).filter(Boolean) as MenuEntry[];
-    }, [permLoaded, isAdmin, canFunc]);
+    }, [permLoaded, isAdmin, canAccessMenuCode]);
+
+    const visibleDynamicMenu = useMemo(() => {
+        return dynamicMenuItems.filter((item) => {
+            if (!item.enabled) return false;
+            if (!permLoaded || isAdmin) return true;
+            if (item.permissionCode) return canFunc(item.permissionCode, 'view');
+            return canPhanHe(item.dataSource || '');
+        });
+    }, [dynamicMenuItems, permLoaded, isAdmin, canFunc, canPhanHe]);
+
+    const sidebarEntries = useMemo<MenuEntry[]>(() => [
+        ...visibleMenu,
+        ...visibleDynamicMenu.map((item) => ({
+            title: item.title,
+            path: item.path,
+            icon: nameToIcon(item.icon || 'Assignment') || <DashboardCustomizeIcon fontSize="small" />,
+            active: item.active,
+            maChucNang: item.permissionCode,
+        })),
+    ], [visibleMenu, visibleDynamicMenu]);
 
     const [isCollapse, setIsCollapse] = useState<boolean>(false);
     const location = useLocation();
@@ -252,7 +275,7 @@ const Sidebar: React.FC = () => {
                     )}
 
                     {/* MenuItem */}
-                    {visibleMenu.map((entry, index) => {
+                    {sidebarEntries.map((entry, index) => {
                         if (isSubMenu(entry)) {
                             const isChildActive = entry.children.some(c => c.active === selected);
                             return (
@@ -309,41 +332,6 @@ const Sidebar: React.FC = () => {
                         );
                     })}
 
-                    {dynamicMenuItems.length > 0 && (
-                        // <SubMenu
-                        //     label="Menu động"
-                        //     icon={<DashboardCustomizeIcon />}
-                        //     active={dynamicMenuItems.some((item) => item.active === selected)}
-                        //     defaultOpen={dynamicMenuItems.some((item) => item.active === selected)}
-                        //     rootStyles={{
-                        //         ['& > .ps-menu-button']: {
-                        //             color: `${isDark ? 'rgba(255,255,255,0.87)' : '#1B2A1C'} !important`,
-                        //             backgroundColor: 'transparent !important',
-                        //             transition: 'background-color 0.2s ease, color 0.2s ease',
-                        //         },
-                        //         ['& > .ps-menu-button:hover']: {
-                        //             color: `${isDark ? '#FFFFFF' : '#1B5E20'} !important`,
-                        //             backgroundColor: `${isDark ? 'rgba(76,175,80,0.12)' : 'rgba(46,125,50,0.08)'} !important`,
-                        //         },
-                        //     }}
-                        // >
-                        <>
-                            {dynamicMenuItems
-                                .filter((item) => item.enabled && (!permLoaded || isAdmin || canPhanHe(item.dataSource || '')))
-                                .map((item) => (
-                                    <Item
-                                        key={item.id}
-                                        title={item.title}
-                                        path={item.path}
-                                        icon={nameToIcon(item.icon || 'Assignment') || <DashboardCustomizeIcon fontSize="small" />}
-                                        selected={selected}
-                                        setSelected={setSelected}
-                                        active={item.active}
-                                    />
-                                ))}
-                        </>        
-                        
-                    )}
                 </Menu>
             </SideBarLibrary>
         </Box>

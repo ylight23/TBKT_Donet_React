@@ -1,5 +1,7 @@
+using Backend.Authorization;
 using Backend.Converter;
-using Backend.Utils;
+using Backend.Common.Bson;
+
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
@@ -15,16 +17,50 @@ public class PhanQuyenServiceImpl(
     RebuildQueue    rebuildQueue)
     : PhanQuyenService.PhanQuyenServiceBase
 {
+    // Read-model classification:
+    // - Cache/read-model: GetMyPermissions
+    // - Aggregate read-model: ListGroupUsers, ListAllAssignments
+    // - Simple read: ListNhomNguoiDung, GetGroupPermissions
+    // - Write path: SaveNhomNguoiDung, DeleteNhomNguoiDung, SaveGroupPermissions,
+    //   AssignUserToGroup, RemoveUserFromGroup
+
     // ── Collection names (khớp migration_scope_v1.js) ──────────────
-    private const string ColNguoiDungNhomND         = "NguoiDungNhomNguoiDung";
-    private const string ColPhanQuyenPhanHeND        = "PhanQuyenPhanHeNguoiDung";
-    private const string ColPhanQuyenPhanHeNhomND    = "PhanQuyenPhanHeNhomNguoiDung";
-    private const string ColPhanQuyenND              = "PhanQuyenNguoiDung";
-    private const string ColPhanQuyenNhomND          = "PhanQuyenNhomNguoiDung";
-    private const string ColPhanQuyenNDNganhDoc      = "PhanQuyenNguoiDungNganhDoc";
-    private const string ColPhanQuyenNhomNDNganhDoc  = "PhanQuyenNhomNguoiDungNganhDoc";
-    private const string ColEmployee                 = "Employee";
-    private const string ColUserPermission           = "UserPermission";
+
+    public override async Task<GetPermissionCatalogResponse> GetPermissionCatalog(
+        GetPermissionCatalogRequest request, ServerCallContext context)
+    {
+        var collection = Global.CollectionPermissionCatalog;
+        var response = new GetPermissionCatalogResponse();
+        if (collection == null)
+            return response;
+
+        var docs = await collection.Find(Builders<BsonDocument>.Filter.Eq("Active", true))
+            .Sort(Builders<BsonDocument>.Sort.Ascending("GroupOrder").Ascending("Order").Ascending("Code"))
+            .ToListAsync();
+
+        foreach (var groupDocs in docs.GroupBy(doc => doc.StringOr("Group")))
+        {
+            var first = groupDocs.First();
+            var group = new PermissionCatalogGroup
+            {
+                Group = first.StringOr("Group"),
+                Icon = first.StringOr("Icon"),
+            };
+
+            foreach (var doc in groupDocs)
+            {
+                group.Permissions.Add(new PermissionCatalogItem
+                {
+                    Code = doc.StringOr("Code"),
+                    Name = doc.StringOr("Name"),
+                });
+            }
+
+            response.Items.Add(group);
+        }
+
+        return response;
+    }
 
     public override async Task<GetMyPermissionsResponse> GetMyPermissions(
         GetMyPermissionsRequest request, ServerCallContext context)
@@ -40,8 +76,8 @@ public class PhanQuyenServiceImpl(
 
         var db = Global.MongoDB!;
 
-        // ✅ Single query from precomputed cache
-        var permDoc = await db.GetCollection<BsonDocument>(ColUserPermission)
+        //  Single query from precomputed cache
+        var permDoc = await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserPermissionCache)
             .Find(Builders<BsonDocument>.Filter.Eq("_id", userId))
             .FirstOrDefaultAsync();
 
@@ -49,7 +85,7 @@ public class PhanQuyenServiceImpl(
         {
             // First login or never rebuilt → synchronous fallback
             await rebuildService.RebuildForUser(userId);
-            permDoc = await db.GetCollection<BsonDocument>(ColUserPermission)
+            permDoc = await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserPermissionCache)
                 .Find(Builders<BsonDocument>.Filter.Eq("_id", userId))
                 .FirstOrDefaultAsync();
         }
@@ -64,70 +100,64 @@ public class PhanQuyenServiceImpl(
     {
         var response = new GetMyPermissionsResponse
         {
-            ScopeType       = SafeStr(doc, "ScopeType", "SUBTREE"),
-            AnchorNodeId    = SafeStr(doc, "AnchorNodeId"),
-            AnchorParentId  = SafeStr(doc, "AnchorParentId"),
+            ScopeType       = doc.StringOr("ScopeType", "SUBTREE"),
+            AnchorNodeId    = doc.StringOr("AnchorNodeId"),
+            AnchorParentId  = doc.StringOr("AnchorParentId"),
         };
 
         // DELEGATED extras
-        var hetHanTs = CommonUtils.BsonToTs(doc.GetValue("NgayHetHan", BsonNull.Value));
+        var hetHanTs = doc.TimestampOr("NgayHetHan");
         if (hetHanTs != null)  response.NgayHetHan = hetHanTs;
-        var uyQuyen = SafeStr(doc, "IdNguoiUyQuyen");
+        var uyQuyen = doc.StringOr("IdNguoiUyQuyen");
         if (!string.IsNullOrEmpty(uyQuyen)) response.IdNguoiUyQuyen = uyQuyen;
 
         // BY_ATTRIBUTE extras
-        var attrBson = doc.GetValue("ScopeAttribute", BsonNull.Value);
-        if (!attrBson.IsBsonNull && attrBson.IsBsonDocument)
+        var attrBson = doc.DocOr("ScopeAttribute");
+        if (attrBson != null)
         {
-            var ad = attrBson.AsBsonDocument;
+            var ad = attrBson;
             response.ScopeAttribute = new protos.ScopeAttribute
-            {
-                Field = SafeStr(ad, "Field"),
-                Value = SafeStr(ad, "Value"),
+                {
+                Field = ad.StringOr("Field"),
+                Value = ad.StringOr("Value"),
             };
         }
 
         // PhanHe
-        var phanHeArr = doc.GetValue("PhanHe", BsonNull.Value);
-        if (phanHeArr.IsBsonArray)
+        var phanHeArr = doc.ArrayOr("PhanHe");
+        if (phanHeArr != null)
         {
-            foreach (var item in phanHeArr.AsBsonArray)
+            foreach (var d in phanHeArr.Documents())
             {
-                if (!item.IsBsonDocument) continue;
-                var d = item.AsBsonDocument;
                 response.PhanHe.Add(new PhanHeAccess
                 {
-                    MaPhanHe    = SafeStr(d, "MaPhanHe"),
-                    DuocTruyCap = d.GetValue("DuocTruyCap", false).AsBoolean,
-                    DuocQuanTri = d.GetValue("DuocQuanTri", false).AsBoolean,
+                    MaPhanHe    = d.StringOr("MaPhanHe"),
+                    DuocTruyCap = d.BoolOr("DuocTruyCap"),
+                    DuocQuanTri = d.BoolOr("DuocQuanTri"),
                 });
             }
         }
 
         // ChucNang
-        var chucNangArr = doc.GetValue("ChucNang", BsonNull.Value);
-        if (chucNangArr.IsBsonArray)
+        var chucNangArr = doc.ArrayOr("ChucNang");
+        if (chucNangArr != null)
         {
-            foreach (var item in chucNangArr.AsBsonArray)
+            foreach (var d in chucNangArr.Documents())
             {
-                if (!item.IsBsonDocument) continue;
-                var d = item.AsBsonDocument;
                 response.ChucNang.Add(new ChucNangAccess
                 {
-                    MaChucNang = SafeStr(d, "MaChucNang"),
-                    MaPhanHe   = SafeStr(d, "MaPhanHe"),
+                    MaChucNang = d.StringOr("MaChucNang"),
+                    MaPhanHe   = d.StringOr("MaPhanHe"),
                     Actions    = ParseActions(d),
                 });
             }
         }
 
         // NganhDocIds
-        var nganhArr = doc.GetValue("NganhDocIds", BsonNull.Value);
-        if (nganhArr.IsBsonArray)
+        var nganhArr = doc.ArrayOr("NganhDocIds");
+        if (nganhArr != null)
         {
-            foreach (var item in nganhArr.AsBsonArray)
-                if (item.IsString && !string.IsNullOrEmpty(item.AsString))
-                    response.NganhDocIds.Add(item.AsString);
+            response.NganhDocIds.AddRange(nganhArr.Strings().Where(item => !string.IsNullOrEmpty(item)));
         }
 
         return response;
@@ -155,70 +185,33 @@ public class PhanQuyenServiceImpl(
     };
 
     private static ActionsMap ParseActions(BsonDocument doc)
-    {
-        var actions = new ActionsMap();
-        var actionsVal = doc.GetValue("Actions", BsonNull.Value);
-        if (actionsVal == BsonNull.Value || !actionsVal.IsBsonDocument)
-            return actions;
-
-        var a = actionsVal.AsBsonDocument;
-        actions.View     = a.GetValue("view",     false).AsBoolean;
-        actions.Add      = a.GetValue("add",      false).AsBoolean;
-        actions.Edit     = a.GetValue("edit",      false).AsBoolean;
-        actions.Delete   = a.GetValue("delete",   false).AsBoolean;
-        actions.Approve  = a.GetValue("approve",  false).AsBoolean;
-        actions.Download = a.GetValue("download", false).AsBoolean;
-        actions.Print    = a.GetValue("print",    false).AsBoolean;
-        return actions;
-    }
+        => PermissionActionHelpers.ToActionsMap(doc);
 
     private static void MergeActions(ActionsMap? target, ActionsMap source)
-    {
-        if (target == null) return;
-        if (source.View)     target.View     = true;
-        if (source.Add)      target.Add      = true;
-        if (source.Edit)     target.Edit     = true;
-        if (source.Delete)   target.Delete   = true;
-        if (source.Approve)  target.Approve  = true;
-        if (source.Download) target.Download = true;
-        if (source.Print)    target.Print    = true;
-    }
+        => PermissionActionHelpers.MergeActions(target, source);
 
     // ── Const for NhomNguoiDung collection ─────────────────────────
-    private const string ColNhomNguoiDung = "NhomNguoiDung";
 
     // ── Helpers ────────────────────────────────────────────────────
 
     private static NhomNguoiDung ToNhomProto(BsonDocument doc, int userCount) => new()
     {
-        Id           = doc["_id"].ToString()!,
-        Ten          = SafeStr(doc, "Ten"),
-        MoTa         = SafeStr(doc, "MoTa"),
-        IsDefault    = doc.GetValue("IsDefault", false).AsBoolean,
-        Color        = SafeStr(doc, "Color", "#64748b"),
-        Loai         = SafeStr(doc, "Loai", "Custom"),
-        ClonedFromId = SafeStr(doc, "ClonedFromId"),
-        ScopeType    = SafeStr(doc, "ScopeType", "SUBTREE"),
+        Id           = doc.IdString(),
+        Ten          = doc.StringOr("Ten"),
+        MoTa         = doc.StringOr("MoTa"),
+        IsDefault    = doc.BoolOr("IsDefault"),
+        Color        = doc.StringOr("Color", "#64748b"),
+        Loai         = doc.StringOr("Loai", "Custom"),
+        ClonedFromId = doc.StringOr("ClonedFromId"),
+        ScopeType    = doc.StringOr("ScopeType", "SUBTREE"),
         UserCount    = userCount,
     };
-
-
-
-    // Returns fallback for: null doc, missing key, or explicitly-null BSON fields.
-    private static string SafeStr(BsonDocument? doc, string key, string fallback = "")
-    {
-        if (doc == null) return fallback;
-        var v = doc.GetValue(key, BsonNull.Value);
-        return (v == BsonNull.Value || v.IsBsonNull) ? fallback : v.AsString;
-    }
-
-    
     private static BsonValue ParseId(string id) =>
         ObjectId.TryParse(id, out var oid) ? (BsonValue)oid : new BsonString(id);
 
     private async Task CloneGroupPermissions(IMongoDatabase db, string fromId, string toId, string userName)
     {
-        var pqCol = db.GetCollection<BsonDocument>(ColPhanQuyenNhomND);
+        var pqCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions);
         var sourceDocs = await pqCol.Find(
             Builders<BsonDocument>.Filter.Eq("IdNhomNguoiDung", fromId)).ToListAsync();
 
@@ -242,8 +235,8 @@ public class PhanQuyenServiceImpl(
         ListNhomNguoiDungRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var nhomCol   = db.GetCollection<BsonDocument>(ColNhomNguoiDung);
-        var memberCol = db.GetCollection<BsonDocument>(ColNguoiDungNhomND);
+        var nhomCol   = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups);
+        var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
 
         // Aggregate user count per group in one query
         var countAgg = new BsonDocument[]
@@ -280,7 +273,7 @@ public class PhanQuyenServiceImpl(
         SaveNhomNguoiDungRequest request, ServerCallContext context)
     {
         var db       = Global.MongoDB!;
-        var nhomCol  = db.GetCollection<BsonDocument>(ColNhomNguoiDung);
+        var nhomCol  = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups);
         var userName = context.GetUserName() ?? "";
         var now      = DateTime.UtcNow;
         var isNew    = string.IsNullOrEmpty(request.Id);
@@ -329,31 +322,31 @@ public class PhanQuyenServiceImpl(
         DeleteRequest request, ServerCallContext context)
     {
         var db      = Global.MongoDB!;
-        var nhomCol = db.GetCollection<BsonDocument>(ColNhomNguoiDung);
+        var nhomCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups);
 
         var doc = await nhomCol.Find(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.Id)))
                                .FirstOrDefaultAsync();
         if (doc == null)
             return new DeleteResponse { Success = false, Message = "Không tìm thấy nhóm" };
-        if (doc.GetValue("Loai", "Custom").AsString == "System")
+        if (doc.StringOr("Loai", "Custom") == "System")
             return new DeleteResponse { Success = false, Message = "Không thể xóa nhóm hệ thống" };
 
         // Get affected users BEFORE cascade delete (for rebuild trigger)
         var fId = Builders<BsonDocument>.Filter.Eq("IdNhomNguoiDung", request.Id);
-        var affectedUsers = (await db.GetCollection<BsonDocument>(ColNguoiDungNhomND)
+        var affectedUsers = (await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments)
             .Find(fId)
             .Project(Builders<BsonDocument>.Projection.Include("IdNguoiDung"))
             .ToListAsync())
-            .Select(d => SafeStr(d, "IdNguoiDung"))
+            .Select(d => d.StringOr("IdNguoiDung"))
             .Where(s => !string.IsNullOrEmpty(s))
             .ToList();
 
         // Cascade delete — all 4 independent → parallel
         await Task.WhenAll(
             nhomCol.DeleteOneAsync(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.Id))),
-            db.GetCollection<BsonDocument>(ColNguoiDungNhomND).DeleteManyAsync(fId),
-            db.GetCollection<BsonDocument>(ColPhanQuyenNhomND).DeleteManyAsync(fId),
-            db.GetCollection<BsonDocument>(ColPhanQuyenPhanHeNhomND).DeleteManyAsync(fId));
+            db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments).DeleteManyAsync(fId),
+            db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions).DeleteManyAsync(fId),
+            db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupSubsystemPermissions).DeleteManyAsync(fId));
 
         // Trigger rebuild for affected users
         rebuildQueue.EnqueueGroup(affectedUsers);
@@ -367,7 +360,7 @@ public class PhanQuyenServiceImpl(
         GetGroupPermissionsRequest request, ServerCallContext context)
     {
         var db    = Global.MongoDB!;
-        var pqCol = db.GetCollection<BsonDocument>(ColPhanQuyenNhomND);
+        var pqCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions);
 
         var P = Builders<BsonDocument>.Projection;
 
@@ -376,7 +369,7 @@ public class PhanQuyenServiceImpl(
             Builders<BsonDocument>.Filter.Eq("IdNhomNguoiDung", request.IdNhom))
             .Project(P.Include("MaChucNang"))
             .ToListAsync();
-        var nhomTask = db.GetCollection<BsonDocument>(ColNhomNguoiDung)
+        var nhomTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups)
             .Find(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.IdNhom)))
             .Project(P.Include("ScopeType"))
             .FirstOrDefaultAsync();
@@ -385,13 +378,13 @@ public class PhanQuyenServiceImpl(
         var response = new GetGroupPermissionsResponse();
         foreach (var doc in docsTask.Result)
         {
-            var code = doc.GetValue("MaChucNang", "").AsString;
+            var code = doc.StringOr("MaChucNang");
             if (!string.IsNullOrEmpty(code))
                 response.CheckedCodes.Add(code);
         }
 
         var nhomDoc = nhomTask.Result;
-        response.ScopeType = nhomDoc?.GetValue("ScopeType", "SUBTREE").AsString ?? "SUBTREE";
+        response.ScopeType = nhomDoc.StringOr("ScopeType", "SUBTREE");
 
         return response;
     }
@@ -402,7 +395,7 @@ public class PhanQuyenServiceImpl(
         SaveGroupPermissionsRequest request, ServerCallContext context)
     {
         var db       = Global.MongoDB!;
-        var pqCol    = db.GetCollection<BsonDocument>(ColPhanQuyenNhomND);
+        var pqCol    = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions);
         var F        = Builders<BsonDocument>.Filter;
         var userName = context.GetUserName() ?? "";
         var now      = DateTime.UtcNow;
@@ -439,7 +432,7 @@ public class PhanQuyenServiceImpl(
         Task? scopeTask = null;
         if (!string.IsNullOrEmpty(request.ScopeType))
         {
-            scopeTask = db.GetCollection<BsonDocument>(ColNhomNguoiDung).UpdateOneAsync(
+            scopeTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups).UpdateOneAsync(
                 F.Eq("_id", ParseId(request.IdNhom)),
                 Builders<BsonDocument>.Update.Set("ScopeType", request.ScopeType));
         }
@@ -448,11 +441,11 @@ public class PhanQuyenServiceImpl(
         if (scopeTask != null) await scopeTask;
 
         // Trigger rebuild for all users in this group
-        var affectedUserIds = (await db.GetCollection<BsonDocument>(ColNguoiDungNhomND)
+        var affectedUserIds = (await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments)
             .Find(F.Eq("IdNhomNguoiDung", request.IdNhom))
             .Project(Builders<BsonDocument>.Projection.Include("IdNguoiDung"))
             .ToListAsync())
-            .Select(d => SafeStr(d, "IdNguoiDung"))
+            .Select(d => d.StringOr("IdNguoiDung"))
             .Where(s => !string.IsNullOrEmpty(s))
             .ToList();
         rebuildQueue.EnqueueGroup(affectedUserIds);
@@ -466,7 +459,7 @@ public class PhanQuyenServiceImpl(
         ListGroupUsersRequest request, ServerCallContext context)
     {
         var db        = Global.MongoDB!;
-        var memberCol = db.GetCollection<BsonDocument>(ColNguoiDungNhomND);
+        var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
 
         // Single aggregation pipeline: $match → $lookup Employee → $project (1 round-trip)
         var uidToOid = new BsonDocument("$convert", new BsonDocument
@@ -477,7 +470,7 @@ public class PhanQuyenServiceImpl(
             new("$match", new BsonDocument("IdNhomNguoiDung", request.IdNhom)),
             new("$lookup", new BsonDocument
             {
-                { "from", ColEmployee },
+                { "from", PermissionCollectionNames.Employees },
                 { "let", new BsonDocument("uidOid", uidToOid) },
                 { "pipeline", new BsonArray
                     {
@@ -488,12 +481,30 @@ public class PhanQuyenServiceImpl(
                 },
                 { "as", "emp" },
             }),
+            new("$lookup", new BsonDocument
+            {
+                { "from", PermissionCollectionNames.Offices },
+                { "localField", "IdDonViScope" },
+                { "foreignField", "_id" },
+                { "pipeline", new BsonArray
+                    {
+                        new BsonDocument("$project", new BsonDocument
+                        {
+                            { "Ten", 1 },
+                            { "TenDayDu", 1 },
+                        }),
+                    }
+                },
+                { "as", "anchor" },
+            }),
             new("$unwind", new BsonDocument
                 { { "path", "$emp" }, { "preserveNullAndEmptyArrays", true } }),
+            new("$unwind", new BsonDocument
+                { { "path", "$anchor" }, { "preserveNullAndEmptyArrays", true } }),
             new("$project", new BsonDocument
             {
                 { "IdNguoiDung", 1 }, { "ScopeType", 1 }, { "IdDonViScope", 1 },
-                { "ScopeAttribute", 1 }, { "NgayHetHan", 1 }, { "emp", 1 },
+                { "ScopeAttribute", 1 }, { "NgayHetHan", 1 }, { "emp", 1 }, { "anchor", 1 },
             }),
         };
 
@@ -502,15 +513,15 @@ public class PhanQuyenServiceImpl(
         var response = new ListGroupUsersResponse();
         foreach (var doc in docs)
         {
-            var userId = SafeStr(doc, "IdNguoiDung");
-            var emp = doc.Contains("emp") && doc["emp"].IsBsonDocument ? doc["emp"].AsBsonDocument : null;
-
-            var hetHanBson = doc.GetValue("NgayHetHan", BsonNull.Value);
+            var userId = doc.StringOr("IdNguoiDung");
+            var emp = doc.DocOr("emp");
+            var anchor = doc.DocOr("anchor");
+            var hetHanDt = doc.DateTimeOr("NgayHetHan");
             var isExpired  = false;
             Google.Protobuf.WellKnownTypes.Timestamp? hetHanTs = null;
-            if (hetHanBson != BsonNull.Value && !hetHanBson.IsBsonNull)
+            if (hetHanDt != null)
             {
-                var dt = hetHanBson.ToUniversalTime();
+                var dt = hetHanDt.Value;
                 isExpired = dt < DateTime.UtcNow;
                 hetHanTs  = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(dt);
             }
@@ -519,21 +530,22 @@ public class PhanQuyenServiceImpl(
             {
                 IdAssignment  = doc["_id"].ToString()!,
                 IdNguoiDung   = userId,
-                HoTen         = SafeStr(emp, "HoVaTen", userId),
-                DonVi         = SafeStr(emp, "IdDonVi"),
-                ScopeType     = SafeStr(doc, "ScopeType"),
-                AnchorNodeId  = SafeStr(doc, "IdDonViScope"),
+                HoTen         = emp.StringOr("HoVaTen", userId),
+                DonVi         = emp.StringOr("IdDonVi"),
+                ScopeType     = doc.StringOr("ScopeType"),
+                AnchorNodeId  = doc.StringOr("IdDonViScope"),
+                AnchorNodeName = anchor.StringOr("Ten", anchor.StringOr("TenDayDu", doc.StringOr("IdDonViScope"))),
                 IsExpired     = isExpired,
             };
             if (hetHanTs != null) item.NgayHetHan = hetHanTs;
-            var attrBson = doc.GetValue("ScopeAttribute", BsonNull.Value);
-            if (!attrBson.IsBsonNull && attrBson.IsBsonDocument)
+            var attrBson = doc.DocOr("ScopeAttribute");
+            if (attrBson != null)
             {
-                var ad = attrBson.AsBsonDocument;
+                var ad = attrBson;
                 item.ScopeAttribute = new protos.ScopeAttribute
                 {
-                    Field = SafeStr(ad, "Field"),
-                    Value = SafeStr(ad, "Value"),
+                    Field = ad.StringOr("Field"),
+                    Value = ad.StringOr("Value"),
                 };
             }
             response.Users.Add(item);
@@ -547,7 +559,7 @@ public class PhanQuyenServiceImpl(
         ListAllAssignmentsRequest request, ServerCallContext context)
     {
         var db        = Global.MongoDB!;
-        var memberCol = db.GetCollection<BsonDocument>(ColNguoiDungNhomND);
+        var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
 
         // Single pipeline: double $lookup (NhomNguoiDung + Employee) → 1 round-trip
         var uidToOid = new BsonDocument("$convert", new BsonDocument
@@ -567,7 +579,7 @@ public class PhanQuyenServiceImpl(
             // $lookup NhomNguoiDung (string ↔ string)
             new("$lookup", new BsonDocument
             {
-                { "from", ColNhomNguoiDung },
+                { "from", PermissionCollectionNames.UserGroups },
                 { "localField", "IdNhomNguoiDung" },
                 { "foreignField", "_id" },
                 { "pipeline", new BsonArray
@@ -578,7 +590,7 @@ public class PhanQuyenServiceImpl(
             // $lookup Employee (string → ObjectId)
             new("$lookup", new BsonDocument
             {
-                { "from", ColEmployee },
+                { "from", PermissionCollectionNames.Employees },
                 { "let", new BsonDocument("uidOid", uidToOid) },
                 { "pipeline", new BsonArray
                     {
@@ -589,16 +601,35 @@ public class PhanQuyenServiceImpl(
                 },
                 { "as", "emp" },
             }),
+            // $lookup Office for anchor node display name (string -> string)
+            new("$lookup", new BsonDocument
+            {
+                { "from", PermissionCollectionNames.Offices },
+                { "localField", "IdDonViScope" },
+                { "foreignField", "_id" },
+                { "pipeline", new BsonArray
+                    {
+                        new BsonDocument("$project", new BsonDocument
+                        {
+                            { "Ten", 1 },
+                            { "TenDayDu", 1 },
+                        }),
+                    }
+                },
+                { "as", "anchor" },
+            }),
             new("$unwind", new BsonDocument
                 { { "path", "$nhom" }, { "preserveNullAndEmptyArrays", true } }),
             new("$unwind", new BsonDocument
                 { { "path", "$emp" }, { "preserveNullAndEmptyArrays", true } }),
+            new("$unwind", new BsonDocument
+                { { "path", "$anchor" }, { "preserveNullAndEmptyArrays", true } }),
             new("$project", new BsonDocument
             {
                 { "IdNguoiDung", 1 }, { "IdNhomNguoiDung", 1 },
                 { "ScopeType", 1 }, { "IdDonViScope", 1 }, { "ScopeAttribute", 1 },
                 { "Loai", 1 }, { "NgayTao", 1 }, { "NgayHetHan", 1 },
-                { "nhom", 1 }, { "emp", 1 },
+                { "nhom", 1 }, { "emp", 1 }, { "anchor", 1 },
             }),
         };
 
@@ -609,38 +640,39 @@ public class PhanQuyenServiceImpl(
         var response = new ListAllAssignmentsResponse();
         foreach (var doc in docs)
         {
-            var userId = SafeStr(doc, "IdNguoiDung");
-            var nhomId = SafeStr(doc, "IdNhomNguoiDung");
-            var emp  = doc.Contains("emp")  && doc["emp"].IsBsonDocument  ? doc["emp"].AsBsonDocument  : null;
-            var nhom = doc.Contains("nhom") && doc["nhom"].IsBsonDocument ? doc["nhom"].AsBsonDocument : null;
+            var userId = doc.StringOr("IdNguoiDung");
+            var nhomId = doc.StringOr("IdNhomNguoiDung");
+            var emp  = doc.DocOr("emp");
+            var nhom = doc.DocOr("nhom");
+            var anchor = doc.DocOr("anchor");
 
             var detail = new AssignmentDetail
             {
                 Id             = doc["_id"].ToString()!,
                 IdNguoiDung    = userId,
-                HoTen          = SafeStr(emp, "HoVaTen", userId),
-                DonVi          = SafeStr(emp, "IdDonVi"),
+                HoTen          = emp.StringOr("HoVaTen", userId),
+                DonVi          = emp.StringOr("IdDonVi"),
                 IdNhom         = nhomId,
-                TenNhom        = SafeStr(nhom, "Ten", nhomId),
-                ColorNhom      = SafeStr(nhom, "Color", "#64748b"),
-                ScopeType      = SafeStr(doc, "ScopeType"),
-                AnchorNodeId   = SafeStr(doc, "IdDonViScope"),
-                AnchorNodeName = "",
-                Loai           = SafeStr(doc, "Loai", "Direct"),
+                TenNhom        = nhom.StringOr("Ten", nhomId),
+                ColorNhom      = nhom.StringOr("Color", "#64748b"),
+                ScopeType      = doc.StringOr("ScopeType"),
+                AnchorNodeId   = doc.StringOr("IdDonViScope"),
+                AnchorNodeName = anchor.StringOr("Ten", anchor.StringOr("TenDayDu", doc.StringOr("IdDonViScope"))),
+                Loai           = doc.StringOr("Loai", "Direct"),
             };
-            var detailAttrBson = doc.GetValue("ScopeAttribute", BsonNull.Value);
-            if (!detailAttrBson.IsBsonNull && detailAttrBson.IsBsonDocument)
+            var detailAttrBson = doc.DocOr("ScopeAttribute");
+            if (detailAttrBson != null)
             {
-                var ad = detailAttrBson.AsBsonDocument;
+                var ad = detailAttrBson;
                 detail.ScopeAttribute = new protos.ScopeAttribute
                 {
-                    Field = SafeStr(ad, "Field"),
-                    Value = SafeStr(ad, "Value"),
+                    Field = ad.StringOr("Field"),
+                    Value = ad.StringOr("Value"),
                 };
             }
 
-            var ngayTaoTs = CommonUtils.BsonToTs(doc.GetValue("NgayTao",   BsonNull.Value));
-            var hetHanTs  = CommonUtils.BsonToTs(doc.GetValue("NgayHetHan", BsonNull.Value));
+            var ngayTaoTs = doc.TimestampOr("NgayTao");
+            var hetHanTs  = doc.TimestampOr("NgayHetHan");
             if (ngayTaoTs != null)  detail.NgayTao    = ngayTaoTs;
             if (hetHanTs  != null)  detail.NgayHetHan = hetHanTs;
 
@@ -656,7 +688,7 @@ public class PhanQuyenServiceImpl(
         AssignUserRequest request, ServerCallContext context)
     {
         var db        = Global.MongoDB!;
-        var memberCol = db.GetCollection<BsonDocument>(ColNguoiDungNhomND);
+        var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
         var userName  = context.GetUserName() ?? "";
         var now       = DateTime.UtcNow;
 
@@ -728,7 +760,7 @@ public class PhanQuyenServiceImpl(
         RemoveUserRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var memberCol = db.GetCollection<BsonDocument>(ColNguoiDungNhomND);
+        var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
 
         // Read userId BEFORE delete (needed for rebuild trigger)
         var assignDoc = await memberCol
@@ -741,7 +773,7 @@ public class PhanQuyenServiceImpl(
 
         // Trigger rebuild
         if (result.DeletedCount > 0 && assignDoc != null)
-            rebuildQueue.Enqueue(SafeStr(assignDoc, "IdNguoiDung"));
+            rebuildQueue.Enqueue(assignDoc.StringOr("IdNguoiDung"));
 
         return new DeleteResponse
         {

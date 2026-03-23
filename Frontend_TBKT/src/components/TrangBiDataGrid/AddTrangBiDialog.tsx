@@ -206,11 +206,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     [allFieldSets],
   );
 
-  const fieldById = useMemo(
-    () => new Map(allFields.map((field) => [field.id, field])),
-    [allFields],
-  );
-
   // Build parent-child structure from tab metadata
   const tabStructure = useMemo(() => {
     const tabs = formConfig?.tabs ?? [];
@@ -255,14 +250,12 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         const fieldSet = fieldSetById.get(setId);
         if (!fieldSet) return null;
 
-        const fields = (fieldSet.fieldIds ?? [])
-          .map((fid: string) => fieldById.get(fid))
-          .filter((f): f is DynamicField => Boolean(f));
+        const fields = fieldSet.fields ?? [];
 
         return { fieldSet, fields };
       })
       .filter((item): item is { fieldSet: FieldSet; fields: DynamicField[] } => item !== null);
-  }, [effectiveTab, fieldSetById, fieldById]);
+  }, [effectiveTab, fieldSetById]);
 
   // Get all fields in current tab
   const currentTabFields = useMemo(() => {
@@ -293,9 +286,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         setIds.forEach((setId) => {
           const fieldSet = fieldSetById.get(setId);
           if (fieldSet) {
-            const fields = (fieldSet.fieldIds ?? [])
-              .map((fid: string) => fieldById.get(fid))
-              .filter((f): f is DynamicField => Boolean(f));
+            const fields = fieldSet.fields ?? [];
 
             totalFields += fields.length;
             filledFields += fields.filter(f => formData[f.key]?.trim()).length;
@@ -306,7 +297,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
     if (totalFields === 0) return 0;
     return Math.round((filledFields / totalFields) * 100);
-  }, [rootTabs, tabStructure, formData, fieldSetById, fieldById]);
+  }, [rootTabs, tabStructure, formData, fieldSetById]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
     setFormData((prev) => {

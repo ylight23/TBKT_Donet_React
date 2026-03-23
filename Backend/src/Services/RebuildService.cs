@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using Backend.Authorization;
+using Backend.Common.Bson;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using protos;
@@ -8,15 +10,6 @@ namespace Backend.Services;
 public sealed class RebuildService
 {
     // ── Collection names (must match PhanQuyenServiceImpl) ─────────
-    private const string ColNguoiDungNhomND         = "NguoiDungNhomNguoiDung";
-    private const string ColPhanQuyenPhanHeND        = "PhanQuyenPhanHeNguoiDung";
-    private const string ColPhanQuyenPhanHeNhomND    = "PhanQuyenPhanHeNhomNguoiDung";
-    private const string ColPhanQuyenND              = "PhanQuyenNguoiDung";
-    private const string ColPhanQuyenNhomND          = "PhanQuyenNhomNguoiDung";
-    private const string ColPhanQuyenNDNganhDoc      = "PhanQuyenNguoiDungNganhDoc";
-    private const string ColPhanQuyenNhomNDNganhDoc  = "PhanQuyenNhomNguoiDungNganhDoc";
-    private const string ColEmployee                 = "Employee";
-    private const string ColUserPermission           = "UserPermission";
 
     // Per-user lock: serialize rebuild for the same userId
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
@@ -34,7 +27,7 @@ public sealed class RebuildService
             var P  = Builders<BsonDocument>.Projection;
 
             // ─── 1. Lấy nhóm ──────────────────────────────────────
-            var memberDocs = await db.GetCollection<BsonDocument>(ColNguoiDungNhomND)
+            var memberDocs = await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments)
                 .Find(F.Eq("IdNguoiDung", userId))
                 .Project(P.Include("IdNhomNguoiDung").Include("ScopeType")
                           .Include("IdDonViScope").Include("NgayHetHan")
@@ -54,94 +47,88 @@ public sealed class RebuildService
 
             foreach (var doc in memberDocs)
             {
-                var nhomId = SafeStr(doc, "IdNhomNguoiDung");
+                var nhomId = doc.StringOr("IdNhomNguoiDung");
                 if (!string.IsNullOrEmpty(nhomId))
                     nhomIds.Add(nhomId);
 
-                var stVal = SafeStr(doc, "ScopeType");
+                var stVal = doc.StringOr("ScopeType");
                 if (string.IsNullOrEmpty(stVal)) continue;
 
                 var normalized = NormalizeScopeType(stVal);
 
                 if (normalized == "DELEGATED")
                 {
-                    var hetHan = doc.GetValue("NgayHetHan", BsonNull.Value);
-                    if (hetHan != BsonNull.Value && !hetHan.IsBsonNull)
+                    var hetHan = doc.DateTimeOr("NgayHetHan");
+                    if (hetHan != null)
                     {
-                        var dt = hetHan.ToUniversalTime();
+                        var dt = hetHan.Value;
                         if (dt < DateTime.UtcNow) continue;
                         delegatedExpiry = dt;
                     }
-                    idNguoiUyQuyen = SafeStr(doc, "IdNguoiUyQuyen");
+                    idNguoiUyQuyen = doc.StringOr("IdNguoiUyQuyen");
                 }
 
                 if (normalized == "BY_ATTRIBUTE")
                 {
-                    var attrBson = doc.GetValue("ScopeAttribute", BsonNull.Value);
-                    if (!attrBson.IsBsonNull && attrBson.IsBsonDocument)
+                    var attrBson = doc.DocOr("ScopeAttribute");
+                    if (attrBson != null)
                     {
-                        var ad = attrBson.AsBsonDocument;
-                        scopeAttrField = SafeStr(ad, "Field");
-                        scopeAttrValue = SafeStr(ad, "Value");
+                        var ad = attrBson;
+                        scopeAttrField = ad.StringOr("Field");
+                        scopeAttrValue = ad.StringOr("Value");
                     }
                 }
 
                 scopeType = normalized;
-                var dvs = SafeStr(doc, "IdDonViScope");
+                var dvs = doc.StringOr("IdDonViScope");
                 if (!string.IsNullOrEmpty(dvs)) donViScope = dvs;
 
                 // NEW: Extract IdNganhDoc from NguoiDungNhomNguoiDung
-                var nganhDocArr = doc.GetValue("IdNganhDoc", BsonNull.Value);
-                if (nganhDocArr.IsBsonArray)
-                {
-                    foreach (var item in nganhDocArr.AsBsonArray)
-                        if (item.IsString && !string.IsNullOrEmpty(item.AsString))
-                            nganhDocIds.Add(item.AsString);
-                }
+                var nganhDocArr = doc.ArrayOr("IdNganhDoc");
+                if (nganhDocArr != null)
+                    foreach (var item in nganhDocArr.Strings().Where(item => !string.IsNullOrEmpty(item)))
+                        nganhDocIds.Add(item);
 
                 // NEW: Extract IdNhomChuyenNganh from NguoiDungNhomNguoiDung
-                var nhomChuyenNganhArr = doc.GetValue("IdNhomChuyenNganh", BsonNull.Value);
-                if (nhomChuyenNganhArr.IsBsonArray)
-                {
-                    foreach (var item in nhomChuyenNganhArr.AsBsonArray)
-                        if (item.IsString && !string.IsNullOrEmpty(item.AsString))
-                            nhomChuyenNganhIds.Add(item.AsString);
-                }
+                var nhomChuyenNganhArr = doc.ArrayOr("IdNhomChuyenNganh");
+                if (nhomChuyenNganhArr != null)
+                    foreach (var item in nhomChuyenNganhArr.Strings().Where(item => !string.IsNullOrEmpty(item)))
+                        nhomChuyenNganhIds.Add(item);
             }
 
             // ─── 2–6. Parallel queries ─────────────────────────────
-            var tPhanHeND = db.GetCollection<BsonDocument>(ColPhanQuyenPhanHeND)
+            var tPhanHeND = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserSubsystemPermissions)
                 .Find(F.Eq("IdNguoiDung", userId))
                 .Project(P.Include("MaPhanHe").Include("DuocTruyCap")
                           .Include("DuocQuanTri").Include("ScopeType").Include("IdDonViScope"))
                 .ToListAsync();
 
             var tPhanHeNhom = nhomIds.Count > 0
-                ? db.GetCollection<BsonDocument>(ColPhanQuyenPhanHeNhomND)
+                ? db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupSubsystemPermissions)
                     .Find(F.In("IdNhomNguoiDung", nhomIds))
                     .Project(P.Include("MaPhanHe").Include("DuocTruyCap").Include("DuocQuanTri"))
                     .ToListAsync()
                 : Task.FromResult(new List<BsonDocument>());
 
-            var tChucNangND = db.GetCollection<BsonDocument>(ColPhanQuyenND)
+            var tChucNangND = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserFunctionPermissions)
                 .Find(F.Eq("IdNguoiDung", userId))
                 .Project(P.Include("MaChucNang").Include("MaPhanHe").Include("Actions"))
                 .ToListAsync();
 
             var tChucNangNhom = nhomIds.Count > 0
-                ? db.GetCollection<BsonDocument>(ColPhanQuyenNhomND)
+                ? db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions)
                     .Find(F.In("IdNhomNguoiDung", nhomIds))
                     .Project(P.Include("MaChucNang").Include("MaPhanHe").Include("Actions"))
                     .ToListAsync()
                 : Task.FromResult(new List<BsonDocument>());
 
-            var tNganhDocND = db.GetCollection<BsonDocument>(ColPhanQuyenNDNganhDoc)
+            var tNganhDocND = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserVerticalPermissions)
                 .Find(F.Eq("IdNguoiDung", userId))
                 .Project(P.Include("IdNganhDoc"))
                 .ToListAsync();
 
             var tNganhDocNhom = nhomIds.Count > 0
-                ? db.GetCollection<BsonDocument>(ColPhanQuyenNhomNDNganhDoc)
+                ? db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupVerticalPermissions)
                     .Find(F.In("IdNhomNguoiDung", nhomIds))
                     .Project(P.Include("IdNganhDoc"))
                     .ToListAsync()
@@ -155,23 +142,23 @@ public sealed class RebuildService
 
             foreach (var doc in tPhanHeND.Result)
             {
-                var maPH = doc.GetValue("MaPhanHe", "").AsString;
+                var maPH = doc.StringOr("MaPhanHe");
                 if (string.IsNullOrEmpty(maPH)) continue;
                 phanHeDict[maPH] = new BsonDocument
                 {
                     { "MaPhanHe",    maPH },
-                    { "DuocTruyCap", doc.GetValue("DuocTruyCap", false).AsBoolean },
-                    { "DuocQuanTri", doc.GetValue("DuocQuanTri", false).AsBoolean },
+                    { "DuocTruyCap", doc.BoolOr("DuocTruyCap") },
+                    { "DuocQuanTri", doc.BoolOr("DuocQuanTri") },
                 };
 
                 // Scope fallback from PhanHePhanHeND
                 if (string.IsNullOrEmpty(scopeType))
                 {
-                    var st = doc.GetValue("ScopeType", BsonNull.Value);
-                    if (st != BsonNull.Value && !st.IsBsonNull)
+                    var st = doc.StringOr("ScopeType");
+                    if (!string.IsNullOrEmpty(st))
                     {
-                        scopeType = st.AsString;
-                        var dvs = SafeStr(doc, "IdDonViScope");
+                        scopeType = st;
+                        var dvs = doc.StringOr("IdDonViScope");
                         if (!string.IsNullOrEmpty(dvs)) donViScope = dvs;
                     }
                 }
@@ -179,23 +166,23 @@ public sealed class RebuildService
 
             foreach (var doc in tPhanHeNhom.Result)
             {
-                var maPH = doc.GetValue("MaPhanHe", "").AsString;
+                var maPH = doc.StringOr("MaPhanHe");
                 if (string.IsNullOrEmpty(maPH)) continue;
 
                 if (!phanHeDict.ContainsKey(maPH))
                 {
                     phanHeDict[maPH] = new BsonDocument
-                    {
-                        { "MaPhanHe",    maPH },
-                        { "DuocTruyCap", doc.GetValue("DuocTruyCap", false).AsBoolean },
-                        { "DuocQuanTri", doc.GetValue("DuocQuanTri", false).AsBoolean },
+                        {
+                            { "MaPhanHe",    maPH },
+                        { "DuocTruyCap", doc.BoolOr("DuocTruyCap") },
+                        { "DuocQuanTri", doc.BoolOr("DuocQuanTri") },
                     };
                 }
                 else
                 {
                     var e = phanHeDict[maPH];
-                    if (doc.GetValue("DuocTruyCap", false).AsBoolean) e["DuocTruyCap"] = true;
-                    if (doc.GetValue("DuocQuanTri", false).AsBoolean) e["DuocQuanTri"] = true;
+                    if (doc.BoolOr("DuocTruyCap")) e["DuocTruyCap"] = true;
+                    if (doc.BoolOr("DuocQuanTri")) e["DuocQuanTri"] = true;
                 }
             }
             foreach (var v in phanHeDict.Values) phanHeArr.Add(v);
@@ -206,22 +193,22 @@ public sealed class RebuildService
 
             foreach (var doc in tChucNangND.Result)
             {
-                var maCN = doc.GetValue("MaChucNang", "").AsString;
-                var maPH = doc.GetValue("MaPhanHe", "").AsString;
+                var maCN = doc.StringOr("MaChucNang");
+                var maPH = doc.StringOr("MaPhanHe");
                 if (string.IsNullOrEmpty(maCN)) continue;
                 var key = $"{maPH}:{maCN}";
                 chucNangDict[key] = new BsonDocument
                 {
                     { "MaChucNang", maCN },
                     { "MaPhanHe",   maPH },
-                    { "Actions",    ExtractActions(doc) },
+                    { "Actions",    PermissionActionHelpers.ExtractActionsDocument(doc) },
                 };
             }
 
             foreach (var doc in tChucNangNhom.Result)
             {
-                var maCN = doc.GetValue("MaChucNang", "").AsString;
-                var maPH = doc.GetValue("MaPhanHe", "").AsString;
+                var maCN = doc.StringOr("MaChucNang");
+                var maPH = doc.StringOr("MaPhanHe");
                 if (string.IsNullOrEmpty(maCN)) continue;
                 var key = $"{maPH}:{maCN}";
                 if (!chucNangDict.ContainsKey(key))
@@ -230,12 +217,14 @@ public sealed class RebuildService
                     {
                         { "MaChucNang", maCN },
                         { "MaPhanHe",   maPH },
-                        { "Actions",    ExtractActions(doc) },
+                        { "Actions",    PermissionActionHelpers.ExtractActionsDocument(doc) },
                     };
                 }
                 else
                 {
-                    MergeBsonActions(chucNangDict[key]["Actions"].AsBsonDocument, ExtractActions(doc));
+                    PermissionActionHelpers.MergeActions(
+                        chucNangDict[key]["Actions"].AsBsonDocument,
+                        PermissionActionHelpers.ExtractActionsDocument(doc));
                 }
             }
             foreach (var v in chucNangDict.Values) chucNangArr.Add(v);
@@ -247,11 +236,10 @@ public sealed class RebuildService
             // 3. PhanQuyenNhomNguoiDungNganhDoc (legacy - giữ lại để backward compatible)
             foreach (var doc in tNganhDocND.Result.Concat(tNganhDocNhom.Result))
             {
-                var arr = doc.GetValue("IdNganhDoc", BsonNull.Value);
-                if (!arr.IsBsonArray) continue;
-                foreach (var item in arr.AsBsonArray)
-                    if (item.IsString && !string.IsNullOrEmpty(item.AsString))
-                        nganhDocIds.Add(item.AsString);
+                var arr = doc.ArrayOr("IdNganhDoc");
+                if (arr == null) continue;
+                foreach (var item in arr.Strings().Where(item => !string.IsNullOrEmpty(item)))
+                    nganhDocIds.Add(item);
             }
 
             // ─── Resolve scope ─────────────────────────────────────
@@ -261,12 +249,12 @@ public sealed class RebuildService
             if (string.IsNullOrEmpty(scopeType))
             {
                 scopeType = "SUBTREE";
-                var empDoc = await db.GetCollection<BsonDocument>(ColEmployee)
+                var empDoc = await db.GetCollection<BsonDocument>(PermissionCollectionNames.Employees)
                     .Find(F.Eq("_id", ParseId(userId)))
                     .Project(P.Include("IdQuanTriDonVi"))
                     .FirstOrDefaultAsync();
                 if (empDoc != null)
-                    anchorNodeId = SafeStr(empDoc, "IdQuanTriDonVi");
+                    anchorNodeId = empDoc.StringOr("IdQuanTriDonVi");
             }
 
             switch (scopeType)
@@ -285,7 +273,7 @@ public sealed class RebuildService
                             .Project(P.Include("IdCapTren"))
                             .FirstOrDefaultAsync();
                         if (anchorDoc != null)
-                            anchorParentId = SafeStr(anchorDoc, "IdCapTren");
+                            anchorParentId = anchorDoc.StringOr("IdCapTren");
                     }
                     break;
                 case "BY_ATTRIBUTE":
@@ -327,7 +315,7 @@ public sealed class RebuildService
                     F.Exists("RebuiltAt", false),
                     F.Lt("RebuiltAt", rebuildStart)));
 
-            var result = await db.GetCollection<BsonDocument>(ColUserPermission)
+            var result = await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserPermissionCache)
                 .ReplaceOneAsync(filter, permDoc, new ReplaceOptions { IsUpsert = true });
             // result.ModifiedCount == 0 means superseded by newer rebuild — safe to ignore
         }
@@ -347,11 +335,11 @@ public sealed class RebuildService
     public async Task RebuildForGroup(string nhomId)
     {
         var db = Global.MongoDB!;
-        var userIds = (await db.GetCollection<BsonDocument>(ColNguoiDungNhomND)
+        var userIds = (await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments)
             .Find(Builders<BsonDocument>.Filter.Eq("IdNhomNguoiDung", nhomId))
             .Project(Builders<BsonDocument>.Projection.Include("IdNguoiDung"))
             .ToListAsync())
-            .Select(d => SafeStr(d, "IdNguoiDung"))
+            .Select(d => d.StringOr("IdNguoiDung"))
             .Where(s => !string.IsNullOrEmpty(s))
             .ToList();
 
@@ -376,41 +364,6 @@ public sealed class RebuildService
         "BYATTRIBUTE" or "BY_ATTRIBUTE" => "BY_ATTRIBUTE",
         var other            => other,
     };
-
-    private static BsonDocument ExtractActions(BsonDocument doc)
-    {
-        var val = doc.GetValue("Actions", BsonNull.Value);
-        if (val == BsonNull.Value || !val.IsBsonDocument)
-            return new BsonDocument
-            {
-                { "view", false }, { "add", false }, { "edit", false },
-                { "delete", false }, { "approve", false }, { "download", false }, { "print", false },
-            };
-        var a = val.AsBsonDocument;
-        return new BsonDocument
-        {
-            { "view",     a.GetValue("view",     false).AsBoolean },
-            { "add",      a.GetValue("add",      false).AsBoolean },
-            { "edit",     a.GetValue("edit",      false).AsBoolean },
-            { "delete",   a.GetValue("delete",   false).AsBoolean },
-            { "approve",  a.GetValue("approve",  false).AsBoolean },
-            { "download", a.GetValue("download", false).AsBoolean },
-            { "print",    a.GetValue("print",    false).AsBoolean },
-        };
-    }
-
-    private static void MergeBsonActions(BsonDocument target, BsonDocument source)
-    {
-        foreach (var name in new[] { "view", "add", "edit", "delete", "approve", "download", "print" })
-            if (source.GetValue(name, false).AsBoolean) target[name] = true;
-    }
-
-    private static string SafeStr(BsonDocument? doc, string key, string fallback = "")
-    {
-        if (doc == null) return fallback;
-        var v = doc.GetValue(key, BsonNull.Value);
-        return (v == BsonNull.Value || v.IsBsonNull) ? fallback : v.AsString;
-    }
 
     private static BsonValue ParseId(string id) =>
         ObjectId.TryParse(id, out var oid) ? (BsonValue)oid : new BsonString(id);

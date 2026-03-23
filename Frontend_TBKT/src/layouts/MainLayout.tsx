@@ -1,28 +1,33 @@
-import React from 'react';
-import { ColorModeContext, useMode } from "../theme";
+import React, { Suspense } from 'react';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Outlet } from "react-router-dom";
-import Topbar from "../pages/global/Topbar";
-import Sidebar from "../pages/global/Sidebar";
-import AppHeader from "../pages/global/AppHeader";
-import { ProSidebarProvider } from "react-pro-sidebar";
-import bgImage from "../assets/background.png";
+import { Outlet } from 'react-router-dom';
+import { ProSidebarProvider } from 'react-pro-sidebar';
+import { ColorModeContext, useMode } from '../theme';
+import bgImage from '../assets/background.png';
 
-// ── InnerLayout: tách riêng để dùng useTheme bên trong ThemeProvider ──
+const Topbar = React.lazy(() => import('../pages/global/Topbar'));
+const Sidebar = React.lazy(() => import('../pages/global/Sidebar'));
+const AppHeader = React.lazy(() => import('../pages/global/AppHeader'));
+
 function InnerLayout(): React.ReactElement {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const headerFallback = <div style={{ height: 56 }} />;
+    const sidebarFallback = <div style={{ width: 80, flexShrink: 0 }} />;
+    const topbarFallback = <div style={{ height: 48 }} />;
 
     return (
         <ProSidebarProvider>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
-                <AppHeader />
+                <Suspense fallback={headerFallback}>
+                    <AppHeader />
+                </Suspense>
                 <div className="app" style={{ flex: 1, overflow: 'hidden' }}>
-                    <Sidebar />
+                    <Suspense fallback={sidebarFallback}>
+                        <Sidebar />
+                    </Suspense>
                     <main className="content" style={{ position: 'relative', overflowY: 'auto', height: '100%' }}>
-
-                        {/* ── Lớp ảnh nền — tách biệt, không ảnh hưởng nội dung ── */}
                         <div
                             aria-hidden="true"
                             style={{
@@ -36,21 +41,19 @@ function InnerLayout(): React.ReactElement {
                                 backgroundPosition: 'center',
                                 backgroundRepeat: 'no-repeat',
                                 opacity: isDark ? 0.3 : 0.8,
-                                filter: isDark
-                                    ? 'brightness(1.2)'
-                                    : 'contrast(1)',
+                                filter: isDark ? 'brightness(1.2)' : 'contrast(1)',
                                 pointerEvents: 'none',
                             }}
                         />
 
-                        {/* ── Nội dung nằm trên lớp ảnh ── */}
                         <div style={{ position: 'relative', zIndex: 1 }}>
                             <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                <Topbar />
+                                <Suspense fallback={topbarFallback}>
+                                    <Topbar />
+                                </Suspense>
                             </div>
                             <Outlet />
                         </div>
-
                     </main>
                 </div>
             </div>

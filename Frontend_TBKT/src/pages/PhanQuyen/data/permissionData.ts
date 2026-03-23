@@ -1,18 +1,18 @@
 /**
  * +--------------------------------------------------------------------+
- * |  PERMISSION MANAGEMENT – Data & Constants                          |
- * |  Dữ liệu theo hệ thống TBKT – Quản lý trang bị kỹ thuật          |
+ * |  PERMISSION MANAGEMENT – UI Fallback Data & Constants              |
+ * |  Catalog quyền chính lấy từ API/DB; file này chỉ dùng fallback UI |
  * +--------------------------------------------------------------------+
  */
 
 import type {
     Role,
-    PermissionGroup,
     ScopeConfig,
     SampleUser,
     Assignment,
 } from '../../../types/permission';
 import { armyOlive, deepArmyGreen, steelGray, militaryGold, statusColors } from '../../../theme';
+import { permissionManifestGroupsToUi } from '../../../config/permissionManifest';
 
 // ── System Roles ───────────────────────────────────────────────────────────────
 
@@ -31,83 +31,11 @@ export const INITIAL_CUSTOM_ROLES: Role[] = [
 // ── Permission Groups ──────────────────────────────────────────────────────────
 // Nhóm quyền căn cứ theo các module thực tế của hệ thống TBKT
 
-export const PERMISSION_GROUPS: PermissionGroup[] = [
-    {
-        group: 'Trang bị kỹ thuật',
-        icon: '🔧',
-        permissions: [
-            { code: 'equipment.view',   name: 'Xem danh sách trang bị'   },
-            { code: 'equipment.create', name: 'Tiếp nhận trang bị'        },
-            { code: 'equipment.edit',   name: 'Cập nhật thông tin trang bị'},
-            { code: 'equipment.delete', name: 'Xóa / hủy trang bị'        },
-            { code: 'equipment.export', name: 'Xuất danh sách Excel'       },
-            { code: 'equipment.group1', name: 'Quản lý trang bị nhóm 1'   },
-            { code: 'equipment.group2', name: 'Quản lý trang bị nhóm 2'   },
-        ],
-    },
-    {
-        group: 'Quản lý kỹ thuật',
-        icon: '🛠️',
-        permissions: [
-            { code: 'tech.status',          name: 'Xem tình trạng kỹ thuật'  },
-            { code: 'tech.preservation',    name: 'Bảo quản trang bị'         },
-            { code: 'tech.maintenance',     name: 'Bảo dưỡng trang bị'        },
-            { code: 'tech.repair.view',     name: 'Xem phiếu sửa chữa'        },
-            { code: 'tech.repair.create',   name: 'Lập phiếu sửa chữa'        },
-            { code: 'tech.storage.view',    name: 'Xem niêm cất'              },
-            { code: 'tech.storage.create',  name: 'Lập phiếu niêm cất'        },
-            { code: 'tech.transfer',        name: 'Điều động trang bị'         },
-            { code: 'tech.quality',         name: 'Chuyển cấp chất lượng'      },
-        ],
-    },
-    {
-        group: 'Báo cáo & thống kê',
-        icon: '📊',
-        permissions: [
-            { code: 'report.view',     name: 'Xem báo cáo'        },
-            { code: 'report.export',   name: 'Xuất báo cáo'       },
-            { code: 'report.schedule', name: 'Lên lịch báo cáo'   },
-            { code: 'report.classify', name: 'Báo cáo mật'        },
-        ],
-    },
-    {
-        group: 'Quản lý đơn vị',
-        icon: '🏢',
-        permissions: [
-            { code: 'office.view',   name: 'Xem cây tổ chức đơn vị' },
-            { code: 'office.create', name: 'Tạo đơn vị mới'          },
-            { code: 'office.edit',   name: 'Cập nhật thông tin đơn vị'},
-            { code: 'office.delete', name: 'Xóa đơn vị'              },
-            { code: 'office.export', name: 'Xuất danh sách đơn vị'   },
-        ],
-    },
-    {
-        group: 'Nhân viên',
-        icon: '👥',
-        permissions: [
-            { code: 'employee.view',   name: 'Xem hồ sơ nhân viên' },
-            { code: 'employee.create', name: 'Thêm nhân viên'       },
-            { code: 'employee.edit',   name: 'Cập nhật hồ sơ'       },
-            { code: 'employee.delete', name: 'Xóa nhân viên'        },
-        ],
-    },
-    {
-        group: 'Cấu hình hệ thống',
-        icon: '⚙️',
-        permissions: [
-            { code: 'config.view',     name: 'Xem cấu hình hệ thống' },
-            { code: 'config.param',    name: 'Cấu hình tham số'       },
-            { code: 'config.role',     name: 'Quản lý phân quyền'     },
-            { code: 'config.template', name: 'Cấu hình template'      },
-            { code: 'config.menu',     name: 'Cấu hình menu'          },
-            { code: 'config.audit',    name: 'Nhật ký kiểm toán'      },
-        ],
-    },
-];
+export const FALLBACK_PERMISSION_GROUPS = permissionManifestGroupsToUi();
 
 // ── Role → Permission defaults ─────────────────────────────────────────────────
 
-export const ROLE_DEFAULTS: Record<string, string[]> = {
+export const FALLBACK_ROLE_DEFAULTS: Record<string, string[]> = {
     'sr-1': [
         // Toàn quyền
         'equipment.view', 'equipment.create', 'equipment.edit', 'equipment.delete', 'equipment.export', 'equipment.group1', 'equipment.group2',
@@ -116,6 +44,9 @@ export const ROLE_DEFAULTS: Record<string, string[]> = {
         'office.view', 'office.create', 'office.edit', 'office.delete', 'office.export',
         'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
         'config.view', 'config.param', 'config.role', 'config.template', 'config.menu', 'config.audit',
+        'thamso_dynamicfield', 'thamso_fieldset', 'thamso_formconfig',
+        'thamso_dynamicmenu', 'thamso_dynamicmenu_datasource', 'thamso_templatelayout',
+        'thamso_restore',
     ],
     'sr-2': [
         // Chỉ huy: toàn bộ nghiệp vụ, không cấu hình hệ thống
@@ -125,6 +56,8 @@ export const ROLE_DEFAULTS: Record<string, string[]> = {
         'office.view', 'office.edit',
         'employee.view', 'employee.create', 'employee.edit',
         'config.view',
+        'thamso_dynamicfield', 'thamso_fieldset', 'thamso_formconfig',
+        'thamso_dynamicmenu', 'thamso_dynamicmenu_datasource', 'thamso_templatelayout',
     ],
     'sr-3': [
         // Cán bộ kỹ thuật: nghiệp vụ đầy đủ, không quản lý đơn vị / nhân sự
@@ -249,3 +182,6 @@ export const SAMPLE_ASSIGNMENTS: Assignment[] = [
         approvalStatus: 'APPROVED',
     },
 ];
+
+export const PERMISSION_GROUPS = FALLBACK_PERMISSION_GROUPS;
+export const ROLE_DEFAULTS = FALLBACK_ROLE_DEFAULTS;

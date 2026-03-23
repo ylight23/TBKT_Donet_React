@@ -11,14 +11,14 @@ import Check from '@mui/icons-material/Check';
 import Close from '@mui/icons-material/Close';
 
 
-import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 
 import Header from '../../components/Header';
 import ModalEmployee from './subComponent/ModalEmployee';
 import FilterEmployee from './subComponent/FilterEmployee';
 import ExportExcel from '../../components/Buttons/ExportExcel';
-import ImportExcel from '../../components/Buttons/ImportExcel';
+import LazyImportExcel from '../../components/Buttons/LazyImportExcel';
+import LazyDataGrid from '../../components/LazyDataGrid';
 import OfficeDictionary from '../Office/subComponent/OfficeDictionary';
 import { EmployeeProvider, useEmployee } from '../../context/EmployeeContext';
 import type { EmployeeItem } from '../../context/EmployeeContext';
@@ -146,7 +146,7 @@ const EmployeeInner: React.FC = () => {
                         fileName="DanhSachCanBo"
                         sheetName="Danh sách cán bộ"
                     />
-                    <ImportExcel
+                    <LazyImportExcel
                         buttonText="Nhập từ Excel"
                         onImport={importEmployees}
                         onImportSuccess={onImportSuccess}
@@ -174,11 +174,13 @@ const EmployeeInner: React.FC = () => {
                             <Typography variant="h6" sx={{ fontSize: '0.9rem', fontWeight: 700, whiteSpace: 'nowrap', alignSelf: 'center', my: 1 }}>
                                 {`Tổng cộng: ${displayEmployees.length} cán bộ`}
                             </Typography>
-                            <DataGrid
+                            <LazyDataGrid
                                 rows={displayEmployees}
                                 columns={columns}
                                 getRowId={(row) => row.id || row.index || ''}
-                                slots={{ toolbar: GridToolbar }}
+                                includeToolbar
+                                fallbackRows={8}
+                                fallbackCols={9}
                                 sx={{
                                     fontSize: '14px',
                                     fontWeight: 600,

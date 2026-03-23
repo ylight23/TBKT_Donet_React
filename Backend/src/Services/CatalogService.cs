@@ -1,6 +1,9 @@
+using Backend.Authorization;
 using Backend.Converter;
+using Backend.Common.Bson;
+using Backend.Common.Protobuf;
 using Backend.utils;
-using Backend.Utils;
+
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
@@ -103,9 +106,15 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                     if (request.IncludeFields.Count > 0)
                     {
                         catalog = new Catalog();
-                        catalog.Id = item[request.IncludeFields.FirstOrDefault()].AsString;
+                        var idField = request.IncludeFields.FirstOrDefault();
+                        if (!string.IsNullOrEmpty(idField))
+                            catalog.Id = item.StringOr(idField);
                         if (request.IncludeFields.Count > 1)
-                            catalog.Ten = item[request.IncludeFields.Skip(1).FirstOrDefault()].AsString;
+                        {
+                            var tenField = request.IncludeFields.Skip(1).FirstOrDefault();
+                            if (!string.IsNullOrEmpty(tenField))
+                                catalog.Ten = item.StringOr(tenField);
+                        }
                     }
                     else
                     {
@@ -113,14 +122,18 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                     }
                     if (catalog != null)
                     {
-                        if (item.Contains("Parameters"))
+                        var parametersBson = item.ArrayOr("Parameters");
+                        if (parametersBson != null)
                         {
-                            var parameters = item["Parameters"].AsBsonArray.Select(c => BsonSerializer.Deserialize<ExtendedField>(c.AsBsonDocument)).ToArray();
+                            var parameters = parametersBson.Documents()
+                                .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
+                                .ToArray();
                             catalog.Parameters.AddRange(parameters);
                         }
-                        if (item.Contains("Tags"))
+                        var tagsBson = item.ArrayOr("Tags");
+                        if (tagsBson != null)
                         {
-                            var tags = item["Tags"].AsBsonArray.Select(c => c.AsString).ToArray();
+                            var tags = tagsBson.Strings().ToArray();
                             catalog.Tags.AddRange(tags);
                         }
                         response.Items.Add(catalog);
@@ -158,14 +171,18 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             if (catalog != null)
             {
                 response.Item = BsonSerializer.Deserialize<Catalog>(catalog);
-                if (catalog.Contains("Parameters"))
+                var parametersBson = catalog.ArrayOr("Parameters");
+                if (parametersBson != null)
                 {
-                    var parameters = catalog["Parameters"].AsBsonArray.Select(c => BsonSerializer.Deserialize<ExtendedField>(c.AsBsonDocument)).ToArray();
+                    var parameters = parametersBson.Documents()
+                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
+                        .ToArray();
                     response.Item.Parameters.AddRange(parameters);
                 }
-                if (catalog.Contains("Tags"))
+                var tagsBson = catalog.ArrayOr("Tags");
+                if (tagsBson != null)
                 {
-                    var tags = catalog["Tags"].AsBsonArray.Select(c => c.AsString).ToArray();
+                    var tags = tagsBson.Strings().ToArray();
                     response.Item.Tags.AddRange(tags);
                 }
             }
@@ -198,7 +215,6 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
         // }
         try
         {
-            // var checkDeleteAble = Backend.Utils.CommonUtils.CheckDeleteAble(request.CatalogName, request.Id);
             // if (checkDeleteAble.Any())
             // {
             //     response.Success = false;
@@ -248,7 +264,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
         //context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "SaveCatalog", request, _logger);
         var collection = Global.MongoDB?.GetCollection<Catalog>(request.CatalogName);
         SaveCatalogResponse response = new SaveCatalogResponse();
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcNameCatalog))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcNameCatalog))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;
@@ -285,7 +301,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                         response.Message = "Đã tồn tại tên: " + request.Item.Ten;
                         return response;
                     }
-                    request.Item.NgayTao = CommonUtils.GetNowTimestamp();
+                    request.Item.NgayTao = ProtobufTimestampConverter.GetNowTimestamp();
                     collection?.InsertOne(request.Item);
                     response.Id = request.Item.Id;
                     response.Message = "Thêm mới thành công!";
@@ -297,7 +313,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                         .Set(x => x.Ten, request.Item.Ten)
                         .Set(x => x.VietTat, request.Item.VietTat)
                         .Set(x => x.NguoiSua, request.Item.NguoiSua)
-                        .Set(x => x.NgaySua, CommonUtils.GetNowTimestamp())
+                        .Set(x => x.NgaySua, ProtobufTimestampConverter.GetNowTimestamp())
                         .Set(x => x.ThuTu, request.Item.ThuTu)
                         .Set(x => x.Parameters, request.Item.Parameters)
                         .Set(x => x.Tags, request.Item.Tags);
@@ -319,7 +335,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                             return response;
                         }
                         await collection!.DeleteOneAsync(filter);
-                        request.Item.NgaySua = CommonUtils.GetNowTimestamp();
+                        request.Item.NgaySua = ProtobufTimestampConverter.GetNowTimestamp();
 
                         await collection!.InsertOneAsync(request.Item);
                        // Utils.UpdateRelationShip(request.CatalogName, request.OldID, request.Item.Id);
@@ -514,14 +530,18 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             {
                 var catalogTree = BsonSerializer.Deserialize<CatalogTree>(bson);
                 response.Items.Add(catalogTree);
-                if (bson.Contains("Parameters"))
+                var parametersBson = bson.ArrayOr("Parameters");
+                if (parametersBson != null)
                 {
-                    var parameters = bson["Parameters"].AsBsonArray.Select(c => BsonSerializer.Deserialize<ExtendedField>(c.AsBsonDocument)).ToArray();
+                    var parameters = parametersBson.Documents()
+                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
+                        .ToArray();
                     catalogTree.Parameters.AddRange(parameters);
                 }
-                if (bson.Contains("Tags"))
+                var tagsBson = bson.ArrayOr("Tags");
+                if (tagsBson != null)
                 {
-                    var tags = bson["Tags"].AsBsonArray.Select(c => c.AsString).ToArray();
+                    var tags = tagsBson.Strings().ToArray();
                     catalogTree.Tags.AddRange(tags);
                 }
             }
@@ -643,14 +663,18 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             if (catalog != null)
             {
                 response.Item = BsonSerializer.Deserialize<CatalogTree>(catalog);
-                if (catalog.Contains("Parameters"))
+                var parametersBson = catalog.ArrayOr("Parameters");
+                if (parametersBson != null)
                 {
-                    var parameters = catalog["Parameters"].AsBsonArray.Select(c => BsonSerializer.Deserialize<ExtendedField>(c.AsBsonDocument)).ToArray();
+                    var parameters = parametersBson.Documents()
+                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
+                        .ToArray();
                     response.Item.Parameters.AddRange(parameters);
                 }
-                if (catalog.Contains("Tags"))
+                var tagsBson = catalog.ArrayOr("Tags");
+                if (tagsBson != null)
                 {
-                    var tags = catalog["Tags"].AsBsonArray.Select(c => c.AsString).ToArray();
+                    var tags = tagsBson.Strings().ToArray();
                     response.Item.Tags.AddRange(tags);
                 }
             }
@@ -738,7 +762,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
     {
         //context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "SaveCatalogTree", request, _logger);
         SaveCatalogTreeResponse response = new SaveCatalogTreeResponse();
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcNameCatalog))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcNameCatalog))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;
@@ -863,7 +887,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                             request.Item.TenDayDu = request.Item.Ten + (!string.IsNullOrEmpty(parent?.TenDayDu) ? ", " + parent?.TenDayDu : "");
                             request.Item.ThuTu = max != null ? max.ThuTu + 1 : 1;
                             request.Item.ThuTuSapXep = parent?.ThuTuSapXep + request.Item.ThuTu.ToString().PadLeft(request.LevelLength, '0');
-                            request.Item.NgaySua = CommonUtils.GetNowTimestamp();
+                            request.Item.NgaySua = ProtobufTimestampConverter.GetNowTimestamp();
                             request.Item.CoCapDuoi = listChild.Count > 0;
                             await collection.InsertOneAsync(request.Item);
                             var updater = Builders<CatalogTree>.Update.Set(x => x.CoCapDuoi, true);
@@ -887,7 +911,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                                             if (parentOfChild == null)
                                                 parentOfChild = request.Item;
                                             child.ThuTuSapXep = parentOfChild?.ThuTuSapXep + child.ThuTu.ToString().PadLeft(request.LevelLength, '0');
-                                            child.NgaySua = CommonUtils.GetNowTimestamp();
+                                            child.NgaySua = ProtobufTimestampConverter.GetNowTimestamp();
                                             await collection.InsertOneAsync(child);
                                         }
                                     }
@@ -1030,7 +1054,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
     {
         //context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "ReorderCatalogTree", request, _logger);
         var response = new SaveCatalogTreeResponse() { Success = true };
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcNameCatalog))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcNameCatalog))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;
@@ -1157,7 +1181,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
     {
         //context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "UploadCatalogFromExcel", request, _logger);
         var response = new UploadCatalogFromExcelResponse() { Success = true };
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcNameCatalog))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcNameCatalog))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;
@@ -1227,7 +1251,7 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
     {
       //  context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "SaveCatalogFromExcel", request, _logger);
         var response = new SaveCatalogFromExcelResponse() { Success = true };
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcNameCatalog))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcNameCatalog))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;

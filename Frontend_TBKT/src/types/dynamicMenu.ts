@@ -6,6 +6,7 @@ export interface DynamicMenuConfigItem {
   path: string;
   active: string;
   icon: string;
+  permissionCode: string;
   dataSource: DynamicMenuDataSource;
   gridCount: number;
   columnCount: number;

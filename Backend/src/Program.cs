@@ -1,6 +1,5 @@
 using Backend.Services;
 using Backend.Security;
-using Backend.Middleware;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Cryptography.X509Certificates;
 
@@ -27,6 +26,13 @@ builder.Services.AddSingleton<ITokenRevocationService, TokenRevocationService>()
 builder.Services.AddSingleton<Backend.Services.RebuildQueue>();
 builder.Services.AddSingleton<Backend.Services.RebuildService>();
 builder.Services.AddHostedService<Backend.Services.RebuildWorker>();
+builder.Services.AddScoped<DynamicFieldService>();
+builder.Services.AddScoped<FieldSetService>();
+builder.Services.AddScoped<FormConfigService>();
+builder.Services.AddScoped<DynamicMenuService>();
+builder.Services.AddScoped<DynamicMenuDataSourceService>();
+builder.Services.AddScoped<TemplateLayoutService>();
+builder.Services.AddScoped<ProtoSchemaDiscoveryService>();
 
 builder.Services.AddGrpc(options => 
 {
@@ -171,7 +177,6 @@ app.UseRouting();
 app.UseCors("AllowAll");
 app.UseAuthentication(); // Re-enabled with proper signature validation
 app.UseMiddleware<TokenRevocationMiddleware>();
-//app.UseMiddleware<TokenIntrospectionMiddleware>(); // Check Active Token
 app.UseAuthorization();
 // Enable gRPC-Web
 app.UseGrpcWeb();

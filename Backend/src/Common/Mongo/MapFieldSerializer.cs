@@ -4,7 +4,7 @@ using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 
-namespace Backend.Models;
+namespace Backend.Common.Mongo;
 
 /// <summary>
 /// BSON serializer for protobuf MapField&lt;TKey, TValue&gt;.
@@ -36,7 +36,7 @@ public class MapFieldSerializer<TKey, TValue> : SerializerBase<MapField<TKey, TV
         context.Reader.ReadStartDocument();
         while (context.Reader.ReadBsonType() != BsonType.EndOfDocument)
         {
-        var name = context.Reader.ReadName(Utf8NameDecoder.Instance);
+            var name = context.Reader.ReadName(Utf8NameDecoder.Instance);
             var value = BsonSerializer.Deserialize<TValue>(context.Reader);
             if (typeof(TKey) == typeof(string))
                 result[(TKey)(object)name] = value;

@@ -212,6 +212,7 @@ const thamSoSlice = createSlice({
             })
             .addCase(fetchThamSoSchema.rejected, (state, action) => {
                 state.loading = false;
+                state.loaded = true;
                 state.error = action.payload ?? 'Không thể tải cấu hình tham số';
             })
             .addCase(saveDynamicField.pending, (state) => {

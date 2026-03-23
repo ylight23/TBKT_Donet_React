@@ -31,4 +31,11 @@
     <!-- Reference proto files từ thư mục gốc -->
     <Protobuf Include="../../protos/**/*.proto" GrpcServices="Server" ProtoRoot="../../protos" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\Frontend_TBKT\src\config\permission-manifest.json">
+      <Link>permission-manifest.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

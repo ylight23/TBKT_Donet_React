@@ -10,8 +10,8 @@ import {
   Typography,
 } from '@mui/material';
 import { Puck, type Data } from '@puckeditor/core';
-import { PUCK_CONFIG } from '../puckConfig';
-import { toSchemaJson } from '../constants';
+import { PUCK_CONFIG } from '../../../features/templateRuntime/puckConfig';
+import { toSchemaJson } from '../../../features/templateRuntime/editorData';
 import type { FormState } from '../types';
 
 interface TemplateFormProps {

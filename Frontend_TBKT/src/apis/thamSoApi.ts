@@ -40,6 +40,7 @@ import {
 import type {
     DynamicField as DynamicFieldProto,
     FieldSet as FieldSetProto,
+    FieldSetDetail as FieldSetDetailProto,
     FormConfig as FormConfigProto,
     FieldValidation as FieldValidationProto,
     FormTabConfig as FormTabConfigProto,
@@ -81,12 +82,14 @@ export interface LocalFieldSet {
     color: string;
     desc?: string;
     fieldIds: string[];
+    fields?: LocalDynamicField[];
 }
 
 export interface LocalFormTabConfig {
     id: string;
     label: string;
     setIds: string[];
+    fieldSets?: LocalFieldSet[];
 }
 
 export interface LocalFormConfig {
@@ -102,6 +105,7 @@ export interface LocalDynamicMenu {
     path: string;
     active: string;
     icon: string;
+    permissionCode: string;
     dataSource: string;
     gridCount: number;
     columnCount: number;
@@ -206,6 +210,16 @@ function localSetToProto(s: LocalFieldSet): any {
     });
 }
 
+function protoSetDetailToLocal(item: FieldSetDetailProto): LocalFieldSet {
+    const fieldSet = protoSetToLocal(item.fieldSet!);
+    const fields = (item.fields ?? []).map(protoFieldToLocal);
+
+    return {
+        ...fieldSet,
+        fields,
+    };
+}
+
 function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
     return {
         id: fc.id,
@@ -215,6 +229,7 @@ function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
             id: t.id,
             label: t.label,
             setIds: [...t.fieldSetIds],
+            fieldSets: (t.fieldSets ?? []).map((fieldSet) => protoSetDetailToLocal(fieldSet)),
         })),
     };
 }
@@ -241,6 +256,7 @@ function protoDynamicMenuToLocal(item: DynamicMenuProto): LocalDynamicMenu {
         path: item.path,
         active: item.active,
         icon: item.icon || 'Assignment',
+        permissionCode: item.permissionCode || `dynamicmenu_${item.id}`,
         dataSource: item.dataSource || 'employee',
         gridCount: item.gridCount,
         columnCount: item.columnCount || 4,
@@ -257,6 +273,7 @@ function localDynamicMenuToProto(item: LocalDynamicMenu): any {
         path: item.path,
         active: item.active,
         icon: item.icon || 'Assignment',
+        permissionCode: item.permissionCode || `dynamicmenu_${item.id}`,
         dataSource: item.dataSource || 'employee',
         gridCount: item.gridCount,
         columnCount: item.columnCount || 4,
@@ -368,7 +385,7 @@ const thamSoApi = {
             const request = create(GetListFieldSetsRequestSchema, {});
             const res = await thamSoClient.getListFieldSets(request);
             console.log('[thamSoApi] getListFieldSets:', res.items.length);
-            return res.items.map(protoSetToLocal);
+            return res.items.map(protoSetDetailToLocal);
         } catch (err) {
             console.error('[thamSoApi] getListFieldSets error:', err);
             throw err;

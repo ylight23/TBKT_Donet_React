@@ -280,7 +280,7 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, allT
                                                 <Box sx={{ flex: 1 }}>
                                                     <Typography variant="body2" fontWeight={800}>{set.name}</Typography>
                                                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.4 }}>
-                                                        {set.fieldIds.map((fid) => fields.find((f) => f.id === fid)?.label).filter(Boolean).slice(0, 4).join(', ')}
+                                                        {(set.fields ?? []).map((field) => field.label).slice(0, 4).join(', ')}
                                                         {set.fieldIds.length > 4 ? ` và ${set.fieldIds.length - 4} trường khác...` : ''}
                                                     </Typography>
                                                 </Box>

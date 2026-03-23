@@ -188,9 +188,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ equipment, fields, fieldS
                                 const set = fieldSets.find((item) => item.id === setId);
                                 if (!set) return null;
 
-                                const setFields = set.fieldIds
-                                    .map((fieldId) => fields.find((field) => field.id === fieldId))
-                                    .filter((field): field is DynamicField => Boolean(field));
+                                const setFields = set.fields ?? [];
 
                                 return (
                                     <Box key={set.id} mb={3}>

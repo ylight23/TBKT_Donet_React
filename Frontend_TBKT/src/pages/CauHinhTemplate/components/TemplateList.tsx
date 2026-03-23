@@ -3,9 +3,10 @@ import { Alert, Box, Button, Card, CardContent, CircularProgress, Divider, Snack
 import DownloadIcon from '@mui/icons-material/Download';
 import FolderDeleteIcon from '@mui/icons-material/FolderDelete';
 import StorageIcon from '@mui/icons-material/Storage';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
 import type { LocalTemplateLayout } from '../../../apis/thamSoApi';
 import thamSoApi from '../../../apis/thamSoApi';
+import LazyDataGrid from '../../../components/LazyDataGrid';
 
 interface TemplateListProps {
   items: LocalTemplateLayout[];
@@ -180,13 +181,15 @@ export const TemplateList: React.FC<TemplateListProps> = ({
           <Divider sx={{ mb: 1 }} />
 
           <Box sx={{ height: 400 }}>
-            <DataGrid
+            <LazyDataGrid
               rows={items}
               columns={columns}
               loading={loading}
               disableRowSelectionOnClick
               onRowClick={(params) => onEdit(params.row as LocalTemplateLayout)}
               pageSizeOptions={[5, 10, 20]}
+              fallbackRows={6}
+              fallbackCols={5}
             />
           </Box>
         </CardContent>

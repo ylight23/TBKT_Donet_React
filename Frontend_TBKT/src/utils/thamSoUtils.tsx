@@ -1,10 +1,107 @@
 import React from 'react';
 import { Icon } from '@iconify/react';
 import SvgIcon from '@mui/material/SvgIcon';
-
-// ── Import toàn bộ @mui/icons-material dưới dạng namespace ─────────────────────
-// Cách này không cần import từng icon, tự động phát hiện tất cả icons có sẵn
-import * as MuiIcons from '@mui/icons-material';
+import Assignment from '@mui/icons-material/Assignment';
+import LibraryBooks from '@mui/icons-material/LibraryBooks';
+import Settings from '@mui/icons-material/Settings';
+import Build from '@mui/icons-material/Build';
+import Category from '@mui/icons-material/Category';
+import Tune from '@mui/icons-material/Tune';
+import Dashboard from '@mui/icons-material/Dashboard';
+import Storage from '@mui/icons-material/Storage';
+import Memory from '@mui/icons-material/Memory';
+import Widgets from '@mui/icons-material/Widgets';
+import Info from '@mui/icons-material/Info';
+import Description from '@mui/icons-material/Description';
+import Folder from '@mui/icons-material/Folder';
+import FolderOpen from '@mui/icons-material/FolderOpen';
+import Bookmark from '@mui/icons-material/Bookmark';
+import Label from '@mui/icons-material/Label';
+import Tag from '@mui/icons-material/Tag';
+import List from '@mui/icons-material/List';
+import TableChart from '@mui/icons-material/TableChart';
+import Search from '@mui/icons-material/Search';
+import FilterAlt from '@mui/icons-material/FilterAlt';
+import Sort from '@mui/icons-material/Sort';
+import Notifications from '@mui/icons-material/Notifications';
+import NotificationsActive from '@mui/icons-material/NotificationsActive';
+import DirectionsBoat from '@mui/icons-material/DirectionsBoat';
+import Flight from '@mui/icons-material/Flight';
+import Security from '@mui/icons-material/Security';
+import MilitaryTech from '@mui/icons-material/MilitaryTech';
+import Engineering from '@mui/icons-material/Engineering';
+import Science from '@mui/icons-material/Science';
+import Gavel from '@mui/icons-material/Gavel';
+import GpsFixed from '@mui/icons-material/GpsFixed';
+import Radar from '@mui/icons-material/Radar';
+import Router from '@mui/icons-material/Router';
+import SatelliteAlt from '@mui/icons-material/SatelliteAlt';
+import ElectricBolt from '@mui/icons-material/ElectricBolt';
+import Sensors from '@mui/icons-material/Sensors';
+import PrecisionManufacturing from '@mui/icons-material/PrecisionManufacturing';
+import Fireplace from '@mui/icons-material/Fireplace';
+import Shield from '@mui/icons-material/Shield';
+import Handyman from '@mui/icons-material/Handyman';
+import Construction from '@mui/icons-material/Construction';
+import Inventory from '@mui/icons-material/Inventory';
+import LocalShipping from '@mui/icons-material/LocalShipping';
+import Timer from '@mui/icons-material/Timer';
+import CalendarMonth from '@mui/icons-material/CalendarMonth';
+import EventNote from '@mui/icons-material/EventNote';
+import Task from '@mui/icons-material/Task';
+import AssignmentTurnedIn from '@mui/icons-material/AssignmentTurnedIn';
+import AssignmentLate from '@mui/icons-material/AssignmentLate';
+import Checklist from '@mui/icons-material/Checklist';
+import PendingActions from '@mui/icons-material/PendingActions';
+import Archive from '@mui/icons-material/Archive';
+import Unarchive from '@mui/icons-material/Unarchive';
+import Warehouse from '@mui/icons-material/Warehouse';
+import LocalGasStation from '@mui/icons-material/LocalGasStation';
+import OilBarrel from '@mui/icons-material/OilBarrel';
+import ContentPaste from '@mui/icons-material/ContentPaste';
+import ReceiptLong from '@mui/icons-material/ReceiptLong';
+import People from '@mui/icons-material/People';
+import Person from '@mui/icons-material/Person';
+import Groups from '@mui/icons-material/Groups';
+import AccountBalance from '@mui/icons-material/AccountBalance';
+import Apartment from '@mui/icons-material/Apartment';
+import AdminPanelSettings from '@mui/icons-material/AdminPanelSettings';
+import ManageAccounts from '@mui/icons-material/ManageAccounts';
+import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
+import ContactEmergency from '@mui/icons-material/ContactEmergency';
+import AttachMoney from '@mui/icons-material/AttachMoney';
+import AccountBalanceWallet from '@mui/icons-material/AccountBalanceWallet';
+import TrendingUp from '@mui/icons-material/TrendingUp';
+import TrendingDown from '@mui/icons-material/TrendingDown';
+import BarChart from '@mui/icons-material/BarChart';
+import PieChart from '@mui/icons-material/PieChart';
+import ShowChart from '@mui/icons-material/ShowChart';
+import Star from '@mui/icons-material/Star';
+import Bolt from '@mui/icons-material/Bolt';
+import Verified from '@mui/icons-material/Verified';
+import Flag from '@mui/icons-material/Flag';
+import Place from '@mui/icons-material/Place';
+import Upgrade from '@mui/icons-material/Upgrade';
+import Lock from '@mui/icons-material/Lock';
+import LockOpen from '@mui/icons-material/LockOpen';
+import Key from '@mui/icons-material/Key';
+import QrCode from '@mui/icons-material/QrCode';
+import Print from '@mui/icons-material/Print';
+import Send from '@mui/icons-material/Send';
+import Share from '@mui/icons-material/Share';
+import Download from '@mui/icons-material/Download';
+import Upload from '@mui/icons-material/Upload';
+import Sync from '@mui/icons-material/Sync';
+import History from '@mui/icons-material/History';
+import Schedule from '@mui/icons-material/Schedule';
+import WatchLater from '@mui/icons-material/WatchLater';
+import HourglassBottom from '@mui/icons-material/HourglassBottom';
+import CheckCircle from '@mui/icons-material/CheckCircle';
+import Cancel from '@mui/icons-material/Cancel';
+import Warning from '@mui/icons-material/Warning';
+import Error from '@mui/icons-material/Error';
+import Help from '@mui/icons-material/Help';
+import Lightbulb from '@mui/icons-material/Lightbulb';
 
 export interface FieldSetIconOption {
     name: string;
@@ -13,132 +110,256 @@ export interface FieldSetIconOption {
     node: React.ReactNode;
 }
 
-// ── Danh sách icon MUI với nhãn tiếng Việt ─────────────────────────────────────
-// Thêm icon mới: chỉ cần thêm entry vào đây, KHÔNG cần import thêm
+const muiIconComponents: Record<string, React.ElementType> = {
+    Assignment,
+    LibraryBooks,
+    Settings,
+    Build,
+    Category,
+    Tune,
+    Dashboard,
+    Storage,
+    Memory,
+    Widgets,
+    Info,
+    Description,
+    Folder,
+    FolderOpen,
+    Bookmark,
+    Label,
+    Tag,
+    List,
+    TableChart,
+    Search,
+    FilterAlt,
+    Sort,
+    Notifications,
+    NotificationsActive,
+    DirectionsBoat,
+    Flight,
+    Security,
+    MilitaryTech,
+    Engineering,
+    Science,
+    Gavel,
+    GpsFixed,
+    Radar,
+    Router,
+    SatelliteAlt,
+    ElectricBolt,
+    Sensors,
+    PrecisionManufacturing,
+    Fireplace,
+    Shield,
+    Handyman,
+    Construction,
+    Inventory,
+    LocalShipping,
+    Timer,
+    CalendarMonth,
+    EventNote,
+    Task,
+    AssignmentTurnedIn,
+    AssignmentLate,
+    Checklist,
+    PendingActions,
+    Archive,
+    Unarchive,
+    Warehouse,
+    LocalGasStation,
+    OilBarrel,
+    ContentPaste,
+    ReceiptLong,
+    People,
+    Person,
+    Groups,
+    AccountBalance,
+    Apartment,
+    AdminPanelSettings,
+    ManageAccounts,
+    BadgeOutlined,
+    ContactEmergency,
+    AttachMoney,
+    AccountBalanceWallet,
+    TrendingUp,
+    TrendingDown,
+    BarChart,
+    PieChart,
+    ShowChart,
+    Star,
+    Bolt,
+    Verified,
+    Flag,
+    Place,
+    Upgrade,
+    Lock,
+    LockOpen,
+    Key,
+    QrCode,
+    Print,
+    Send,
+    Share,
+    Download,
+    Upload,
+    Sync,
+    History,
+    Schedule,
+    WatchLater,
+    HourglassBottom,
+    CheckCircle,
+    Cancel,
+    Warning,
+    Error,
+    Help,
+    Lightbulb,
+};
+
 const muiIconRegistry: Array<{ name: string; label: string; group: string }> = [
-    // Cơ bản
-    { name: 'Assignment', label: 'Tổng hợp', group: 'Cơ bản' },
-    { name: 'LibraryBooks', label: 'Tài liệu', group: 'Cơ bản' },
-    { name: 'Settings', label: 'Cài đặt', group: 'Cơ bản' },
-    { name: 'Build', label: 'Kỹ thuật', group: 'Cơ bản' },
-    { name: 'Category', label: 'Phân loại', group: 'Cơ bản' },
-    { name: 'Tune', label: 'Tùy chỉnh', group: 'Cơ bản' },
-    { name: 'Dashboard', label: 'Bảng điều hành', group: 'Cơ bản' },
-    { name: 'Storage', label: 'Lưu trữ', group: 'Cơ bản' },
-    { name: 'Memory', label: 'Hệ thống', group: 'Cơ bản' },
-    { name: 'Widgets', label: 'Mô-đun', group: 'Cơ bản' },
-    { name: 'Info', label: 'Thông tin', group: 'Cơ bản' },
-    { name: 'Description', label: 'Mô tả', group: 'Cơ bản' },
-    { name: 'Folder', label: 'Thư mục', group: 'Cơ bản' },
-    { name: 'FolderOpen', label: 'Thư mục mở', group: 'Cơ bản' },
-    { name: 'Bookmark', label: 'Đánh dấu', group: 'Cơ bản' },
-    { name: 'Label', label: 'Nhãn', group: 'Cơ bản' },
-    { name: 'Tag', label: 'Thẻ', group: 'Cơ bản' },
-    { name: 'List', label: 'Danh sách', group: 'Cơ bản' },
-    { name: 'TableChart', label: 'Bảng biểu', group: 'Cơ bản' },
-    { name: 'Search', label: 'Tìm kiếm', group: 'Cơ bản' },
-    { name: 'FilterAlt', label: 'Bộ lọc', group: 'Cơ bản' },
-    { name: 'Sort', label: 'Sắp xếp', group: 'Cơ bản' },
-    { name: 'Notifications', label: 'Thông báo', group: 'Cơ bản' },
-    { name: 'NotificationsActive', label: 'Thông báo bật', group: 'Cơ bản' },
-
-    // Quân sự & Trang bị
-    { name: 'DirectionsBoat', label: 'Tàu thuyền', group: 'Trang bị' },
-    { name: 'Flight', label: 'Máy bay', group: 'Trang bị' },
-    { name: 'Security', label: 'An ninh / Giáp', group: 'Trang bị' },
-    { name: 'MilitaryTech', label: 'Quân khí', group: 'Trang bị' },
-    { name: 'Engineering', label: 'Công binh', group: 'Trang bị' },
-    { name: 'Science', label: 'Nghiên cứu', group: 'Trang bị' },
-    { name: 'Gavel', label: 'Pháp chế', group: 'Trang bị' },
-    { name: 'GpsFixed', label: 'Định vị', group: 'Trang bị' },
-    { name: 'Radar', label: 'Radar', group: 'Trang bị' },
-    { name: 'Router', label: 'Liên lạc', group: 'Trang bị' },
-    { name: 'SatelliteAlt', label: 'Vệ tinh', group: 'Trang bị' },
-    { name: 'ElectricBolt', label: 'Điện lực', group: 'Trang bị' },
-    { name: 'Sensors', label: 'Cảm biến', group: 'Trang bị' },
-    { name: 'PrecisionManufacturing', label: 'Công xưởng', group: 'Trang bị' },
-    { name: 'Fireplace', label: 'Hỏa lực', group: 'Trang bị' },
-
-    // Nghiệp vụ
-    { name: 'Shield', label: 'Bảo quản', group: 'Nghiệp vụ' },
-    { name: 'Handyman', label: 'Bảo dưỡng', group: 'Nghiệp vụ' },
-    { name: 'Construction', label: 'Sửa chữa', group: 'Nghiệp vụ' },
-    { name: 'Inventory', label: 'Niêm cất', group: 'Nghiệp vụ' },
-    { name: 'LocalShipping', label: 'Điều động', group: 'Nghiệp vụ' },
-    { name: 'Timer', label: 'Thời gian', group: 'Nghiệp vụ' },
-    { name: 'CalendarMonth', label: 'Lịch tháng', group: 'Nghiệp vụ' },
-    { name: 'EventNote', label: 'Nhật ký sự kiện', group: 'Nghiệp vụ' },
-    { name: 'Task', label: 'Nhiệm vụ', group: 'Nghiệp vụ' },
-    { name: 'AssignmentTurnedIn', label: 'Hoàn thành', group: 'Nghiệp vụ' },
-    { name: 'AssignmentLate', label: 'Trễ hạn', group: 'Nghiệp vụ' },
-    { name: 'Checklist', label: 'Danh sách kiểm tra', group: 'Nghiệp vụ' },
-    { name: 'PendingActions', label: 'Chờ xử lý', group: 'Nghiệp vụ' },
-    { name: 'Archive', label: 'Hồ sơ lưu trữ', group: 'Nghiệp vụ' },
-    { name: 'Unarchive', label: 'Lấy ra khỏi lưu trữ', group: 'Nghiệp vụ' },
-    { name: 'Warehouse', label: 'Kho hàng', group: 'Nghiệp vụ' },
-    { name: 'LocalGasStation', label: 'Nhiên liệu', group: 'Nghiệp vụ' },
-    { name: 'OilBarrel', label: 'Thùng dầu', group: 'Nghiệp vụ' },
-    { name: 'ContentPaste', label: 'Biên bản', group: 'Nghiệp vụ' },
-    { name: 'ReceiptLong', label: 'Biên lai', group: 'Nghiệp vụ' },
-
-    // Nhân sự & Tổ chức
-    { name: 'People', label: 'Nhân sự', group: 'Nhân sự' },
-    { name: 'Person', label: 'Cá nhân', group: 'Nhân sự' },
-    { name: 'Groups', label: 'Nhóm', group: 'Nhân sự' },
-    { name: 'AccountBalance', label: 'Đơn vị', group: 'Nhân sự' },
-    { name: 'Apartment', label: 'Cơ quan', group: 'Nhân sự' },
-    { name: 'AdminPanelSettings', label: 'Quản trị viên', group: 'Nhân sự' },
-    { name: 'ManageAccounts', label: 'Quản lý tài khoản', group: 'Nhân sự' },
-    { name: 'BadgeOutlined', label: 'Chứng danh', group: 'Nhân sự' },
-    { name: 'ContactEmergency', label: 'Hồ sơ khẩn', group: 'Nhân sự' },
-
-    // Tài chính & Kế hoạch
-    { name: 'AttachMoney', label: 'Kinh phí', group: 'Tài chính' },
-    { name: 'AccountBalanceWallet', label: 'Ngân sách', group: 'Tài chính' },
-    { name: 'TrendingUp', label: 'Xu hướng tăng', group: 'Tài chính' },
-    { name: 'TrendingDown', label: 'Xu hướng giảm', group: 'Tài chính' },
-    { name: 'BarChart', label: 'Thống kê', group: 'Tài chính' },
-    { name: 'PieChart', label: 'Biểu đồ tròn', group: 'Tài chính' },
-    { name: 'ShowChart', label: 'Đồ thị', group: 'Tài chính' },
-
-    // Khác
-    { name: 'Star', label: 'Ưu tiên', group: 'Khác' },
-    { name: 'Bolt', label: 'Nhanh', group: 'Khác' },
-    { name: 'Verified', label: 'Xác thực', group: 'Khác' },
-    { name: 'Flag', label: 'Mốc chuẩn', group: 'Khác' },
-    { name: 'Place', label: 'Vị trí', group: 'Khác' },
-    { name: 'Upgrade', label: 'Nâng cấp', group: 'Khác' },
-    { name: 'Lock', label: 'Khóa', group: 'Khác' },
-    { name: 'LockOpen', label: 'Mở khóa', group: 'Khác' },
-    { name: 'Key', label: 'Chìa khóa', group: 'Khác' },
-    { name: 'QrCode', label: 'Mã QR', group: 'Khác' },
-    { name: 'Barcode', label: 'Mã vạch', group: 'Khác' },
-    { name: 'Print', label: 'In ấn', group: 'Khác' },
-    { name: 'Send', label: 'Gửi đi', group: 'Khác' },
-    { name: 'Share', label: 'Chia sẻ', group: 'Khác' },
-    { name: 'Download', label: 'Tải xuống', group: 'Khác' },
-    { name: 'Upload', label: 'Tải lên', group: 'Khác' },
-    { name: 'Sync', label: 'Đồng bộ', group: 'Khác' },
-    { name: 'History', label: 'Lịch sử', group: 'Khác' },
-    { name: 'Schedule', label: 'Lịch biểu', group: 'Khác' },
-    { name: 'WatchLater', label: 'Theo dõi sau', group: 'Khác' },
-    { name: 'HourglassBottom', label: 'Đang chờ', group: 'Khác' },
-    { name: 'CheckCircle', label: 'Xác nhận', group: 'Khác' },
-    { name: 'Cancel', label: 'Hủy bỏ', group: 'Khác' },
-    { name: 'Warning', label: 'Cảnh báo', group: 'Khác' },
-    { name: 'Error', label: 'Lỗi', group: 'Khác' },
-    { name: 'Help', label: 'Trợ giúp', group: 'Khác' },
-    { name: 'Lightbulb', label: 'Ý tưởng', group: 'Khác' },
+    { name: 'Assignment', label: 'Tong hop', group: 'Co ban' },
+    { name: 'LibraryBooks', label: 'Tai lieu', group: 'Co ban' },
+    { name: 'Settings', label: 'Cai dat', group: 'Co ban' },
+    { name: 'Build', label: 'Ky thuat', group: 'Co ban' },
+    { name: 'Category', label: 'Phan loai', group: 'Co ban' },
+    { name: 'Tune', label: 'Tuy chinh', group: 'Co ban' },
+    { name: 'Dashboard', label: 'Bang dieu hanh', group: 'Co ban' },
+    { name: 'Storage', label: 'Luu tru', group: 'Co ban' },
+    { name: 'Memory', label: 'He thong', group: 'Co ban' },
+    { name: 'Widgets', label: 'Mo-dun', group: 'Co ban' },
+    { name: 'Info', label: 'Thong tin', group: 'Co ban' },
+    { name: 'Description', label: 'Mo ta', group: 'Co ban' },
+    { name: 'Folder', label: 'Thu muc', group: 'Co ban' },
+    { name: 'FolderOpen', label: 'Thu muc mo', group: 'Co ban' },
+    { name: 'Bookmark', label: 'Danh dau', group: 'Co ban' },
+    { name: 'Label', label: 'Nhan', group: 'Co ban' },
+    { name: 'Tag', label: 'The', group: 'Co ban' },
+    { name: 'List', label: 'Danh sach', group: 'Co ban' },
+    { name: 'TableChart', label: 'Bang bieu', group: 'Co ban' },
+    { name: 'Search', label: 'Tim kiem', group: 'Co ban' },
+    { name: 'FilterAlt', label: 'Bo loc', group: 'Co ban' },
+    { name: 'Sort', label: 'Sap xep', group: 'Co ban' },
+    { name: 'Notifications', label: 'Thong bao', group: 'Co ban' },
+    { name: 'NotificationsActive', label: 'Thong bao bat', group: 'Co ban' },
+    { name: 'DirectionsBoat', label: 'Tau thuyen', group: 'Trang bi' },
+    { name: 'Flight', label: 'May bay', group: 'Trang bi' },
+    { name: 'Security', label: 'An ninh / Giap', group: 'Trang bi' },
+    { name: 'MilitaryTech', label: 'Quan khi', group: 'Trang bi' },
+    { name: 'Engineering', label: 'Cong binh', group: 'Trang bi' },
+    { name: 'Science', label: 'Nghien cuu', group: 'Trang bi' },
+    { name: 'Gavel', label: 'Phap che', group: 'Trang bi' },
+    { name: 'GpsFixed', label: 'Dinh vi', group: 'Trang bi' },
+    { name: 'Radar', label: 'Radar', group: 'Trang bi' },
+    { name: 'Router', label: 'Lien lac', group: 'Trang bi' },
+    { name: 'SatelliteAlt', label: 'Ve tinh', group: 'Trang bi' },
+    { name: 'ElectricBolt', label: 'Dien luc', group: 'Trang bi' },
+    { name: 'Sensors', label: 'Cam bien', group: 'Trang bi' },
+    { name: 'PrecisionManufacturing', label: 'Cong xuong', group: 'Trang bi' },
+    { name: 'Fireplace', label: 'Hoa luc', group: 'Trang bi' },
+    { name: 'Shield', label: 'Bao quan', group: 'Nghiep vu' },
+    { name: 'Handyman', label: 'Bao duong', group: 'Nghiep vu' },
+    { name: 'Construction', label: 'Sua chua', group: 'Nghiep vu' },
+    { name: 'Inventory', label: 'Niem cat', group: 'Nghiep vu' },
+    { name: 'LocalShipping', label: 'Dieu dong', group: 'Nghiep vu' },
+    { name: 'Timer', label: 'Thoi gian', group: 'Nghiep vu' },
+    { name: 'CalendarMonth', label: 'Lich thang', group: 'Nghiep vu' },
+    { name: 'EventNote', label: 'Nhat ky su kien', group: 'Nghiep vu' },
+    { name: 'Task', label: 'Nhiem vu', group: 'Nghiep vu' },
+    { name: 'AssignmentTurnedIn', label: 'Hoan thanh', group: 'Nghiep vu' },
+    { name: 'AssignmentLate', label: 'Tre han', group: 'Nghiep vu' },
+    { name: 'Checklist', label: 'Danh sach kiem tra', group: 'Nghiep vu' },
+    { name: 'PendingActions', label: 'Cho xu ly', group: 'Nghiep vu' },
+    { name: 'Archive', label: 'Ho so luu tru', group: 'Nghiep vu' },
+    { name: 'Unarchive', label: 'Lay ra khoi luu tru', group: 'Nghiep vu' },
+    { name: 'Warehouse', label: 'Kho hang', group: 'Nghiep vu' },
+    { name: 'LocalGasStation', label: 'Nhien lieu', group: 'Nghiep vu' },
+    { name: 'OilBarrel', label: 'Thung dau', group: 'Nghiep vu' },
+    { name: 'ContentPaste', label: 'Bien ban', group: 'Nghiep vu' },
+    { name: 'ReceiptLong', label: 'Bien lai', group: 'Nghiep vu' },
+    { name: 'People', label: 'Nhan su', group: 'Nhan su' },
+    { name: 'Person', label: 'Ca nhan', group: 'Nhan su' },
+    { name: 'Groups', label: 'Nhom', group: 'Nhan su' },
+    { name: 'AccountBalance', label: 'Don vi', group: 'Nhan su' },
+    { name: 'Apartment', label: 'Co quan', group: 'Nhan su' },
+    { name: 'AdminPanelSettings', label: 'Quan tri vien', group: 'Nhan su' },
+    { name: 'ManageAccounts', label: 'Quan ly tai khoan', group: 'Nhan su' },
+    { name: 'BadgeOutlined', label: 'Chuc danh', group: 'Nhan su' },
+    { name: 'ContactEmergency', label: 'Ho so khan', group: 'Nhan su' },
+    { name: 'AttachMoney', label: 'Kinh phi', group: 'Tai chinh' },
+    { name: 'AccountBalanceWallet', label: 'Ngan sach', group: 'Tai chinh' },
+    { name: 'TrendingUp', label: 'Xu huong tang', group: 'Tai chinh' },
+    { name: 'TrendingDown', label: 'Xu huong giam', group: 'Tai chinh' },
+    { name: 'BarChart', label: 'Thong ke', group: 'Tai chinh' },
+    { name: 'PieChart', label: 'Bieu do tron', group: 'Tai chinh' },
+    { name: 'ShowChart', label: 'Do thi', group: 'Tai chinh' },
+    { name: 'Star', label: 'Uu tien', group: 'Khac' },
+    { name: 'Bolt', label: 'Nhanh', group: 'Khac' },
+    { name: 'Verified', label: 'Xac thuc', group: 'Khac' },
+    { name: 'Flag', label: 'Moc chuan', group: 'Khac' },
+    { name: 'Place', label: 'Vi tri', group: 'Khac' },
+    { name: 'Upgrade', label: 'Nang cap', group: 'Khac' },
+    { name: 'Lock', label: 'Khoa', group: 'Khac' },
+    { name: 'LockOpen', label: 'Mo khoa', group: 'Khac' },
+    { name: 'Key', label: 'Chia khoa', group: 'Khac' },
+    { name: 'QrCode', label: 'Ma QR', group: 'Khac' },
+    { name: 'Print', label: 'In an', group: 'Khac' },
+    { name: 'Send', label: 'Gui di', group: 'Khac' },
+    { name: 'Share', label: 'Chia se', group: 'Khac' },
+    { name: 'Download', label: 'Tai xuong', group: 'Khac' },
+    { name: 'Upload', label: 'Tai len', group: 'Khac' },
+    { name: 'Sync', label: 'Dong bo', group: 'Khac' },
+    { name: 'History', label: 'Lich su', group: 'Khac' },
+    { name: 'Schedule', label: 'Lich bieu', group: 'Khac' },
+    { name: 'WatchLater', label: 'Theo doi sau', group: 'Khac' },
+    { name: 'HourglassBottom', label: 'Dang cho', group: 'Khac' },
+    { name: 'CheckCircle', label: 'Xac nhan', group: 'Khac' },
+    { name: 'Cancel', label: 'Huy bo', group: 'Khac' },
+    { name: 'Warning', label: 'Canh bao', group: 'Khac' },
+    { name: 'Error', label: 'Loi', group: 'Khac' },
+    { name: 'Help', label: 'Tro giup', group: 'Khac' },
+    { name: 'Lightbulb', label: 'Y tuong', group: 'Khac' },
 ];
 
-// ── Hàm lấy MUI icon component theo tên ─────────────────────────────────────────
-// Tìm trong namespace @mui/icons-material, tránh phải import thủ công từng cái
-const getMuiIconComponent = (name: string): React.ElementType | null => {
-    // Thử các hậu tố phổ biến: Outlined, Rounded, TwoTone, Sharp
-    const iconKey = name as keyof typeof MuiIcons;
-    if (MuiIcons[iconKey]) return MuiIcons[iconKey] as React.ElementType;
-    return null;
-};
+const iconifyOptions: Array<Pick<FieldSetIconOption, 'name' | 'label' | 'group'>> = [
+    { name: 'mdi:radar', label: 'Radar', group: 'MDI: Trang bi' },
+    { name: 'mdi:crosshairs', label: 'Muc tieu', group: 'MDI: Trang bi' },
+    { name: 'mdi:submarine', label: 'Tau ngam', group: 'MDI: Trang bi' },
+    { name: 'mdi:tank', label: 'Xe tang', group: 'MDI: Trang bi' },
+    { name: 'mdi:airplane', label: 'Khong quan', group: 'MDI: Trang bi' },
+    { name: 'mdi:rocket', label: 'Ten lua', group: 'MDI: Trang bi' },
+    { name: 'mdi:satellite-variant', label: 'Ve tinh', group: 'MDI: Trang bi' },
+    { name: 'mdi:pistol', label: 'Vu khi nho', group: 'MDI: Trang bi' },
+    { name: 'mdi:bomb', label: 'Bom dan', group: 'MDI: Trang bi' },
+    { name: 'mdi:drone', label: 'May bay khong nguoi lai', group: 'MDI: Trang bi' },
+    { name: 'mdi:helicopter', label: 'Truc thang', group: 'MDI: Trang bi' },
+    { name: 'mdi:ship-wheel', label: 'Hai quan', group: 'MDI: Trang bi' },
+    { name: 'mdi:radio-tower', label: 'Dai phat song', group: 'MDI: Trang bi' },
+    { name: 'mdi:warehouse', label: 'Kho bai', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:clipboard-list', label: 'Danh muc cong viec', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:file-document-edit', label: 'Bieu mau', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:calendar-check', label: 'Lich theo doi', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:timeline-clock', label: 'Tien do thoi gian', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:map-marker-path', label: 'Lo trinh', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:truck-fast', label: 'Van chuyen nhanh', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:shield-check', label: 'Bao dam an toan', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:barcode-scan', label: 'Quet ma vach', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:qrcode-scan', label: 'Quet ma QR', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:oil-barrel', label: 'Xang dau', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:fuel', label: 'Nhien lieu', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:wrench-check', label: 'Kiem tra ky thuat', group: 'MDI: Nghiep vu' },
+    { name: 'mdi:cog', label: 'Cau hinh he thong', group: 'MDI: Quan tri' },
+    { name: 'mdi:wrench', label: 'Bao tri ky thuat', group: 'MDI: Quan tri' },
+    { name: 'mdi:tools', label: 'Bo cong cu', group: 'MDI: Quan tri' },
+    { name: 'mdi:database-cog', label: 'CSDL cau hinh', group: 'MDI: Quan tri' },
+    { name: 'mdi:chart-line', label: 'Phan tich xu huong', group: 'MDI: Quan tri' },
+    { name: 'mdi:clipboard-text-clock', label: 'Nhat ky thao tac', group: 'MDI: Quan tri' },
+    { name: 'mdi:notebook-edit', label: 'So cau hinh', group: 'MDI: Quan tri' },
+    { name: 'mdi:layers', label: 'Lop du lieu', group: 'MDI: Quan tri' },
+    { name: 'mdi:package-variant-closed', label: 'Goi du lieu', group: 'MDI: Quan tri' },
+    { name: 'mdi:account-cog', label: 'Tai khoan quan tri', group: 'MDI: Quan tri' },
+    { name: 'mdi:shield-account', label: 'Phan quyen', group: 'MDI: Quan tri' },
+    { name: 'mdi:server-network', label: 'Mang may chu', group: 'MDI: Quan tri' },
+];
+
+const getMuiIconComponent = (name: string): React.ElementType | null => muiIconComponents[name] ?? null;
 
 const createMuiIconNode = (name: string): React.ReactNode => {
     const Component = getMuiIconComponent(name);
@@ -146,61 +367,12 @@ const createMuiIconNode = (name: string): React.ReactNode => {
     return <Component sx={{ fontSize: 18 }} />;
 };
 
-// ── Tạo options cho Iconify ─────────────────────────────────────────────────────
-const iconifyOptions: Array<Pick<FieldSetIconOption, 'name' | 'label' | 'group'>> = [
-    // Trang bị nâng cao
-    { name: 'mdi:radar', label: 'Radar', group: 'MDI: Trang bị' },
-    { name: 'mdi:crosshairs', label: 'Mục tiêu', group: 'MDI: Trang bị' },
-    { name: 'mdi:submarine', label: 'Tàu ngầm', group: 'MDI: Trang bị' },
-    { name: 'mdi:tank', label: 'Xe tăng', group: 'MDI: Trang bị' },
-    { name: 'mdi:airplane', label: 'Không quân', group: 'MDI: Trang bị' },
-    { name: 'mdi:rocket', label: 'Tên lửa', group: 'MDI: Trang bị' },
-    { name: 'mdi:satellite-variant', label: 'Vệ tinh', group: 'MDI: Trang bị' },
-    { name: 'mdi:pistol', label: 'Vũ khí nhỏ', group: 'MDI: Trang bị' },
-    { name: 'mdi:bomb', label: 'Bom đạn', group: 'MDI: Trang bị' },
-    { name: 'mdi:drone', label: 'Máy bay không người lái', group: 'MDI: Trang bị' },
-    { name: 'mdi:helicopter', label: 'Trực thăng', group: 'MDI: Trang bị' },
-    { name: 'mdi:ship-wheel', label: 'Hải quân', group: 'MDI: Trang bị' },
-    { name: 'mdi:radio-tower', label: 'Đài phát sóng', group: 'MDI: Trang bị' },
-
-    // Nghiệp vụ
-    { name: 'mdi:warehouse', label: 'Kho bãi', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:clipboard-list', label: 'Danh mục công việc', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:file-document-edit', label: 'Biểu mẫu', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:calendar-check', label: 'Lịch theo dõi', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:timeline-clock', label: 'Tiến độ thời gian', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:map-marker-path', label: 'Lộ trình', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:truck-fast', label: 'Vận chuyển nhanh', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:shield-check', label: 'Bảo đảm an toàn', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:barcode-scan', label: 'Quét mã vạch', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:qrcode-scan', label: 'Quét mã QR', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:oil-barrel', label: 'Xăng dầu', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:fuel', label: 'Nhiên liệu', group: 'MDI: Nghiệp vụ' },
-    { name: 'mdi:wrench-check', label: 'Kiểm tra kỹ thuật', group: 'MDI: Nghiệp vụ' },
-
-    // Quản trị
-    { name: 'mdi:cog', label: 'Cấu hình hệ thống', group: 'MDI: Quản trị' },
-    { name: 'mdi:wrench', label: 'Bảo trì kỹ thuật', group: 'MDI: Quản trị' },
-    { name: 'mdi:tools', label: 'Bộ công cụ', group: 'MDI: Quản trị' },
-    { name: 'mdi:database-cog', label: 'CSDL cấu hình', group: 'MDI: Quản trị' },
-    { name: 'mdi:chart-line', label: 'Phân tích xu hướng', group: 'MDI: Quản trị' },
-    { name: 'mdi:clipboard-text-clock', label: 'Nhật ký thao tác', group: 'MDI: Quản trị' },
-    { name: 'mdi:notebook-edit', label: 'Sổ cấu hình', group: 'MDI: Quản trị' },
-    { name: 'mdi:layers', label: 'Lớp dữ liệu', group: 'MDI: Quản trị' },
-    { name: 'mdi:package-variant-closed', label: 'Gói dữ liệu', group: 'MDI: Quản trị' },
-    { name: 'mdi:account-cog', label: 'Tài khoản quản trị', group: 'MDI: Quản trị' },
-    { name: 'mdi:shield-account', label: 'Phân quyền', group: 'MDI: Quản trị' },
-    { name: 'mdi:server-network', label: 'Mạng máy chủ', group: 'MDI: Quản trị' },
-];
-
 const createIconifyNode = (iconName: string): React.ReactNode => (
     <Icon icon={iconName} width={18} height={18} />
 );
 
-// ── Build danh sách cuối cùng ───────────────────────────────────────────────────
-
 const muiIconOptions: FieldSetIconOption[] = muiIconRegistry
-    .filter(({ name }) => getMuiIconComponent(name) !== null) // bỏ qua name không tồn tại
+    .filter(({ name }) => getMuiIconComponent(name) !== null)
     .map(({ name, label, group }) => ({
         name,
         label,
@@ -216,7 +388,7 @@ const iconifyIconOptions: FieldSetIconOption[] = iconifyOptions.map((option) => 
 export const FIELD_SET_ICON_OPTIONS: FieldSetIconOption[] = [...muiIconOptions, ...iconifyIconOptions];
 
 export const FIELD_SET_ICON_GROUPS: string[] = Array.from(
-    new Set(FIELD_SET_ICON_OPTIONS.map((option) => option.group ?? 'Khác')),
+    new Set(FIELD_SET_ICON_OPTIONS.map((option) => option.group ?? 'Khac')),
 );
 
 export const iconMapping: Record<string, React.ReactNode> = FIELD_SET_ICON_OPTIONS.reduce((acc, option) => {
@@ -228,16 +400,15 @@ export const nameToIcon = (name: string): React.ReactNode => {
     const normalized = name?.trim();
     if (!normalized) return createMuiIconNode('Assignment');
 
-    // Thử tìm trong registry MUI
-    const muiEntry = muiIconRegistry.find(e => e.name === normalized);
-    if (muiEntry) return createMuiIconNode(normalized);
+    if (normalized === 'Barcode') return createMuiIconNode('QrCode');
 
-    // Thử dùng Iconify (mdi:...)
+    const mappedIcon = iconMapping[normalized];
+    if (mappedIcon) return mappedIcon;
+
     if (normalized.startsWith('mdi:') || normalized.includes(':')) {
         return createIconifyNode(normalized);
     }
 
-    // Fallback: thử trực tiếp trong @mui/icons-material
     const directComp = getMuiIconComponent(normalized);
     if (directComp) return React.createElement(directComp, { sx: { fontSize: 18 } });
 
@@ -249,29 +420,24 @@ export const iconToName = (node: React.ReactNode): string => {
 
     if (typeof node === 'string') {
         const normalized = node.trim();
-        const inRegistry = muiIconRegistry.find(e => e.name === normalized);
-        if (inRegistry || normalized.startsWith('mdi:')) return normalized;
+        if (iconMapping[normalized] || normalized.startsWith('mdi:')) return normalized;
         return 'Assignment';
     }
 
     const reactNode = node as any;
-
-    // Iconify icon
     const iconProp = reactNode?.props?.icon;
     if (typeof iconProp === 'string' && iconProp.includes(':')) return iconProp;
 
-    // MUI icon — so sánh component type
     const targetType = reactNode?.type;
     for (const option of muiIconOptions) {
         const sourceType = (option.node as any)?.type;
         if (sourceType && sourceType === targetType) return option.name;
     }
 
-    // Fallback: so sánh tên displayName
     const typeName: string = targetType?.displayName || targetType?.name || '';
     if (typeName) {
-        const found = muiIconRegistry.find(e =>
-            typeName.toLowerCase().includes(e.name.toLowerCase()),
+        const found = muiIconRegistry.find((entry) =>
+            typeName.toLowerCase().includes(entry.name.toLowerCase()),
         );
         if (found) return found.name;
     }

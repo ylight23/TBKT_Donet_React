@@ -1,6 +1,7 @@
-using Backend.Models;
+using Backend.Authorization;
+using Backend.Common.Mongo;
+using Backend.Common.Protobuf;
 using Backend.Services;
-using Backend.Utils;
 using protos;
 
 using Microsoft.AspNetCore.Builder;
@@ -305,14 +306,14 @@ public static class Global
         }
     }
 
-    private static IMongoCollection<PhanQuyenNguoiDungNganhDoc>? _collectionPhanQuyenNguoiDungNganhDoc;
-    public static IMongoCollection<PhanQuyenNguoiDungNganhDoc>? CollectionPhanQuyenNguoiDungNganhDoc
+    private static IMongoCollection<BsonDocument>? _collectionPhanQuyenNguoiDungNganhDocBson;
+    public static IMongoCollection<BsonDocument>? CollectionPhanQuyenNguoiDungNganhDocBson
     {
         get
         {
-            if (_collectionPhanQuyenNguoiDungNganhDoc == null)
-                _collectionPhanQuyenNguoiDungNganhDoc = MongoDB?.GetCollection<PhanQuyenNguoiDungNganhDoc>("PhanQuyenNguoiDungNganhDoc");
-            return _collectionPhanQuyenNguoiDungNganhDoc;
+            if (_collectionPhanQuyenNguoiDungNganhDocBson == null)
+                _collectionPhanQuyenNguoiDungNganhDocBson = MongoDB?.GetCollection<BsonDocument>("PhanQuyenNguoiDungNganhDoc");
+            return _collectionPhanQuyenNguoiDungNganhDocBson;
         }
     }
 
@@ -327,17 +328,6 @@ public static class Global
         }
     }
 
-    private static IMongoCollection<PhanQuyenNhomNguoiDungNganhDoc>? _collectionPhanQuyenNhomNguoiDungNganhDoc;
-    public static IMongoCollection<PhanQuyenNhomNguoiDungNganhDoc>? CollectionPhanQuyenNhomNguoiDungNganhDoc
-    {
-        get
-        {
-            if (_collectionPhanQuyenNhomNguoiDungNganhDoc == null)
-                _collectionPhanQuyenNhomNguoiDungNganhDoc = MongoDB?.GetCollection<PhanQuyenNhomNguoiDungNganhDoc>("PhanQuyenNhomNguoiDungNganhDoc");
-            return _collectionPhanQuyenNhomNguoiDungNganhDoc;
-        }
-    }
-
     private static IMongoCollection<ThamSoNguoiDung>? _collectionUserParams;
     public static IMongoCollection<ThamSoNguoiDung>? CollectionUserParams
     {
@@ -346,6 +336,17 @@ public static class Global
             if (_collectionUserParams == null)
                 _collectionUserParams = MongoDB?.GetCollection<ThamSoNguoiDung>("UserParams");
             return _collectionUserParams;
+        }
+    }
+
+    private static IMongoCollection<BsonDocument>? _collectionPermissionCatalog;
+    public static IMongoCollection<BsonDocument>? CollectionPermissionCatalog
+    {
+        get
+        {
+            if (_collectionPermissionCatalog == null)
+                _collectionPermissionCatalog = MongoDB?.GetCollection<BsonDocument>("PermissionCatalog");
+            return _collectionPermissionCatalog;
         }
     }
 
@@ -498,26 +499,16 @@ public static class Global
             c.MapIdProperty(x => x.Id);
             c.MapProperty(x => x.Actions);
         });
-        BsonClassMap.RegisterClassMap<PhanQuyenNguoiDungNganhDoc>(c =>
-        {
-            c.AutoMap();
-            c.SetIgnoreExtraElements(true);
-            c.MapIdProperty(x => x.Id);
-            c.MapProperty(x => x.IdNganhDoc);
-        });
-        BsonClassMap.RegisterClassMap<PhanQuyenNhomNguoiDungNganhDoc>(c =>
-        {
-            c.AutoMap();
-            c.SetIgnoreExtraElements(true);
-            c.MapIdProperty(x => x.Id);
-            c.MapProperty(x => x.IdNganhDoc);
-        });
         BsonClassMap.RegisterClassMap<ThamSoNguoiDung>(c =>
         {
             c.AutoMap();
             c.SetIgnoreExtraElements(true);
             c.MapIdProperty(x => x.Id);
         });
+
+        EnsureThamSoIndexes();
+        EnsurePermissionCatalogSeed();
+        EnsureDynamicMenuPermissionCatalogSeed();
 
         // Initialize default Office item with ID "000"
         InitializeDefaultOffice();
@@ -543,6 +534,224 @@ public static class Global
 
     }
 
+    private static void EnsureThamSoIndexes()
+    {
+        try
+        {
+            if (CollectionBsonDynamicMenuDataSource != null)
+            {
+                EnsureIndex(
+                    CollectionBsonDynamicMenuDataSource,
+                    new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending("SourceKey")
+                            .Ascending("Delete"),
+                        new CreateIndexOptions { Name = "idx_thamso_dynamic_menu_datasource_sourcekey_delete" }));
+            }
+
+            if (CollectionBsonDynamicMenu != null)
+            {
+                EnsureIndex(
+                    CollectionBsonDynamicMenu,
+                    new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending("DataSource")
+                            .Ascending("Delete"),
+                        new CreateIndexOptions { Name = "idx_thamso_dynamic_menu_datasource_delete" }));
+            }
+
+            if (CollectionBsonDynamicField != null)
+            {
+                EnsureIndex(
+                    CollectionBsonDynamicField,
+                    new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys
+                            .Ascending("Validation.DataSource")
+                            .Ascending("Delete"),
+                        new CreateIndexOptions { Name = "idx_thamso_dynamic_field_validation_datasource_delete" }));
+            }
+
+            if (CollectionBsonFieldSet != null)
+            {
+                EnsureIndex(
+                    CollectionBsonFieldSet,
+                    new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys.Ascending("FieldIds"),
+                        new CreateIndexOptions { Name = "idx_thamso_fieldset_fieldids" }));
+            }
+
+            if (CollectionBsonFormConfig != null)
+            {
+                EnsureIndex(
+                    CollectionBsonFormConfig,
+                    new CreateIndexModel<BsonDocument>(
+                        Builders<BsonDocument>.IndexKeys.Ascending("Tabs.FieldSetIds"),
+                        new CreateIndexOptions { Name = "idx_thamso_formconfig_tabs_fieldsetids" }));
+            }
+
+            Logger?.LogInformation("Ensured MongoDB indexes for ThamSo collections");
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to ensure MongoDB indexes for ThamSo collections");
+            throw;
+        }
+    }
+
+    private static void EnsureIndex(
+        IMongoCollection<BsonDocument> collection,
+        CreateIndexModel<BsonDocument> model)
+    {
+        var expectedKey = model.Keys.Render(
+            new RenderArgs<BsonDocument>(
+                collection.DocumentSerializer,
+                collection.Settings.SerializerRegistry));
+
+        var expectedName = model.Options?.Name;
+        using var cursor = collection.Indexes.List();
+        var existingIndexes = cursor.ToList();
+
+        foreach (var existingIndex in existingIndexes)
+        {
+            var existingKey = existingIndex.GetValue("key", new BsonDocument()).AsBsonDocument;
+            if (existingKey != expectedKey)
+            {
+                continue;
+            }
+
+            var existingName = existingIndex.GetValue("name", "").AsString;
+            if (!string.Equals(existingName, expectedName, StringComparison.Ordinal))
+            {
+                Logger?.LogInformation(
+                    "MongoDB index already exists on collection {CollectionName} with different name {ExistingName}; keeping existing index instead of creating {RequestedName}",
+                    collection.CollectionNamespace.CollectionName,
+                    existingName,
+                    expectedName);
+            }
+
+            return;
+        }
+
+        collection.Indexes.CreateOne(model);
+    }
+
+    private static void EnsurePermissionCatalogSeed()
+    {
+        try
+        {
+            if (CollectionPermissionCatalog == null)
+                return;
+
+            var collection = CollectionPermissionCatalog;
+            EnsureIndex(
+                collection,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("Code"),
+                    new CreateIndexOptions { Name = "ux_permission_catalog_code", Unique = true }));
+
+            var bulkOps = new List<WriteModel<BsonDocument>>();
+            foreach (var group in PermissionCatalogSeed.Groups)
+            {
+                foreach (var permission in group.Permissions)
+                {
+                    bulkOps.Add(new UpdateOneModel<BsonDocument>(
+                        Builders<BsonDocument>.Filter.Eq("Code", permission.Code),
+                        Builders<BsonDocument>.Update
+                            .Set("Code", permission.Code)
+                            .Set("Name", permission.Name)
+                            .Set("Group", group.Group)
+                            .Set("Icon", group.Icon)
+                            .Set("GroupOrder", group.Order)
+                            .Set("Order", permission.Order)
+                            .Set("Active", true))
+                    { IsUpsert = true });
+                }
+            }
+
+            if (bulkOps.Count > 0)
+                collection.BulkWrite(bulkOps);
+
+            Logger?.LogInformation("Ensured permission catalog seed with {Count} items", bulkOps.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to ensure permission catalog seed");
+            throw;
+        }
+    }
+
+    private static void EnsureDynamicMenuPermissionCatalogSeed()
+    {
+        try
+        {
+            if (CollectionBsonDynamicMenu == null || CollectionPermissionCatalog == null)
+                return;
+
+            var menuDocs = CollectionBsonDynamicMenu
+                .Find(MongoDocumentHelpers.NotDeleted)
+                .Project(Builders<BsonDocument>.Projection.Include("_id").Include("Title").Include("PermissionCode"))
+                .ToList();
+
+            if (menuDocs.Count == 0)
+                return;
+
+            var bulkOps = new List<WriteModel<BsonDocument>>();
+            foreach (var menuDoc in menuDocs)
+            {
+                var menuId = menuDoc.GetValue("_id", "").ToString();
+                if (string.IsNullOrWhiteSpace(menuId))
+                    continue;
+
+                var permissionCode = NormalizeDynamicMenuPermissionCode(
+                    menuDoc.GetValue("PermissionCode", "").ToString(),
+                    menuId);
+
+                var title = menuDoc.GetValue("Title", menuId).ToString();
+                bulkOps.Add(new UpdateOneModel<BsonDocument>(
+                    Builders<BsonDocument>.Filter.Eq("Code", permissionCode),
+                    Builders<BsonDocument>.Update
+                        .Set("Code", permissionCode)
+                        .Set("Name", $"Truy cập menu: {title}")
+                        .Set("Group", "Menu động")
+                        .Set("Icon", "🧭")
+                        .Set("GroupOrder", 70)
+                        .Set("Order", 1000)
+                        .Set("Active", true))
+                { IsUpsert = true });
+
+                CollectionBsonDynamicMenu.UpdateOne(
+                    Builders<BsonDocument>.Filter.Eq("_id", menuId),
+                    Builders<BsonDocument>.Update.Set("PermissionCode", permissionCode));
+            }
+
+            if (bulkOps.Count > 0)
+                CollectionPermissionCatalog.BulkWrite(bulkOps);
+
+            Logger?.LogInformation("Ensured dynamic menu permission catalog seed with {Count} items", bulkOps.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to ensure dynamic menu permission catalog seed");
+            throw;
+        }
+    }
+
+    private static string NormalizeDynamicMenuPermissionCode(string? rawValue, string fallbackId)
+    {
+        var normalized = (rawValue ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(normalized))
+            return $"dynamicmenu_{fallbackId}";
+
+        var buffer = normalized
+            .Select(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-' ? ch : '_')
+            .ToArray();
+
+        return new string(buffer).Trim('_');
+    }
+
     private static void InitializeDefaultOffice()
     {
         try
@@ -560,9 +769,9 @@ public static class Global
                 CoCapDuoi = true,
                 ThuTu = 0,
                 ThuTuSapXep = "000",
-                NgayTao = existingOffice?.NgayTao ?? CommonUtils.GetNowTimestamp(),
+                NgayTao = existingOffice?.NgayTao ?? ProtobufTimestampConverter.GetNowTimestamp(),
                 NguoiTao = existingOffice?.NguoiTao ?? "System",
-                NgaySua = CommonUtils.GetNowTimestamp(),
+                NgaySua = ProtobufTimestampConverter.GetNowTimestamp(),
                 NguoiSua = "System"
             };
 

@@ -16,26 +16,31 @@ service ThamSoService {
   rpc GetListDynamicFields(GetListDynamicFieldsRequest) returns (GetListDynamicFieldsResponse);
   rpc SaveDynamicField(SaveDynamicFieldRequest) returns (SaveDynamicFieldResponse);
   rpc DeleteDynamicField(DeleteDynamicFieldRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreDynamicField(RestoreDynamicFieldRequest) returns (Base.StatusResponse);
 
   // FieldSet
   rpc GetListFieldSets(GetListFieldSetsRequest) returns (GetListFieldSetsResponse);
   rpc SaveFieldSet(SaveFieldSetRequest) returns (SaveFieldSetResponse);
   rpc DeleteFieldSet(DeleteFieldSetRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreFieldSet(RestoreFieldSetRequest) returns (Base.StatusResponse);
 
   // FormConfig
   rpc GetListFormConfigs(GetListFormConfigsRequest) returns (GetListFormConfigsResponse);
   rpc SaveFormConfig(SaveFormConfigRequest) returns (SaveFormConfigResponse);
   rpc DeleteFormConfig(DeleteFormConfigRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreFormConfig(RestoreFormConfigRequest) returns (Base.StatusResponse);
 
   // DynamicMenu
   rpc GetListDynamicMenus(GetListDynamicMenusRequest) returns (GetListDynamicMenusResponse);
   rpc SaveDynamicMenu(SaveDynamicMenuRequest) returns (SaveDynamicMenuResponse);
   rpc DeleteDynamicMenu(DeleteDynamicMenuRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreDynamicMenu(RestoreDynamicMenuRequest) returns (Base.StatusResponse);
 
   // DynamicMenu datasource registry
   rpc GetListDynamicMenuDataSources(GetListDynamicMenuDataSourcesRequest) returns (GetListDynamicMenuDataSourcesResponse);
   rpc SaveDynamicMenuDataSource(SaveDynamicMenuDataSourceRequest) returns (SaveDynamicMenuDataSourceResponse);
   rpc DeleteDynamicMenuDataSource(DeleteDynamicMenuDataSourceRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreDynamicMenuDataSource(RestoreDynamicMenuDataSourceRequest) returns (Base.StatusResponse);
   rpc SyncDynamicMenuDataSourcesFromProto(SyncDynamicMenuDataSourcesFromProtoRequest) returns (SyncDynamicMenuDataSourcesFromProtoResponse);
   rpc DiscoverCollectionFields(DiscoverCollectionFieldsRequest) returns (DiscoverCollectionFieldsResponse);
   rpc GetDynamicMenuRows(GetDynamicMenuRowsRequest) returns (GetDynamicMenuRowsResponse);
@@ -44,6 +49,7 @@ service ThamSoService {
   rpc GetListTemplateLayouts(GetListTemplateLayoutsRequest) returns (GetListTemplateLayoutsResponse);
   rpc SaveTemplateLayout(SaveTemplateLayoutRequest) returns (SaveTemplateLayoutResponse);
   rpc DeleteTemplateLayout(DeleteTemplateLayoutRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreTemplateLayout(RestoreTemplateLayoutRequest) returns (Base.StatusResponse);
 }
 
 // ============================================================
@@ -92,6 +98,10 @@ message DeleteDynamicFieldRequest {
   repeated string ids = 1;
 }
 
+message RestoreDynamicFieldRequest {
+  repeated string ids = 1;
+}
+
 // ============================================================
 // FieldSet
 // ============================================================
@@ -109,8 +119,13 @@ message FieldSet {
 
 message GetListFieldSetsRequest {}
 message GetListFieldSetsResponse {
-  repeated FieldSet items = 1;
+  repeated FieldSetDetail items = 1;
   Base.ResponseMeta meta = 2;
+}
+
+message FieldSetDetail {
+  FieldSet field_set = 1;
+  repeated DynamicField fields = 2;
 }
 
 message SaveFieldSetRequest {
@@ -125,6 +140,10 @@ message DeleteFieldSetRequest {
   repeated string ids = 1;
 }
 
+message RestoreFieldSetRequest {
+  repeated string ids = 1;
+}
+
 // ============================================================
 // FormConfig
 // ============================================================
@@ -132,6 +151,7 @@ message FormTabConfig {
   string id = 1;
   string label = 2;
   repeated string field_set_ids = 3;  // reference by ID, not embedded
+  repeated FieldSetDetail field_sets = 4;
 }
 
 message FormConfig {
@@ -162,6 +182,10 @@ message DeleteFormConfigRequest {
   repeated string ids = 1;
 }
 
+message RestoreFormConfigRequest {
+  repeated string ids = 1;
+}
+
 // ============================================================
 // DynamicMenu
 // ============================================================
@@ -188,6 +212,7 @@ message DynamicMenu {
   reserved 14; // was: column_keys
   string template_key = 15;
   repeated ColumnConfig columns = 16;
+  string permission_code = 17;
 }
 
 message GetListDynamicMenusRequest {}
@@ -205,6 +230,10 @@ message SaveDynamicMenuResponse {
 }
 
 message DeleteDynamicMenuRequest {
+  repeated string ids = 1;
+}
+
+message RestoreDynamicMenuRequest {
   repeated string ids = 1;
 }
 
@@ -245,6 +274,10 @@ message SaveDynamicMenuDataSourceResponse {
 }
 
 message DeleteDynamicMenuDataSourceRequest {
+  repeated string ids = 1;
+}
+
+message RestoreDynamicMenuDataSourceRequest {
   repeated string ids = 1;
 }
 
@@ -313,5 +346,9 @@ message SaveTemplateLayoutResponse {
 }
 
 message DeleteTemplateLayoutRequest {
+  repeated string ids = 1;
+}
+
+message RestoreTemplateLayoutRequest {
   repeated string ids = 1;
 }

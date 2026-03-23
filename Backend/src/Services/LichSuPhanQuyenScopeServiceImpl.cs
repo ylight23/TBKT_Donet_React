@@ -1,5 +1,6 @@
+using Backend.Authorization;
 using Backend.Converter;
-using Backend.Utils;
+using Backend.Common.Bson;
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
@@ -153,71 +154,57 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
     {
         var item = new LichSuPhanQuyenScope
         {
-            Id = doc["_id"].ToString()!,
-            IdNguoiDuocPhanQuyen = SafeStr(doc, "IdNguoiDuocPhanQuyen"),
-            IdNhomNguoiDung = SafeStr(doc, "IdNhomNguoiDung"),
-            IdNguoiThucHien = SafeStr(doc, "IdNguoiThucHien"),
-            MaPhanHe = SafeStr(doc, "MaPhanHe"),
-            HanhDong = SafeStr(doc, "HanhDong"),
+            Id = doc.IdString(),
+            IdNguoiDuocPhanQuyen = doc.StringOr("IdNguoiDuocPhanQuyen"),
+            IdNhomNguoiDung = doc.StringOr("IdNhomNguoiDung"),
+            IdNguoiThucHien = doc.StringOr("IdNguoiThucHien"),
+            MaPhanHe = doc.StringOr("MaPhanHe"),
+            HanhDong = doc.StringOr("HanhDong"),
 
             // Scope cũ
-            ScopeTypeCu = SafeStr(doc, "ScopeTypeCu"),
-            IdDonViScopeCu = SafeStr(doc, "IdDonViScopeCu"),
-            IdNguoiUyQuyenCu = SafeStr(doc, "IdNguoiUyQuyenCu"),
-            IdNhomChuyenNganhCu = SafeStr(doc, "IdNhomChuyenNganhCu"),
+            ScopeTypeCu = doc.StringOr("ScopeTypeCu"),
+            IdDonViScopeCu = doc.StringOr("IdDonViScopeCu"),
+            IdNguoiUyQuyenCu = doc.StringOr("IdNguoiUyQuyenCu"),
+            IdNhomChuyenNganhCu = doc.StringOr("IdNhomChuyenNganhCu"),
 
             // Scope mới
-            ScopeTypeMoi = SafeStr(doc, "ScopeTypeMoi"),
-            IdDonViScopeMoi = SafeStr(doc, "IdDonViScopeMoi"),
-            IdNguoiUyQuyenMoi = SafeStr(doc, "IdNguoiUyQuyenMoi"),
-            IdNhomChuyenNganhMoi = SafeStr(doc, "IdNhomChuyenNganhMoi"),
+            ScopeTypeMoi = doc.StringOr("ScopeTypeMoi"),
+            IdDonViScopeMoi = doc.StringOr("IdDonViScopeMoi"),
+            IdNguoiUyQuyenMoi = doc.StringOr("IdNguoiUyQuyenMoi"),
+            IdNhomChuyenNganhMoi = doc.StringOr("IdNhomChuyenNganhMoi"),
         };
 
         // GhiChu
-        var ghiChu = SafeStr(doc, "GhiChu");
+        var ghiChu = doc.StringOr("GhiChu");
         if (!string.IsNullOrEmpty(ghiChu))
             item.GhiChu = ghiChu;
 
         // IdNganhDocCu
-        var nganhDocCu = doc.GetValue("IdNganhDocCu", BsonNull.Value);
-        if (nganhDocCu.IsBsonArray)
-        {
-            foreach (var cn in nganhDocCu.AsBsonArray)
-                if (cn.IsString)
-                    item.IdNganhDocCu.Add(cn.AsString);
-        }
+        var nganhDocCu = doc.ArrayOr("IdNganhDocCu");
+        if (nganhDocCu != null)
+            item.IdNganhDocCu.AddRange(nganhDocCu.Strings());
 
         // IdNganhDocMoi
-        var nganhDocMoi = doc.GetValue("IdNganhDocMoi", BsonNull.Value);
-        if (nganhDocMoi.IsBsonArray)
-        {
-            foreach (var cn in nganhDocMoi.AsBsonArray)
-                if (cn.IsString)
-                    item.IdNganhDocMoi.Add(cn.AsString);
-        }
+        var nganhDocMoi = doc.ArrayOr("IdNganhDocMoi");
+        if (nganhDocMoi != null)
+            item.IdNganhDocMoi.AddRange(nganhDocMoi.Strings());
 
         // NgayHetHanCu
-        var hetHanCu = doc.GetValue("NgayHetHanCu", BsonNull.Value);
-        if (hetHanCu.IsBsonDateTime)
-            item.NgayHetHanCu = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(hetHanCu.ToUniversalTime());
+        var hetHanCu = doc.TimestampOr("NgayHetHanCu");
+        if (hetHanCu != null)
+            item.NgayHetHanCu = hetHanCu;
 
         // NgayHetHanMoi
-        var hetHanMoi = doc.GetValue("NgayHetHanMoi", BsonNull.Value);
-        if (hetHanMoi.IsBsonDateTime)
-            item.NgayHetHanMoi = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(hetHanMoi.ToUniversalTime());
+        var hetHanMoi = doc.TimestampOr("NgayHetHanMoi");
+        if (hetHanMoi != null)
+            item.NgayHetHanMoi = hetHanMoi;
 
         // NgayThucHien
-        var ngayThucHien = doc.GetValue("NgayThucHien", BsonNull.Value);
-        if (ngayThucHien.IsBsonDateTime)
-            item.NgayThucHien = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(ngayThucHien.ToUniversalTime());
+        var ngayThucHien = doc.TimestampOr("NgayThucHien");
+        if (ngayThucHien != null)
+            item.NgayThucHien = ngayThucHien;
 
         return item;
     }
 
-    private static string SafeStr(BsonDocument? doc, string key, string fallback = "")
-    {
-        if (doc == null) return fallback;
-        var v = doc.GetValue(key, BsonNull.Value);
-        return (v == BsonNull.Value || v.IsBsonNull) ? fallback : v.AsString;
-    }
 }

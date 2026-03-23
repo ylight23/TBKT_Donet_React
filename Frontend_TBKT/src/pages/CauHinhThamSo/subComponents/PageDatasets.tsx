@@ -41,12 +41,16 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
     );
 
     const activeFields = useMemo(
-        () =>
-            (activeSet?.fieldIds ?? [])
-                .map((fid) => fields.find((f) => f.id === fid))
-                .filter((f): f is DynamicField => Boolean(f)),
-        [activeSet, fields],
+        () => activeSet?.fields ?? [],
+        [activeSet],
     );
+
+    const attachFields = (fieldSet: FieldSet): FieldSet => ({
+        ...fieldSet,
+        fields: fieldSet.fieldIds
+            .map((fieldId) => fields.find((field) => field.id === fieldId))
+            .filter((field): field is DynamicField => Boolean(field)),
+    });
 
     const handleCreate = () => {
         setIsNewMode(true);
@@ -57,15 +61,17 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
             color: '#3b82f6',
             desc: '',
             fieldIds: [],
+            fields: [],
         });
     };
 
     const handleSave = (next: FieldSet) => {
+        const nextFieldSet = attachFields(next);
         if (isNewMode) {
-            setFieldSets((prev) => [...prev, next]);
-            setActiveSetId(next.id);
+            setFieldSets((prev) => [...prev, nextFieldSet]);
+            setActiveSetId(nextFieldSet.id);
         } else {
-            setFieldSets((prev) => prev.map((s) => (s.id === next.id ? next : s)));
+            setFieldSets((prev) => prev.map((s) => (s.id === nextFieldSet.id ? nextFieldSet : s)));
         }
         setEditingSet(null);
     };
@@ -103,6 +109,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
             id: generateUniqueSetId(fieldSets),
             name: generateDuplicateName(setToDuplicate.name, fieldSets),
             fieldIds: [...setToDuplicate.fieldIds],
+            fields: [...(setToDuplicate.fields ?? [])],
         };
 
         setFieldSets((prev) => [...prev, duplicatedSet]);

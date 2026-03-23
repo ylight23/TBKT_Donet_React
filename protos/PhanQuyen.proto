@@ -11,6 +11,7 @@ import "google/protobuf/timestamp.proto";
 // ============================================================
 service PhanQuyenService {
   rpc GetMyPermissions(GetMyPermissionsRequest) returns (GetMyPermissionsResponse);
+  rpc GetPermissionCatalog(GetPermissionCatalogRequest) returns (GetPermissionCatalogResponse);
 
   // Quản lý nhóm người dùng (roles)
   rpc ListNhomNguoiDung(ListNhomNguoiDungRequest) returns (ListNhomNguoiDungResponse);
@@ -32,6 +33,7 @@ service PhanQuyenService {
 // Request
 // ============================================================
 message GetMyPermissionsRequest {}
+message GetPermissionCatalogRequest {}
 
 // ============================================================
 // Permission sub-messages
@@ -81,6 +83,21 @@ message GetMyPermissionsResponse {
   string                    id_nguoi_uy_quyen = 7;  // DELEGATED: người thực hiện ủy quyền
   string                    anchor_parent_id  = 8;  // SIBLINGS:  IDCapTren của anchor node
   ScopeAttribute            scope_attribute   = 9;  // BY_ATTRIBUTE: field+value lọc theo thuộc tính
+}
+
+message PermissionCatalogItem {
+  string code = 1;
+  string name = 2;
+}
+
+message PermissionCatalogGroup {
+  string group = 1;
+  string icon = 2;
+  repeated PermissionCatalogItem permissions = 3;
+}
+
+message GetPermissionCatalogResponse {
+  repeated PermissionCatalogGroup items = 1;
 }
 
 // ============================================================
@@ -292,6 +309,7 @@ message UserInGroup {
   bool                      is_expired     = 7;
   google.protobuf.Timestamp ngay_het_han   = 8;
   ScopeAttribute            scope_attribute = 9;  // BY_ATTRIBUTE scope
+  string                    anchor_node_name = 10;
 }
 message ListGroupUsersResponse {
   repeated UserInGroup users = 1;

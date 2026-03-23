@@ -27,8 +27,52 @@ export default defineConfig({
     },
     build: {
         outDir: 'build',
+        chunkSizeWarningLimit: 5000,
         commonjsOptions: {
             transformMixedEsModules: true,
+        },
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('src/data/mockTBData')) return 'mock-data';
+
+                    if (id.includes('node_modules')) {
+                        if (id.includes('@puckeditor/core')) {
+                            return 'puck';
+                        }
+
+                        if (id.includes('@nivo/') || id.includes('d3-')) {
+                            return 'charts';
+                        }
+
+                        if (id.includes('@fullcalendar/')) {
+                            return 'fullcalendar';
+                        }
+
+                        if (id.includes('xlsx')) {
+                            return 'xlsx';
+                        }
+
+                        if (id.includes('@microsoft/signalr')) {
+                            return 'signalr';
+                        }
+
+                        if (id.includes('oidc-client-ts') || id.includes('react-oidc-context')) {
+                            return 'auth';
+                        }
+
+                        if (
+                            id.includes('@bufbuild/')
+                            || id.includes('@connectrpc/')
+                            || id.includes('@protobuf-ts/')
+                        ) {
+                            return 'grpc';
+                        }
+                    }
+
+                    return undefined;
+                },
+            },
         },
     },
 });

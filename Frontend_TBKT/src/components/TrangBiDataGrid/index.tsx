@@ -10,7 +10,7 @@ import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useTheme } from '@mui/material/styles';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -37,6 +37,7 @@ import OfficeDictionary, { OfficeNode } from '../../pages/Office/subComponent/Of
 import { OfficeProvider } from '../../context/OfficeContext';
 import StatsButton from '../Stats/StatsButton';
 import AddTrangBiDialog from './AddTrangBiDialog';
+import LazyDataGrid from '../LazyDataGrid';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -384,10 +385,12 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
           <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />
 
           {/* ── DataGrid Container ───────────────────────────────── */}
-          <DataGrid
+          <LazyDataGrid
             rows={filtered}
             columns={columns}
             getRowId={(row) => row.id}
+            fallbackRows={8}
+            fallbackCols={8}
             sx={{
               flex: 1,
               minHeight: 450,

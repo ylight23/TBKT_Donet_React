@@ -1,4 +1,6 @@
-using Backend.Utils;
+using Backend.Authorization;
+using Backend.Common.Bson;
+using Backend.Common.Protobuf;
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
@@ -141,15 +143,18 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                 }
             }
 
-            var rootLength = Backend.Converter.ServerCallContextExtends.GetUserAdminOfficeID(context)?.Length ?? 0;
+            var rootLength = context.GetUserAdminOfficeID()?.Length ?? 0;
 
             foreach (var bson in set)
             {
                 var office = BsonSerializer.Deserialize<Office>(bson);
 
-                if (bson.Contains("Parameters") && request.IncludeParameters)
+                var parametersBson = request.IncludeParameters ? bson.ArrayOr("Parameters") : null;
+                if (parametersBson != null)
                 {
-                    var parameters = bson["Parameters"].AsBsonArray.Select(c => BsonSerializer.Deserialize<ExtendedField>(c.AsBsonDocument)).ToArray();
+                    var parameters = parametersBson.Documents()
+                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
+                        .ToArray();
                     if (parameters != null)
                         office.Parameters.AddRange(parameters);
                 }
@@ -332,9 +337,12 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
 
                 
 
-                if (bson.Contains("Parameters"))
+                var parametersBson = bson.ArrayOr("Parameters");
+                if (parametersBson != null)
                 {
-                    var parameters = bson["Parameters"].AsBsonArray.Select(c => BsonSerializer.Deserialize<ExtendedField>(c.AsBsonDocument)).ToArray();
+                    var parameters = parametersBson.Documents()
+                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
+                        .ToArray();
                     if (parameters != null)
                         response.Item.Parameters.AddRange(parameters);
                 }
@@ -357,7 +365,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     public override async Task<SaveOfficeResponse> ReorderOffice(ReorderOfficeRequest request, ServerCallContext context)
     {
         var response = new SaveOfficeResponse();
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcName))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcName))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;
@@ -668,7 +676,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     public override async Task<SaveOfficeResponse> SaveOffice(SaveOfficeRequest request, ServerCallContext context)
     {
         var response = new SaveOfficeResponse();
-        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanSave(funcName: funcName))
+        // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcName))
         // {
         //     response.Success = false;
         //     response.Message = Language.NotAuthorized;
@@ -694,7 +702,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                 request.Item.TenVietTatDayDu = parent != null && !string.IsNullOrEmpty(parent.IdCapTren) && !string.IsNullOrEmpty(parent.TenDayDu)
                     ? request.Item.VietTat + "/ " + parent.TenVietTatDayDu
                     : request.Item.VietTat;
-                var currentTime = CommonUtils.GetNowTimestamp();
+                var currentTime = ProtobufTimestampConverter.GetNowTimestamp();
                 #region  Is New
                 if (request.IsNew)
                 {
@@ -859,10 +867,10 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                                             if (parentOfChild == null)
                                                 parentOfChild = request.Item;
                                             child.ThuTuSapXep = parentOfChild?.ThuTuSapXep + child.ThuTu.ToString().PadLeft(lengthOfLevel, '0');
-                                            child.NgaySua = CommonUtils.GetNowTimestamp();
+                                            child.NgaySua = ProtobufTimestampConverter.GetNowTimestamp();
                                             await Global.CollectionOffice.InsertOneAsync(child);
                                             response.VirtualOrderings.TryAdd(child.Id, child.ThuTuSapXep);
-                                            Backend.Utils.CommonUtils.UpdateRelationShip("Office", oldId, child.Id);
+                                            RelationshipMaintenance.UpdateRelationShip("Office", oldId, child.Id);
                                         }
                                     }
                                 }

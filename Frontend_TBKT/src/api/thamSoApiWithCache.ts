@@ -51,7 +51,6 @@ export const thamSoApi = {
     schemaCache.set(KEYS.FIELD_SETS, data);
     return data;
   },
-
   async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean): Promise<LocalFieldSet> {
     const result = await grpcThamSoApi.saveFieldSet(fieldSet, isNew);
     schemaCache.clear(KEYS.FIELD_SETS);

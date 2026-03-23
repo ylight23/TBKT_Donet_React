@@ -1,5 +1,6 @@
+using Backend.Authorization;
 using Backend.Converter;
-using Backend.Utils;
+using Backend.Common.Bson;
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
@@ -167,22 +168,16 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
     {
         var item = new NhomChuyenNganh
         {
-            Id = doc["_id"].ToString()!,
-            KichHoat = doc.GetValue("KichHoat", false).AsBoolean,
+            Id = doc.IdString(),
+            KichHoat = doc.BoolOr("KichHoat"),
         };
 
-        if (doc.Contains("Ten") && !doc["Ten"].IsBsonNull)
-            item.Ten = doc["Ten"].AsString;
-        if (doc.Contains("MoTa") && !doc["MoTa"].IsBsonNull)
-            item.MoTa = doc["MoTa"].AsString;
+        item.Ten = doc.StringOr("Ten");
+        item.MoTa = doc.StringOr("MoTa");
 
-        var dsCn = doc.GetValue("DanhSachCn", BsonNull.Value);
-        if (dsCn.IsBsonArray)
-        {
-            foreach (var cn in dsCn.AsBsonArray)
-                if (cn.IsString)
-                    item.DanhSachCn.Add(cn.AsString);
-        }
+        var dsCn = doc.ArrayOr("DanhSachCn");
+        if (dsCn != null)
+            item.DanhSachCn.AddRange(dsCn.Strings());
 
         return item;
     }

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Render, type Config, type Data } from '@puckeditor/core';
 import '@puckeditor/core/puck.css';
 import { Alert, Box, CircularProgress } from '@mui/material';
-import { PUCK_CONFIG } from '../../pages/CauHinhTemplate/puckConfig';
-import { toEditorData } from '../../pages/CauHinhTemplate/constants';
+import { PUCK_CONFIG } from '../../features/templateRuntime/puckConfig';
+import { toEditorData } from '../../features/templateRuntime/editorData';
 import thamSoApi from '../../apis/thamSoApi';
 
 interface TemplateRendererProps {

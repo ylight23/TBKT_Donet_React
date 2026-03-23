@@ -15,13 +15,14 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
 import IconPickerPopover from '../CauHinhThamSo/subComponents/IconPickerPopover';
-import { normalizeMenuPath } from '../../configs/dynamicMenuConfig';
+import { normalizeMenuPath, normalizePermissionCode } from '../../configs/dynamicMenuConfig';
 import { useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
 import type { DynamicMenuConfigItem } from '../../types/dynamicMenu';
 import { nameToIcon } from '../../utils/thamSoUtils';
 import thamSoApi, { type LocalTemplateLayout } from '../../apis/thamSoApi';
+import LazyDataGrid from '../../components/LazyDataGrid';
 
 interface FormState {
     id: string;
@@ -29,6 +30,7 @@ interface FormState {
     path: string;
     icon: string;
     templateKey: string;
+    permissionCode: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -37,6 +39,7 @@ const INITIAL_FORM: FormState = {
     path: '',
     icon: 'Assignment',
     templateKey: '',
+    permissionCode: '',
 };
 
 const toSlug = (value: string): string =>
@@ -79,6 +82,7 @@ const CauHinhMenuDong: React.FC = () => {
     const columns: GridColDef[] = [
         { field: 'title', headerName: 'Tên menu', flex: 1.2, minWidth: 180 },
         { field: 'path', headerName: 'Đường dẫn', flex: 1.2, minWidth: 180 },
+        { field: 'permissionCode', headerName: 'Mã quyền', flex: 1.1, minWidth: 180 },
         {
             field: 'icon',
             headerName: 'Icon',
@@ -127,6 +131,7 @@ const CauHinhMenuDong: React.FC = () => {
             path: normalizeMenuPath(form.path || '', normalizedId),
             active: `menuDong_${normalizedId}`,
             icon: (form.icon || 'Assignment').trim(),
+            permissionCode: normalizePermissionCode(form.permissionCode, normalizedId),
             templateKey: form.templateKey.trim(),
             // Legacy fields kept for backward compat with existing data
             dataSource: 'employee',
@@ -159,6 +164,7 @@ const CauHinhMenuDong: React.FC = () => {
             path: row.path,
             icon: row.icon || 'Assignment',
             templateKey: row.templateKey || '',
+            permissionCode: row.permissionCode || '',
         });
         setError('');
     };
@@ -240,6 +246,13 @@ const CauHinhMenuDong: React.FC = () => {
                                     helperText="Ví dụ: /menu/bao-cao-1"
                                     fullWidth
                                 />
+                                <TextField
+                                    label="Mã quyền"
+                                    value={form.permissionCode}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, permissionCode: e.target.value }))}
+                                    helperText="Để trống → tự sinh theo mã menu"
+                                    fullWidth
+                                />
                             </Stack>
 
                             <Stack spacing={2} direction={{ xs: 'column', md: 'row' }} alignItems="flex-start">
@@ -303,13 +316,15 @@ const CauHinhMenuDong: React.FC = () => {
                     <CardContent>
                         <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5 }}>Danh sách menu động</Typography>
                         <Box sx={{ height: 360 }}>
-                            <DataGrid
+                            <LazyDataGrid
                                 rows={rows}
                                 columns={columns}
                                 loading={loading}
                                 disableRowSelectionOnClick
                                 onRowClick={(params) => handleEdit(params.row as DynamicMenuConfigItem)}
                                 pageSizeOptions={[5, 10, 20]}
+                                fallbackRows={6}
+                                fallbackCols={5}
                             />
                         </Box>
                         <Divider sx={{ my: 2 }} />
@@ -326,7 +341,7 @@ const CauHinhMenuDong: React.FC = () => {
                                     <Box>
                                         <Typography fontWeight={600}>{item.title}</Typography>
                                         <Typography variant="body2" color="text.secondary">
-                                            {item.path} — template: {templates.find((t) => t.key === item.templateKey)?.name || item.templateKey || '(chưa gán)'}
+                                            {item.path} — quyền: {item.permissionCode || '(chưa gán)'} — template: {templates.find((t) => t.key === item.templateKey)?.name || item.templateKey || '(chưa gán)'}
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'inline-flex', alignItems: 'center', mr: 1 }}>

@@ -49,6 +49,20 @@ export const normalizeMenuPath = (
   return withSlash.replace(/\s+/g, "-");
 };
 
+export const normalizePermissionCode = (
+  value: string | undefined,
+  fallbackId: string,
+): string => {
+  const normalized = (value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+
+  if (normalized.length > 0) return normalized;
+  return `dynamicmenu_${fallbackId}`;
+};
+
 export const sanitizeDynamicMenuItem = (
   item: DynamicMenuConfigItem,
 ): DynamicMenuConfigItem => ({
@@ -57,6 +71,7 @@ export const sanitizeDynamicMenuItem = (
   path: normalizeMenuPath(item.path, item.id),
   active: item.active.trim(),
   icon: (item.icon || "Assignment").trim(),
+  permissionCode: normalizePermissionCode(item.permissionCode, item.id),
   dataSource: normalizeDataSource(item.dataSource),
   gridCount: normalizeGridCount(item.gridCount),
   columnCount: normalizeColumnCount(item.columnCount),
@@ -87,6 +102,7 @@ export const createDynamicMenuItem = (
     path: normalizeMenuPath(path ?? "", safeId),
     active: `menuDong_${safeId}`,
     icon: (icon || "Assignment").trim(),
+    permissionCode: normalizePermissionCode('', safeId),
     dataSource: safeDataSource,
     gridCount: normalizeGridCount(gridCount),
     columnCount: safeColumnCount,

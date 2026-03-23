@@ -5,7 +5,7 @@ import type { ButtonProps } from '@mui/material/Button';
 import Download from '@mui/icons-material/Download';
 import notify from '../../utils/notification';
 
-// ❌ Xóa: import * as XLSX from 'xlsx';  ← ~800KB load ngay
+
 
 type ColumnMapping = Record<string, string | ((item: any) => any)>;
 

@@ -17,7 +17,7 @@ import OfficeDictionary from './subComponent/OfficeDictionary';
 import OfficeDataGrid from './subComponent/OfficeDataGrid';
 import ModalOffice from './subComponent/ModalOffice';
 import ExportExcel from '../../components/Buttons/ExportExcel';
-import ImportExcel from '../../components/Buttons/ImportExcel';
+import LazyImportExcel from '../../components/Buttons/LazyImportExcel';
 import { OfficeProvider, useOffice } from '../../context/OfficeContext';
 import { TreeSkeleton, GridSkeleton } from '../../components/Skeletons';
 
@@ -78,7 +78,7 @@ const OfficeInner: React.FC = () => {
                         fileName="DanhSachDonVi"
                         sheetName="Danh sách đơn vị"
                     />
-                    <ImportExcel
+                    <LazyImportExcel
                         buttonText="Nhập từ Excel"
                         onImport={importOffices}
                         onImportSuccess={onImportSuccess}

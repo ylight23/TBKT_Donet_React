@@ -15,7 +15,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
@@ -25,6 +25,7 @@ import thamSoApi, {
   type DataSourceConfig,
   type DataSourceField,
 } from '../../apis/thamSoApi';
+import LazyDataGrid from '../../components/LazyDataGrid';
 
 interface DataSourceFormState {
   id: string;
@@ -471,13 +472,15 @@ const CauHinhDataSource: React.FC = () => {
           <CardContent>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5 }}>Danh sach datasource registry</Typography>
             <Box sx={{ height: 380 }}>
-              <DataGrid
+              <LazyDataGrid
                 rows={rows}
                 columns={columns}
                 loading={loading}
                 disableRowSelectionOnClick
                 onRowClick={(params) => handleEdit(params.row as DataSourceConfig)}
                 pageSizeOptions={[5, 10, 20]}
+                fallbackRows={6}
+                fallbackCols={5}
               />
             </Box>
             <Divider sx={{ my: 2 }} />

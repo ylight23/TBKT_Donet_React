@@ -264,7 +264,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                 const selectedSets = getRealSetIds(tab)
                                     .map((id: string) => fieldSets.find((s: FieldSet) => s.id === id))
                                     .filter(Boolean) as FieldSet[];
-                                const totalFields = selectedSets.reduce((a: number, s: FieldSet) => a + s.fieldIds.length, 0);
+                                const totalFields = selectedSets.reduce((a: number, s: FieldSet) => a + (s.fields?.length ?? s.fieldIds.length), 0);
                                 const children = tabStructure.childrenByParent[tab.id] || [];
                                 const tabTypeLabel = tabMeta.tabType === 'sync-group' ? 'Nhóm đồng bộ' : 'Tab thường';
 
@@ -376,7 +376,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                                             const childSets = getRealSetIds(child)
                                                                 .map((id: string) => fieldSets.find((s: FieldSet) => s.id === id))
                                                                 .filter(Boolean) as FieldSet[];
-                                                            const childTotalFields = childSets.reduce((a: number, s: FieldSet) => a + s.fieldIds.length, 0);
+                                                            const childTotalFields = childSets.reduce((a: number, s: FieldSet) => a + (s.fields?.length ?? s.fieldIds.length), 0);
                                                             return (
                                                                 <Card key={`${child.id}-${ci}`} variant="outlined"
                                                                     sx={{ borderRadius: 1.5, bgcolor: 'background.paper', '&:hover': { boxShadow: 1 } }}>
@@ -497,7 +497,9 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                             }
                                             const previewFields = getRealSetIds(previewRootTab).flatMap((sid: string) => {
                                                 const set = fieldSets.find((s: FieldSet) => s.id === sid);
-                                                return (set?.fieldIds ?? []).map((fid: string) => fields.find((f: DynamicField) => f.id === fid)).filter(Boolean) as DynamicField[];
+                                                if (!set) return [];
+                                                if (set.fields && set.fields.length > 0) return set.fields;
+                                                return (set.fieldIds ?? []).map((fid: string) => fields.find((f: DynamicField) => f.id === fid)).filter(Boolean) as DynamicField[];
                                             });
                                             return (
                                                 <Box sx={{ p: 2 }}>

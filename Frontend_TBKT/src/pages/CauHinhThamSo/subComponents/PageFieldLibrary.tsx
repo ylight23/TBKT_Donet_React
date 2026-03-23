@@ -51,6 +51,13 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
 
     const editingField = editingFieldId ? fields.find((field) => field.id === editingFieldId) : undefined;
 
+    const attachFields = (fieldSet: FieldSet): FieldSet => ({
+        ...fieldSet,
+        fields: fieldSet.fieldIds
+            .map((fieldId) => fields.find((field) => field.id === fieldId))
+            .filter((field): field is DynamicField => Boolean(field)),
+    });
+
     const handleAddField = () => {
         const id = `field_${Math.random().toString(36).slice(2, 9)}`;
         const newField: DynamicField = {
@@ -77,6 +84,7 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
             prev.map((set) => ({
                 ...set,
                 fieldIds: set.fieldIds.filter((id) => id !== fieldId),
+                fields: (set.fields ?? []).filter((field) => field.id !== fieldId),
             })),
         );
         if (editingFieldId === fieldId) {
@@ -93,6 +101,7 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
             color: '#3b82f6',
             desc: '',
             fieldIds: [],
+            fields: [],
         });
     };
 
@@ -102,10 +111,11 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
     };
 
     const handleSaveSet = (nextSet: FieldSet) => {
+        const nextFieldSet = attachFields(nextSet);
         if (isNewSetMode) {
-            setFieldSets((prev) => [...prev, nextSet]);
+            setFieldSets((prev) => [...prev, nextFieldSet]);
         } else {
-            setFieldSets((prev) => prev.map((set) => (set.id === nextSet.id ? nextSet : set)));
+            setFieldSets((prev) => prev.map((set) => (set.id === nextFieldSet.id ? nextFieldSet : set)));
         }
         setEditingSet(null);
     };
@@ -255,10 +265,9 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
                                         </Stack>
 
                                         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap mb={1.25}>
-                                            {set.fieldIds.slice(0, 4).map((fieldId) => {
-                                                const field = fields.find((item) => item.id === fieldId);
-                                                return field ? <Chip key={fieldId} size="small" label={field.label} variant="outlined" /> : null;
-                                            })}
+                                            {(set.fields ?? []).slice(0, 4).map((field) => (
+                                                <Chip key={field.id} size="small" label={field.label} variant="outlined" />
+                                            ))}
                                             {set.fieldIds.length > 4 && <Chip size="small" label={`+${set.fieldIds.length - 4}`} />}
                                         </Stack>
 

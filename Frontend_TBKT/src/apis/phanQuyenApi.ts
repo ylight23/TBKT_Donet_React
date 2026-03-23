@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import {
     GetMyPermissionsRequestSchema,
+    GetPermissionCatalogRequestSchema,
     ListNhomNguoiDungRequestSchema,
     SaveNhomNguoiDungRequestSchema,
     DeleteRequestSchema,
@@ -13,7 +14,7 @@ import {
 } from '../grpc/generated/PhanQuyen_pb';
 import type { ChucNangPermission, PhanHePermission } from '../store/reducer/permissionReducer';
 import { phanQuyenClient } from '../grpc/grpcClient';
-import type { ScopeType } from '../types/permission';
+import type { PermissionGroup, ScopeType } from '../types/permission';
 
 // ── Shared DTOs ───────────────────────────────────────────────────────────────
 
@@ -34,6 +35,13 @@ export interface GroupPermissions {
     scopeType: string;
 }
 
+export interface PermissionCatalogGroupInfo extends PermissionGroup {}
+
+export interface ScopeAttributeInfo {
+    field: string;
+    value: string;
+}
+
 export interface UserInGroupInfo {
     idAssignment: string;
     idNguoiDung: string;
@@ -41,8 +49,10 @@ export interface UserInGroupInfo {
     donVi: string;
     scopeType: string;
     anchorNodeId: string;
+    anchorNodeName: string;
     isExpired: boolean;
     ngayHetHan?: string;
+    scopeAttribute?: ScopeAttributeInfo;
 }
 
 export interface AssignmentDetailInfo {
@@ -59,6 +69,7 @@ export interface AssignmentDetailInfo {
     loai: string;
     ngayTao?: string;
     ngayHetHan?: string;
+    scopeAttribute?: ScopeAttributeInfo;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -200,8 +211,25 @@ export async function listGroupUsers(idNhom: string): Promise<UserInGroupInfo[]>
         donVi:        u.donVi,
         scopeType:    u.scopeType,
         anchorNodeId: u.anchorNodeId,
+        anchorNodeName: u.anchorNodeName,
         isExpired:    u.isExpired,
         ngayHetHan:   tsToIso(u.ngayHetHan),
+        scopeAttribute: u.scopeAttribute
+            ? { field: u.scopeAttribute.field, value: u.scopeAttribute.value }
+            : undefined,
+    }));
+}
+
+export async function getPermissionCatalog(): Promise<PermissionCatalogGroupInfo[]> {
+    const req = create(GetPermissionCatalogRequestSchema, {});
+    const res = await phanQuyenClient.getPermissionCatalog(req);
+    return res.items.map(group => ({
+        group: group.group,
+        icon: group.icon,
+        permissions: group.permissions.map(permission => ({
+            code: permission.code,
+            name: permission.name,
+        })),
     }));
 }
 
@@ -227,6 +255,9 @@ export async function listAllAssignments(
         loai:          a.loai || 'Direct',
         ngayTao:       tsToIso(a.ngayTao),
         ngayHetHan:    tsToIso(a.ngayHetHan),
+        scopeAttribute: a.scopeAttribute
+            ? { field: a.scopeAttribute.field, value: a.scopeAttribute.value }
+            : undefined,
     }));
     return { items, totalCount: res.totalCount };
 }
@@ -260,6 +291,7 @@ export async function removeUserFromGroup(idAssignment: string): Promise<void> {
 
 export default {
     getMyPermissions,
+    getPermissionCatalog,
     listNhomNguoiDung,
     saveNhomNguoiDung,
     deleteNhomNguoiDung,

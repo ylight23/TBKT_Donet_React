@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Chip, Divider, Stack, Typography } from '@mui/material';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
 import { useLocation, useParams } from 'react-router-dom';
 import { useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
 import { normalizeColumns, normalizeDataSource } from '../../configs/dynamicMenuConfig';
 import thamSoApi from '../../apis/thamSoApi';
 import TemplateRenderer from '../../components/TemplateRenderer';
+import LazyDataGrid from '../../components/LazyDataGrid';
 
 const MAX_COLUMNS = 12;
 
@@ -153,13 +154,15 @@ const MenuDong: React.FC = () => {
             </Stack>
 
             <Box sx={{ height: 320 }}>
-              <DataGrid
+              <LazyDataGrid
                 rows={mappedRows}
                 columns={gridColumns}
                 loading={loadingRows}
                 disableRowSelectionOnClick
                 pageSizeOptions={[5, 10, 20]}
                 initialState={{ pagination: { paginationModel: { pageSize: 5, page: 0 } } }}
+                fallbackRows={5}
+                fallbackCols={Math.max(visibleColumnLabels.length, 4)}
               />
             </Box>
 

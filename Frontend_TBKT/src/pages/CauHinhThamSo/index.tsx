@@ -41,15 +41,19 @@ const mapStoreFieldSetToUi = (fieldSet: LocalFieldSet): FieldSet => ({
 });
 
 const mapUiFieldSetToStore = (fieldSet: FieldSet): LocalFieldSet => ({
-  ...fieldSet,
+  id: fieldSet.id,
+  name: fieldSet.name,
   icon: iconToName(fieldSet.icon),
+  color: fieldSet.color,
   desc: fieldSet.desc ?? '',
+  fieldIds: fieldSet.fieldIds,
 });
 
 const replaceFieldIdInFieldSets = (fieldSets: FieldSet[], oldId: string, nextId: string): FieldSet[] => (
   fieldSets.map((fieldSet) => ({
     ...fieldSet,
     fieldIds: fieldSet.fieldIds.map((fieldId) => (fieldId === oldId ? nextId : fieldId)),
+    fields: fieldSet.fields?.map((field) => (field.id === oldId ? { ...field, id: nextId } : field)),
   }))
 );
 

@@ -1,3 +1,4 @@
+import type { LocalDynamicField } from '../../types/thamSo';
 import React from 'react';
 
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'radio' | 'checkboxGroup';
@@ -22,6 +23,7 @@ export interface FieldSet {
     color: string;
     desc?: string;
     fieldIds: string[];
+    fields?: LocalDynamicField[];
 }
 
 export type LogType = 'bao_quan' | 'bao_duong' | 'sua_chua' | 'niem_cat' | 'dieu_dong' | 'gio_su_dung';
