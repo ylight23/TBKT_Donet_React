@@ -1,4 +1,5 @@
 import type { DynamicMenuDataSource } from '../configs/dynamicMenuDataSource';
+import type { LocalAuditMetadata } from '../apis/thamSoApi';
 
 export interface DynamicMenuConfigItem {
   id: string;
@@ -13,4 +14,5 @@ export interface DynamicMenuConfigItem {
   columns: Array<{ key: string; name: string }>;
   templateKey: string;
   enabled: boolean;
+  audit?: LocalAuditMetadata;
 }

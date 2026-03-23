@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
@@ -18,6 +19,7 @@ import type {
   LocalFieldSet,
 } from '../../types/thamSo';
 import type { AppDispatch, RootState } from '../../store';
+import thamSoApi from '../../apis/thamSoApi';
 import {
   iconToName,
   nameToIcon,
@@ -72,7 +74,9 @@ const CauHinhThamSo: React.FC = () => {
   } = useSelector((state: RootState) => state.thamSoReducer);
   const [tab, setTab] = useState<MainTab>('fields');
   const [fields, setFields] = useState<DynamicField[]>([]);
+  const [deletedFields, setDeletedFields] = useState<DynamicField[]>([]);
   const [fieldSets, setFieldSets] = useState<FieldSet[]>([]);
+  const [deletedFieldSets, setDeletedFieldSets] = useState<FieldSet[]>([]);
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false, message: '', severity: 'info',
@@ -201,6 +205,7 @@ const CauHinhThamSo: React.FC = () => {
   };
 
   const handleDeleteField = async (id: string) => {
+    const deletedField = fields.find((field) => field.id === id);
     try {
       clearScheduledSave(fieldSaveTimersRef, id);
 
@@ -216,12 +221,27 @@ const CauHinhThamSo: React.FC = () => {
       }
 
       await dispatch(deleteDynamicField(id)).unwrap();
+      if (deletedField) {
+        setDeletedFields((prev) => [deletedField, ...prev.filter((field) => field.id !== deletedField.id)]);
+      }
       setSnack({ open: true, message: 'Đã xoá trường', severity: 'success' });
     } catch (err) {
       console.error('[CauHinhThamSo] deleteDynamicField error', err);
       setSnack({ open: true, message: 'Lỗi xoá trường dữ liệu', severity: 'error' });
     }
   };
+
+  const handleRestoreField = useCallback(async (id: string) => {
+    try {
+      await thamSoApi.restoreDynamicField(id);
+      setDeletedFields((prev) => prev.filter((field) => field.id !== id));
+      await dispatch(fetchThamSoSchema()).unwrap();
+      setSnack({ open: true, message: 'Da khoi phuc truong du lieu', severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] restoreDynamicField error', err);
+      setSnack({ open: true, message: 'Loi khoi phuc truong du lieu', severity: 'error' });
+    }
+  }, [dispatch]);
 
   const handleSaveFieldSet = async (fieldSet: FieldSet, isNew: boolean) => {
     const currentId = fieldSet.id;
@@ -273,6 +293,7 @@ const CauHinhThamSo: React.FC = () => {
   };
 
   const handleDeleteFieldSet = async (id: string) => {
+    const deletedFieldSet = fieldSets.find((fieldSet) => fieldSet.id === id);
     try {
       clearScheduledSave(fieldSetSaveTimersRef, id);
 
@@ -288,12 +309,28 @@ const CauHinhThamSo: React.FC = () => {
       }
 
       await dispatch(deleteFieldSet(id)).unwrap();
+      if (deletedFieldSet) {
+        setDeletedFieldSets((prev) => [deletedFieldSet, ...prev.filter((fieldSet) => fieldSet.id !== deletedFieldSet.id)]);
+      }
       setSnack({ open: true, message: 'Đã xoá bộ dữ liệu', severity: 'success' });
     } catch (err) {
       console.error('[CauHinhThamSo] deleteFieldSet error', err);
       setSnack({ open: true, message: 'Lỗi xoá bộ dữ liệu', severity: 'error' });
     }
   };
+
+  const handleRestoreFieldSet = useCallback(async (id: string) => {
+    try {
+      await thamSoApi.restoreFieldSet(id);
+      setDeletedFieldSets((prev) => prev.filter((fieldSet) => fieldSet.id !== id));
+      await dispatch(fetchThamSoSchema()).unwrap();
+      setActiveSetId(id);
+      setSnack({ open: true, message: 'Da khoi phuc bo du lieu', severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] restoreFieldSet error', err);
+      setSnack({ open: true, message: 'Loi khoi phuc bo du lieu', severity: 'error' });
+    }
+  }, [dispatch]);
 
   const setFieldsAndPersist: React.Dispatch<React.SetStateAction<DynamicField[]>> = (action) => {
     setFields((prev: DynamicField[]) => {
@@ -409,9 +446,47 @@ const CauHinhThamSo: React.FC = () => {
           minHeight: 560,
         }}
       >
+        {tab === 'datasets' && deletedFieldSets.length > 0 && (
+          <Card sx={{ mb: 1.5 }}>
+            <CardContent>
+              <Stack spacing={1.5}>
+                <Box>
+                  <Typography variant="h6" fontWeight={700}>Khoi phuc bo du lieu da xoa</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Danh sach nay chi luu cac fieldset da xoa trong phien lam viec hien tai.
+                  </Typography>
+                </Box>
+                <Stack spacing={1}>
+                  {deletedFieldSets.map((fieldSet) => (
+                    <Stack
+                      key={`restore-${fieldSet.id}`}
+                      direction={{ xs: 'column', md: 'row' }}
+                      spacing={1}
+                      justifyContent="space-between"
+                      alignItems={{ xs: 'flex-start', md: 'center' }}
+                      sx={{ p: 1.5, border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}
+                    >
+                      <Box>
+                        <Typography fontWeight={600}>{fieldSet.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {fieldSet.fieldIds.length} truong du lieu
+                        </Typography>
+                      </Box>
+                      <Button variant="outlined" onClick={() => void handleRestoreFieldSet(fieldSet.id)}>
+                        Khoi phuc
+                      </Button>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
         {tab === 'fields' && (
           <PageFieldLibrary
             fields={fields}
+            deletedFields={deletedFields}
+            onRestoreField={handleRestoreField}
             setFields={setFieldsAndPersist}
             fieldSets={fieldSets}
             setFieldSets={setFieldSetsAndPersist}

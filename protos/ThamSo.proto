@@ -77,6 +77,9 @@ message DynamicField {
   reserved 7; // was: delete (internal DB flag)
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
+  string create_by = 12;
+  string modify_by = 13;
+  int32 version = 14;
 }
 
 message GetListDynamicFieldsRequest {}
@@ -115,6 +118,9 @@ message FieldSet {
   reserved 7; // was: delete
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
+  string create_by = 12;
+  string modify_by = 13;
+  int32 version = 14;
 }
 
 message GetListFieldSetsRequest {}
@@ -160,8 +166,12 @@ message FormConfig {
   string desc = 3;
   repeated FormTabConfig tabs = 4;
   reserved 5; // was: delete
+  string key = 6;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
+  string create_by = 12;
+  string modify_by = 13;
+  int32 version = 14;
 }
 
 message GetListFormConfigsRequest {}
@@ -213,6 +223,9 @@ message DynamicMenu {
   string template_key = 15;
   repeated ColumnConfig columns = 16;
   string permission_code = 17;
+  string create_by = 18;
+  string modify_by = 19;
+  int32 version = 20;
 }
 
 message GetListDynamicMenusRequest {}
@@ -254,8 +267,12 @@ message DynamicMenuDataSource {
   repeated DynamicMenuDataSourceField fields = 5;
   bool enabled = 6;
   reserved 7; // was: delete
+  string management_mode = 8; // proto | manual
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
+  string create_by = 12;
+  string modify_by = 13;
+  int32 version = 14;
 }
 
 message GetListDynamicMenuDataSourcesRequest {}
@@ -327,6 +344,9 @@ message TemplateLayout {
   reserved 6; // was: delete
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
+  string create_by = 12;
+  string modify_by = 13;
+  int32 version = 14;
 }
 
 message GetListTemplateLayoutsRequest {}

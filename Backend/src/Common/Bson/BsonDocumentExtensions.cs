@@ -53,6 +53,14 @@ internal static class BsonDocumentExtensions
         return (value == BsonNull.Value || value.IsBsonNull) ? fallback : value.AsBoolean;
     }
 
+    public static int IntOr(this BsonDocument? doc, string key, int fallback = 0)
+    {
+        if (doc == null) return fallback;
+        var value = doc.GetValue(key, BsonNull.Value);
+        if (value == BsonNull.Value || value.IsBsonNull) return fallback;
+        return value.IsInt32 ? value.AsInt32 : (int)value.ToInt64();
+    }
+
     public static DateTime? DateTimeOr(this BsonDocument? doc, string key)
     {
         if (doc == null) return null;

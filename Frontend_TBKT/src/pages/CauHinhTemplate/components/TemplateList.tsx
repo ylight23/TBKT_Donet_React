@@ -7,20 +7,25 @@ import type { GridColDef } from '@mui/x-data-grid';
 import type { LocalTemplateLayout } from '../../../apis/thamSoApi';
 import thamSoApi from '../../../apis/thamSoApi';
 import LazyDataGrid from '../../../components/LazyDataGrid';
+import { buildAuditSummary } from '../../../utils/auditMeta';
 
 interface TemplateListProps {
   items: LocalTemplateLayout[];
+  deletedItems: LocalTemplateLayout[];
   loading: boolean;
   onEdit: (item: LocalTemplateLayout) => void;
   onDelete: (id: string) => void;
+  onRestore: (id: string) => void | Promise<void>;
   onTogglePublish: (item: LocalTemplateLayout) => Promise<void>;
 }
 
 export const TemplateList: React.FC<TemplateListProps> = ({
   items,
+  deletedItems,
   loading,
   onEdit,
   onDelete,
+  onRestore,
   onTogglePublish,
 }) => {
   const [exporting, setExporting] = useState(false);
@@ -68,6 +73,14 @@ export const TemplateList: React.FC<TemplateListProps> = ({
   const columns: GridColDef[] = useMemo(
     () => [
       { field: 'key', headerName: 'Template key', minWidth: 160, flex: 1 },
+      {
+        field: '_audit',
+        headerName: 'Cap nhat',
+        minWidth: 190,
+        flex: 1,
+        sortable: false,
+        valueGetter: (_, row) => buildAuditSummary((row as LocalTemplateLayout).audit),
+      },
       { field: 'name', headerName: 'Tên template', minWidth: 200, flex: 1.2 },
       {
         field: 'published',
@@ -194,6 +207,41 @@ export const TemplateList: React.FC<TemplateListProps> = ({
           </Box>
         </CardContent>
       </Card>
+      {deletedItems.length > 0 && (
+        <Card sx={{ mt: 2 }}>
+          <CardContent>
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography variant="h6" fontWeight={600}>Khoi phuc template da xoa</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Danh sach nay chi giu cac template da xoa trong phien lam viec hien tai.
+                </Typography>
+              </Box>
+              <Stack spacing={1}>
+                {deletedItems.map((item) => (
+                  <Stack
+                    key={`restore-template-${item.id}`}
+                    direction={{ xs: 'column', md: 'row' }}
+                    spacing={1}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', md: 'center' }}
+                    sx={{ p: 1.5, border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    <Box>
+                      <Typography fontWeight={600}>{item.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">{item.key}</Typography>
+                      <Typography variant="caption" display="block" color="text.secondary">{buildAuditSummary(item.audit)}</Typography>
+                    </Box>
+                    <Button variant="outlined" onClick={() => void onRestore(item.id)}>
+                      Khoi phuc
+                    </Button>
+                  </Stack>
+                ))}
+              </Stack>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
       <Snackbar
         open={snack.open}
         autoHideDuration={4000}

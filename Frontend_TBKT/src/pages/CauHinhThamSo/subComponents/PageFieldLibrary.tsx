@@ -4,6 +4,7 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -15,6 +16,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import { nameToIcon } from '../../../utils/thamSoUtils';
+import { buildAuditSummary } from '../../../utils/auditMeta';
 import { FieldSet } from '../types';
 import { hasValidationRules, typeOf } from '../utils';
 import FieldConfigPanel from './FieldConfigPanel';
@@ -22,6 +24,8 @@ import FieldSetEditorDialog from './FieldSetEditorDialog';
 
 interface PageFieldLibraryProps {
     fields: DynamicField[];
+    deletedFields: DynamicField[];
+    onRestoreField: (id: string) => void | Promise<void>;
     setFields: React.Dispatch<React.SetStateAction<DynamicField[]>>;
     fieldSets: FieldSet[];
     setFieldSets: React.Dispatch<React.SetStateAction<FieldSet[]>>;
@@ -29,6 +33,8 @@ interface PageFieldLibraryProps {
 
 const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
     fields,
+    deletedFields,
+    onRestoreField,
     setFields,
     fieldSets,
     setFieldSets,
@@ -188,6 +194,9 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
                                                 <Typography variant="caption" color="text.secondary" noWrap>
                                                     {field.key}
                                                 </Typography>
+                                                <Typography variant="caption" color="text.secondary" noWrap display="block">
+                                                    {buildAuditSummary(field.audit)}
+                                                </Typography>
                                             </Box>
 
                                             <Chip
@@ -228,6 +237,34 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({
                                 );
                             })}
                         </Stack>
+
+                        {deletedFields.length > 0 && (
+                            <Box sx={{ mt: 2 }}>
+                                <Divider sx={{ mb: 1.5 }} />
+                                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                                    Khoi phuc truong da xoa trong phien
+                                </Typography>
+                                <Stack spacing={1}>
+                                    {deletedFields.map((field) => (
+                                        <Stack
+                                            key={`restore-field-${field.id}`}
+                                            direction="row"
+                                            justifyContent="space-between"
+                                            alignItems="center"
+                                            sx={{ p: 1, border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}
+                                        >
+                                            <Box>
+                                                <Typography variant="body2" fontWeight={700}>{field.label}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{field.key}</Typography>
+                                            </Box>
+                                            <Button size="small" variant="outlined" onClick={() => void onRestoreField(field.id)}>
+                                                Khoi phuc
+                                            </Button>
+                                        </Stack>
+                                    ))}
+                                </Stack>
+                            </Box>
+                        )}
                     </CardContent>
                 </Card>
 

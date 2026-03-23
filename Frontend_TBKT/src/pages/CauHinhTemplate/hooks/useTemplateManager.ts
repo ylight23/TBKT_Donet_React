@@ -6,6 +6,7 @@ import type { FormState } from '../types';
 
 export interface UseTemplateManagerReturn {
   items: LocalTemplateLayout[];
+  deletedItems: LocalTemplateLayout[];
   loading: boolean;
   saving: boolean;
   error: string;
@@ -18,11 +19,13 @@ export interface UseTemplateManagerReturn {
   handleReset: () => void;
   handleSave: (dataToSave?: Data) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
+  handleRestore: (id: string) => Promise<void>;
   handleTogglePublish: (item: LocalTemplateLayout) => Promise<void>;
 }
 
 export const useTemplateManager = (): UseTemplateManagerReturn => {
   const [items, setItems] = useState<LocalTemplateLayout[]>([]);
+  const [deletedItems, setDeletedItems] = useState<LocalTemplateLayout[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -110,9 +113,13 @@ export const useTemplateManager = (): UseTemplateManagerReturn => {
   };
 
   const handleDelete = async (id: string): Promise<void> => {
+    const deletedItem = items.find((item) => item.id === id);
     try {
       setError('');
       await thamSoApi.deleteTemplateLayout(id);
+      if (deletedItem) {
+        setDeletedItems((prev) => [deletedItem, ...prev.filter((item) => item.id !== deletedItem.id)]);
+      }
       await loadItems();
       if (editingId === id) handleReset();
     } catch (err) {
@@ -120,8 +127,20 @@ export const useTemplateManager = (): UseTemplateManagerReturn => {
     }
   };
 
+  const handleRestore = async (id: string): Promise<void> => {
+    try {
+      setError('');
+      await thamSoApi.restoreTemplateLayout(id);
+      setDeletedItems((prev) => prev.filter((item) => item.id !== id));
+      await loadItems();
+    } catch (err) {
+      setError((err as Error)?.message || 'Khong the khoi phuc template');
+    }
+  };
+
   return {
     items,
+    deletedItems,
     handleTogglePublish,
     loading,
     saving,
@@ -135,5 +154,6 @@ export const useTemplateManager = (): UseTemplateManagerReturn => {
     handleReset,
     handleSave,
     handleDelete,
+    handleRestore,
   };
 };

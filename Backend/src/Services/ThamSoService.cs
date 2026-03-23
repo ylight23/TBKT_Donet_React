@@ -76,12 +76,12 @@ public class ThamSoServiceImpl(
     [Authorize]
     public override Task<GetListDynamicMenusResponse> GetListDynamicMenus(
         GetListDynamicMenusRequest request, ServerCallContext context) =>
-        dynamicMenuService.GetListDynamicMenusAsync(request);
+        dynamicMenuService.GetListDynamicMenusAsync(request, context);
 
     [Authorize]
     public override Task<GetDynamicMenuRowsResponse> GetDynamicMenuRows(
         GetDynamicMenuRowsRequest request, ServerCallContext context) =>
-        dynamicMenuService.GetDynamicMenuRowsAsync(request);
+        dynamicMenuService.GetDynamicMenuRowsAsync(request, context);
 
     [Authorize]
     public override Task<SaveDynamicMenuResponse> SaveDynamicMenu(

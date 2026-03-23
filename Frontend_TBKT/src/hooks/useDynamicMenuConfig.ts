@@ -3,6 +3,8 @@ import thamSoApi, { type DataSourceConfig } from '../apis/thamSoApi';
 import type { DynamicMenuConfigItem } from '../types/dynamicMenu';
 import { sanitizeDynamicMenuItem } from '../configs/dynamicMenuConfig';
 
+const DYNAMIC_MENU_CONFIG_CHANGED_EVENT = 'dynamic-menu-config-changed';
+
 export const useDynamicMenuConfig = () => {
   const [items, setItems] = useState<DynamicMenuConfigItem[]>([]);
   const [dataSources, setDataSources] = useState<DataSourceConfig[]>([]);
@@ -28,6 +30,15 @@ export const useDynamicMenuConfig = () => {
 
   useEffect(() => { void reload(); }, [reload]);
 
+  useEffect(() => {
+    const handleConfigChanged = () => {
+      void reload();
+    };
+
+    window.addEventListener(DYNAMIC_MENU_CONFIG_CHANGED_EVENT, handleConfigChanged);
+    return () => window.removeEventListener(DYNAMIC_MENU_CONFIG_CHANGED_EVENT, handleConfigChanged);
+  }, [reload]);
+
   const createItem = useCallback(async (item: DynamicMenuConfigItem): Promise<void> => {
     await thamSoApi.saveDynamicMenu(sanitizeDynamicMenuItem(item), true);
     await reload();
@@ -44,4 +55,8 @@ export const useDynamicMenuConfig = () => {
   }, [reload]);
 
   return { items, dataSources, loading, error, reload, createItem, updateItem, deleteItem };
+};
+
+export const notifyDynamicMenuConfigChanged = (): void => {
+  window.dispatchEvent(new CustomEvent(DYNAMIC_MENU_CONFIG_CHANGED_EVENT));
 };

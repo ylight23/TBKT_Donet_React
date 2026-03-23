@@ -13,6 +13,7 @@ namespace Backend.Services;
 public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> logger)
 {
     private const string DynamicMenuDataSourcePermissionCode = "thamso_dynamicmenu_datasource";
+    private const string ProtoManagementMode = "proto";
 
     private static readonly HashSet<string> ExcludedProtoFiles = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -102,6 +103,9 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
                     item = BsonSerializer.Deserialize<DynamicMenuDataSource>(existingBson);
                     item.Fields.Clear();
                     item.Fields.AddRange(fields);
+                    item.SourceName = sourceName;
+                    item.CollectionName = collectionName;
+                    item.ManagementMode = ProtoManagementMode;
                     item.ModifyDate = ProtobufTimestampConverter.GetNowTimestamp();
                     item.CreateDate = existingBson.TimestampOr("CreateDate") ?? item.CreateDate;
 
@@ -119,6 +123,7 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
                         SourceKey = sourceKey,
                         SourceName = sourceName,
                         CollectionName = collectionName,
+                        ManagementMode = ProtoManagementMode,
                         Enabled = true,
                         CreateDate = ProtobufTimestampConverter.GetNowTimestamp(),
                     };
@@ -235,6 +240,7 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
                 SourceKey = seed.SourceKey,
                 SourceName = seed.SourceName,
                 CollectionName = seed.CollectionName,
+                ManagementMode = ProtoManagementMode,
                 Enabled = true,
                 CreateDate = ProtobufTimestampConverter.GetNowTimestamp(),
             };

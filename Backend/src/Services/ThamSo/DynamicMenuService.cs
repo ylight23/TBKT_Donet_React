@@ -14,9 +14,20 @@ namespace Backend.Services;
 public class DynamicMenuService(ILogger<DynamicMenuService> logger)
 {
     private const string PermissionCode = "thamso_dynamicmenu";
+    
+    private static void ApplyAuditMetadata(DynamicMenu item, BsonDocument itemBson)
+    {
+        item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
+        item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
+        item.CreateBy = itemBson.StringOr("NguoiTao");
+        item.ModifyBy = itemBson.StringOr("NguoiSua");
+        item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
+    }
     private const string DynamicMenuPermissionGroup = "Menu động";
 
-    public async Task<GetListDynamicMenusResponse> GetListDynamicMenusAsync(GetListDynamicMenusRequest request)
+    public async Task<GetListDynamicMenusResponse> GetListDynamicMenusAsync(
+        GetListDynamicMenusRequest request,
+        ServerCallContext? context)
     {
         var response = new GetListDynamicMenusResponse();
         try
@@ -52,8 +63,10 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
                     }
                 }
 
+                ApplyAuditMetadata(menu, itemBson);
+
                 return menu;
-            }));
+            }).Where(menu => CanReadDynamicMenu(context, menu.PermissionCode)));
 
             response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} items");
             logger.LogInformation("GetListDynamicMenus: {Count} items", response.Items.Count);
@@ -67,7 +80,9 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
         return response;
     }
 
-    public async Task<GetDynamicMenuRowsResponse> GetDynamicMenuRowsAsync(GetDynamicMenuRowsRequest request)
+    public async Task<GetDynamicMenuRowsResponse> GetDynamicMenuRowsAsync(
+        GetDynamicMenuRowsRequest request,
+        ServerCallContext? context)
     {
         var response = new GetDynamicMenuRowsResponse();
         try
@@ -115,8 +130,17 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
                 .Find(Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq("DataSource", sourceKey),
                     MongoDocumentHelpers.NotDeleted))
-                .Project(Builders<BsonDocument>.Projection.Include("Columns").Include("ColumnKeys"))
+                .Project(Builders<BsonDocument>.Projection
+                    .Include("Columns")
+                    .Include("ColumnKeys")
+                    .Include("PermissionCode"))
                 .FirstOrDefaultAsync();
+
+            if (menuBson != null && !CanReadDynamicMenu(context, menuBson.StringOr("PermissionCode")))
+            {
+                response.Meta = ThamSoResponseFactory.Fail($"Khong co quyen xem du lieu cua menu dong '{sourceKey}'");
+                return response;
+            }
 
             var columnKeys = ExtractColumnKeys(menuBson);
             var projection = columnKeys.Count > 0 ? BuildProjection(columnKeys) : null;
@@ -178,6 +202,20 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
             item.DataSource = string.IsNullOrWhiteSpace(item.DataSource) ? "employee" : item.DataSource.Trim().ToLowerInvariant();
             item.PermissionCode = NormalizePermissionCode(item.PermissionCode, item.Id);
 
+            var activeDataSource = await Global.CollectionBsonDynamicMenuDataSource!
+                .Find(Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("SourceKey", item.DataSource),
+                    MongoDocumentHelpers.NotDeleted,
+                    Builders<BsonDocument>.Filter.Eq("Enabled", true)))
+                .Project(Builders<BsonDocument>.Projection.Include("_id"))
+                .FirstOrDefaultAsync();
+
+            if (activeDataSource == null)
+            {
+                response.Meta = ThamSoResponseFactory.Fail($"Datasource '{item.DataSource}' khong ton tai hoac dang tat");
+                return response;
+            }
+
             var sanitized = item.Columns
                 .Where(c => !string.IsNullOrWhiteSpace(c.Key))
                 .Select(c => new ColumnConfig
@@ -203,6 +241,7 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 await Global.CollectionBsonDynamicMenu!.InsertOneAsync(bsonDoc);
                 await UpsertDynamicMenuPermissionCatalogAsync(item.PermissionCode, item.Title, true);
@@ -246,6 +285,7 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 var replaceResult = await Global.CollectionBsonDynamicMenu!
                     .ReplaceOneAsync(Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc);
@@ -459,6 +499,20 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
             .ToArray();
 
         return new string(buffer).Trim('_');
+    }
+
+    private static bool CanReadDynamicMenu(ServerCallContext? context, string? permissionCode)
+    {
+        if (context == null) return false;
+
+        if (context.CanView(PermissionCode))
+            return true;
+
+        var normalizedPermissionCode = (permissionCode ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedPermissionCode))
+            return false;
+
+        return context.CanView(normalizedPermissionCode);
     }
 
     private static async Task UpsertDynamicMenuPermissionCatalogAsync(string permissionCode, string title, bool active)

@@ -14,6 +14,15 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
 {
     private const string PermissionCode = "thamso_templatelayout";
 
+    private static void ApplyAuditMetadata(TemplateLayout item, BsonDocument itemBson)
+    {
+        item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
+        item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
+        item.CreateBy = itemBson.StringOr("NguoiTao");
+        item.ModifyBy = itemBson.StringOr("NguoiSua");
+        item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
+    }
+
     public async Task<GetListTemplateLayoutsResponse> GetListTemplateLayoutsAsync(GetListTemplateLayoutsRequest request)
     {
         var response = new GetListTemplateLayoutsResponse();
@@ -26,10 +35,7 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
             response.Items.AddRange(items.Select(itemBson =>
             {
                 var layout = BsonSerializer.Deserialize<TemplateLayout>(itemBson);
-                var createDate = itemBson.TimestampOr("CreateDate");
-                if (createDate != null) layout.CreateDate = createDate;
-                var modifyDate = itemBson.TimestampOr("ModifyDate");
-                if (modifyDate != null) layout.ModifyDate = modifyDate;
+                ApplyAuditMetadata(layout, itemBson);
                 return layout;
             }));
 
@@ -77,6 +83,7 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 await Global.CollectionBsonTemplateLayout!.InsertOneAsync(bsonDoc);
                 response.Meta = ThamSoResponseFactory.Ok("Them template layout thanh cong");
@@ -108,6 +115,7 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 var replaceResult = await Global.CollectionBsonTemplateLayout!
                     .ReplaceOneAsync(Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc);

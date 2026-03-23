@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { nameToIcon } from '../../../utils/thamSoUtils';
 import thamSoApi from '../../../apis/thamSoApi';
 import type { DynamicMenuConfigItem } from '../../../types/dynamicMenu';
+import { useMyPermissions } from '../../../hooks/useMyPermissions';
 
 type Props = {
   title?: string;
@@ -26,27 +27,39 @@ export const DynamicMenuBlockConfig = {
     showDisabled: 'no',
   },
   render: ({ title, showDisabled }: Props) => {
+    const { canFunc, isAdmin, loaded: permLoaded } = useMyPermissions();
     const [items, setItems] = useState<DynamicMenuConfigItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
 
     useEffect(() => {
       let cancelled = false;
       const load = async () => {
         try {
+          setLoadError('');
           const menus = await thamSoApi.getListDynamicMenus();
           if (!cancelled) {
-            const filtered = showDisabled === 'yes' ? menus : menus.filter((m) => m.enabled);
+            const visibleByPermission = menus.filter((m) => {
+              if (!permLoaded || isAdmin) return true;
+              return !m.permissionCode || canFunc(m.permissionCode, 'view');
+            });
+            const filtered = showDisabled === 'yes'
+              ? visibleByPermission
+              : visibleByPermission.filter((m) => m.enabled);
             setItems(filtered as DynamicMenuConfigItem[]);
           }
-        } catch {
-          if (!cancelled) setItems([]);
+        } catch (err) {
+          if (!cancelled) {
+            setItems([]);
+            setLoadError((err as Error)?.message || 'Khong the tai danh sach menu dong.');
+          }
         } finally {
           if (!cancelled) setLoading(false);
         }
       };
       void load();
       return () => { cancelled = true; };
-    }, [showDisabled]);
+    }, [showDisabled, canFunc, isAdmin, permLoaded]);
 
     if (loading) {
       return (
@@ -62,6 +75,11 @@ export const DynamicMenuBlockConfig = {
           <Typography variant="subtitle1" fontWeight={700} sx={{ px: 2, mb: 1 }}>
             {title}
           </Typography>
+        )}
+        {loadError && (
+          <Alert severity="warning" sx={{ mx: 2, mb: 1 }}>
+            {loadError}
+          </Alert>
         )}
         {items.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>

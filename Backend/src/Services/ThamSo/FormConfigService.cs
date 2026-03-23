@@ -7,12 +7,102 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using protos;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Backend.Services;
 
 public class FormConfigService(ILogger<FormConfigService> logger)
 {
     private const string PermissionCode = "thamso_formconfig";
+    private static readonly Regex MultiDashRegex = new("-{2,}", RegexOptions.Compiled);
+
+    private static void ApplyAuditMetadata(FormConfig item, BsonDocument itemBson)
+    {
+        item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
+        item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
+        item.CreateBy = itemBson.StringOr("NguoiTao");
+        item.ModifyBy = itemBson.StringOr("NguoiSua");
+        item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
+    }
+
+    private static List<string> GetReferencedFieldSetIds(FormConfig item) =>
+        item.Tabs
+            .SelectMany(tab => tab.FieldSetIds)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    private static async Task<List<string>> GetMissingActiveFieldSetIdsAsync(IEnumerable<string> fieldSetIds)
+    {
+        var normalizedIds = ServiceMutationPolicy.NormalizeIds(fieldSetIds);
+        if (normalizedIds.Count == 0) return [];
+
+        var activeFieldSetIds = await Global.CollectionBsonFieldSet!
+            .Find(ServiceMutationPolicy.ActiveIdsFilter(normalizedIds))
+            .Project(Builders<BsonDocument>.Projection.Include("_id"))
+            .ToListAsync();
+
+        var activeIdSet = activeFieldSetIds
+            .Select(doc => doc.IdString())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+
+        return normalizedIds
+            .Where(id => !activeIdSet.Contains(id))
+            .ToList();
+    }
+
+    private static string NormalizeFormKey(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        var decomposed = normalized.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(decomposed.Length);
+        foreach (var ch in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            builder.Append(ch);
+        }
+
+        var ascii = builder
+            .ToString()
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
+
+        ascii = Regex.Replace(ascii, "[^a-z0-9\\s_-]", string.Empty);
+        ascii = Regex.Replace(ascii, "[\\s_]+", "-");
+        ascii = MultiDashRegex.Replace(ascii, "-");
+        return ascii.Trim('-');
+    }
+
+    private static async Task<bool> HasActiveFormKeyConflictAsync(string formId, string formKey)
+    {
+        if (string.IsNullOrWhiteSpace(formKey))
+        {
+            return false;
+        }
+
+        var conflictDoc = await Global.CollectionBsonFormConfig!
+            .Find(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Ne("_id", formId ?? string.Empty),
+                Builders<BsonDocument>.Filter.Eq("Key", formKey),
+                MongoDocumentHelpers.NotDeleted))
+            .Project(Builders<BsonDocument>.Projection.Include("_id"))
+            .FirstOrDefaultAsync();
+
+        return conflictDoc != null;
+    }
 
     private static DynamicField ToDynamicField(BsonDocument itemBson)
     {
@@ -137,6 +227,10 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 formConfigDoc.Remove("JoinedFieldSets");
 
                 var item = BsonSerializer.Deserialize<FormConfig>(formConfigDoc);
+                item.Key = string.IsNullOrWhiteSpace(item.Key)
+                    ? NormalizeFormKey(formConfigDoc.StringOr("Key") ?? item.Name)
+                    : NormalizeFormKey(item.Key);
+                ApplyAuditMetadata(item, formConfigDoc);
 
                 foreach (var tab in item.Tabs)
                 {
@@ -184,6 +278,27 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 return response;
             }
 
+            item.Key = NormalizeFormKey(string.IsNullOrWhiteSpace(item.Key) ? item.Name : item.Key);
+            if (string.IsNullOrWhiteSpace(item.Key))
+            {
+                response.Meta = ThamSoResponseFactory.Fail("Form key khong hop le");
+                return response;
+            }
+
+            if (await HasActiveFormKeyConflictAsync(item.Id, item.Key))
+            {
+                response.Meta = ThamSoResponseFactory.Fail($"Form key '{item.Key}' da ton tai");
+                return response;
+            }
+
+            var missingFieldSetIds = await GetMissingActiveFieldSetIdsAsync(GetReferencedFieldSetIds(item));
+            if (missingFieldSetIds.Count > 0)
+            {
+                response.Meta = ThamSoResponseFactory.Fail(
+                    $"Khong the luu form vi co field set khong hop le: {string.Join(", ", missingFieldSetIds.Take(10))}");
+                return response;
+            }
+
             if (string.IsNullOrWhiteSpace(item.Id))
             {
                 item.Id = ObjectId.GenerateNewId().ToString();
@@ -192,6 +307,7 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 await Global.CollectionBsonFormConfig!.InsertOneAsync(bsonDoc);
                 response.Meta = ThamSoResponseFactory.Ok("Them form moi thanh cong!");
@@ -217,6 +333,7 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 var replaceResult = await Global.CollectionBsonFormConfig!
                     .ReplaceOneAsync(Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc);

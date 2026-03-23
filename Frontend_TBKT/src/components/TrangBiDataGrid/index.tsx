@@ -10,6 +10,7 @@ import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useTheme } from '@mui/material/styles';
 import { useDispatch, useSelector } from 'react-redux';
@@ -38,6 +39,7 @@ import { OfficeProvider } from '../../context/OfficeContext';
 import StatsButton from '../Stats/StatsButton';
 import AddTrangBiDialog from './AddTrangBiDialog';
 import LazyDataGrid from '../LazyDataGrid';
+import { getRequiredFormKeyForMenu, getStableFormConfigKey } from '../../utils/formConfigKeys';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -97,13 +99,25 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
 
   // Determine which form to use
   const activeForm = useMemo(() => {
-    if (!activeMenuForDialog) return allForms[0] || null;
+    if (!activeMenuForDialog) return null;
     const targetName = activeMenuForDialog === 'tbNhom1' ? 'Trang bị Nhóm 1' : 'Trang bị Nhóm 2';
-    const found = allForms.find(f => f.name === targetName);
-    return found || allForms[0] || null;
+    const requiredKey = getRequiredFormKeyForMenu(activeMenuForDialog);
+    const found = allForms.find((f) => getStableFormConfigKey(f) === requiredKey);
+    return found || null;
   }, [allForms, activeMenuForDialog]);
 
   const isSchemaReady = allFields.length > 0 && allFieldSets.length > 0 && allForms.length > 0;
+  const formConfigError = useMemo(() => {
+    if (!activeMenuForDialog) return '';
+    if (!thamSoLoaded && thamSoLoading) return '';
+    if (!isSchemaReady) return 'Schema dong chua san sang. Vui long tai xong DynamicField, FieldSet va FormConfig.';
+    if (!activeForm) {
+      const targetName = activeMenuForDialog === 'tbNhom1' ? 'Trang bị Nhóm 1' : 'Trang bị Nhóm 2';
+      const requiredKey = getRequiredFormKeyForMenu(activeMenuForDialog);
+      return `Khong tim thay FormConfig co key "${requiredKey}" cho menu hien tai. Da tat fallback de tranh nhap sai cau hinh.`;
+    }
+    return '';
+  }, [activeForm, activeMenuForDialog, isSchemaReady, thamSoLoaded, thamSoLoading]);
 
   // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
@@ -339,7 +353,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setOpenAdd(true)}
-                disabled={thamSoLoading || !isSchemaReady}
+                disabled={thamSoLoading || !isSchemaReady || Boolean(formConfigError)}
                 sx={{
                   bgcolor: militaryColors.navy,
                   '&:hover': { bgcolor: militaryColors.navy, filter: 'brightness(1.1)' },
@@ -371,6 +385,12 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             </Stack>
           </Stack>
 
+          {formConfigError && (
+            <Alert severity="warning">
+              {formConfigError}
+            </Alert>
+          )}
+
           {/* Dynamic Add Dialog */}
           <AddTrangBiDialog
             open={openAdd}
@@ -379,6 +399,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             allFields={allFields}
             allFieldSets={allFieldSets}
             activeMenu={activeMenuForDialog}
+            configError={formConfigError}
           />
 
           {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}

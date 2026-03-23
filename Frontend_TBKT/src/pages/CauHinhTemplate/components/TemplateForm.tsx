@@ -1,5 +1,6 @@
 import React, { type Dispatch, type SetStateAction } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -37,10 +38,13 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({
   onSave,
   onReset,
 }) => (
-  <Card>
-    <CardContent>
-      <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+    <Card>
+      <CardContent>
+        <Stack spacing={2}>
+          <Alert severity="info">
+            `TemplateLayout.schemaJson` chỉ quyết định layout/runtime block. Form nhập động vẫn phải cấu hình ở `FormConfig`.
+          </Alert>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
           <TextField
             label="Template key"
             value={form.key}

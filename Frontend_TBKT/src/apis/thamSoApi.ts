@@ -1,35 +1,42 @@
 // @ts-nocheck
 import { create } from "@bufbuild/protobuf";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
     GetListDynamicFieldsRequestSchema,
     SaveDynamicFieldRequestSchema,
     DeleteDynamicFieldRequestSchema,
+    RestoreDynamicFieldRequestSchema,
     DynamicFieldSchema,
     FieldValidationSchema,
 
     GetListFieldSetsRequestSchema,
     SaveFieldSetRequestSchema,
     DeleteFieldSetRequestSchema,
+    RestoreFieldSetRequestSchema,
     FieldSetSchema,
 
     GetListFormConfigsRequestSchema,
     SaveFormConfigRequestSchema,
     DeleteFormConfigRequestSchema,
+    RestoreFormConfigRequestSchema,
     FormConfigSchema,
     FormTabConfigSchema,
 
     GetListDynamicMenusRequestSchema,
     SaveDynamicMenuRequestSchema,
     DeleteDynamicMenuRequestSchema,
+    RestoreDynamicMenuRequestSchema,
     GetDynamicMenuRowsRequestSchema,
     DynamicMenuSchema,
     GetListTemplateLayoutsRequestSchema,
     SaveTemplateLayoutRequestSchema,
     DeleteTemplateLayoutRequestSchema,
+    RestoreTemplateLayoutRequestSchema,
     TemplateLayoutSchema,
     GetListDynamicMenuDataSourcesRequestSchema,
     SaveDynamicMenuDataSourceRequestSchema,
     DeleteDynamicMenuDataSourceRequestSchema,
+    RestoreDynamicMenuDataSourceRequestSchema,
     DynamicMenuDataSourceSchema,
     DynamicMenuDataSourceFieldSchema,
     SyncDynamicMenuDataSourcesFromProtoRequestSchema,
@@ -50,6 +57,7 @@ import type {
 } from '../grpc/generated/ThamSo_pb';
 
 import { thamSoClient } from '../grpc/grpcClient';
+import { getStableFormConfigKey } from '../utils/formConfigKeys';
 
 // ============================================================
 // Local types (used by the CauHinhThamSo UI)
@@ -66,6 +74,14 @@ export interface LocalFieldValidation {
     displayType?: 'dropdown' | 'tabs' | string;
 }
 
+export interface LocalAuditMetadata {
+    createDate?: string;
+    modifyDate?: string;
+    createBy?: string;
+    modifyBy?: string;
+    version?: number;
+}
+
 export interface LocalDynamicField {
     id: string;
     key: string;
@@ -73,6 +89,7 @@ export interface LocalDynamicField {
     type: string;
     required: boolean;
     validation: LocalFieldValidation;
+    audit?: LocalAuditMetadata;
 }
 
 export interface LocalFieldSet {
@@ -83,6 +100,7 @@ export interface LocalFieldSet {
     desc?: string;
     fieldIds: string[];
     fields?: LocalDynamicField[];
+    audit?: LocalAuditMetadata;
 }
 
 export interface LocalFormTabConfig {
@@ -94,9 +112,11 @@ export interface LocalFormTabConfig {
 
 export interface LocalFormConfig {
     id: string;
+    key: string;
     name: string;
     desc?: string;
     tabs: LocalFormTabConfig[];
+    audit?: LocalAuditMetadata;
 }
 
 export interface LocalDynamicMenu {
@@ -112,6 +132,7 @@ export interface LocalDynamicMenu {
     columns: Array<{ key: string; name: string }>;
     templateKey: string;
     enabled: boolean;
+    audit?: LocalAuditMetadata;
 }
 
 export interface DataSourceField {
@@ -130,6 +151,8 @@ export interface DataSourceConfig {
     collectionName: string;
     fields: DataSourceField[];
     enabled: boolean;
+    managementMode: 'proto' | 'manual';
+    audit?: LocalAuditMetadata;
 }
 
 /** @deprecated Use DataSourceConfig */
@@ -141,7 +164,28 @@ export interface LocalTemplateLayout {
     name: string;
     schemaJson: string;
     published: boolean;
+    audit?: LocalAuditMetadata;
 }
+
+const timestampToIso = (ts?: Timestamp | null): string | undefined => {
+    if (!ts?.seconds) return undefined;
+    const ms = Number(ts.seconds.toString()) * 1000;
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
+};
+
+const mapAuditMetadata = (item: {
+    createDate?: Timestamp;
+    modifyDate?: Timestamp;
+    createBy?: string;
+    modifyBy?: string;
+    version?: number;
+}): LocalAuditMetadata => ({
+    createDate: timestampToIso(item.createDate),
+    modifyDate: timestampToIso(item.modifyDate),
+    createBy: item.createBy || undefined,
+    modifyBy: item.modifyBy || undefined,
+    version: item.version || undefined,
+});
 
 // ============================================================
 // Mappers: Proto <-> Local
@@ -164,6 +208,7 @@ function protoFieldToLocal(f: DynamicFieldProto): LocalDynamicField {
             apiUrl: f.validation?.apiUrl || undefined,
             displayType: f.validation?.displayType || undefined,
         },
+        audit: mapAuditMetadata(f),
     };
 }
 
@@ -196,6 +241,7 @@ function protoSetToLocal(s: FieldSetProto): LocalFieldSet {
         color: s.color,
         desc: s.desc,
         fieldIds: [...s.fieldIds],
+        audit: mapAuditMetadata(s),
     };
 }
 
@@ -223,6 +269,7 @@ function protoSetDetailToLocal(item: FieldSetDetailProto): LocalFieldSet {
 function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
     return {
         id: fc.id,
+        key: getStableFormConfigKey(fc),
         name: fc.name,
         desc: fc.desc || '',
         tabs: fc.tabs.map((t) => ({
@@ -231,12 +278,14 @@ function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
             setIds: [...t.fieldSetIds],
             fieldSets: (t.fieldSets ?? []).map((fieldSet) => protoSetDetailToLocal(fieldSet)),
         })),
+        audit: mapAuditMetadata(fc),
     };
 }
 
 function localFormToProto(fc: LocalFormConfig): any {
     return create(FormConfigSchema, {
         id: fc.id,
+        key: getStableFormConfigKey(fc),
         name: fc.name,
         desc: fc.desc || '',
         tabs: fc.tabs.map((t) =>
@@ -263,6 +312,7 @@ function protoDynamicMenuToLocal(item: DynamicMenuProto): LocalDynamicMenu {
         columns: item.columns?.map(c => ({ key: c.key, name: c.name })) ?? [],
         templateKey: item.templateKey || '',
         enabled: item.enabled,
+        audit: mapAuditMetadata(item),
     };
 }
 
@@ -295,6 +345,8 @@ function protoDynamicMenuDataSourceToLocal(item: DynamicMenuDataSourceProto): Da
             dataType: field.dataType,
         })),
         enabled: item.enabled,
+        managementMode: item.managementMode === 'proto' ? 'proto' : 'manual',
+        audit: mapAuditMetadata(item),
     };
 }
 
@@ -305,6 +357,7 @@ function protoTemplateLayoutToLocal(item: TemplateLayoutProto): LocalTemplateLay
         name: item.name,
         schemaJson: item.schemaJson || '{}',
         published: item.published,
+        audit: mapAuditMetadata(item),
     };
 }
 
@@ -325,6 +378,7 @@ function localDynamicMenuDataSourceToProto(item: DataSourceConfig): any {
         sourceName: item.sourceName,
         collectionName: item.collectionName,
         enabled: item.enabled,
+        managementMode: item.managementMode,
         fields: item.fields.map((field) => create(DynamicMenuDataSourceFieldSchema, {
             key: field.key,
             label: field.label,
@@ -379,6 +433,18 @@ const thamSoApi = {
         }
     },
 
+    async restoreDynamicField(id: string): Promise<boolean> {
+        try {
+            const request = create(RestoreDynamicFieldRequestSchema, { ids: [id] });
+            const res = await thamSoClient.restoreDynamicField(request);
+            console.log('[thamSoApi] restoreDynamicField:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] restoreDynamicField error:', err);
+            throw err;
+        }
+    },
+
     // ── FieldSet ──────────────────────────────────────────────
     async getListFieldSets(): Promise<LocalFieldSet[]> {
         try {
@@ -417,6 +483,18 @@ const thamSoApi = {
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteFieldSet error:', err);
+            throw err;
+        }
+    },
+
+    async restoreFieldSet(id: string): Promise<boolean> {
+        try {
+            const request = create(RestoreFieldSetRequestSchema, { ids: [id] });
+            const res = await thamSoClient.restoreFieldSet(request);
+            console.log('[thamSoApi] restoreFieldSet:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] restoreFieldSet error:', err);
             throw err;
         }
     },
@@ -463,6 +541,18 @@ const thamSoApi = {
         }
     },
 
+    async restoreFormConfig(id: string): Promise<boolean> {
+        try {
+            const request = create(RestoreFormConfigRequestSchema, { ids: [id] });
+            const res = await thamSoClient.restoreFormConfig(request);
+            console.log('[thamSoApi] restoreFormConfig:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] restoreFormConfig error:', err);
+            throw err;
+        }
+    },
+
     // ── DynamicMenu ────────────────────────────────────────────
     async getListDynamicMenus(): Promise<LocalDynamicMenu[]> {
         try {
@@ -505,6 +595,18 @@ const thamSoApi = {
         }
     },
 
+    async restoreDynamicMenu(id: string): Promise<boolean> {
+        try {
+            const request = create(RestoreDynamicMenuRequestSchema, { ids: [id] });
+            const res = await thamSoClient.restoreDynamicMenu(request);
+            console.log('[thamSoApi] restoreDynamicMenu:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] restoreDynamicMenu error:', err);
+            throw err;
+        }
+    },
+
     // ── Puck Template Layout ─────────────────────────────────
     async getListTemplateLayouts(): Promise<LocalTemplateLayout[]> {
         try {
@@ -540,6 +642,18 @@ const thamSoApi = {
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteTemplateLayout error:', err);
+            throw err;
+        }
+    },
+
+    async restoreTemplateLayout(id: string): Promise<boolean> {
+        try {
+            const request = create(RestoreTemplateLayoutRequestSchema, { ids: [id] });
+            const res = await thamSoClient.restoreTemplateLayout(request);
+            console.log('[thamSoApi] restoreTemplateLayout:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] restoreTemplateLayout error:', err);
             throw err;
         }
     },
@@ -633,6 +747,18 @@ const thamSoApi = {
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteDynamicMenuDataSource error:', err);
+            throw err;
+        }
+    },
+
+    async restoreDynamicMenuDataSource(id: string): Promise<boolean> {
+        try {
+            const request = create(RestoreDynamicMenuDataSourceRequestSchema, { ids: [id] });
+            const res = await thamSoClient.restoreDynamicMenuDataSource(request);
+            console.log('[thamSoApi] restoreDynamicMenuDataSource:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] restoreDynamicMenuDataSource error:', err);
             throw err;
         }
     },

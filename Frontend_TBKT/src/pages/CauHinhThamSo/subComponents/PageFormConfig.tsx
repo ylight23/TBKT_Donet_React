@@ -1,4 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -29,17 +30,30 @@ import {
     randomId,
     withTabMeta,
 } from './formTabMeta';
+import { getStableFormConfigKey, normalizeFormConfigKey } from '../../../utils/formConfigKeys';
+import { buildAuditSummary } from '../../../utils/auditMeta';
 
 interface PageFormConfigProps {
     fieldSets: FieldSet[];
     fields: DynamicField[];
     forms: FormConfig[];
+    deletedForms: FormConfig[];
+    onRestoreForm: (id: string) => void | Promise<void>;
     setForms: React.Dispatch<React.SetStateAction<FormConfig[]>>;
     activeFormId: string | null;
     setActiveFormId: (id: string | null) => void;
 }
 
-const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, forms, setForms, activeFormId, setActiveFormId }) => {
+const PageFormConfig: React.FC<PageFormConfigProps> = ({
+    fieldSets,
+    fields,
+    forms,
+    deletedForms,
+    onRestoreForm,
+    setForms,
+    activeFormId,
+    setActiveFormId,
+}) => {
     const [editingTab, setEditingTab] = useState<FormTabConfig | null>(null);
     const [previewRootTabId, setPreviewRootTabId] = useState<string | null>(null);
 
@@ -52,6 +66,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
         const id = `form_${Math.random().toString(36).slice(2, 9)}`;
         const newForm: FormConfig = {
             id,
+            key: `form-${Math.random().toString(36).slice(2, 7)}`,
             name: 'Form mới',
             desc: '',
             tabs: [{ id: randomId('tab'), label: 'Tab 1', setIds: [] }],
@@ -188,7 +203,9 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                     }}
                                 >
                                     <Typography variant="body2" fontWeight={700} noWrap>{form.name}</Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap>{getStableFormConfigKey(form)}</Typography>
                                     <Typography variant="caption" color="text.secondary" noWrap>{form.desc}</Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap display="block">{buildAuditSummary(form.audit)}</Typography>
                                     <Stack direction="row" spacing={0.75} mt={0.75}>
                                         <Chip size="small" icon={<LibraryBooksIcon sx={{ fontSize: 12 }} />} label={`${form.tabs.length} tab`} />
                                         <Chip size="small" label={`${totalSets} bộ dữ liệu`} variant="outlined" />
@@ -197,6 +214,39 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                             );
                         })}
                     </Stack>
+                    {deletedForms.length > 0 && (
+                        <>
+                            <Divider sx={{ my: 1.5 }} />
+                            <Stack spacing={0.75}>
+                                <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
+                                    Form da xoa trong phien
+                                </Typography>
+                                {deletedForms.map((form) => (
+                                    <Box
+                                        key={`restore-${form.id}`}
+                                        sx={{
+                                            p: 1.25,
+                                            borderRadius: 2,
+                                            border: '1px dashed',
+                                            borderColor: 'divider',
+                                            bgcolor: 'background.paper',
+                                        }}
+                                    >
+                                        <Typography variant="body2" fontWeight={700} noWrap>{form.name}</Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap>{form.desc}</Typography>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ mt: 1 }}
+                                            onClick={() => void onRestoreForm(form.id)}
+                                        >
+                                            Khoi phuc
+                                        </Button>
+                                    </Box>
+                                ))}
+                            </Stack>
+                        </>
+                    )}
                 </Box>
             </Card>
 
@@ -205,8 +255,18 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                 <Card sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                     {/* Form header */}
                     <CardContent sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <Alert severity="info" sx={{ mb: 1.5 }}>
+                            `FormConfig` dùng cho form nhập động. `TemplateLayout.schemaJson` là layout runtime riêng và không thay thế FormConfig.
+                        </Alert>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
                             <Box sx={{ flex: 1 }}>
+                                <TextField
+                                    fullWidth size="small" label="Form key"
+                                    value={activeForm.key}
+                                    onChange={(e) => updateActiveForm({ ...activeForm, key: normalizeFormConfigKey(e.target.value) })}
+                                    helperText="Runtime sẽ lookup theo key ổn định, không theo tên hiển thị."
+                                    sx={{ mb: 1 }}
+                                />
                                 <TextField
                                     fullWidth size="small" label="Tên form"
                                     value={activeForm.name}
@@ -218,6 +278,9 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({ fieldSets, fields, form
                                     value={activeForm.desc ?? ''}
                                     onChange={(e) => updateActiveForm({ ...activeForm, desc: e.target.value })}
                                 />
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                    {buildAuditSummary(activeForm.audit)}
+                                </Typography>
                             </Box>
                             <Stack direction="row" spacing={1} alignSelf={{ xs: 'flex-start', sm: 'flex-end' }}>
                                 <Chip

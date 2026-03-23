@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Render, type Config, type Data } from '@puckeditor/core';
 import '@puckeditor/core/puck.css';
-import { Alert, Box, CircularProgress } from '@mui/material';
+import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { PUCK_CONFIG } from '../../features/templateRuntime/puckConfig';
 import { toEditorData } from '../../features/templateRuntime/editorData';
 import thamSoApi from '../../apis/thamSoApi';
@@ -34,7 +34,28 @@ const TemplateRenderer: React.FC<TemplateRendererProps> = ({ templateKey }) => {
           setError(`Không tìm thấy template "${templateKey}".`);
           setData(null);
         } else {
-          setData(toEditorData(found.schemaJson));
+          if (!found.schemaJson?.trim()) {
+            setError(`Template "${templateKey}" chua co schemaJson.`);
+            setData(null);
+            return;
+          }
+
+          try {
+            JSON.parse(found.schemaJson);
+          } catch {
+            setError(`Template "${templateKey}" co JSON khong hop le.`);
+            setData(null);
+            return;
+          }
+
+          const nextData = toEditorData(found.schemaJson);
+          if (!nextData.content || nextData.content.length === 0) {
+            setError(`Template "${templateKey}" khong co block nao de render.`);
+            setData(null);
+            return;
+          }
+
+          setData(nextData);
         }
       } catch {
         if (!cancelled) setError('Lỗi tải template.');
@@ -55,10 +76,23 @@ const TemplateRenderer: React.FC<TemplateRendererProps> = ({ templateKey }) => {
   }
 
   if (error) {
-    return <Alert severity="warning" sx={{ m: 2 }}>{error}</Alert>;
+    return (
+      <Stack spacing={1} sx={{ m: 2 }}>
+        <Alert severity="warning">{error}</Alert>
+        <Typography variant="body2" color="text.secondary">
+          Vui long kiem tra lai cau hinh template trong man hinh CauHinhTemplate.
+        </Typography>
+      </Stack>
+    );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <Alert severity="info" sx={{ m: 2 }}>
+        Chua co du lieu template hop le de render.
+      </Alert>
+    );
+  }
 
   return (
     <Box

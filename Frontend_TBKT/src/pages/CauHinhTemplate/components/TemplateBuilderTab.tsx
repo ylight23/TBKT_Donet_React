@@ -6,10 +6,10 @@ import { useTemplateManager } from '../hooks/useTemplateManager';
 
 const TemplateBuilderTab: React.FC = () => {
     const {
-        items, loading, saving, error,
+        items, deletedItems, loading, saving, error,
         form, editorData, editingId,
         setForm, setEditorData,
-        handleEdit, handleReset, handleSave, handleDelete, handleTogglePublish,
+        handleEdit, handleReset, handleSave, handleDelete, handleRestore, handleTogglePublish,
     } = useTemplateManager();
 
     return (
@@ -28,9 +28,11 @@ const TemplateBuilderTab: React.FC = () => {
             />
             <TemplateList
                 items={items}
+                deletedItems={deletedItems}
                 loading={loading}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onRestore={handleRestore}
                 onTogglePublish={handleTogglePublish}
             />
         </>

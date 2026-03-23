@@ -15,6 +15,17 @@ public class DynamicMenuDataSourceService(
     ProtoSchemaDiscoveryService protoSchemaDiscoveryService)
 {
     private const string PermissionCode = "thamso_dynamicmenu_datasource";
+    private const string ManualManagementMode = "manual";
+    private const string ProtoManagementMode = "proto";
+
+    private static void ApplyAuditMetadata(DynamicMenuDataSource item, BsonDocument itemBson)
+    {
+        item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
+        item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
+        item.CreateBy = itemBson.StringOr("NguoiTao");
+        item.ModifyBy = itemBson.StringOr("NguoiSua");
+        item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
+    }
 
     public async Task<GetListDynamicMenuDataSourcesResponse> GetListDynamicMenuDataSourcesAsync(GetListDynamicMenuDataSourcesRequest request)
     {
@@ -39,6 +50,11 @@ public class DynamicMenuDataSourceService(
                     foreach (var fd in fieldsBson.Documents())
                         ds.Fields.Add(BsonSerializer.Deserialize<DynamicMenuDataSourceField>(fd));
                 }
+
+                ds.ManagementMode = string.IsNullOrWhiteSpace(ds.ManagementMode)
+                    ? itemBson.StringOr("ManagementMode") ?? ManualManagementMode
+                    : ds.ManagementMode.Trim().ToLowerInvariant();
+                ApplyAuditMetadata(ds, itemBson);
 
                 return ds;
             }));
@@ -78,6 +94,9 @@ public class DynamicMenuDataSourceService(
             item.SourceKey = string.IsNullOrWhiteSpace(item.SourceKey) ? "employee" : item.SourceKey.Trim().ToLowerInvariant();
             item.SourceName = string.IsNullOrWhiteSpace(item.SourceName) ? item.SourceKey : item.SourceName.Trim();
             item.CollectionName = string.IsNullOrWhiteSpace(item.CollectionName) ? item.SourceKey : item.CollectionName.Trim();
+            item.ManagementMode = string.IsNullOrWhiteSpace(item.ManagementMode)
+                ? ManualManagementMode
+                : item.ManagementMode.Trim().ToLowerInvariant();
 
             var normalizedFields = item.Fields
                 .Where(field => !string.IsNullOrWhiteSpace(field.Key))
@@ -113,6 +132,7 @@ public class DynamicMenuDataSourceService(
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 await Global.CollectionBsonDynamicMenuDataSource!.InsertOneAsync(bsonDoc);
                 response.Meta = ThamSoResponseFactory.Ok("Them datasource menu dong thanh cong!");
@@ -139,12 +159,31 @@ public class DynamicMenuDataSourceService(
                     return response;
                 }
 
+                var existingManagementMode = existingDoc.StringOr("ManagementMode")?.Trim().ToLowerInvariant();
+                if (string.Equals(existingManagementMode, ProtoManagementMode, StringComparison.Ordinal))
+                {
+                    item.ManagementMode = ProtoManagementMode;
+                    item.CollectionName = existingDoc.StringOr("CollectionName") ?? item.CollectionName;
+                    item.SourceName = existingDoc.StringOr("SourceName") ?? item.SourceName;
+                    item.Fields.Clear();
+
+                    var existingFields = existingDoc.ArrayOr("Fields");
+                    if (existingFields != null)
+                    {
+                        foreach (var fieldDoc in existingFields.Documents())
+                        {
+                            item.Fields.Add(BsonSerializer.Deserialize<DynamicMenuDataSourceField>(fieldDoc));
+                        }
+                    }
+                }
+
                 item.ModifyDate = ProtobufTimestampConverter.GetNowTimestamp();
                 item.CreateDate = existingDoc.TimestampOr("CreateDate") ?? item.CreateDate;
 
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 var replaceResult = await Global.CollectionBsonDynamicMenuDataSource!
                     .ReplaceOneAsync(Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc);
@@ -183,13 +222,64 @@ public class DynamicMenuDataSourceService(
             }
 
             var normalizedIds = ServiceMutationPolicy.NormalizeIds(request.Ids);
+            if (normalizedIds.Count == 0)
+            {
+                response.Success = false;
+                response.Message = "Khong co datasource nao de xoa";
+                return response;
+            }
+
+            var sourceKeyDocs = await Global.CollectionBsonDynamicMenuDataSource!
+                .Find(ServiceMutationPolicy.ActiveIdsFilter(normalizedIds))
+                .Project(Builders<BsonDocument>.Projection.Include("_id").Include("SourceKey"))
+                .ToListAsync();
+
+            var sourceKeys = sourceKeyDocs
+                .Select(doc => doc.StringOr("SourceKey"))
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
             var result = await Global.CollectionBsonDynamicMenuDataSource!.UpdateManyAsync(
                 ServiceMutationPolicy.ActiveIdsFilter(normalizedIds),
                 ServiceMutationPolicy.BuildSoftDeleteUpdate(context));
 
+            var cascadedMenuCount = 0L;
+            if (sourceKeys.Count > 0)
+            {
+                var affectedMenus = await Global.CollectionBsonDynamicMenu!
+                    .Find(Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.In("DataSource", sourceKeys),
+                        MongoDocumentHelpers.NotDeleted))
+                    .Project(Builders<BsonDocument>.Projection.Include("_id").Include("PermissionCode"))
+                    .ToListAsync();
+
+                if (affectedMenus.Count > 0)
+                {
+                    var menuResult = await Global.CollectionBsonDynamicMenu.UpdateManyAsync(
+                        Builders<BsonDocument>.Filter.And(
+                            Builders<BsonDocument>.Filter.In("DataSource", sourceKeys),
+                            MongoDocumentHelpers.NotDeleted),
+                        ServiceMutationPolicy.BuildSoftDeleteUpdate(context));
+
+                    cascadedMenuCount = menuResult.ModifiedCount;
+
+                    await SetPermissionCatalogActiveAsync(
+                        affectedMenus
+                            .Select(doc => NormalizePermissionCode(doc.StringOr("PermissionCode"), doc.IdString()))
+                            .Where(code => !string.IsNullOrWhiteSpace(code))
+                            .Distinct(StringComparer.Ordinal)
+                            .ToList(),
+                        false);
+                }
+            }
+
             response.Success = result.ModifiedCount > 0;
-            response.Message = $"Da xoa mem {result.ModifiedCount} datasource menu dong";
-            logger.LogInformation("DeleteDynamicMenuDataSource: Soft deleted {Count}", result.ModifiedCount);
+            response.Message = $"Da xoa mem {result.ModifiedCount} datasource menu dong va cascade soft delete {cascadedMenuCount} menu";
+            logger.LogInformation(
+                "DeleteDynamicMenuDataSource: Soft deleted {DataSourceCount} datasource and cascaded {MenuCount} menu(s)",
+                result.ModifiedCount,
+                cascadedMenuCount);
         }
         catch (Exception ex)
         {
@@ -281,5 +371,31 @@ public class DynamicMenuDataSourceService(
         }
 
         return response;
+    }
+
+    private static string NormalizePermissionCode(string? rawValue, string fallbackId)
+    {
+        var normalized = (rawValue ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(normalized))
+            return $"dynamicmenu_{fallbackId}";
+
+        var buffer = normalized
+            .Select(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-' ? ch : '_')
+            .ToArray();
+
+        return new string(buffer).Trim('_');
+    }
+
+    private static async Task SetPermissionCatalogActiveAsync(List<string> permissionCodes, bool active)
+    {
+        if (Global.CollectionPermissionCatalog == null || permissionCodes.Count == 0)
+            return;
+
+        await Global.CollectionPermissionCatalog.UpdateManyAsync(
+            Builders<BsonDocument>.Filter.In("Code", permissionCodes),
+            Builders<BsonDocument>.Update.Set("Active", active));
     }
 }

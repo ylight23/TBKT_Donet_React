@@ -25,7 +25,9 @@ import thamSoApi, {
   type DataSourceConfig,
   type DataSourceField,
 } from '../../apis/thamSoApi';
+import { notifyDynamicMenuConfigChanged } from '../../hooks/useDynamicMenuConfig';
 import LazyDataGrid from '../../components/LazyDataGrid';
+import { buildAuditSummary } from '../../utils/auditMeta';
 
 interface DataSourceFormState {
   id: string;
@@ -33,6 +35,7 @@ interface DataSourceFormState {
   sourceName: string;
   collectionName: string;
   enabled: boolean;
+  managementMode: 'proto' | 'manual';
   fields: DataSourceField[];
 }
 
@@ -48,6 +51,7 @@ const INITIAL_FORM: DataSourceFormState = {
   sourceName: '',
   collectionName: '',
   enabled: true,
+  managementMode: 'manual',
   fields: [{ ...EMPTY_FIELD, key: 'id', label: 'ID' }],
 };
 
@@ -61,6 +65,7 @@ const toSourceKey = (value: string): string =>
 
 const CauHinhDataSource: React.FC = () => {
   const [items, setItems] = useState<DataSourceConfig[]>([]);
+  const [deletedItems, setDeletedItems] = useState<DataSourceConfig[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
@@ -95,15 +100,19 @@ const CauHinhDataSource: React.FC = () => {
     return items.map((item) => ({
       ...item,
       fieldsText: item.fields.map((field) => `${field.label || field.key} (${field.key})`).join(', '),
+      managementModeText: item.managementMode === 'proto' ? 'Proto-managed' : 'Manual',
+      auditText: buildAuditSummary(item.audit),
       statusText: item.enabled ? 'Bật' : 'Tắt',
     }));
   }, [items]);
 
   const columns: GridColDef[] = [
     { field: 'sourceKey', headerName: 'Source key', minWidth: 160, flex: 0.9 },
+    { field: 'managementModeText', headerName: 'Mode', minWidth: 140, flex: 0.7 },
     { field: 'sourceName', headerName: 'Tên hiển thị', minWidth: 180, flex: 1 },
     { field: 'collectionName', headerName: 'Collection', minWidth: 160, flex: 0.9 },
     { field: 'statusText', headerName: 'Trạng thái', minWidth: 100, flex: 0.5 },
+    { field: 'auditText', headerName: 'Cap nhat', minWidth: 190, flex: 1 },
     { field: 'fieldsText', headerName: 'Fields', minWidth: 260, flex: 1.5 },
   ];
 
@@ -155,6 +164,7 @@ const CauHinhDataSource: React.FC = () => {
       sourceName,
       collectionName,
       enabled: form.enabled,
+      managementMode: form.managementMode,
       fields: sanitizeFields(form.fields),
     };
 
@@ -163,6 +173,7 @@ const CauHinhDataSource: React.FC = () => {
       setError('');
       await thamSoApi.saveDynamicMenuDataSource(payload, !editingId);
       await loadItems();
+      notifyDynamicMenuConfigChanged();
       resetForm();
     } catch (err) {
       setError((err as Error)?.message || 'Không thể lưu datasource');
@@ -179,18 +190,40 @@ const CauHinhDataSource: React.FC = () => {
       sourceName: item.sourceName,
       collectionName: item.collectionName,
       enabled: item.enabled,
+      managementMode: item.managementMode,
       fields: item.fields.length > 0 ? item.fields : [{ ...EMPTY_FIELD, key: 'id', label: 'ID' }],
     });
   };
 
   const handleDelete = async (id: string): Promise<void> => {
+    const target = items.find((item) => item.id === id);
+    const deletedItem = items.find((item) => item.id === id);
+    if (target && !window.confirm(`Xóa datasource "${target.sourceName}" sẽ soft delete các menu động đang dùng source này. Tiếp tục?`)) {
+      return;
+    }
     try {
       setError('');
       await thamSoApi.deleteDynamicMenuDataSource(id);
+      if (deletedItem) {
+        setDeletedItems((prev) => [deletedItem, ...prev.filter((item) => item.id !== deletedItem.id)]);
+      }
       await loadItems();
+      notifyDynamicMenuConfigChanged();
       if (editingId === id) resetForm();
     } catch (err) {
       setError((err as Error)?.message || 'Không thể xóa datasource');
+    }
+  };
+
+  const handleRestore = async (id: string): Promise<void> => {
+    try {
+      setError('');
+      await thamSoApi.restoreDynamicMenuDataSource(id);
+      setDeletedItems((prev) => prev.filter((item) => item.id !== id));
+      await loadItems();
+      notifyDynamicMenuConfigChanged();
+    } catch (err) {
+      setError((err as Error)?.message || 'Khong the khoi phuc datasource');
     }
   };
 
@@ -299,10 +332,21 @@ const CauHinhDataSource: React.FC = () => {
         </Stack>
 
         {error && <Alert severity="warning">{error}</Alert>}
+        <Alert severity="info">
+          `Sync từ Proto` là nguồn chuẩn cho datasource entity chính. `Khám phá` collection chỉ dùng cho fallback/manual datasource hoặc dữ liệu legacy.
+        </Alert>
+        <Alert severity="info">
+          `FormConfig` dùng cho form nhập động. `TemplateLayout` quyết định layout/runtime block và không thay thế cho FormConfig.
+        </Alert>
 
         <Card>
           <CardContent>
             <Stack spacing={2}>
+              {form.managementMode === 'proto' && (
+                <Alert severity="warning">
+                  Datasource này đang ở chế độ `proto-managed`. Hãy dùng `Sync từ Proto` để cập nhật schema thay vì chỉnh tay field hoặc collection.
+                </Alert>
+              )}
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <TextField
                   label="Source key"
@@ -310,17 +354,20 @@ const CauHinhDataSource: React.FC = () => {
                   onChange={(e) => setForm((prev) => ({ ...prev, sourceKey: e.target.value }))}
                   helperText="Ví dụ: employee, office, catalog-vat-tu"
                   fullWidth
+                  disabled={form.managementMode === 'proto' && Boolean(editingId)}
                 />
                 <TextField
                   label="Tên hiển thị"
                   value={form.sourceName}
                   onChange={(e) => setForm((prev) => ({ ...prev, sourceName: e.target.value }))}
                   fullWidth
+                  disabled={form.managementMode === 'proto' && Boolean(editingId)}
                 />
                 <TextField
                   label="Tên collection"
                   value={form.collectionName}
                   onChange={(e) => setForm((prev) => ({ ...prev, collectionName: e.target.value }))}
+                  disabled={form.managementMode === 'proto' && Boolean(editingId)}
                   helperText="Tên collection Mongo để tham chiếu"
                   fullWidth
                 />
@@ -330,7 +377,7 @@ const CauHinhDataSource: React.FC = () => {
                       variant="outlined"
                       startIcon={discovering ? <CircularProgress size={16} /> : <SearchIcon />}
                       onClick={() => void handleDiscoverIntoForm()}
-                      disabled={discovering || !form.collectionName.trim()}
+                      disabled={discovering || !form.collectionName.trim() || (form.managementMode === 'proto' && Boolean(editingId))}
                       sx={{ whiteSpace: 'nowrap', mt: { xs: 0, md: 2 } }}
                     >
                       Khám phá
@@ -358,20 +405,23 @@ const CauHinhDataSource: React.FC = () => {
                       value={field.key}
                       onChange={(e) => handleFieldChange(index, 'key', e.target.value)}
                       sx={{ minWidth: 220 }}
+                      disabled={form.managementMode === 'proto' && Boolean(editingId)}
                     />
                     <TextField
                       label="Field label"
                       value={field.label}
                       onChange={(e) => handleFieldChange(index, 'label', e.target.value)}
                       sx={{ minWidth: 220 }}
+                      disabled={form.managementMode === 'proto' && Boolean(editingId)}
                     />
                     <TextField
                       label="Data type"
                       value={field.dataType}
                       onChange={(e) => handleFieldChange(index, 'dataType', e.target.value)}
                       sx={{ minWidth: 160 }}
+                      disabled={form.managementMode === 'proto' && Boolean(editingId)}
                     />
-                    <IconButton color="error" onClick={() => handleRemoveField(index)}>
+                    <IconButton color="error" onClick={() => handleRemoveField(index)} disabled={form.managementMode === 'proto' && Boolean(editingId)}>
                       <DeleteIcon />
                     </IconButton>
                   </Stack>
@@ -502,6 +552,9 @@ const CauHinhDataSource: React.FC = () => {
                     <Typography variant="caption" color="text.secondary">
                       Fields: {item.fields.map((field) => `${field.label || field.key} (${field.key})`).join(', ')}
                     </Typography>
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      {buildAuditSummary(item.audit)}
+                    </Typography>
                   </Box>
                   <Stack direction="row" spacing={1}>
                     <Button variant="outlined" onClick={() => handleEdit(item)}>Sửa</Button>
@@ -512,6 +565,45 @@ const CauHinhDataSource: React.FC = () => {
             </Stack>
           </CardContent>
         </Card>
+        {deletedItems.length > 0 && (
+          <Card>
+            <CardContent>
+              <Stack spacing={1.5}>
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>Khoi phuc datasource da xoa</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Danh sach nay chi hien thi cac datasource da xoa trong phien lam viec hien tai.
+                  </Typography>
+                </Box>
+                <Stack spacing={1}>
+                  {deletedItems.map((item) => (
+                    <Stack
+                      key={`restore-${item.id}`}
+                      direction={{ xs: 'column', md: 'row' }}
+                      spacing={1}
+                      justifyContent="space-between"
+                      alignItems={{ xs: 'flex-start', md: 'center' }}
+                      sx={{ p: 1.5, border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}
+                    >
+                      <Box>
+                        <Typography fontWeight={600}>{item.sourceName} ({item.sourceKey})</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Collection: {item.collectionName}
+                        </Typography>
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          {buildAuditSummary(item.audit)}
+                        </Typography>
+                      </Box>
+                      <Button variant="outlined" onClick={() => void handleRestore(item.id)}>
+                        Khoi phuc
+                      </Button>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
       </Stack>
     </Box>
   );

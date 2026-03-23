@@ -14,6 +14,15 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
 {
     private const string PermissionCode = "thamso_dynamicfield";
 
+    private static void ApplyAuditMetadata(DynamicField item, BsonDocument itemBson)
+    {
+        item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
+        item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
+        item.CreateBy = itemBson.StringOr("NguoiTao");
+        item.ModifyBy = itemBson.StringOr("NguoiSua");
+        item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
+    }
+
     private static async Task<List<string>> GetReferencingFieldSetNamesAsync(IEnumerable<string> fieldIds)
     {
         var normalizedIds = fieldIds as List<string> ?? ServiceMutationPolicy.NormalizeIds(fieldIds);
@@ -53,6 +62,8 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
                     if (optionsBson != null)
                         item.Validation.Options.AddRange(optionsBson.Strings());
                 }
+
+                ApplyAuditMetadata(item, itemBson);
 
                 return item;
             }));
@@ -96,6 +107,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 await Global.CollectionBsonDynamicField!.InsertOneAsync(bsonDoc);
                 response.Meta = ThamSoResponseFactory.Ok("Them truong moi thanh cong!");
@@ -129,6 +141,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 var replaceResult = await Global.CollectionBsonDynamicField!
                     .ReplaceOneAsync(Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc);

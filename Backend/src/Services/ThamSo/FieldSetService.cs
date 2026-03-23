@@ -14,6 +14,56 @@ public class FieldSetService(ILogger<FieldSetService> logger)
 {
     private const string PermissionCode = "thamso_fieldset";
 
+    private static void ApplyAuditMetadata(FieldSet item, BsonDocument itemBson)
+    {
+        item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
+        item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
+        item.CreateBy = itemBson.StringOr("NguoiTao");
+        item.ModifyBy = itemBson.StringOr("NguoiSua");
+        item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
+    }
+
+    private static async Task<List<string>> GetMissingActiveFieldIdsAsync(IEnumerable<string> fieldIds)
+    {
+        var normalizedIds = ServiceMutationPolicy.NormalizeIds(fieldIds);
+        if (normalizedIds.Count == 0) return [];
+
+        var activeFieldIds = await Global.CollectionBsonDynamicField!
+            .Find(ServiceMutationPolicy.ActiveIdsFilter(normalizedIds))
+            .Project(Builders<BsonDocument>.Projection.Include("_id"))
+            .ToListAsync();
+
+        var activeIdSet = activeFieldIds
+            .Select(doc => doc.IdString())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+
+        return normalizedIds
+            .Where(id => !activeIdSet.Contains(id))
+            .ToList();
+    }
+
+    private static void RemoveFieldSetIdsFromFormConfigDoc(BsonDocument formConfigDoc, HashSet<string> removeIds)
+    {
+        if (!formConfigDoc.TryGetValue("Tabs", out var tabsValue) || !tabsValue.IsBsonArray)
+            return;
+
+        foreach (var tabValue in tabsValue.AsBsonArray.OfType<BsonDocument>())
+        {
+            if (!tabValue.TryGetValue("FieldSetIds", out var fieldSetIdsValue) || !fieldSetIdsValue.IsBsonArray)
+                continue;
+
+            var filteredIds = fieldSetIdsValue.AsBsonArray
+                .Where(value => !value.IsBsonNull)
+                .Select(value => value.ToString() ?? string.Empty)
+                .Where(id => !string.IsNullOrWhiteSpace(id) && !removeIds.Contains(id))
+                .Select(id => (BsonValue)id)
+                .ToArray();
+
+            tabValue["FieldSetIds"] = new BsonArray(filteredIds);
+        }
+    }
+
     private static DynamicField ToDynamicField(BsonDocument itemBson)
     {
         var item = BsonSerializer.Deserialize<DynamicField>(itemBson);
@@ -93,6 +143,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 {
                     FieldSet = BsonSerializer.Deserialize<FieldSet>(fieldSetDoc)
                 };
+                ApplyAuditMetadata(item.FieldSet, fieldSetDoc);
 
                 foreach (var fieldDoc in fieldDocs.OfType<BsonDocument>())
                 {
@@ -132,6 +183,14 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 return response;
             }
 
+            var missingFieldIds = await GetMissingActiveFieldIdsAsync(item.FieldIds);
+            if (missingFieldIds.Count > 0)
+            {
+                response.Meta = ThamSoResponseFactory.Fail(
+                    $"Khong the luu bo du lieu vi co field khong hop le: {string.Join(", ", missingFieldIds.Take(10))}");
+                return response;
+            }
+
             var isNew = string.IsNullOrWhiteSpace(item.Id);
             if (isNew)
             {
@@ -141,6 +200,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 await Global.CollectionBsonFieldSet!.InsertOneAsync(bsonDoc);
                 response.Item = item;
@@ -167,6 +227,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 var bsonDoc = item.ToBsonDocument();
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
+                ApplyAuditMetadata(item, bsonDoc);
 
                 var result = await Global.CollectionBsonFieldSet!
                     .ReplaceOneAsync(Builders<BsonDocument>.Filter.Eq("_id", item.Id), bsonDoc);
@@ -201,13 +262,41 @@ public class FieldSetService(ILogger<FieldSetService> logger)
             }
 
             var normalizedIds = ServiceMutationPolicy.NormalizeIds(request.Ids);
+            if (normalizedIds.Count == 0)
+            {
+                response.Success = false;
+                response.Message = "Khong co bo du lieu nao de xoa";
+                return response;
+            }
+
+            var removeIdSet = normalizedIds.ToHashSet(StringComparer.Ordinal);
             var result = await Global.CollectionBsonFieldSet!.UpdateManyAsync(
                 ServiceMutationPolicy.ActiveIdsFilter(normalizedIds),
                 ServiceMutationPolicy.BuildSoftDeleteUpdate(context));
+
+            var formConfigDocs = await Global.CollectionBsonFormConfig!
+                .Find(Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.AnyIn("Tabs.FieldSetIds", normalizedIds),
+                    MongoDocumentHelpers.NotDeleted))
+                .ToListAsync();
+
+            foreach (var existingDoc in formConfigDocs)
+            {
+                var nextDoc = existingDoc.DeepClone().AsBsonDocument;
+                RemoveFieldSetIdsFromFormConfigDoc(nextDoc, removeIdSet);
+                ServiceMutationPolicy.ApplyModifyAudit(nextDoc, existingDoc, context);
+                await Global.CollectionBsonFormConfig.ReplaceOneAsync(
+                    Builders<BsonDocument>.Filter.Eq("_id", existingDoc.IdString()),
+                    nextDoc);
+            }
+
             var count = result.ModifiedCount;
             response.Success = count > 0;
-            response.Message = $"Da xoa mem {count} bo du lieu";
-            logger.LogInformation("DeleteFieldSet: Soft deleted {Count}", count);
+            response.Message = $"Da xoa mem {count} bo du lieu va da go {normalizedIds.Count} fieldset khoi form tabs lien quan";
+            logger.LogInformation(
+                "DeleteFieldSet: Soft deleted {Count} field set(s) and cleaned {FormCount} form config(s)",
+                count,
+                formConfigDocs.Count);
         }
         catch (Exception ex)
         {

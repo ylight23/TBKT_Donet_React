@@ -1,3 +1,4 @@
+using Backend.Common.Bson;
 using Backend.Common.Mongo;
 using Backend.Common.Protobuf;
 using Grpc.Core;
@@ -40,6 +41,7 @@ internal static class ServiceMutationPolicy
         document["ModifyDate"] = ProtobufTimestampConverter.TimestampToBson(timestamp);
         document["NguoiTao"] = actor;
         document["NguoiSua"] = actor;
+        document["Version"] = 1;
         document["Delete"] = false;
     }
 
@@ -59,6 +61,7 @@ internal static class ServiceMutationPolicy
 
         document["ModifyDate"] = ProtobufTimestampConverter.TimestampToBson(timestamp);
         document["NguoiSua"] = actor;
+        document["Version"] = existingDocument.IntOr("Version", 0) + 1;
         document["Delete"] = false;
     }
 

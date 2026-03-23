@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../../../store';
+import thamSoApi from '../../../apis/thamSoApi';
 import type { LocalDynamicField, LocalFieldSet, LocalFormConfig } from '../../../types/thamSo';
 import { saveFormConfig, deleteFormConfig, fetchThamSoSchema } from '../../../store/reducer/thamSo';
 import { nameToIcon } from '../../../utils/thamSoUtils';
@@ -25,6 +26,7 @@ export const useFormConfigManager = () => {
   } = useSelector((state: RootState) => state.thamSoReducer);
 
   const [forms, setForms] = useState<LocalFormConfig[]>([]);
+  const [deletedForms, setDeletedForms] = useState<LocalFormConfig[]>([]);
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
   const saveTimersRef = useRef<Map<string, number>>(new Map());
   const pendingCreatesRef = useRef<Set<string>>(new Set());
@@ -89,8 +91,26 @@ export const useFormConfigManager = () => {
     if (old !== undefined) { window.clearTimeout(old); saveTimersRef.current.delete(id); }
     if (pendingCreatesRef.current.has(id)) return;
     if (isTempFormId(id) && !storeForms.some((f) => f.id === id)) return;
-    await dispatch(deleteFormConfig(id)).unwrap();
-  }, [dispatch, storeForms]);
+    const deletedForm = storeForms.find((form) => form.id === id) ?? forms.find((form) => form.id === id);
+    try {
+      if (deletedForm) {
+        setDeletedForms((prev) => [deletedForm, ...prev.filter((form) => form.id !== deletedForm.id)]);
+      }
+      await dispatch(deleteFormConfig(id)).unwrap();
+    } catch (error) {
+      if (deletedForm) {
+        setDeletedForms((prev) => prev.filter((form) => form.id !== deletedForm.id));
+      }
+      throw error;
+    }
+  }, [dispatch, forms, storeForms]);
+
+  const restoreForm = useCallback(async (id: string) => {
+    await thamSoApi.restoreFormConfig(id);
+    setDeletedForms((prev) => prev.filter((form) => form.id !== id));
+    await dispatch(fetchThamSoSchema()).unwrap();
+    setActiveFormId(id);
+  }, [dispatch]);
 
   const setFormsAndPersist: React.Dispatch<React.SetStateAction<LocalFormConfig[]>> = useCallback((action) => {
     setForms((prev) => {
@@ -120,6 +140,8 @@ export const useFormConfigManager = () => {
     forms,
     fields,
     fieldSets,
+    deletedForms,
+    restoreForm,
     activeFormId,
     setActiveFormId,
     setForms: setFormsAndPersist,

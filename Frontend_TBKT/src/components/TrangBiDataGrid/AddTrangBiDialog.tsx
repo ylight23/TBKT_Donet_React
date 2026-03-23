@@ -12,6 +12,7 @@ import Grid from '@mui/material/Grid';
 import LinearProgress from '@mui/material/LinearProgress';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 
 // Icons
@@ -37,6 +38,7 @@ interface AddTrangBiDialogProps {
   allFieldSets: FieldSet[];
   allFields: DynamicField[];
   activeMenu?: 'tbNhom1' | 'tbNhom2';
+  configError?: string;
 }
 
 // ── Field Item Component ───────────────────────────────────
@@ -183,6 +185,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   allFieldSets,
   allFields,
   activeMenu,
+  configError,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [activeChildTabByParent, setActiveChildTabByParent] = useState<Record<string, number>>({});
@@ -256,6 +259,20 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       })
       .filter((item): item is { fieldSet: FieldSet; fields: DynamicField[] } => item !== null);
   }, [effectiveTab, fieldSetById]);
+
+  const missingFieldSetIds = useMemo(() => {
+    if (!effectiveTab) return [];
+    return Array.from(new Set(getRealSetIds(effectiveTab).filter((setId) => !fieldSetById.has(setId))));
+  }, [effectiveTab, fieldSetById]);
+
+  const missingFieldRefs = useMemo(() => {
+    return currentTabContent.flatMap(({ fieldSet }) => {
+      const fieldMap = new Set((fieldSet.fields ?? []).map((field) => field.id));
+      return fieldSet.fieldIds
+        .filter((fieldId) => !fieldMap.has(fieldId))
+        .map((fieldId) => `${fieldSet.name}:${fieldId}`);
+    });
+  }, [currentTabContent]);
 
   // Get all fields in current tab
   const currentTabFields = useMemo(() => {
@@ -374,7 +391,24 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     && !(currentRootMeta?.tabType === 'sync-group' && currentRootChildren.length > 0 && activeChildTabIndex < currentRootChildren.length - 1);
 
   if (!formConfig) {
-    return null;
+    return (
+      <FormDialog
+        open={open}
+        onClose={onClose}
+        mode="add"
+        maxWidth="sm"
+        title="Khong mo duoc form nhap dong"
+        contentPadding={0}
+        showConfirm={false}
+        showCancel={false}
+      >
+        <Box sx={{ p: 3 }}>
+          <Alert severity="warning">
+            {configError || 'Khong tim thay FormConfig hop le cho menu hien tai.'}
+          </Alert>
+        </Box>
+      </FormDialog>
+    );
   }
 
   // Default colors for field sets
@@ -480,6 +514,21 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         borderBottom: '1px solid',
         borderColor: 'divider',
       }}>
+        {configError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {configError}
+          </Alert>
+        )}
+        {missingFieldSetIds.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Tab hien tai dang tham chieu fieldset khong ton tai: {missingFieldSetIds.join(', ')}.
+          </Alert>
+        )}
+        {missingFieldRefs.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            FieldSet hien tai dang thieu field active: {missingFieldRefs.join(', ')}.
+          </Alert>
+        )}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" fontWeight={600} color="text.secondary">
             Tiến độ nhập liệu

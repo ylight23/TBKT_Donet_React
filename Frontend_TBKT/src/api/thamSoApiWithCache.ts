@@ -38,6 +38,16 @@ export const thamSoApi = {
     return result;
   },
 
+  async restoreDynamicField(id: string): Promise<boolean> {
+    const result = await grpcThamSoApi.restoreDynamicField(id);
+    if (result) {
+      schemaCache.clear(KEYS.DYNAMIC_FIELDS);
+      schemaCache.clear(KEYS.FIELD_SETS);
+      console.log('[cache] DynamicFields/FieldSets cache invalidated after restore');
+    }
+    return result;
+  },
+
   // ── FieldSet ──────────────────────────────────────────────
   async getListFieldSets(): Promise<LocalFieldSet[]> {
     const cached = schemaCache.get<LocalFieldSet[]>(KEYS.FIELD_SETS);
@@ -63,6 +73,16 @@ export const thamSoApi = {
     if (result) {
       schemaCache.clear(KEYS.FIELD_SETS);
       console.log('[cache] FieldSets cache invalidated after delete');
+    }
+    return result;
+  },
+
+  async restoreFieldSet(id: string): Promise<boolean> {
+    const result = await grpcThamSoApi.restoreFieldSet(id);
+    if (result) {
+      schemaCache.clear(KEYS.FIELD_SETS);
+      schemaCache.clear(KEYS.FORM_CONFIGS);
+      console.log('[cache] FieldSets/FormConfigs cache invalidated after restore');
     }
     return result;
   },
@@ -93,6 +113,15 @@ export const thamSoApi = {
     if (result) {
       schemaCache.clear(KEYS.FORM_CONFIGS);
       console.log('[cache] FormConfigs cache invalidated after delete');
+    }
+    return result;
+  },
+
+  async restoreFormConfig(id: string): Promise<boolean> {
+    const result = await grpcThamSoApi.restoreFormConfig(id);
+    if (result) {
+      schemaCache.clear(KEYS.FORM_CONFIGS);
+      console.log('[cache] FormConfigs cache invalidated after restore');
     }
     return result;
   },
