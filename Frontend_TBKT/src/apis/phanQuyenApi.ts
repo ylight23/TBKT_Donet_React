@@ -14,7 +14,7 @@ import {
 } from '../grpc/generated/PhanQuyen_pb';
 import type { ChucNangPermission, PhanHePermission } from '../store/reducer/permissionReducer';
 import { phanQuyenClient } from '../grpc/grpcClient';
-import type { PermissionGroup, ScopeType } from '../types/permission';
+import type { GroupScopeConfig, PermissionGroup, ScopeType } from '../types/permission';
 
 // ── Shared DTOs ───────────────────────────────────────────────────────────────
 
@@ -33,14 +33,12 @@ export interface NhomNguoiDungInfo {
 export interface GroupPermissions {
     checkedCodes: string[];
     scopeType: string;
+    anchorNodeId?: string;
+    multiNodeIds: string[];
+    idNhomChuyenNganh?: string;
 }
 
 export interface PermissionCatalogGroupInfo extends PermissionGroup {}
-
-export interface ScopeAttributeInfo {
-    field: string;
-    value: string;
-}
 
 export interface UserInGroupInfo {
     idAssignment: string;
@@ -52,7 +50,8 @@ export interface UserInGroupInfo {
     anchorNodeName: string;
     isExpired: boolean;
     ngayHetHan?: string;
-    scopeAttribute?: ScopeAttributeInfo;
+    idNguoiUyQuyen?: string;
+    idNhomChuyenNganh?: string;
 }
 
 export interface AssignmentDetailInfo {
@@ -69,7 +68,8 @@ export interface AssignmentDetailInfo {
     loai: string;
     ngayTao?: string;
     ngayHetHan?: string;
-    scopeAttribute?: ScopeAttributeInfo;
+    idNguoiUyQuyen?: string;
+    idNhomChuyenNganh?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -78,6 +78,19 @@ function tsToIso(ts?: { seconds: bigint; nanos: number } | null): string | undef
     if (!ts) return undefined;
     const ms = Number(ts.seconds) * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000);
     return new Date(ms).toISOString();
+}
+
+function isoToTimestamp(value?: string): { seconds: bigint; nanos: number } | undefined {
+    if (!value) return undefined;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return undefined;
+    const millis = date.getTime();
+    const seconds = Math.floor(millis / 1000);
+    const nanos = (millis % 1000) * 1_000_000;
+    return {
+        seconds: BigInt(seconds),
+        nanos,
+    };
 }
 
 // ── getMyPermissions ──────────────────────────────────────────────────────────
@@ -119,6 +132,7 @@ export async function getMyPermissions() {
         scopeType:    res.scopeType,
         anchorNodeId: res.anchorNodeId,
         nganhDocIds:  [...res.nganhDocIds],
+        idNhomChuyenNganh: res.idNhomChuyenNganh,
     };
 }
 
@@ -185,7 +199,13 @@ export async function deleteNhomNguoiDung(id: string): Promise<{ success: boolea
 export async function getGroupPermissions(idNhom: string): Promise<GroupPermissions> {
     const req = create(GetGroupPermissionsRequestSchema, { idNhom });
     const res = await phanQuyenClient.getGroupPermissions(req);
-    return { checkedCodes: [...res.checkedCodes], scopeType: res.scopeType || 'SUBTREE' };
+    return {
+        checkedCodes: [...res.checkedCodes],
+        scopeType: res.scopeType || 'SUBTREE',
+        anchorNodeId: res.anchorNodeId || '',
+        multiNodeIds: [...res.multiNodeIds],
+        idNhomChuyenNganh: res.idNhomChuyenNganh || '',
+    };
 }
 
 // ── saveGroupPermissions ──────────────────────────────────────────────────────
@@ -193,9 +213,16 @@ export async function getGroupPermissions(idNhom: string): Promise<GroupPermissi
 export async function saveGroupPermissions(
     idNhom: string,
     checkedCodes: string[],
-    scopeType: string,
+    scopeConfig: GroupScopeConfig,
 ): Promise<void> {
-    const req = create(SaveGroupPermissionsRequestSchema, { idNhom, checkedCodes, scopeType });
+    const req = create(SaveGroupPermissionsRequestSchema, {
+        idNhom,
+        checkedCodes,
+        scopeType: scopeConfig.scopeType,
+        anchorNodeId: scopeConfig.anchorNodeId ?? '',
+        multiNodeIds: scopeConfig.multiNodeIds ?? [],
+        idNhomChuyenNganh: scopeConfig.idNhomChuyenNganh ?? '',
+    });
     await phanQuyenClient.saveGroupPermissions(req);
 }
 
@@ -214,9 +241,8 @@ export async function listGroupUsers(idNhom: string): Promise<UserInGroupInfo[]>
         anchorNodeName: u.anchorNodeName,
         isExpired:    u.isExpired,
         ngayHetHan:   tsToIso(u.ngayHetHan),
-        scopeAttribute: u.scopeAttribute
-            ? { field: u.scopeAttribute.field, value: u.scopeAttribute.value }
-            : undefined,
+        idNguoiUyQuyen: u.idNguoiUyQuyen,
+        idNhomChuyenNganh: u.idNhomChuyenNganh,
     }));
 }
 
@@ -255,9 +281,8 @@ export async function listAllAssignments(
         loai:          a.loai || 'Direct',
         ngayTao:       tsToIso(a.ngayTao),
         ngayHetHan:    tsToIso(a.ngayHetHan),
-        scopeAttribute: a.scopeAttribute
-            ? { field: a.scopeAttribute.field, value: a.scopeAttribute.value }
-            : undefined,
+        idNguoiUyQuyen: a.idNguoiUyQuyen,
+        idNhomChuyenNganh: a.idNhomChuyenNganh,
     }));
     return { items, totalCount: res.totalCount };
 }
@@ -270,6 +295,9 @@ export async function assignUserToGroup(params: {
     scopeType?: string;
     anchorNodeId?: string;
     loai?: string;
+    ngayHetHan?: string;
+    idNguoiUyQuyen?: string;
+    idNhomChuyenNganh?: string;
 }): Promise<string> {
     const req = create(AssignUserRequestSchema, {
         idNguoiDung:  params.idNguoiDung,
@@ -277,6 +305,9 @@ export async function assignUserToGroup(params: {
         scopeType:    params.scopeType    ?? 'SUBTREE',
         anchorNodeId: params.anchorNodeId ?? '',
         loai:         params.loai         ?? 'Direct',
+        ngayHetHan:   isoToTimestamp(params.ngayHetHan),
+        idNguoiUyQuyen: params.idNguoiUyQuyen ?? '',
+        idNhomChuyenNganh: params.idNhomChuyenNganh ?? '',
     });
     const res = await phanQuyenClient.assignUserToGroup(req);
     return res.id;

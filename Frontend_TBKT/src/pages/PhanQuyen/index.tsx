@@ -18,7 +18,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
-import type { Role, ScopeType, PermissionTabKey, Assignment, SampleUser } from '../../types/permission';
+import type { Role, ScopeType, PermissionTabKey, PermissionAssignmentRow, PermissionUserRow, GroupScopeConfig } from '../../types/permission';
 import { FALLBACK_PERMISSION_GROUPS } from './data/permissionData';
 import {
     getPermissionCatalog,
@@ -40,6 +40,7 @@ import ScopeConfigPanel from './subComponent/ScopeConfigPanel';
 import UserAssignmentPanel from './subComponent/UserAssignmentPanel';
 import AssignmentListTab from './subComponent/AssignmentListTab';
 import CloneRoleDialog from './subComponent/CloneRoleDialog';
+import type { AssignUserDialogValue } from './subComponent/AssignUserDialog';
 
 // ── Tab config (hoisted static — Rule: rendering-hoist-jsx) ────────────────────
 
@@ -70,7 +71,7 @@ function nhomToRole(n: NhomNguoiDungInfo): Role {
     };
 }
 
-function usersInGroupToSample(users: UserInGroupInfo[]): SampleUser[] {
+function usersInGroupToRows(users: UserInGroupInfo[]): PermissionUserRow[] {
     return users.map(u => ({
         id:                u.idNguoiDung,
         name:              u.hoTen || u.idNguoiDung,
@@ -78,14 +79,17 @@ function usersInGroupToSample(users: UserInGroupInfo[]): SampleUser[] {
         avatar:            (u.hoTen || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
         currentOffice:     u.donVi,
         currentOfficePath: u.anchorNodeId,
+        anchorNodeId:      u.anchorNodeId,
         anchorNodeName:    u.anchorNodeName || u.anchorNodeId,
         scopeType:         u.scopeType || undefined,
-        scopeAttribute:    u.scopeAttribute,
+        idNhomChuyenNganh: u.idNhomChuyenNganh,
+        ngayHetHan:        u.ngayHetHan,
+        idNguoiUyQuyen:    u.idNguoiUyQuyen,
         idAssignment:      u.idAssignment,
     }));
 }
 
-function assignmentDetailToAssignment(a: AssignmentDetailInfo): Assignment {
+function assignmentDetailToRow(a: AssignmentDetailInfo): PermissionAssignmentRow {
     return {
         id:            a.id,
         userId:        a.idNguoiDung,
@@ -95,14 +99,17 @@ function assignmentDetailToAssignment(a: AssignmentDetailInfo): Assignment {
         roleId:        a.idNhom,
         roleName:      a.tenNhom,
         roleColor:     a.colorNhom,
-        anchorNodeId:  a.anchorNodeId,
-        anchorNodeName: a.anchorNodeName || a.anchorNodeId,
-        anchorNodePath: a.anchorNodeId,
-        scopeType:     (a.scopeType || 'SUBTREE') as ScopeType,
-        scopeAttribute: a.scopeAttribute,
+        anchorNodeId:  a.anchorNodeId || '',
+        anchorNodeName: a.anchorNodeName || '',
+        anchorNodePath: a.anchorNodeName || a.anchorNodeId || '',
+        scopeType:     (a.scopeType as ScopeType) || '',
+        idNhomChuyenNganh: a.idNhomChuyenNganh,
+        idNguoiUyQuyen: a.idNguoiUyQuyen,
+        delegatedBy:   a.idNguoiUyQuyen,
+        delegatedByName: a.idNguoiUyQuyen,
         expiresAt:     a.ngayHetHan,
         isExpired:     a.ngayHetHan ? new Date(a.ngayHetHan) < new Date() : false,
-        createdAt:     a.ngayTao ?? new Date(0).toISOString(),
+        createdAt:     a.ngayTao || '',
         approvalStatus: 'APPROVED',
     };
 }
@@ -117,7 +124,12 @@ const PhanQuyenPage: React.FC = () => {
     const [groupsLoading, setGroupsLoading]     = useState(true);
     const [selectedRoleId, setSelectedRoleId]   = useState('');
     const [checkedPerms, setCheckedPerms]       = useState<string[]>([]);
-    const [currentScope, setCurrentScope]       = useState<ScopeType>('SUBTREE');
+    const [currentScopeConfig, setCurrentScopeConfig] = useState<GroupScopeConfig>({
+        scopeType: 'SUBTREE',
+        anchorNodeId: '',
+        multiNodeIds: [],
+        idNhomChuyenNganh: '',
+    });
     const [permLoading, setPermLoading]         = useState(false);
     const [usersInGroup, setUsersInGroup]       = useState<UserInGroupInfo[]>([]);
     const [assignments, setAssignments]         = useState<AssignmentDetailInfo[]>([]);
@@ -132,8 +144,8 @@ const PhanQuyenPage: React.FC = () => {
     const allRoles   = useMemo(() => groups.map(nhomToRole), [groups]);
     const selectedRole = useMemo(() => allRoles.find(r => r.id === selectedRoleId), [allRoles, selectedRoleId]);
     const isSystem   = selectedRole?.type === 'SYSTEM';
-    const sampleUsers = useMemo(() => usersInGroupToSample(usersInGroup), [usersInGroup]);
-    const mappedAssignments = useMemo(() => assignments.map(assignmentDetailToAssignment), [assignments]);
+    const userRows = useMemo(() => usersInGroupToRows(usersInGroup), [usersInGroup]);
+    const assignmentRows = useMemo(() => assignments.map(assignmentDetailToRow), [assignments]);
 
     // ── Load groups on mount ───────────────────────────────────────────────────
     useEffect(() => {
@@ -181,7 +193,12 @@ const PhanQuyenPage: React.FC = () => {
                 ]);
                 if (cancelled) return;
                 setCheckedPerms(perms.checkedCodes);
-                setCurrentScope((perms.scopeType || 'SUBTREE') as ScopeType);
+                setCurrentScopeConfig({
+                    scopeType: (perms.scopeType || 'SUBTREE') as ScopeType,
+                    anchorNodeId: perms.anchorNodeId || '',
+                    multiNodeIds: perms.multiNodeIds || [],
+                    idNhomChuyenNganh: perms.idNhomChuyenNganh || '',
+                });
                 setUsersInGroup(users);
                 setUnsaved(false);
             } catch (e) {
@@ -229,9 +246,19 @@ const PhanQuyenPage: React.FC = () => {
         setUnsaved(true);
     }, [isSystem, permissionGroups]);
 
-    const handleScopeChange = useCallback((scope: ScopeType) => {
+    const allPermissionCodes = useMemo(
+        () => permissionGroups.flatMap(g => g.permissions.map(p => p.code)),
+        [permissionGroups],
+    );
+    const allPermissionCodeSet = useMemo(() => new Set(allPermissionCodes), [allPermissionCodes]);
+    const visibleCheckedPermCount = useMemo(
+        () => checkedPerms.filter(code => allPermissionCodeSet.has(code)).length,
+        [checkedPerms, allPermissionCodeSet],
+    );
+
+    const handleScopeChange = useCallback((scopeConfig: GroupScopeConfig) => {
         if (isSystem) return;
-        setCurrentScope(scope);
+        setCurrentScopeConfig(scopeConfig);
         setUnsaved(true);
     }, [isSystem]);
 
@@ -239,7 +266,7 @@ const PhanQuyenPage: React.FC = () => {
         if (!selectedRoleId) return;
         setSaving(true);
         try {
-            await saveGroupPermissions(selectedRoleId, checkedPerms, currentScope);
+            await saveGroupPermissions(selectedRoleId, checkedPerms, currentScopeConfig);
             setUnsaved(false);
             setSavedFlash(true);
             setTimeout(() => setSavedFlash(false), 1800);
@@ -248,7 +275,7 @@ const PhanQuyenPage: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    }, [selectedRoleId, checkedPerms, currentScope]);
+    }, [selectedRoleId, checkedPerms, currentScopeConfig]);
 
     const handleDeleteRole = useCallback(async (roleId: string) => {
         const res = await deleteNhomNguoiDung(roleId);
@@ -278,13 +305,22 @@ const PhanQuyenPage: React.FC = () => {
         setAssignments(prev => prev.filter(a => a.id !== assignmentId));
     }, []);
 
-    const handleViewScope = useCallback((assignment: Assignment) => {
+    const handleViewScope = useCallback((assignment: PermissionAssignmentRow) => {
         console.log('[PhanQuyen] View scope:', assignment);
     }, []);
 
-    const handleAssignUser = useCallback(async (idNguoiDung: string, _hoTen: string, scopeType: ScopeType) => {
+    const handleAssignUser = useCallback(async (payload: AssignUserDialogValue) => {
         if (!selectedRoleId) return;
-        await assignUserToGroup({ idNguoiDung, idNhom: selectedRoleId, scopeType });
+        await assignUserToGroup({
+            idNguoiDung: payload.idNguoiDung,
+            idNhom: selectedRoleId,
+            scopeType: payload.scopeType,
+            anchorNodeId: payload.anchorNodeId,
+            ngayHetHan: payload.ngayHetHan,
+            idNguoiUyQuyen: payload.idNguoiUyQuyen,
+            idNhomChuyenNganh: payload.idNhomChuyenNganh,
+            loai: payload.scopeType === 'DELEGATED' ? 'Delegated' : 'Direct',
+        });
         const users = await listGroupUsers(selectedRoleId);
         setUsersInGroup(users);
         setGroups(prev => prev.map(g =>
@@ -292,10 +328,19 @@ const PhanQuyenPage: React.FC = () => {
         ));
     }, [selectedRoleId]);
 
-    const handleEditUserInGroup = useCallback(async (idAssignment: string, idNguoiDung: string, _hoTen: string, scopeType: ScopeType) => {
+    const handleEditUserInGroup = useCallback(async (idAssignment: string, payload: AssignUserDialogValue) => {
         if (!selectedRoleId) return;
-        // Re-assign with updated scope (upsert)
-        await assignUserToGroup({ idNguoiDung, idNhom: selectedRoleId, scopeType });
+        void idAssignment;
+        await assignUserToGroup({
+            idNguoiDung: payload.idNguoiDung,
+            idNhom: selectedRoleId,
+            scopeType: payload.scopeType,
+            anchorNodeId: payload.anchorNodeId,
+            ngayHetHan: payload.ngayHetHan,
+            idNguoiUyQuyen: payload.idNguoiUyQuyen,
+            idNhomChuyenNganh: payload.idNhomChuyenNganh,
+            loai: payload.scopeType === 'DELEGATED' ? 'Delegated' : 'Direct',
+        });
         const users = await listGroupUsers(selectedRoleId);
         setUsersInGroup(users);
     }, [selectedRoleId]);
@@ -404,7 +449,7 @@ const PhanQuyenPage: React.FC = () => {
                                     }}
                                 />
                                 <Typography variant="caption" sx={{ color: 'text.disabled', ml: 0.5 }}>
-                                    {checkedPerms.length}/{permissionGroups.flatMap(g => g.permissions).length} quyền
+                                    {visibleCheckedPermCount}/{allPermissionCodes.length} quyền
                                     · {selectedRole?.userCount ?? 0} người dùng
                                     {!isSystem && selectedRole?.clonedFrom && (
                                         <> · Clone từ <Typography component="span" sx={{ color: 'primary.main', fontSize: 'inherit' }}>
@@ -501,14 +546,14 @@ const PhanQuyenPage: React.FC = () => {
                             {activeTab === 'scope' && (
                                 <ScopeConfigPanel
                                     selectedRole={selectedRole}
-                                    currentScope={currentScope}
+                                    scopeConfig={currentScopeConfig}
                                     onScopeChange={handleScopeChange}
                                 />
                             )}
                             {activeTab === 'users' && (
                                 <UserAssignmentPanel
                                     selectedRole={selectedRole}
-                                    users={sampleUsers}
+                                    users={userRows}
                                     onAssignUser={handleAssignUser}
                                     onEditUser={handleEditUserInGroup}
                                     onRemoveUser={handleRemoveUserFromPanel}
@@ -516,7 +561,7 @@ const PhanQuyenPage: React.FC = () => {
                             )}
                             {activeTab === 'assignments' && (
                                 <AssignmentListTab
-                                    assignments={mappedAssignments}
+                                    assignments={assignmentRows}
                                     onViewScope={handleViewScope}
                                     onDeleteAssignment={handleDeleteAssignment}
                                     onCompareUsers={() => console.log('Compare users')}

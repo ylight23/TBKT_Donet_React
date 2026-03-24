@@ -12,9 +12,9 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PlaceIcon from '@mui/icons-material/Place';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 
-import type { Role, SampleUser, ScopeType } from '../../../types/permission';
+import type { Role, PermissionUserRow, ScopeType } from '../../../types/permission';
 import { SCOPE_TYPES } from '../data/permissionData';
-import AssignUserDialog from './AssignUserDialog';
+import AssignUserDialog, { type AssignUserDialogValue } from './AssignUserDialog';
 
 // ── Lookup map ─────────────────────────────────────────────────────────────────
 const scopeMap = new Map(SCOPE_TYPES.map(s => [s.value, s]));
@@ -22,7 +22,7 @@ const scopeMap = new Map(SCOPE_TYPES.map(s => [s.value, s]));
 // ── User Row ──────────────────────────────────────────────────────────────────
 
 interface UserRowProps {
-    user: SampleUser;
+    user: PermissionUserRow;
     roleColor: string;
     isSystem: boolean;
     scopeType?: ScopeType;
@@ -178,13 +178,17 @@ interface EditState {
     idNguoiDung: string;
     hoTen: string;
     scopeType: ScopeType;
+    anchorNodeId?: string;
+    ngayHetHan?: string;
+    idNguoiUyQuyen?: string;
+    idNhomChuyenNganh?: string;
 }
 
 interface UserAssignmentPanelProps {
     selectedRole: Role | undefined;
-    users: SampleUser[];
-    onAssignUser: (idNguoiDung: string, hoTen: string, scopeType: ScopeType) => Promise<void>;
-    onEditUser: (idAssignment: string, idNguoiDung: string, hoTen: string, scopeType: ScopeType) => Promise<void>;
+    users: PermissionUserRow[];
+    onAssignUser: (payload: AssignUserDialogValue) => Promise<void>;
+    onEditUser: (idAssignment: string, payload: AssignUserDialogValue) => Promise<void>;
     onRemoveUser: (idAssignment: string) => void;
 }
 
@@ -202,18 +206,22 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
     const [assignOpen, setAssignOpen] = useState(false);
     const [editState, setEditState]   = useState<EditState | null>(null);
 
-    const handleOpenEdit = useCallback((user: SampleUser) => {
+    const handleOpenEdit = useCallback((user: PermissionUserRow) => {
         setEditState({
             idAssignment: user.idAssignment ?? '',
             idNguoiDung:  user.id,
             hoTen:        user.name,
             scopeType:    (user.scopeType as ScopeType) || 'SUBTREE',
+            anchorNodeId: user.anchorNodeId,
+            ngayHetHan: user.ngayHetHan,
+            idNguoiUyQuyen: user.idNguoiUyQuyen,
+            idNhomChuyenNganh: user.idNhomChuyenNganh,
         });
     }, []);
 
-    const handleConfirmEdit = useCallback(async (idNguoiDung: string, hoTen: string, scopeType: ScopeType) => {
+    const handleConfirmEdit = useCallback(async (payload: AssignUserDialogValue) => {
         if (!editState) return;
-        await onEditUser(editState.idAssignment, idNguoiDung, hoTen, scopeType);
+        await onEditUser(editState.idAssignment, payload);
     }, [editState, onEditUser]);
 
     return (
@@ -284,6 +292,10 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                     initialIdNguoiDung={editState.idNguoiDung}
                     initialHoTen={editState.hoTen}
                     initialScope={editState.scopeType}
+                    initialAnchorNodeId={editState.anchorNodeId}
+                    initialNgayHetHan={editState.ngayHetHan}
+                    initialIdNguoiUyQuyen={editState.idNguoiUyQuyen}
+                    initialIdNhomChuyenNganh={editState.idNhomChuyenNganh}
                     onConfirm={handleConfirmEdit}
                 />
             )}

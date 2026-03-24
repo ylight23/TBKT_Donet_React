@@ -68,3 +68,10 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Icon Convention
+
+- `@mui/icons-material` is the default icon library for all static UI, actions, dialogs, tables, and navigation.
+- `@iconify/react` is allowed only for dynamic/configurable icon scenarios where icon names come from data.
+- Current valid `iconify` usage is the dynamic icon registry in [src/utils/thamSoUtils.tsx](./src/utils/thamSoUtils.tsx).
+- Do not introduce new icon libraries such as `react-icons`, `lucide-react`, `heroicons`, or similar unless the team explicitly approves them.

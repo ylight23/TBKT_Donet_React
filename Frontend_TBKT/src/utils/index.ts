@@ -112,6 +112,7 @@ export const getActiveMenuName = (): string => {
     if (url.includes('/cau-hinh-menu'))        return 'cauHinhMenu';
     if (url.includes('/cau-hinh-data-source')) return 'cauHinhDataSource';
     if (url.includes('/cau-hinh-template'))    return 'cauHinhTemplate';
+    if (url.includes('/phan-quyen'))                return 'phanQuyen';
     if (url.includes('/menu-dong/')) {
         const segments = url.split('/').filter(Boolean);
         const menuId = segments[1] || '';

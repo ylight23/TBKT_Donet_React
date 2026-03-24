@@ -103,6 +103,7 @@ public class PhanQuyenServiceImpl(
             ScopeType       = doc.StringOr("ScopeType", "SUBTREE"),
             AnchorNodeId    = doc.StringOr("AnchorNodeId"),
             AnchorParentId  = doc.StringOr("AnchorParentId"),
+            IdNhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh"),
         };
 
         // DELEGATED extras
@@ -110,18 +111,6 @@ public class PhanQuyenServiceImpl(
         if (hetHanTs != null)  response.NgayHetHan = hetHanTs;
         var uyQuyen = doc.StringOr("IdNguoiUyQuyen");
         if (!string.IsNullOrEmpty(uyQuyen)) response.IdNguoiUyQuyen = uyQuyen;
-
-        // BY_ATTRIBUTE extras
-        var attrBson = doc.DocOr("ScopeAttribute");
-        if (attrBson != null)
-        {
-            var ad = attrBson;
-            response.ScopeAttribute = new protos.ScopeAttribute
-                {
-                Field = ad.StringOr("Field"),
-                Value = ad.StringOr("Value"),
-            };
-        }
 
         // PhanHe
         var phanHeArr = doc.ArrayOr("PhanHe");
@@ -179,8 +168,8 @@ public class PhanQuyenServiceImpl(
         "MULTI_NODE"         => "MULTI_NODE",
         "DELEGATED"          => "DELEGATED",
         "ALL"                => "ALL",
-        "BYATTRIBUTE"        => "BY_ATTRIBUTE",
-        "BY_ATTRIBUTE"       => "BY_ATTRIBUTE",
+        "BYATTRIBUTE"        => "SUBTREE",
+        "BY_ATTRIBUTE"       => "SUBTREE",
         var other            => other,
     };
 
@@ -208,6 +197,13 @@ public class PhanQuyenServiceImpl(
     };
     private static BsonValue ParseId(string id) =>
         ObjectId.TryParse(id, out var oid) ? (BsonValue)oid : new BsonString(id);
+
+    private static List<string> NormalizeStringList(IEnumerable<string> values) =>
+        values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
     private async Task CloneGroupPermissions(IMongoDatabase db, string fromId, string toId, string userName)
     {
@@ -371,7 +367,7 @@ public class PhanQuyenServiceImpl(
             .ToListAsync();
         var nhomTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups)
             .Find(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.IdNhom)))
-            .Project(P.Include("ScopeType"))
+            .Project(P.Include("ScopeType").Include("IdDonViScope").Include("IdNganhDoc").Include("IdNhomChuyenNganh"))
             .FirstOrDefaultAsync();
         await Task.WhenAll(docsTask, nhomTask);
 
@@ -385,6 +381,13 @@ public class PhanQuyenServiceImpl(
 
         var nhomDoc = nhomTask.Result;
         response.ScopeType = nhomDoc.StringOr("ScopeType", "SUBTREE");
+        response.AnchorNodeId = nhomDoc.StringOr("IdDonViScope");
+        var multiNodeIds = nhomDoc.ArrayOr("IdNganhDoc");
+        if (multiNodeIds != null)
+        {
+            response.MultiNodeIds.AddRange(multiNodeIds.Strings().Where(item => !string.IsNullOrWhiteSpace(item)));
+        }
+        response.IdNhomChuyenNganh = nhomDoc.StringOr("IdNhomChuyenNganh");
 
         return response;
     }
@@ -399,6 +402,19 @@ public class PhanQuyenServiceImpl(
         var F        = Builders<BsonDocument>.Filter;
         var userName = context.GetUserName() ?? "";
         var now      = DateTime.UtcNow;
+        var normalizedScopeType = NormalizeScopeType(request.ScopeType);
+        var multiNodeIds = NormalizeStringList(request.MultiNodeIds);
+        var anchorNodeId = string.IsNullOrWhiteSpace(request.AnchorNodeId) ? "" : request.AnchorNodeId.Trim();
+        var idNhomChuyenNganh = string.IsNullOrWhiteSpace(request.IdNhomChuyenNganh) ? "" : request.IdNhomChuyenNganh.Trim();
+
+        if (normalizedScopeType == "MULTI_NODE")
+        {
+            anchorNodeId = "";
+        }
+        else
+        {
+            multiNodeIds.Clear();
+        }
 
         // Atomic BulkWrite: delete old codes not in new set + upsert new codes
         var bulkOps = new List<WriteModel<BsonDocument>>();
@@ -434,7 +450,13 @@ public class PhanQuyenServiceImpl(
         {
             scopeTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups).UpdateOneAsync(
                 F.Eq("_id", ParseId(request.IdNhom)),
-                Builders<BsonDocument>.Update.Set("ScopeType", request.ScopeType));
+                Builders<BsonDocument>.Update
+                    .Set("ScopeType", normalizedScopeType)
+                    .Set("IdDonViScope", anchorNodeId)
+                    .Set("IdNganhDoc", new BsonArray(multiNodeIds))
+                    .Set("IdNhomChuyenNganh", idNhomChuyenNganh)
+                    .Set("NguoiSua", userName)
+                    .Set("NgaySua", now));
         }
 
         await bulkTask;
@@ -504,7 +526,8 @@ public class PhanQuyenServiceImpl(
             new("$project", new BsonDocument
             {
                 { "IdNguoiDung", 1 }, { "ScopeType", 1 }, { "IdDonViScope", 1 },
-                { "ScopeAttribute", 1 }, { "NgayHetHan", 1 }, { "emp", 1 }, { "anchor", 1 },
+                { "NgayHetHan", 1 }, { "IdNguoiUyQuyen", 1 },
+                { "IdNhomChuyenNganh", 1 }, { "emp", 1 }, { "anchor", 1 },
             }),
         };
 
@@ -535,19 +558,11 @@ public class PhanQuyenServiceImpl(
                 ScopeType     = doc.StringOr("ScopeType"),
                 AnchorNodeId  = doc.StringOr("IdDonViScope"),
                 AnchorNodeName = anchor.StringOr("Ten", anchor.StringOr("TenDayDu", doc.StringOr("IdDonViScope"))),
+                IdNhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh"),
+                IdNguoiUyQuyen = doc.StringOr("IdNguoiUyQuyen"),
                 IsExpired     = isExpired,
             };
             if (hetHanTs != null) item.NgayHetHan = hetHanTs;
-            var attrBson = doc.DocOr("ScopeAttribute");
-            if (attrBson != null)
-            {
-                var ad = attrBson;
-                item.ScopeAttribute = new protos.ScopeAttribute
-                {
-                    Field = ad.StringOr("Field"),
-                    Value = ad.StringOr("Value"),
-                };
-            }
             response.Users.Add(item);
         }
         return response;
@@ -627,7 +642,8 @@ public class PhanQuyenServiceImpl(
             new("$project", new BsonDocument
             {
                 { "IdNguoiDung", 1 }, { "IdNhomNguoiDung", 1 },
-                { "ScopeType", 1 }, { "IdDonViScope", 1 }, { "ScopeAttribute", 1 },
+                { "ScopeType", 1 }, { "IdDonViScope", 1 }, { "IdNguoiUyQuyen", 1 },
+                { "IdNhomChuyenNganh", 1 },
                 { "Loai", 1 }, { "NgayTao", 1 }, { "NgayHetHan", 1 },
                 { "nhom", 1 }, { "emp", 1 }, { "anchor", 1 },
             }),
@@ -658,18 +674,10 @@ public class PhanQuyenServiceImpl(
                 ScopeType      = doc.StringOr("ScopeType"),
                 AnchorNodeId   = doc.StringOr("IdDonViScope"),
                 AnchorNodeName = anchor.StringOr("Ten", anchor.StringOr("TenDayDu", doc.StringOr("IdDonViScope"))),
+                IdNhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh"),
                 Loai           = doc.StringOr("Loai", "Direct"),
+                IdNguoiUyQuyen = doc.StringOr("IdNguoiUyQuyen"),
             };
-            var detailAttrBson = doc.DocOr("ScopeAttribute");
-            if (detailAttrBson != null)
-            {
-                var ad = detailAttrBson;
-                detail.ScopeAttribute = new protos.ScopeAttribute
-                {
-                    Field = ad.StringOr("Field"),
-                    Value = ad.StringOr("Value"),
-                };
-            }
 
             var ngayTaoTs = doc.TimestampOr("NgayTao");
             var hetHanTs  = doc.TimestampOr("NgayHetHan");
@@ -701,26 +709,24 @@ public class PhanQuyenServiceImpl(
         if (existing != null)
         {
             assignId = existing["_id"].ToString()!;
-            var updAttr = request.ScopeAttribute != null
-                ? (BsonValue)new BsonDocument { { "Field", request.ScopeAttribute.Field }, { "Value", request.ScopeAttribute.Value } }
-                : BsonNull.Value;
             await memberCol.UpdateOneAsync(
                 Builders<BsonDocument>.Filter.Eq("_id", ParseId(assignId)),
                 Builders<BsonDocument>.Update
                     .Set("ScopeType",        NormalizeScopeType(request.ScopeType))
                     .Set("IdDonViScope",     request.AnchorNodeId)
+                    .Set("IdNhomChuyenNganh", request.IdNhomChuyenNganh)
                     .Set("Loai",             request.Loai)
                     .Set("IdNguoiUyQuyen",   request.IdNguoiUyQuyen)
-                    .Set("ScopeAttribute",   updAttr)
+                    .Unset("ScopeAttribute")
                     .Set("NguoiSua",         userName)
-                    .Set("NgaySua",          now));
+                    .Set("NgaySua",          now)
+                    .Set("NgayHetHan",       request.NgayHetHan != null
+                        ? (BsonValue)request.NgayHetHan.ToDateTime()
+                        : BsonNull.Value));
         }
         else
         {
             assignId = Guid.NewGuid().ToString();
-            var scopeAttrDoc = request.ScopeAttribute != null
-                ? new BsonDocument { { "Field", request.ScopeAttribute.Field }, { "Value", request.ScopeAttribute.Value } }
-                : (BsonValue)BsonNull.Value;
             var doc = new BsonDocument
             {
                 { "_id",             assignId },
@@ -728,9 +734,9 @@ public class PhanQuyenServiceImpl(
                 { "IdNhomNguoiDung", request.IdNhom },
                 { "ScopeType",       NormalizeScopeType(request.ScopeType) },
                 { "IdDonViScope",    request.AnchorNodeId },
+                { "IdNhomChuyenNganh", request.IdNhomChuyenNganh },
                 { "Loai",            string.IsNullOrEmpty(request.Loai) ? "Direct" : request.Loai },
                 { "IdNguoiUyQuyen",  request.IdNguoiUyQuyen },
-                { "ScopeAttribute",  scopeAttrDoc },
                 { "NguoiTao",        userName },
                 { "NgayTao",         now },
                 { "NguoiSua",        userName },

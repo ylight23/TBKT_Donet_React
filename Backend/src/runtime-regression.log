@@ -1,0 +1,442 @@
+info: Startup[0]
+      Fetching JWKS from: https://localhost:9443/t/carbon.super/oauth2/jwks
+info: Startup[0]
+      JWKS fetched successfully: {"keys":[{"kty":"RSA","x5t#S256":"m_eCU6DLMVTX9h5TomL64Swtp-AMsmA-6xvWCTr5gf4","e":"AQAB","use":"sig...
+info: Startup[0]
+      Loaded 2 signing keys from JWKS
+warn: Startup[0]
+      Skipping expired certificate: NotAfter=2026-01-08 15:32:07 UTC
+warn: Startup[0]
+      Using expired certificate for DEV ONLY - DO NOT USE IN PRODUCTION!
+info: Startup[0]
+      Created RSA key from expired cert (DEV ONLY): KeyId=OWJmNzgyNTNhMGNiMzE1NGQ3ZjYxZTUzYTI2MmZhZTEyYzJkYTdlMDBjYjI2MDNlZWIxYmQ2MDkzYWY5ODFmZQ_RS256
+info: Startup[0]
+      Final signing keys count: 2
+info: object[0]
+      MongoDB connected: mongodb://localhost:27017 - Database: quanly_dmcanbo
+info: object[0]
+      MongoDB index already exists on collection DynamicMenuDataSource with different name idx_DMDS_SourceKey_Delete; keeping existing index instead of creating idx_thamso_dynamic_menu_datasource_sourcekey_delete
+info: object[0]
+      Ensured MongoDB indexes for ThamSo collections
+info: object[0]
+      Ensured permission catalog seed with 42 items
+info: object[0]
+      Ensured dynamic menu permission catalog seed with 5 items
+info: object[0]
+      Updated default Office with ID: 000
+warn: Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware[16]
+      The WebRootPath was not found: D:\TBKT_Donet_React\Backend\src\bin\Debug\net9.0\wwwroot. Static files may be unavailable.
+warn: Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware[16]
+      The WebRootPath was not found: D:\TBKT_Donet_React\Backend\src\bin\Debug\net9.0\wwwroot. Static files may be unavailable.
+warn: Microsoft.AspNetCore.Server.Kestrel[64]
+      HTTP/2 is not enabled for [::]:5213. The endpoint is configured to use HTTP/1.1 and HTTP/2, but TLS is not enabled. HTTP/2 requires TLS application protocol negotiation. Connections to this endpoint will use HTTP/1.1.
+warn: Microsoft.AspNetCore.Server.Kestrel[64]
+      HTTP/2 is not enabled for 127.0.0.1:5213. The endpoint is configured to use HTTP/1.1 and HTTP/2, but TLS is not enabled. HTTP/2 requires TLS application protocol negotiation. Connections to this endpoint will use HTTP/1.1.
+warn: Microsoft.AspNetCore.Server.Kestrel[64]
+      HTTP/2 is not enabled for [::1]:5213. The endpoint is configured to use HTTP/1.1 and HTTP/2, but TLS is not enabled. HTTP/2 requires TLS application protocol negotiation. Connections to this endpoint will use HTTP/1.1.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://[::]:5213
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5213
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: D:\TBKT_Donet_React\Backend\src\bin\Debug\net9.0
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: GET /
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Info: Unauthenticated request, skipping revocation check
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: GET / -> 200
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: GET /
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Info: Unauthenticated request, skipping revocation check
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: GET / -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/GetMyPermissions
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenus
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/GetMyPermissions -> 200
+info: Backend.Services.DynamicMenuDataSourceService[0]
+      GetListDynamicMenuDataSources: 11 items
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources -> 200
+fail: Backend.Services.DynamicMenuService[0]
+      GetListDynamicMenus error
+      System.FormatException: An error occurred while deserializing the CreateDate property of class protos.DynamicMenu: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+       ---> System.FormatException: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.Serializers.SerializerBase`1.MongoDB.Bson.Serialization.IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize(IBsonSerializer serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         --- End of inner exception stack trace ---
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize[TValue](IBsonSerializer`1 serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](IBsonReader bsonReader, Action`1 configurator)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](BsonDocument document, Action`1 configurator)
+         at Backend.Services.DynamicMenuService.<>c.<GetListDynamicMenusAsync>b__5_0(BsonDocument itemBson) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 38
+         at System.Linq.Enumerable.ListSelectIterator`2.MoveNext()
+         at System.Linq.Enumerable.IEnumerableWhereIterator`1.MoveNext()
+         at Google.Protobuf.Collections.RepeatedField`1.AddRange(IEnumerable`1 values)
+         at Backend.Services.DynamicMenuService.GetListDynamicMenusAsync(GetListDynamicMenusRequest request, ServerCallContext context) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 36
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenus -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenus
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+fail: Backend.Services.DynamicMenuService[0]
+      GetListDynamicMenus error
+      System.FormatException: An error occurred while deserializing the CreateDate property of class protos.DynamicMenu: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+       ---> System.FormatException: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.Serializers.SerializerBase`1.MongoDB.Bson.Serialization.IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize(IBsonSerializer serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         --- End of inner exception stack trace ---
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize[TValue](IBsonSerializer`1 serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](IBsonReader bsonReader, Action`1 configurator)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](BsonDocument document, Action`1 configurator)
+         at Backend.Services.DynamicMenuService.<>c.<GetListDynamicMenusAsync>b__5_0(BsonDocument itemBson) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 38
+         at System.Linq.Enumerable.ListSelectIterator`2.MoveNext()
+         at System.Linq.Enumerable.IEnumerableWhereIterator`1.MoveNext()
+         at Google.Protobuf.Collections.RepeatedField`1.AddRange(IEnumerable`1 values)
+         at Backend.Services.DynamicMenuService.GetListDynamicMenusAsync(GetListDynamicMenusRequest request, ServerCallContext context) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 36
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenus -> 200
+info: Backend.Services.DynamicMenuDataSourceService[0]
+      GetListDynamicMenuDataSources: 11 items
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/ListNhomNguoiDung
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/GetPermissionCatalog
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/GetPermissionCatalog -> 200
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/ListNhomNguoiDung -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/GetGroupPermissions
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/ListGroupUsers
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/ListGroupUsers -> 200
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/GetGroupPermissions -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/GetMyPermissions
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/GetMyPermissions -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenus
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+fail: Backend.Services.DynamicMenuService[0]
+      GetListDynamicMenus error
+      System.FormatException: An error occurred while deserializing the CreateDate property of class protos.DynamicMenu: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+       ---> System.FormatException: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.Serializers.SerializerBase`1.MongoDB.Bson.Serialization.IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize(IBsonSerializer serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         --- End of inner exception stack trace ---
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize[TValue](IBsonSerializer`1 serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](IBsonReader bsonReader, Action`1 configurator)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](BsonDocument document, Action`1 configurator)
+         at Backend.Services.DynamicMenuService.<>c.<GetListDynamicMenusAsync>b__5_0(BsonDocument itemBson) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 38
+         at System.Linq.Enumerable.ListSelectIterator`2.MoveNext()
+         at System.Linq.Enumerable.IEnumerableWhereIterator`1.MoveNext()
+         at Google.Protobuf.Collections.RepeatedField`1.AddRange(IEnumerable`1 values)
+         at Backend.Services.DynamicMenuService.GetListDynamicMenusAsync(GetListDynamicMenusRequest request, ServerCallContext context) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 36
+info: Backend.Services.DynamicMenuDataSourceService[0]
+      GetListDynamicMenuDataSources: 11 items
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenus -> 200
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenus
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+fail: Backend.Services.DynamicMenuService[0]
+      GetListDynamicMenus error
+      System.FormatException: An error occurred while deserializing the CreateDate property of class protos.DynamicMenu: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+       ---> System.FormatException: Expected a nested document representing the serialized form of a Google.Protobuf.WellKnownTypes.Timestamp value, but found a value of type DateTime instead.
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.Serializers.SerializerBase`1.MongoDB.Bson.Serialization.IBsonSerializer.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize(IBsonSerializer serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         --- End of inner exception stack trace ---
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeMemberValue(BsonDeserializationContext context, BsonMemberMap memberMap)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.DeserializeClass(BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonClassMapSerializer`1.Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+         at MongoDB.Bson.Serialization.IBsonSerializerExtensions.Deserialize[TValue](IBsonSerializer`1 serializer, BsonDeserializationContext context)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](IBsonReader bsonReader, Action`1 configurator)
+         at MongoDB.Bson.Serialization.BsonSerializer.Deserialize[TNominalType](BsonDocument document, Action`1 configurator)
+         at Backend.Services.DynamicMenuService.<>c.<GetListDynamicMenusAsync>b__5_0(BsonDocument itemBson) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 38
+         at System.Linq.Enumerable.ListSelectIterator`2.MoveNext()
+         at System.Linq.Enumerable.IEnumerableWhereIterator`1.MoveNext()
+         at Google.Protobuf.Collections.RepeatedField`1.AddRange(IEnumerable`1 values)
+         at Backend.Services.DynamicMenuService.GetListDynamicMenusAsync(GetListDynamicMenusRequest request, ServerCallContext context) in D:\TBKT_Donet_React\Backend\src\Services\ThamSo\DynamicMenuService.cs:line 36
+info: Backend.Services.DynamicMenuDataSourceService[0]
+      GetListDynamicMenuDataSources: 11 items
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenuDataSources -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/ListNhomNguoiDung
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /ThamSo.ThamSoService/GetListDynamicMenus -> 200
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/ListNhomNguoiDung -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/GetPermissionCatalog
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/GetPermissionCatalog -> 200
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/GetGroupPermissions
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Program[0]
+      [JWT] Token validated successfully - User: admin
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Info: POST /PhanQuyen.PhanQuyenService/ListGroupUsers
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] IsAuthenticated: True
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] User claims: sub=75d771d2-726e-4b6c-ad06-41c2908e99bd, aut=APPLICATION_USER, iss=https://localhost:9443/oauth2/token, client_id=WFhffPHFgieZhvY8421q0fdG7tga, aud=WFhffPHFgieZhvY8421q0fdG7tga, nbf=1774329175, azp=WFhffPHFgieZhvY8421q0fdG7tga, org_id=10084a8d-113f-4211-a0d5-efe36b082211, scope=email openid profile, exp=1774332775, org_name=Super, iat=1774329175, jti=b2c08dee-75b2-46df-a95b-700ccf24b102, username=admin, org_handle=carbon.super
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Session ID (sid/isk): null, Subject (sub): 75d771d2-726e-4b6c-ad06-41c2908e99bd, IssuedAt (iat): 1774329175, JWT ID (jti): b2c08dee-75b2-46df-a95b-700ccf24b102
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Subject 75d771d2-726e-4b6c-ad06-41c2908e99bd revoked before token iat=1774329175? False
+info: Backend.Security.TokenRevocationMiddleware[0]
+      Success: Token validation passed for sid=null, sub=75d771d2-726e-4b6c-ad06-41c2908e99bd
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/ListGroupUsers -> 200
+info: Backend.Security.TokenRevocationMiddleware[0]
+      [TokenRevocationMiddleware] Success: Request completed: POST /PhanQuyen.PhanQuyenService/GetGroupPermissions -> 200

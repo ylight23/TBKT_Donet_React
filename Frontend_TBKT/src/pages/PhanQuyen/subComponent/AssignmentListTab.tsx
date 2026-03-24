@@ -25,7 +25,7 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import CloseIcon from '@mui/icons-material/Close';
 
-import type { Assignment, ScopeConfig } from '../../../types/permission';
+import type { PermissionAssignmentRow, ScopeConfig } from '../../../types/permission';
 import { SCOPE_TYPES } from '../data/permissionData';
 import CompareScopeDialog from './CompareScopeDialog';
 
@@ -40,6 +40,7 @@ function isExpired(dateStr?: string): boolean {
 }
 
 function formatDate(dateStr: string): string {
+    if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('vi-VN', {
         year: 'numeric', month: '2-digit', day: '2-digit',
     });
@@ -48,14 +49,14 @@ function formatDate(dateStr: string): string {
 // ── Assignment Row ────────────────────────────────────────────────────────────
 
 interface AssignmentRowProps {
-    assignment: Assignment;
-    onView: (assignment: Assignment) => void;
+    assignment: PermissionAssignmentRow;
+    onView: (assignment: PermissionAssignmentRow) => void;
     onDelete: (assignmentId: string) => void;
 }
 
 const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, onDelete }: AssignmentRowProps) {
     const theme = useTheme();
-    const scopeInfo = scopeMap.get(assignment.scopeType);
+    const scopeInfo = scopeMap.get(assignment.scopeType as import('../../../types/permission').ScopeType);
     const expired = isExpired(assignment.expiresAt);
 
     return (
@@ -250,8 +251,8 @@ const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, on
 // ── AssignmentListTab ─────────────────────────────────────────────────────────
 
 interface AssignmentListTabProps {
-    assignments: Assignment[];
-    onViewScope?: (assignment: Assignment) => void;
+    assignments: PermissionAssignmentRow[];
+    onViewScope?: (assignment: PermissionAssignmentRow) => void;
     onDeleteAssignment: (assignmentId: string) => void;
     onCompareUsers?: () => void;
 }
@@ -264,10 +265,10 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
 }) => {
     const theme = useTheme();
     const [search, setSearch] = useState('');
-    const [viewAssignment, setViewAssignment] = useState<Assignment | null>(null);
+    const [viewAssignment, setViewAssignment] = useState<PermissionAssignmentRow | null>(null);
     const [compareOpen, setCompareOpen] = useState(false);
 
-    const handleView = (assignment: Assignment) => {
+    const handleView = (assignment: PermissionAssignmentRow) => {
         setViewAssignment(assignment);
         onViewScope?.(assignment);
     };
@@ -293,7 +294,7 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
     }, [filteredAssignments]);
 
     // ── View scope dialog ──────────────────────────────────────────────────────
-    const viewScopeInfo = viewAssignment ? scopeMap.get(viewAssignment.scopeType) : null;
+    const viewScopeInfo = viewAssignment ? scopeMap.get(viewAssignment.scopeType as import('../../../types/permission').ScopeType) : null;
     const viewExpired = viewAssignment ? isExpired(viewAssignment.expiresAt) : false;
 
     return (
@@ -451,7 +452,7 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
                                         }}
                                     />
                                 ) : (
-                                    <Typography variant="caption">{viewAssignment.scopeType}</Typography>
+                                    <Typography variant="caption">{viewAssignment.scopeType || '—'}</Typography>
                                 )}
                             </Box>
 
@@ -531,14 +532,12 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
                             )}
 
                             {/* Created at */}
-                            {viewAssignment.createdAt && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
                                     <Typography variant="caption" color="text.disabled" fontWeight={600}>Ngày gán</Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        {formatDate(viewAssignment.createdAt)}
+                                        {viewAssignment.createdAt ? formatDate(viewAssignment.createdAt) : '—'}
                                     </Typography>
                                 </Box>
-                            )}
                         </Box>
                     </DialogContent>
                 )}

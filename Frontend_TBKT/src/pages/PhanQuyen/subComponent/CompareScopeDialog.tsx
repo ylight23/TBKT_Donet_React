@@ -24,7 +24,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 
-import type { Assignment } from '../../../types/permission';
+import type { PermissionAssignmentRow } from '../../../types/permission';
 import { SCOPE_TYPES } from '../data/permissionData';
 
 const scopeMap = new Map(SCOPE_TYPES.map(s => [s.value, s]));
@@ -42,9 +42,9 @@ function isExpired(d?: string) {
 interface PickerProps {
     label: string;
     accentColor: string;
-    options: Assignment[];
-    value: Assignment | null;
-    onChange: (a: Assignment | null) => void;
+    options: PermissionAssignmentRow[];
+    value: PermissionAssignmentRow | null;
+    onChange: (a: PermissionAssignmentRow | null) => void;
     exclude?: string;   // id to hide from options
 }
 
@@ -193,7 +193,7 @@ const CompareRow: React.FC<CompareRowProps> = ({ label, valA, valB, same }) => {
 
 // ── Helpers for rendered values ────────────────────────────────────────────────
 
-function RoleChip({ a }: { a: Assignment }) {
+function RoleChip({ a }: { a: PermissionAssignmentRow }) {
     return (
         <Chip
             label={a.roleName}
@@ -210,7 +210,7 @@ function RoleChip({ a }: { a: Assignment }) {
 
 function ScopeChip({ scopeType }: { scopeType: string }) {
     const info = scopeMap.get(scopeType as import('../../../types/permission').ScopeType);
-    if (!info) return <Typography variant="caption">{scopeType}</Typography>;
+    if (!info) return <Typography variant="caption">{scopeType || '—'}</Typography>;
     return (
         <Chip
             label={`${info.icon ?? ''} ${info.label}`}
@@ -265,13 +265,13 @@ function PathText({ path }: { path: string }) {
 export interface CompareScopeDialogProps {
     open: boolean;
     onClose: () => void;
-    assignments: Assignment[];
+    assignments: PermissionAssignmentRow[];
 }
 
 const CompareScopeDialog: React.FC<CompareScopeDialogProps> = ({ open, onClose, assignments }) => {
     const theme = useTheme();
-    const [selA, setSelA] = useState<Assignment | null>(null);
-    const [selB, setSelB] = useState<Assignment | null>(null);
+    const [selA, setSelA] = useState<PermissionAssignmentRow | null>(null);
+    const [selB, setSelB] = useState<PermissionAssignmentRow | null>(null);
 
     const colorA = theme.palette.primary.main;
     const colorB = theme.palette.secondary.main;

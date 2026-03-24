@@ -16,19 +16,13 @@ export type ScopeType =
     | 'BRANCH'             // Chi nhánh (ancestor lên root)
     | 'MULTI_NODE'         // Nhiều node độc lập
     | 'ALL'                // Toàn hệ thống (HIGH RISK)
-    | 'DELEGATED'          // Ủy quyền (có delegator + expiresAt)
-    | 'BY_ATTRIBUTE';      // Theo thuộc tính chuyên ngành — ABAC (Ra đa / Thông tin / Tàu thuyền)
+    | 'DELEGATED';         // Ủy quyền (có delegator + expiresAt)
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type RoleType = 'SYSTEM' | 'CUSTOM';
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-
-export interface ScopeAttributeInfo {
-    field: string;
-    value: string;
-}
 
 // ── Core Interfaces ────────────────────────────────────────────────────────────
 
@@ -60,9 +54,20 @@ export interface ScopeConfig {
     color: string;
     risk: RiskLevel;
     icon?: string;
+    needsAnchor?: boolean;
+    needsMultiNode?: boolean;
+    needsDelegated?: boolean;
+    example?: string;
 }
 
-export interface SampleUser {
+export interface GroupScopeConfig {
+    scopeType: ScopeType;
+    anchorNodeId?: string;
+    multiNodeIds: string[];
+    idNhomChuyenNganh?: string;
+}
+
+export interface PermissionUserRow {
     id: string;
     name: string;
     email: string;
@@ -70,13 +75,16 @@ export interface SampleUser {
     rank?: string;
     currentOffice?: string;
     currentOfficePath?: string;
+    anchorNodeId?: string;
     anchorNodeName?: string;
     scopeType?: string;
-    scopeAttribute?: ScopeAttributeInfo;
+    idNhomChuyenNganh?: string;
+    ngayHetHan?: string;
+    idNguoiUyQuyen?: string;
     idAssignment?: string;
 }
 
-export interface Assignment {
+export interface PermissionAssignmentRow {
     id: string;
     userId: string;
     userName: string;
@@ -89,8 +97,9 @@ export interface Assignment {
     anchorNodeId: string;
     anchorNodeName: string;
     anchorNodePath: string;
-    scopeType: ScopeType;
-    scopeAttribute?: ScopeAttributeInfo;
+    scopeType: ScopeType | '';
+    idNhomChuyenNganh?: string;
+    idNguoiUyQuyen?: string;
     multiNodeIds?: string[];
     multiNodeNames?: string[];
     delegatedBy?: string;
@@ -100,6 +109,10 @@ export interface Assignment {
     approvalStatus?: ApprovalStatus;
     createdAt: string;
 }
+
+// Backward-compatible aliases for old fallback-only code paths.
+export type SampleUser = PermissionUserRow;
+export type Assignment = PermissionAssignmentRow;
 
 // ── Permission Tab ─────────────────────────────────────────────────────────────
 
@@ -113,8 +126,8 @@ export interface PermissionState {
     selectedRoleId: string;
     rolePermissions: Record<string, string[]>;
     defaultScopes: Record<string, ScopeType>;
-    assignments: Assignment[];
-    users: SampleUser[];
+    assignments: PermissionAssignmentRow[];
+    users: PermissionUserRow[];
     activeTab: PermissionTabKey;
     unsaved: boolean;
     loading: boolean;

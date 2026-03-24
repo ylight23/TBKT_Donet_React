@@ -119,7 +119,7 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
                 {
                     item = new DynamicMenuDataSource
                     {
-                        Id = ObjectId.GenerateNewId().ToString(),
+                        Id = Guid.NewGuid().ToString(),
                         SourceKey = sourceKey,
                         SourceName = sourceName,
                         CollectionName = collectionName,
@@ -236,7 +236,7 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
             var fields = await DiscoverCollectionFieldsInternalAsync(seed.CollectionName);
             var item = new DynamicMenuDataSource
             {
-                Id = ObjectId.GenerateNewId().ToString(),
+                Id = Guid.NewGuid().ToString(),
                 SourceKey = seed.SourceKey,
                 SourceName = seed.SourceName,
                 CollectionName = seed.CollectionName,

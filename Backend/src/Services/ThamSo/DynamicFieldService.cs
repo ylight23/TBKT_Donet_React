@@ -101,7 +101,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
             var isNew = string.IsNullOrWhiteSpace(item.Id);
             if (isNew)
             {
-                item.Id = ObjectId.GenerateNewId().ToString();
+                item.Id = Guid.NewGuid().ToString();
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();

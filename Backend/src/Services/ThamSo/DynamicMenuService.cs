@@ -234,7 +234,7 @@ public class DynamicMenuService(ILogger<DynamicMenuService> logger)
 
             if (string.IsNullOrWhiteSpace(item.Id))
             {
-                item.Id = ObjectId.GenerateNewId().ToString();
+                item.Id = Guid.NewGuid().ToString();
                 item.PermissionCode = NormalizePermissionCode(item.PermissionCode, item.Id);
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
 

@@ -125,7 +125,7 @@ public class DynamicMenuDataSourceService(
 
             if (string.IsNullOrWhiteSpace(item.Id))
             {
-                item.Id = ObjectId.GenerateNewId().ToString();
+                item.Id = Guid.NewGuid().ToString();
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
                 item.Enabled = true;
 

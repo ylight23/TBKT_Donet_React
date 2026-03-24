@@ -77,7 +77,7 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
 
             if (string.IsNullOrWhiteSpace(item.Id))
             {
-                item.Id = ObjectId.GenerateNewId().ToString();
+                item.Id = Guid.NewGuid().ToString();
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();

@@ -17,6 +17,20 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     private int lengthOfLevel = 3;
     private int maxOfLevel = 999;
 
+    private static string BuildOfficePath(string? id)
+        => string.IsNullOrWhiteSpace(id) ? "/" : "/" + id.Replace(".", "/") + "/";
+
+    private static int BuildOfficeDepth(string? id)
+        => string.IsNullOrWhiteSpace(id)
+            ? 0
+            : id.Split('.', StringSplitOptions.RemoveEmptyEntries).Length;
+
+    private static void ApplyDerivedOfficeFields(Office office)
+    {
+        office.Path = BuildOfficePath(office.Id);
+        office.Depth = BuildOfficeDepth(office.Id);
+    }
+
 
 
      [Authorize]
@@ -114,7 +128,9 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                 .Include("VietTat")
                 .Include("CoCapDuoi")
                 .Include("ThuTu")
-                .Include("ThuTuSapXep");
+                .Include("ThuTuSapXep")
+                .Include("Path")
+                .Include("Depth");
 
             if (request.IncludeParameters)
                 projection = Builders<BsonDocument>.Projection.Combine(projection,
@@ -779,6 +795,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                     ordering = ordering + request.Item.ThuTu.ToString().PadLeft(lengthOfLevel, '0');
                     request.Item.Id = newID;
                     request.Item.ThuTuSapXep = ordering;
+                    ApplyDerivedOfficeFields(request.Item);
 
                     request.Item.NgayTao = currentTime;
                
@@ -842,6 +859,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                             request.Item.Id = request.Item.IdCapTren + "." + newId.ToString().PadLeft(lengthOfLevel, '0');
                             request.Item.ThuTu = max != null ? max.ThuTu + 1 : 1;
                             request.Item.ThuTuSapXep = parent?.ThuTuSapXep + request.Item.ThuTu.ToString().PadLeft(lengthOfLevel, '0');
+                            ApplyDerivedOfficeFields(request.Item);
                            // request.Item.NgaySua = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime());
                             request.Item.NgaySua = currentTime;
                             request.Item.CoCapDuoi = listChild.Count > 0;
@@ -862,6 +880,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                                             child.CoCapDuoi = listChild.Any(c => c.IdCapTren == oldId);
                                             child.Id = child.Id.Replace(existing?.Id + ".", request.Item?.Id + ".");
                                             child.IdCapTren = child.IdCapTren.Replace(existing?.Id + ".", request.Item?.Id + ".");
+                                            ApplyDerivedOfficeFields(child);
 
                                             var parentOfChild = listChild.FirstOrDefault(c => c.Id == child.IdCapTren);
                                             if (parentOfChild == null)
@@ -901,6 +920,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
 
                         ordering = ordering + request.Item.ThuTu.ToString().PadLeft(lengthOfLevel, '0');
                         request.Item.ThuTuSapXep = ordering;
+                        ApplyDerivedOfficeFields(request.Item);
                         var filter = Builders<Office>.Filter.Eq(x => x.Id, request.OldId);
                         var updater = Builders<Office>.Update
                             .Set(x => x.Ten, request.Item.Ten)
@@ -912,6 +932,8 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
                             .Set(x => x.TenDayDu, request.Item.TenDayDu)
                             .Set(x => x.TenVietTatDayDu, request.Item.TenVietTatDayDu)
                             .Set(x => x.IdCapTren, request.Item.IdCapTren)
+                            .Set(x => x.Path, request.Item.Path)
+                            .Set(x => x.Depth, request.Item.Depth)
                             // .Set(x => x.CoCapDuoi, listChild is { Count: > 0 })
                             .Set(x => x.CoCapDuoi, request.Item.CoCapDuoi)
                             .Set(x => x.NgaySua, currentTime)

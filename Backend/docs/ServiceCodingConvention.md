@@ -18,6 +18,61 @@ Muc tieu:
 - Query phuc tap phuc vu UI thi uu tien build o backend, khong day viec join/map sang frontend neu du lieu do on dinh va can hien thi lap lai.
 - Write path phai don gian, minh bach, de audit va de rollback.
 
+## ID convention
+
+He thong thong nhat 2 nhom khoa chinh:
+
+### 1. Business key
+
+Chi dung khi `_id` chinh la ma nghiep vu, co y nghia domain va duoc dung trong query/range/tree/sort.
+
+Ap dung:
+
+- `Office`
+
+Rule:
+
+- giu nguyen `_id` theo ma nghiep vu
+- khong ep migrate sang GUID
+- duoc phep dung `_id` trong regex, sap xep, prefix, quan he cha-con
+
+### 2. GUID mac dinh
+
+Tat ca module dong va du lieu quan tri con lai mac dinh dung:
+
+- `Guid.NewGuid().ToString()`
+
+Ap dung cho:
+
+- `Employee`
+- `CapBac`
+- toan bo nhom `ThamSo`
+- toan bo nhom `PhanQuyen`
+- `LichSuPhanQuyenScope`
+- `NhomChuyenNganh`
+- `PermissionCatalog`
+
+Rule:
+
+- khong dung `ObjectId.GenerateNewId().ToString()`
+- khong dung `_id` natural key neu key do khong phai ma nghiep vu bat buoc
+- reference giua cac collection dong/quan tri nen tro toi GUID
+
+### Cach ra quyet dinh voi collection moi
+
+Neu tao collection moi, hoi 2 cau:
+
+1. `_id` nay co phai ma nghiep vu can de nguoi dung nhin thay, tim kiem, sap xep, tao cay du lieu khong
+2. Neu doi `_id`, nghiep vu co bi mat y nghia khong
+
+Neu cau tra loi la `co`:
+
+- dung business key
+
+Neu cau tra loi la `khong`:
+
+- dung GUID mac dinh
+
 ## Phan loai ham trong service
 
 Moi service nen co 3 nhom ham ro rang:

@@ -101,8 +101,7 @@ export const SCOPE_TYPES: ScopeConfig[] = [
     { value: 'SUBTREE',          label: 'Cây con',       desc: 'Toàn bộ nhánh cây con từ node gán trở xuống',               color: deepArmyGreen[400],            risk: 'MEDIUM',   icon: '🌲' },
     { value: 'SIBLINGS',         label: 'Anh-em',        desc: 'Các đơn vị cùng cha và cùng cấp với node gán',             color: armyOlive[600],                risk: 'MEDIUM',   icon: '↔️' },
     { value: 'BRANCH',           label: 'Toàn nhánh',    desc: 'Từ node gán ngược lên đến root (chuỗi tổ tiên)',            color: armyOlive[500],                risk: 'MEDIUM',   icon: '🔼' },
-    { value: 'MULTI_NODE',       label: 'Đa chọn',       desc: 'Chọn thủ công nhiều đơn vị độc lập trên cây',              color: militaryGold[500],             risk: 'HIGH',     icon: '🔗' },    
-    { value: 'BY_ATTRIBUTE',     label: 'Chuyên ngành',   desc: 'Lọc theo thuộc tính IDChuyenNganh (Ra đa / Thông tin / Tàu thuyền)', color: militaryGold[600],             risk: 'HIGH',     icon: '🎯' },    
+    { value: 'MULTI_NODE',       label: 'Đa chọn',       desc: 'Chọn thủ công nhiều đơn vị độc lập trên cây',              color: militaryGold[500],             risk: 'HIGH',     icon: '🔗' },
     { value: 'ALL',              label: 'Toàn hệ thống', desc: 'Không giới hạn phạm vi — ẢNH HƯỞNG TOÀN BỘ',              color: statusColors.critical.main,    risk: 'CRITICAL', icon: '🌐' },
     { value: 'DELEGATED',        label: 'Ủy quyền',      desc: 'Nhận ủy quyền từ chỉ huy cấp trên, có thời hạn',           color: statusColors.maintenance.main, risk: 'HIGH',     icon: '🤝' },
 ];

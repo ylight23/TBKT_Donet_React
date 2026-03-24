@@ -306,28 +306,6 @@ public static class Global
         }
     }
 
-    private static IMongoCollection<BsonDocument>? _collectionPhanQuyenNguoiDungNganhDocBson;
-    public static IMongoCollection<BsonDocument>? CollectionPhanQuyenNguoiDungNganhDocBson
-    {
-        get
-        {
-            if (_collectionPhanQuyenNguoiDungNganhDocBson == null)
-                _collectionPhanQuyenNguoiDungNganhDocBson = MongoDB?.GetCollection<BsonDocument>("PhanQuyenNguoiDungNganhDoc");
-            return _collectionPhanQuyenNguoiDungNganhDocBson;
-        }
-    }
-
-    private static IMongoCollection<BsonDocument>? _collectionPhanQuyenNhomNguoiDungNganhDocBson;
-    public static IMongoCollection<BsonDocument>? CollectionPhanQuyenNhomNguoiDungNganhDocBson
-    {
-        get
-        {
-            if (_collectionPhanQuyenNhomNguoiDungNganhDocBson == null)
-                _collectionPhanQuyenNhomNguoiDungNganhDocBson = MongoDB?.GetCollection<BsonDocument>("PhanQuyenNhomNguoiDungNganhDoc");
-            return _collectionPhanQuyenNhomNguoiDungNganhDocBson;
-        }
-    }
-
     private static IMongoCollection<ThamSoNguoiDung>? _collectionUserParams;
     public static IMongoCollection<ThamSoNguoiDung>? CollectionUserParams
     {
@@ -506,7 +484,10 @@ public static class Global
             c.MapIdProperty(x => x.Id);
         });
 
+        EnsureOfficeCollectionsAndIndexes();
         EnsureThamSoIndexes();
+        EnsurePhanQuyenIndexes();
+        EnsureNhomChuyenNganhSeed();
         EnsurePermissionCatalogSeed();
         EnsureDynamicMenuPermissionCatalogSeed();
 
@@ -598,6 +579,184 @@ public static class Global
         }
     }
 
+    private static void EnsureOfficeCollectionsAndIndexes()
+    {
+        try
+        {
+            EnsureCollectionExists("NhomChuyenNganh");
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.Offices),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("Path"),
+                    new CreateIndexOptions { Name = "idx_office_path" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.Offices),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("Depth"),
+                    new CreateIndexOptions { Name = "idx_office_depth" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.Offices),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdCapTren"),
+                    new CreateIndexOptions { Name = "idx_office_parent" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.Offices),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys
+                        .Ascending("Parameters.Name")
+                        .Ascending("Parameters.StringValue"),
+                    new CreateIndexOptions { Name = "idx_office_parameter_name_stringvalue", Sparse = true }));
+
+            Logger?.LogInformation("Ensured MongoDB collections and indexes for Office schema");
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to ensure MongoDB collections and indexes for Office schema");
+            throw;
+        }
+    }
+
+    private static void EnsurePhanQuyenIndexes()
+    {
+        try
+        {
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiDung"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_assignment_user" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNhomNguoiDung"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_assignment_group" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdDonViScope"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_assignment_anchor", Sparse = true }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("NgayHetHan"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_assignment_expire", Sparse = true }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNganhDoc"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_assignment_multinode" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserSubsystemPermissions),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiDung").Ascending("MaPhanHe"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_user_subsystem_user_module" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.GroupSubsystemPermissions),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNhomNguoiDung").Ascending("MaPhanHe"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_group_subsystem_group_module" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserFunctionPermissions),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiDung").Ascending("MaPhanHe"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_user_function_user_module" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNhomNguoiDung").Ascending("MaPhanHe"),
+                    new CreateIndexOptions { Name = "idx_phanquyen_group_function_group_module" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>("LichSuPhanQuyenScope"),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiDuocPhanQuyen").Descending("NgayThucHien"),
+                    new CreateIndexOptions { Name = "idx_lichsu_scope_target_time_desc" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>("LichSuPhanQuyenScope"),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiThucHien").Descending("NgayThucHien"),
+                    new CreateIndexOptions { Name = "idx_lichsu_scope_actor_time_desc" }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>("LichSuPhanQuyenScope"),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("NgayHetHanMoi"),
+                    new CreateIndexOptions { Name = "idx_lichsu_scope_expire_new", Sparse = true }));
+
+            EnsureIndex(
+                MongoDB!.GetCollection<BsonDocument>("NhomChuyenNganh"),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("DanhSachCn"),
+                    new CreateIndexOptions { Name = "idx_nhom_chuyen_nganh_danhsachcn" }));
+
+            Logger?.LogInformation("Ensured MongoDB indexes for PhanQuyen collections");
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to ensure MongoDB indexes for PhanQuyen collections");
+            throw;
+        }
+    }
+
+    private static void EnsureNhomChuyenNganhSeed()
+    {
+        try
+        {
+            var collection = MongoDB!.GetCollection<BsonDocument>("NhomChuyenNganh");
+            var now = DateTime.UtcNow;
+            var seedItems = new[]
+            {
+                new { Id = "nhom_tc_dien_tu", Ten = "Tac chien dien tu", MoTa = "Nhom scope cho tac chien dien tu", DanhSachCn = new[] { "Thong tin", "Ra da" } },
+                new { Id = "nhom_hai_quan", Ten = "Hai quan", MoTa = "Nhom scope cho khoi hai quan", DanhSachCn = new[] { "Thong tin", "Tau thuyen" } },
+                new { Id = "nhom_phong_hoa", Ten = "Phong hoa NBC", MoTa = "Nhom scope cho phong hoa va hoa hoc", DanhSachCn = new[] { "Phong hoa", "Hoa hoc" } },
+                new { Id = "nhom_khong_quan", Ten = "Khong quan", MoTa = "Nhom scope cho khoi khong quan", DanhSachCn = new[] { "Khong quan", "May bay" } },
+                new { Id = "nhom_hau_can", Ten = "Hau can ky thuat", MoTa = "Nhom scope cho hau can, ky thuat, vat tu", DanhSachCn = new[] { "Hau can", "Ky thuat", "Vat tu" } },
+            };
+
+            var bulkOps = new List<WriteModel<BsonDocument>>();
+            foreach (var item in seedItems)
+            {
+                bulkOps.Add(new UpdateOneModel<BsonDocument>(
+                    Builders<BsonDocument>.Filter.Eq("_id", item.Id),
+                    Builders<BsonDocument>.Update
+                        .Set("Ten", item.Ten)
+                        .Set("MoTa", item.MoTa)
+                        .Set("DanhSachCn", new BsonArray(item.DanhSachCn))
+                        .Set("KichHoat", true)
+                        .SetOnInsert("NguoiTao", "system")
+                        .SetOnInsert("NgayTao", now)
+                        .Set("NguoiSua", "system")
+                        .Set("NgaySua", now))
+                { IsUpsert = true });
+            }
+
+            if (bulkOps.Count > 0)
+            {
+                collection.BulkWrite(bulkOps);
+            }
+
+            Logger?.LogInformation("Ensured NhomChuyenNganh seed with {Count} items", bulkOps.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to ensure NhomChuyenNganh seed");
+            throw;
+        }
+    }
+
     private static void EnsureIndex(
         IMongoCollection<BsonDocument> collection,
         CreateIndexModel<BsonDocument> model)
@@ -633,6 +792,17 @@ public static class Global
         }
 
         collection.Indexes.CreateOne(model);
+    }
+
+    private static void EnsureCollectionExists(string collectionName)
+    {
+        var existing = MongoDB!.ListCollectionNames().ToList();
+        if (existing.Contains(collectionName, StringComparer.Ordinal))
+        {
+            return;
+        }
+
+        MongoDB.CreateCollection(collectionName);
     }
 
     private static void EnsurePermissionCatalogSeed()
@@ -769,6 +939,8 @@ public static class Global
                 CoCapDuoi = true,
                 ThuTu = 0,
                 ThuTuSapXep = "000",
+                Path = "/000/",
+                Depth = 1,
                 NgayTao = existingOffice?.NgayTao ?? ProtobufTimestampConverter.GetNowTimestamp(),
                 NguoiTao = existingOffice?.NguoiTao ?? "System",
                 NgaySua = ProtobufTimestampConverter.GetNowTimestamp(),

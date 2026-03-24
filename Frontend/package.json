@@ -2,6 +2,9 @@
   "name": "quanly_dmcanbo",
   "version": "0.1.0",
   "private": true,
+  "config": {
+    "protocVersion": "33.4"
+  },
   "dependencies": {
     "@asgardeo/react": "^0.9.3",
     "@bufbuild/protobuf": "^2.11.0",
