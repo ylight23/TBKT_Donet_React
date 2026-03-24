@@ -324,3 +324,50 @@ Khi làm:
 - Đây không còn chỉ là handoff từ review tĩnh; file đã phản ánh cả phần triển khai qua các giai đoạn 1, 2, 3A, 3B.
 - Build frontend và backend đã chạy thành công; regression hiện mới ở mức checklist thủ công, chưa có test tự động đầy đủ.
 - `handoff.md` cũ bị lỗi encoding, đã được thay bằng bản sprint-ready này.
+---
+
+## Update 2026-03-25 - Scope chuyen nganh vs quyen chuc nang
+
+### Ket luan nhanh
+- Co lien quan nghiep vu rat chat giua:
+  - Chieu 1/2 scope du lieu (don vi + chuyen nganh)
+  - Quyen chuc nang (checkedCodes / actions)
+- Tuy nhien, runtime hien tai van dang theo 2 lop song song, chua hop nhat thanh policy enforce action-per-chuyen-nganh day du.
+
+### Hien trang ky thuat
+- Da bo sung UI cau hinh `phamViChuyenNganh` (CN goc + CN cheo + action per CN) trong tab Scope.
+- Da luu duoc cau truc moi vao DB qua `SaveGroupPermissions` / `AssignUserToGroup` (payload `PV2::...`, fields `PhamViChuyenNganh`, `IdChuyenNganhDoc`).
+- Rebuild cache da gom them `IdChuyenNganhDoc` vao `NganhDocIds` de loc du lieu doc duoc.
+- Chua enforce day du rule: "duoc edit CN A nhung khong duoc delete/approve CN A" tai runtime nghiep vu.
+
+### Muc do mat thiet
+- Mat thiet ve nghiep vu: co.
+- Mat thiet ve enforce runtime: chua du, dang can buoc tiep.
+
+### Risk neu giu nguyen
+- UI hien thi da khoa action cho CN cheo, nhung backend nghiep vu co the chua chan duoc 100% neu user co function-level permission.
+- Co nguy co lech ky vong giua UI/preview va hanh vi thuc te khi thao tac API thao tac du lieu.
+
+### Viec can lam tiep (uu tien)
+1. Bo sung policy check runtime theo cap ban ghi:
+   - Input: `MaChucNang` + action + `IDChuyenNganh` cua entity + scope cache user.
+   - Rule: action chi hop le neu action nam trong map cua chuyen nganh do.
+2. Mo rong cache `UserPermission` de mang duoc map action-per-chuyen-nganh (khong chi `NganhDocIds`).
+3. Enforce chung tai service CRUD trang bi va cac service nghiep vu lien quan (bao duong/sua chua/chuyen cap/niem cat neu dung chung entity).
+4. Them regression cases:
+   - CN goc full action
+   - CN cheo chi view/edit/download
+   - Thu delete/approve tren CN cheo phai bi reject server-side
+   - Scenario thay CN cheo thongtin -> tauthuyen va verify query/action cap nhat dung
+
+### File da dong bo o dot nay
+- `Frontend_TBKT/src/pages/PhanQuyen/subComponent/ScopeConfigPanel.tsx`
+- `Frontend_TBKT/src/apis/phanQuyenApi.ts`
+- `Frontend_TBKT/src/types/permission.ts`
+- `Backend/src/Services/PhanQuyenServiceImpl.cs`
+- `Backend/src/Services/RebuildService.cs`
+- `Backend/scripts/migrate-scope-chuyen-nganh-v2.js`
+
+### Lenh verify da chay
+- Frontend: `npx tsc --noEmit` (pass)
+- Backend: `dotnet build Backend/src/src.csproj -nologo` (pass, con warning cu)

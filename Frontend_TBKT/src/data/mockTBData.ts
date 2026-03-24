@@ -26,8 +26,14 @@ export interface ITrangBi {
     id: string;
     maTrangBi: string;
     ten: string;
+    // Legacy display fields (giu de tuong thich nguoc)
     loai: string;
     donVi: string;
+    phanNganh: string;
+    // Normalized partition keys (de query / phan quyen)
+    IDChuyenNganh?: string;
+    IDChuyenNganhKT?: string;
+    IDDonVi?: string;
     chatLuong: ChatLuong;
     trangThai: TrangThaiTrangBi;
     soLanSuaChua: number;
@@ -35,7 +41,6 @@ export interface ITrangBi {
     namSuDung: number;
     serial?: string;
     mac?: string;
-    phanNganh: string;
     donViQuanLy: string;
     tinhTrangKyThuat: string;
     namSanXuat: number;

@@ -129,6 +129,7 @@ const PhanQuyenPage: React.FC = () => {
         anchorNodeId: '',
         multiNodeIds: [],
         idNhomChuyenNganh: '',
+        phamViChuyenNganh: undefined,
     });
     const [permLoading, setPermLoading]         = useState(false);
     const [usersInGroup, setUsersInGroup]       = useState<UserInGroupInfo[]>([]);
@@ -198,6 +199,7 @@ const PhanQuyenPage: React.FC = () => {
                     anchorNodeId: perms.anchorNodeId || '',
                     multiNodeIds: perms.multiNodeIds || [],
                     idNhomChuyenNganh: perms.idNhomChuyenNganh || '',
+                    phamViChuyenNganh: perms.phamViChuyenNganh,
                 });
                 setUsersInGroup(users);
                 setUnsaved(false);

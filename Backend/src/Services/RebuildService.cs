@@ -27,7 +27,8 @@ public sealed class RebuildService
                 .Project(projectionBuilder.Include("IdNhomNguoiDung").Include("ScopeType")
                     .Include("IdDonViScope").Include("NgayHetHan")
                     .Include("IdNguoiUyQuyen")
-                    .Include("IdNganhDoc").Include("IdNhomChuyenNganh"))
+                    .Include("IdNganhDoc").Include("IdNhomChuyenNganh")
+                    .Include("IdChuyenNganhDoc").Include("PhamViChuyenNganh"))
                 .ToListAsync();
 
             var nhomIds = new List<string>();
@@ -75,6 +76,25 @@ public sealed class RebuildService
                 {
                     foreach (var item in nganhDocArr.Strings().Where(item => !string.IsNullOrEmpty(item)))
                         nganhDocIds.Add(item);
+                }
+
+                var chuyenNganhDocArr = doc.ArrayOr("IdChuyenNganhDoc");
+                if (chuyenNganhDocArr != null)
+                {
+                    foreach (var item in chuyenNganhDocArr.Strings().Where(item => !string.IsNullOrEmpty(item)))
+                        nganhDocIds.Add(item);
+                }
+
+                var phamViDoc = doc.DocOr("PhamViChuyenNganh");
+                var phamViEntries = phamViDoc.ArrayOr("IdChuyenNganhDoc");
+                if (phamViEntries != null)
+                {
+                    foreach (var entry in phamViEntries.Documents())
+                    {
+                        var id = entry.StringOr("Id");
+                        if (!string.IsNullOrEmpty(id))
+                            nganhDocIds.Add(id);
+                    }
                 }
 
                 var nhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh");

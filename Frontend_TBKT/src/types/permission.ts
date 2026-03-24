@@ -60,11 +60,32 @@ export interface ScopeConfig {
     example?: string;
 }
 
+export type PermissionAction =
+    | 'view'
+    | 'add'
+    | 'edit'
+    | 'delete'
+    | 'approve'
+    | 'unapprove'
+    | 'download'
+    | 'print';
+
+export interface ChuyenNganhDocScope {
+    id: string;
+    actions: PermissionAction[];
+}
+
+export interface PhamViChuyenNganhConfig {
+    idChuyenNganh: string;
+    idChuyenNganhDoc: ChuyenNganhDocScope[];
+}
+
 export interface GroupScopeConfig {
     scopeType: ScopeType;
     anchorNodeId?: string;
     multiNodeIds: string[];
     idNhomChuyenNganh?: string;
+    phamViChuyenNganh?: PhamViChuyenNganhConfig;
 }
 
 export interface PermissionUserRow {

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using protos;
+using System.Text;
+using System.Text.Json;
 
 namespace Backend.Services;
 
@@ -205,6 +207,127 @@ public class PhanQuyenServiceImpl(
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
+    private const string PhamViPayloadPrefix = "PV2::";
+
+    private sealed record ParsedPhamViPayload(
+        string IdChuyenNganh,
+        BsonDocument? PhamViDoc,
+        List<string> IdChuyenNganhDoc);
+
+    private sealed class PhamViPayloadDto
+    {
+        public string? idChuyenNganh { get; set; }
+        public List<PhamViEntryDto>? idChuyenNganhDoc { get; set; }
+    }
+
+    private sealed class PhamViEntryDto
+    {
+        public string? id { get; set; }
+        public List<string>? actions { get; set; }
+    }
+
+    private static bool TryParsePhamViPayload(string raw, out ParsedPhamViPayload parsed)
+    {
+        parsed = new ParsedPhamViPayload("", null, new List<string>());
+        if (string.IsNullOrWhiteSpace(raw) || !raw.StartsWith(PhamViPayloadPrefix, StringComparison.Ordinal))
+            return false;
+
+        try
+        {
+            var base64 = raw.Substring(PhamViPayloadPrefix.Length);
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+            var dto = JsonSerializer.Deserialize<PhamViPayloadDto>(json);
+            if (dto == null || string.IsNullOrWhiteSpace(dto.idChuyenNganh) || dto.idChuyenNganhDoc == null)
+                return false;
+
+            var ownId = dto.idChuyenNganh.Trim();
+            var usedIds = new HashSet<string>(StringComparer.Ordinal);
+            var list = new BsonArray();
+
+            foreach (var entry in dto.idChuyenNganhDoc)
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.id))
+                    continue;
+                var id = entry.id.Trim();
+                if (!usedIds.Add(id))
+                    continue;
+
+                var actions = (entry.actions ?? new List<string>())
+                    .Where(action => !string.IsNullOrWhiteSpace(action))
+                    .Select(action => action.Trim())
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                if (id == ownId)
+                    actions = new List<string> { "view", "add", "edit", "delete", "approve", "unapprove", "download", "print" };
+                else
+                    actions = actions.Where(action => action is not "delete" and not "approve" and not "unapprove").ToList();
+
+                if (actions.Count == 0)
+                    actions = id == ownId ? new List<string> { "view" } : new List<string> { "view", "download" };
+
+                list.Add(new BsonDocument
+                {
+                    { "Id", id },
+                    { "Actions", new BsonArray(actions) },
+                });
+            }
+
+            if (list.Count == 0)
+            {
+                list.Add(new BsonDocument
+                {
+                    { "Id", ownId },
+                    { "Actions", new BsonArray(new[] { "view", "add", "edit", "delete", "approve", "unapprove", "download", "print" }) },
+                });
+            }
+
+            var idDoc = list.Select(v => v.AsBsonDocument["Id"].AsString).Distinct(StringComparer.Ordinal).ToList();
+            var phamViDoc = new BsonDocument
+            {
+                { "IdChuyenNganh", ownId },
+                { "IdChuyenNganhDoc", list },
+            };
+            parsed = new ParsedPhamViPayload(ownId, phamViDoc, idDoc);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string BuildPhamViPayloadString(BsonDocument? phamViDoc, string fallbackIdChuyenNganh)
+    {
+        if (phamViDoc == null || phamViDoc.ElementCount == 0)
+            return fallbackIdChuyenNganh ?? "";
+
+        var ownId = phamViDoc.StringOr("IdChuyenNganh", fallbackIdChuyenNganh ?? "");
+        var entries = new List<object>();
+        var arr = phamViDoc.ArrayOr("IdChuyenNganhDoc");
+        if (arr != null)
+        {
+            foreach (var doc in arr.Documents())
+            {
+                var id = doc.StringOr("Id");
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+                var actions = doc.ArrayOr("Actions")?.Strings()
+                    .Where(action => !string.IsNullOrWhiteSpace(action))
+                    .ToArray() ?? Array.Empty<string>();
+                entries.Add(new { id, actions });
+            }
+        }
+
+        var obj = new
+        {
+            idChuyenNganh = ownId,
+            idChuyenNganhDoc = entries,
+        };
+        var json = JsonSerializer.Serialize(obj);
+        return PhamViPayloadPrefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+    }
+
     private async Task CloneGroupPermissions(IMongoDatabase db, string fromId, string toId, string userName)
     {
         var pqCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions);
@@ -367,7 +490,7 @@ public class PhanQuyenServiceImpl(
             .ToListAsync();
         var nhomTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups)
             .Find(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.IdNhom)))
-            .Project(P.Include("ScopeType").Include("IdDonViScope").Include("IdNganhDoc").Include("IdNhomChuyenNganh"))
+            .Project(P.Include("ScopeType").Include("IdDonViScope").Include("IdNganhDoc").Include("IdNhomChuyenNganh").Include("PhamViChuyenNganh"))
             .FirstOrDefaultAsync();
         await Task.WhenAll(docsTask, nhomTask);
 
@@ -387,7 +510,7 @@ public class PhanQuyenServiceImpl(
         {
             response.MultiNodeIds.AddRange(multiNodeIds.Strings().Where(item => !string.IsNullOrWhiteSpace(item)));
         }
-        response.IdNhomChuyenNganh = nhomDoc.StringOr("IdNhomChuyenNganh");
+        response.IdNhomChuyenNganh = BuildPhamViPayloadString(nhomDoc.DocOr("PhamViChuyenNganh"), nhomDoc.StringOr("IdNhomChuyenNganh"));
 
         return response;
     }
@@ -405,7 +528,16 @@ public class PhanQuyenServiceImpl(
         var normalizedScopeType = NormalizeScopeType(request.ScopeType);
         var multiNodeIds = NormalizeStringList(request.MultiNodeIds);
         var anchorNodeId = string.IsNullOrWhiteSpace(request.AnchorNodeId) ? "" : request.AnchorNodeId.Trim();
-        var idNhomChuyenNganh = string.IsNullOrWhiteSpace(request.IdNhomChuyenNganh) ? "" : request.IdNhomChuyenNganh.Trim();
+        var rawIdNhomChuyenNganh = string.IsNullOrWhiteSpace(request.IdNhomChuyenNganh) ? "" : request.IdNhomChuyenNganh.Trim();
+        var idNhomChuyenNganh = rawIdNhomChuyenNganh;
+        BsonDocument? phamViChuyenNganhDoc = null;
+        List<string> idChuyenNganhDoc = new();
+        if (TryParsePhamViPayload(rawIdNhomChuyenNganh, out var phamViParsed))
+        {
+            idNhomChuyenNganh = phamViParsed.IdChuyenNganh;
+            phamViChuyenNganhDoc = phamViParsed.PhamViDoc;
+            idChuyenNganhDoc = phamViParsed.IdChuyenNganhDoc;
+        }
 
         if (normalizedScopeType == "MULTI_NODE")
         {
@@ -455,6 +587,8 @@ public class PhanQuyenServiceImpl(
                     .Set("IdDonViScope", anchorNodeId)
                     .Set("IdNganhDoc", new BsonArray(multiNodeIds))
                     .Set("IdNhomChuyenNganh", idNhomChuyenNganh)
+                    .Set("IdChuyenNganhDoc", new BsonArray(idChuyenNganhDoc))
+                    .Set("PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value)
                     .Set("NguoiSua", userName)
                     .Set("NgaySua", now));
         }
@@ -699,6 +833,16 @@ public class PhanQuyenServiceImpl(
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
         var userName  = context.GetUserName() ?? "";
         var now       = DateTime.UtcNow;
+        var rawIdNhomChuyenNganh = request.IdNhomChuyenNganh?.Trim() ?? "";
+        var idNhomChuyenNganh = rawIdNhomChuyenNganh;
+        BsonDocument? phamViChuyenNganhDoc = null;
+        List<string> idChuyenNganhDoc = new();
+        if (TryParsePhamViPayload(rawIdNhomChuyenNganh, out var phamViParsed))
+        {
+            idNhomChuyenNganh = phamViParsed.IdChuyenNganh;
+            phamViChuyenNganhDoc = phamViParsed.PhamViDoc;
+            idChuyenNganhDoc = phamViParsed.IdChuyenNganhDoc;
+        }
 
         var existing = await memberCol.Find(Builders<BsonDocument>.Filter.And(
             Builders<BsonDocument>.Filter.Eq("IdNguoiDung",     request.IdNguoiDung),
@@ -714,7 +858,9 @@ public class PhanQuyenServiceImpl(
                 Builders<BsonDocument>.Update
                     .Set("ScopeType",        NormalizeScopeType(request.ScopeType))
                     .Set("IdDonViScope",     request.AnchorNodeId)
-                    .Set("IdNhomChuyenNganh", request.IdNhomChuyenNganh)
+                    .Set("IdNhomChuyenNganh", idNhomChuyenNganh)
+                    .Set("IdChuyenNganhDoc", new BsonArray(idChuyenNganhDoc))
+                    .Set("PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value)
                     .Set("Loai",             request.Loai)
                     .Set("IdNguoiUyQuyen",   request.IdNguoiUyQuyen)
                     .Unset("ScopeAttribute")
@@ -734,7 +880,9 @@ public class PhanQuyenServiceImpl(
                 { "IdNhomNguoiDung", request.IdNhom },
                 { "ScopeType",       NormalizeScopeType(request.ScopeType) },
                 { "IdDonViScope",    request.AnchorNodeId },
-                { "IdNhomChuyenNganh", request.IdNhomChuyenNganh },
+                { "IdNhomChuyenNganh", idNhomChuyenNganh },
+                { "IdChuyenNganhDoc", new BsonArray(idChuyenNganhDoc) },
+                { "PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value },
                 { "Loai",            string.IsNullOrEmpty(request.Loai) ? "Direct" : request.Loai },
                 { "IdNguoiUyQuyen",  request.IdNguoiUyQuyen },
                 { "NguoiTao",        userName },

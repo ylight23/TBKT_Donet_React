@@ -14,7 +14,13 @@ import {
 } from '../grpc/generated/PhanQuyen_pb';
 import type { ChucNangPermission, PhanHePermission } from '../store/reducer/permissionReducer';
 import { phanQuyenClient } from '../grpc/grpcClient';
-import type { GroupScopeConfig, PermissionGroup, ScopeType } from '../types/permission';
+import type {
+    GroupScopeConfig,
+    PermissionGroup,
+    PermissionAction,
+    PhamViChuyenNganhConfig,
+    ScopeType,
+} from '../types/permission';
 
 // ── Shared DTOs ───────────────────────────────────────────────────────────────
 
@@ -36,6 +42,7 @@ export interface GroupPermissions {
     anchorNodeId?: string;
     multiNodeIds: string[];
     idNhomChuyenNganh?: string;
+    phamViChuyenNganh?: PhamViChuyenNganhConfig;
 }
 
 export interface PermissionCatalogGroupInfo extends PermissionGroup {}
@@ -91,6 +98,80 @@ function isoToTimestamp(value?: string): { seconds: bigint; nanos: number } | un
         seconds: BigInt(seconds),
         nanos,
     };
+}
+
+const PHAM_VI_PREFIX = 'PV2::';
+
+function toBase64(value: string): string {
+    if (typeof window !== 'undefined' && typeof window.btoa === 'function') {
+        return window.btoa(unescape(encodeURIComponent(value)));
+    }
+    return Buffer.from(value, 'utf8').toString('base64');
+}
+
+function fromBase64(value: string): string {
+    if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+        return decodeURIComponent(escape(window.atob(value)));
+    }
+    return Buffer.from(value, 'base64').toString('utf8');
+}
+
+function tryParsePhamViJson(raw?: string): PhamViChuyenNganhConfig | undefined {
+    if (!raw) return undefined;
+    try {
+        const parsed = JSON.parse(raw) as Partial<PhamViChuyenNganhConfig>;
+        if (!parsed || typeof parsed !== 'object') return undefined;
+        if (typeof parsed.idChuyenNganh !== 'string' || !Array.isArray(parsed.idChuyenNganhDoc)) return undefined;
+        const idChuyenNganhDoc = parsed.idChuyenNganhDoc
+            .map((entry) => {
+                if (!entry || typeof entry.id !== 'string' || !Array.isArray(entry.actions)) return null;
+                return {
+                    id: entry.id.trim(),
+                    actions: entry.actions.filter((action): action is PermissionAction => typeof action === 'string'),
+                };
+            })
+            .filter((entry): entry is { id: string; actions: PermissionAction[] } => Boolean(entry))
+            .filter((entry) => entry.id.length > 0);
+        if (idChuyenNganhDoc.length === 0) return undefined;
+        return {
+            idChuyenNganh: parsed.idChuyenNganh.trim(),
+            idChuyenNganhDoc,
+        };
+    } catch {
+        return undefined;
+    }
+}
+
+function decodePhamViPayload(raw?: string): { idNhomChuyenNganh: string; phamViChuyenNganh?: PhamViChuyenNganhConfig } {
+    if (!raw) return { idNhomChuyenNganh: '' };
+    if (!raw.startsWith(PHAM_VI_PREFIX)) {
+        return { idNhomChuyenNganh: raw };
+    }
+    const encoded = raw.slice(PHAM_VI_PREFIX.length);
+    try {
+        const json = fromBase64(encoded);
+        const parsed = tryParsePhamViJson(json);
+        if (!parsed) return { idNhomChuyenNganh: '' };
+        return {
+            idNhomChuyenNganh: parsed.idChuyenNganh,
+            phamViChuyenNganh: parsed,
+        };
+    } catch {
+        return { idNhomChuyenNganh: '' };
+    }
+}
+
+function encodePhamViPayload(scopeConfig: GroupScopeConfig): string {
+    const parsed = scopeConfig.phamViChuyenNganh;
+    if (!parsed) return scopeConfig.idNhomChuyenNganh ?? '';
+    const payload: PhamViChuyenNganhConfig = {
+        idChuyenNganh: parsed.idChuyenNganh,
+        idChuyenNganhDoc: parsed.idChuyenNganhDoc.map((entry) => ({
+            id: entry.id,
+            actions: [...entry.actions],
+        })),
+    };
+    return `${PHAM_VI_PREFIX}${toBase64(JSON.stringify(payload))}`;
 }
 
 // ── getMyPermissions ──────────────────────────────────────────────────────────
@@ -199,12 +280,14 @@ export async function deleteNhomNguoiDung(id: string): Promise<{ success: boolea
 export async function getGroupPermissions(idNhom: string): Promise<GroupPermissions> {
     const req = create(GetGroupPermissionsRequestSchema, { idNhom });
     const res = await phanQuyenClient.getGroupPermissions(req);
+    const decoded = decodePhamViPayload(res.idNhomChuyenNganh);
     return {
         checkedCodes: [...res.checkedCodes],
         scopeType: res.scopeType || 'SUBTREE',
         anchorNodeId: res.anchorNodeId || '',
         multiNodeIds: [...res.multiNodeIds],
-        idNhomChuyenNganh: res.idNhomChuyenNganh || '',
+        idNhomChuyenNganh: decoded.idNhomChuyenNganh,
+        phamViChuyenNganh: decoded.phamViChuyenNganh,
     };
 }
 
@@ -221,7 +304,7 @@ export async function saveGroupPermissions(
         scopeType: scopeConfig.scopeType,
         anchorNodeId: scopeConfig.anchorNodeId ?? '',
         multiNodeIds: scopeConfig.multiNodeIds ?? [],
-        idNhomChuyenNganh: scopeConfig.idNhomChuyenNganh ?? '',
+        idNhomChuyenNganh: encodePhamViPayload(scopeConfig),
     });
     await phanQuyenClient.saveGroupPermissions(req);
 }
