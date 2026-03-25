@@ -5,13 +5,17 @@ using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using Grpc.Core;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 using protos;
 namespace Backend.Services;
 
-public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnvironment environment) : OfficeService.OfficeServiceBase
+public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnvironment _environment) : OfficeService.OfficeServiceBase
 {
 
     private int lengthOfLevel = 3;

@@ -14,7 +14,7 @@ namespace Backend.Services;
 
 [Authorize]
 public class PhanQuyenServiceImpl(
-    ILogger<PhanQuyenServiceImpl> logger,
+    ILogger<PhanQuyenServiceImpl> _logger,
     RebuildService  rebuildService,
     RebuildQueue    rebuildQueue)
     : PhanQuyenService.PhanQuyenServiceBase
@@ -105,7 +105,7 @@ public class PhanQuyenServiceImpl(
             ScopeType       = doc.StringOr("ScopeType", "SUBTREE"),
             AnchorNodeId    = doc.StringOr("AnchorNodeId"),
             AnchorParentId  = doc.StringOr("AnchorParentId"),
-            IdNhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh"),
+            IdDanhMucChuyenNganh = doc.StringOr("IdDanhMucChuyenNganh"),
         };
 
         // DELEGATED extras
@@ -149,6 +149,26 @@ public class PhanQuyenServiceImpl(
         if (nganhArr != null)
         {
             response.NganhDocIds.AddRange(nganhArr.Strings().Where(item => !string.IsNullOrEmpty(item)));
+        }
+
+        // ActionsPerCN — from PhamViChuyenNganh cached doc (A4)
+        var phamViDoc = doc.DocOr("PhamViChuyenNganh");
+        if (phamViDoc != null)
+        {
+            var entries = phamViDoc.ArrayOr("IdChuyenNganhDoc");
+            if (entries != null)
+            {
+                foreach (var entry in entries.Documents())
+                {
+                    var id = entry.StringOr("Id");
+                    if (string.IsNullOrEmpty(id)) continue;
+                    var cnAccess = new protos.ChuyenNganhAccess { IdChuyenNganh = id };
+                    var actionArr = entry.ArrayOr("Actions");
+                    if (actionArr != null)
+                        cnAccess.Actions.AddRange(actionArr.Strings().Where(a => !string.IsNullOrEmpty(a)));
+                    response.ActionsPerCn.Add(cnAccess);
+                }
+            }
         }
 
         return response;
@@ -490,7 +510,7 @@ public class PhanQuyenServiceImpl(
             .ToListAsync();
         var nhomTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups)
             .Find(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.IdNhom)))
-            .Project(P.Include("ScopeType").Include("IdDonViScope").Include("IdNganhDoc").Include("IdNhomChuyenNganh").Include("PhamViChuyenNganh"))
+            .Project(P.Include("ScopeType").Include("IdDonViScope").Include("IdNganhDoc").Include("IdDanhMucChuyenNganh").Include("PhamViChuyenNganh"))
             .FirstOrDefaultAsync();
         await Task.WhenAll(docsTask, nhomTask);
 
@@ -510,7 +530,7 @@ public class PhanQuyenServiceImpl(
         {
             response.MultiNodeIds.AddRange(multiNodeIds.Strings().Where(item => !string.IsNullOrWhiteSpace(item)));
         }
-        response.IdNhomChuyenNganh = BuildPhamViPayloadString(nhomDoc.DocOr("PhamViChuyenNganh"), nhomDoc.StringOr("IdNhomChuyenNganh"));
+        response.IdDanhMucChuyenNganh = BuildPhamViPayloadString(nhomDoc.DocOr("PhamViChuyenNganh"), nhomDoc.StringOr("IdDanhMucChuyenNganh"));
 
         return response;
     }
@@ -528,13 +548,13 @@ public class PhanQuyenServiceImpl(
         var normalizedScopeType = NormalizeScopeType(request.ScopeType);
         var multiNodeIds = NormalizeStringList(request.MultiNodeIds);
         var anchorNodeId = string.IsNullOrWhiteSpace(request.AnchorNodeId) ? "" : request.AnchorNodeId.Trim();
-        var rawIdNhomChuyenNganh = string.IsNullOrWhiteSpace(request.IdNhomChuyenNganh) ? "" : request.IdNhomChuyenNganh.Trim();
-        var idNhomChuyenNganh = rawIdNhomChuyenNganh;
+        var rawIdDanhMucChuyenNganh = string.IsNullOrWhiteSpace(request.IdDanhMucChuyenNganh) ? "" : request.IdDanhMucChuyenNganh.Trim();
+        var idDanhMucChuyenNganh = rawIdDanhMucChuyenNganh;
         BsonDocument? phamViChuyenNganhDoc = null;
         List<string> idChuyenNganhDoc = new();
-        if (TryParsePhamViPayload(rawIdNhomChuyenNganh, out var phamViParsed))
+        if (TryParsePhamViPayload(rawIdDanhMucChuyenNganh, out var phamViParsed))
         {
-            idNhomChuyenNganh = phamViParsed.IdChuyenNganh;
+            idDanhMucChuyenNganh = phamViParsed.IdChuyenNganh;
             phamViChuyenNganhDoc = phamViParsed.PhamViDoc;
             idChuyenNganhDoc = phamViParsed.IdChuyenNganhDoc;
         }
@@ -586,7 +606,7 @@ public class PhanQuyenServiceImpl(
                     .Set("ScopeType", normalizedScopeType)
                     .Set("IdDonViScope", anchorNodeId)
                     .Set("IdNganhDoc", new BsonArray(multiNodeIds))
-                    .Set("IdNhomChuyenNganh", idNhomChuyenNganh)
+                    .Set("IdDanhMucChuyenNganh", idDanhMucChuyenNganh)
                     .Set("IdChuyenNganhDoc", new BsonArray(idChuyenNganhDoc))
                     .Set("PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value)
                     .Set("NguoiSua", userName)
@@ -661,7 +681,7 @@ public class PhanQuyenServiceImpl(
             {
                 { "IdNguoiDung", 1 }, { "ScopeType", 1 }, { "IdDonViScope", 1 },
                 { "NgayHetHan", 1 }, { "IdNguoiUyQuyen", 1 },
-                { "IdNhomChuyenNganh", 1 }, { "emp", 1 }, { "anchor", 1 },
+                { "IdDanhMucChuyenNganh", 1 }, { "emp", 1 }, { "anchor", 1 },
             }),
         };
 
@@ -692,7 +712,7 @@ public class PhanQuyenServiceImpl(
                 ScopeType     = doc.StringOr("ScopeType"),
                 AnchorNodeId  = doc.StringOr("IdDonViScope"),
                 AnchorNodeName = anchor.StringOr("Ten", anchor.StringOr("TenDayDu", doc.StringOr("IdDonViScope"))),
-                IdNhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh"),
+                IdDanhMucChuyenNganh = doc.StringOr("IdDanhMucChuyenNganh"),
                 IdNguoiUyQuyen = doc.StringOr("IdNguoiUyQuyen"),
                 IsExpired     = isExpired,
             };
@@ -777,7 +797,7 @@ public class PhanQuyenServiceImpl(
             {
                 { "IdNguoiDung", 1 }, { "IdNhomNguoiDung", 1 },
                 { "ScopeType", 1 }, { "IdDonViScope", 1 }, { "IdNguoiUyQuyen", 1 },
-                { "IdNhomChuyenNganh", 1 },
+                { "IdDanhMucChuyenNganh", 1 },
                 { "Loai", 1 }, { "NgayTao", 1 }, { "NgayHetHan", 1 },
                 { "nhom", 1 }, { "emp", 1 }, { "anchor", 1 },
             }),
@@ -808,7 +828,7 @@ public class PhanQuyenServiceImpl(
                 ScopeType      = doc.StringOr("ScopeType"),
                 AnchorNodeId   = doc.StringOr("IdDonViScope"),
                 AnchorNodeName = anchor.StringOr("Ten", anchor.StringOr("TenDayDu", doc.StringOr("IdDonViScope"))),
-                IdNhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh"),
+                IdDanhMucChuyenNganh = doc.StringOr("IdDanhMucChuyenNganh"),
                 Loai           = doc.StringOr("Loai", "Direct"),
                 IdNguoiUyQuyen = doc.StringOr("IdNguoiUyQuyen"),
             };
@@ -833,13 +853,13 @@ public class PhanQuyenServiceImpl(
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
         var userName  = context.GetUserName() ?? "";
         var now       = DateTime.UtcNow;
-        var rawIdNhomChuyenNganh = request.IdNhomChuyenNganh?.Trim() ?? "";
-        var idNhomChuyenNganh = rawIdNhomChuyenNganh;
+        var rawIdDanhMucChuyenNganh = request.IdDanhMucChuyenNganh?.Trim() ?? "";
+        var idDanhMucChuyenNganh = rawIdDanhMucChuyenNganh;
         BsonDocument? phamViChuyenNganhDoc = null;
         List<string> idChuyenNganhDoc = new();
-        if (TryParsePhamViPayload(rawIdNhomChuyenNganh, out var phamViParsed))
+        if (TryParsePhamViPayload(rawIdDanhMucChuyenNganh, out var phamViParsed))
         {
-            idNhomChuyenNganh = phamViParsed.IdChuyenNganh;
+            idDanhMucChuyenNganh = phamViParsed.IdChuyenNganh;
             phamViChuyenNganhDoc = phamViParsed.PhamViDoc;
             idChuyenNganhDoc = phamViParsed.IdChuyenNganhDoc;
         }
@@ -858,7 +878,7 @@ public class PhanQuyenServiceImpl(
                 Builders<BsonDocument>.Update
                     .Set("ScopeType",        NormalizeScopeType(request.ScopeType))
                     .Set("IdDonViScope",     request.AnchorNodeId)
-                    .Set("IdNhomChuyenNganh", idNhomChuyenNganh)
+                    .Set("IdDanhMucChuyenNganh", idDanhMucChuyenNganh)
                     .Set("IdChuyenNganhDoc", new BsonArray(idChuyenNganhDoc))
                     .Set("PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value)
                     .Set("Loai",             request.Loai)
@@ -880,7 +900,7 @@ public class PhanQuyenServiceImpl(
                 { "IdNhomNguoiDung", request.IdNhom },
                 { "ScopeType",       NormalizeScopeType(request.ScopeType) },
                 { "IdDonViScope",    request.AnchorNodeId },
-                { "IdNhomChuyenNganh", idNhomChuyenNganh },
+                { "IdDanhMucChuyenNganh", idDanhMucChuyenNganh },
                 { "IdChuyenNganhDoc", new BsonArray(idChuyenNganhDoc) },
                 { "PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value },
                 { "Loai",            string.IsNullOrEmpty(request.Loai) ? "Direct" : request.Loai },

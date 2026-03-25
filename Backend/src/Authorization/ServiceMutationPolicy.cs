@@ -100,4 +100,94 @@ internal static class ServiceMutationPolicy
         Builders<BsonDocument>.Filter.And(
             Builders<BsonDocument>.Filter.In("_id", ids),
             MongoDocumentHelpers.NotDeleted);
+
+    // ── AccessGate / ActionGuard enforcement (C1) ──────────────────────
+
+    /// <summary>
+    /// Get AccessGate from request context (sync wrapper for service layer).
+    /// </summary>
+    public static AccessGate GetAccessGate(ServerCallContext? context) =>
+        context.GetAccessGate();
+
+    /// <summary>
+    /// Check if user can perform a specific action on a specific ChuyenNganh.
+    /// Returns false if the action is denied; services should abort the operation.
+    /// </summary>
+    public static bool CanActOnCN(ServerCallContext? context, string action, string? idChuyenNganh)
+    {
+        var gate = context.GetAccessGate();
+        return gate.CanActOnCN(action, idChuyenNganh);
+    }
+
+    /// <summary>
+    /// Throws RpcException with PermissionDenied if user cannot perform the specified
+    /// action on the given ChuyenNganh. Only checks CN dimension.
+    /// Prefer <see cref="RequireAction"/> for full 2-dimension enforcement.
+    /// </summary>
+    public static void RequireActOnCN(ServerCallContext? context, string action, string? idChuyenNganh)
+    {
+        if (!CanActOnCN(context, action, idChuyenNganh))
+        {
+            throw new RpcException(new Status(
+                StatusCode.PermissionDenied,
+                $"Không có quyền '{action}' trên chuyên ngành '{idChuyenNganh ?? "(trống)"}'."));
+        }
+    }
+
+    /// <summary>
+    /// Combined 2-dimension enforcement ⭐ — checks BOTH:
+    ///   Chiều 1: FuncActions (có quyền chức năng?)
+    ///   Chiều 2: ActionsPerCN (có quyền action trên CN cụ thể?)
+    /// Throws PermissionDenied if either dimension denies.
+    /// 
+    /// VD: RequireAction(ctx, "trangbi", "edit", "thongtin")
+    ///     → Fail nếu checkedCodes thiếu trangbi.edit HOẶC ActionsPerCN["thongtin"] thiếu edit
+    /// </summary>
+    public static void RequireAction(
+        ServerCallContext? context, string maChucNang, string action, string? idChuyenNganh)
+    {
+        var gate = context.GetAccessGate();
+        if (!gate.CanPerformAction(maChucNang, action, idChuyenNganh))
+        {
+            throw new RpcException(new Status(
+                StatusCode.PermissionDenied,
+                $"Không có quyền '{action}' trên module '{maChucNang}' cho chuyên ngành '{idChuyenNganh ?? "(trống)"}'."));
+        }
+    }
+
+    /// <summary>
+    /// Throws RpcException with PermissionDenied if user cannot see data from the given CN.
+    /// </summary>
+    public static void RequireSeeCN(ServerCallContext? context, string? idChuyenNganh)
+    {
+        var gate = context.GetAccessGate();
+        if (!gate.CanSeeCN(idChuyenNganh))
+        {
+            throw new RpcException(new Status(
+                StatusCode.PermissionDenied,
+                $"Không có quyền xem dữ liệu chuyên ngành '{idChuyenNganh ?? "(trống)"}'."));
+        }
+    }
+
+    /// <summary>
+    /// Build a MongoDB filter that restricts results to only the ChuyenNganh values
+    /// the current user can see. Returns an empty filter if the user has no restrictions
+    /// (SuperAdmin or no CN rules configured).
+    /// </summary>
+    /// <param name="context">gRPC request context.</param>
+    /// <param name="cnFieldName">
+    /// The field name in MongoDB documents that stores the ChuyenNganh ID.
+    /// Defaults to "IDChuyenNganh".
+    /// </param>
+    public static FilterDefinition<BsonDocument> BuildCnVisibilityFilter(
+        ServerCallContext? context,
+        string cnFieldName = "IDChuyenNganh")
+    {
+        var gate = context.GetAccessGate();
+        var visibleCNs = gate.GetVisibleCNs();
+        if (visibleCNs.Count == 0)
+            return Builders<BsonDocument>.Filter.Empty; // no restriction
+
+        return Builders<BsonDocument>.Filter.In(cnFieldName, visibleCNs);
+    }
 }

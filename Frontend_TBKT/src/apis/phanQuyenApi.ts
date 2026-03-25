@@ -41,7 +41,7 @@ export interface GroupPermissions {
     scopeType: string;
     anchorNodeId?: string;
     multiNodeIds: string[];
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
     phamViChuyenNganh?: PhamViChuyenNganhConfig;
 }
 
@@ -58,7 +58,7 @@ export interface UserInGroupInfo {
     isExpired: boolean;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
 }
 
 export interface AssignmentDetailInfo {
@@ -76,7 +76,7 @@ export interface AssignmentDetailInfo {
     ngayTao?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -142,28 +142,28 @@ function tryParsePhamViJson(raw?: string): PhamViChuyenNganhConfig | undefined {
     }
 }
 
-function decodePhamViPayload(raw?: string): { idNhomChuyenNganh: string; phamViChuyenNganh?: PhamViChuyenNganhConfig } {
-    if (!raw) return { idNhomChuyenNganh: '' };
+function decodePhamViPayload(raw?: string): { idDanhMucChuyenNganh: string; phamViChuyenNganh?: PhamViChuyenNganhConfig } {
+    if (!raw) return { idDanhMucChuyenNganh: '' };
     if (!raw.startsWith(PHAM_VI_PREFIX)) {
-        return { idNhomChuyenNganh: raw };
+        return { idDanhMucChuyenNganh: raw };
     }
     const encoded = raw.slice(PHAM_VI_PREFIX.length);
     try {
         const json = fromBase64(encoded);
         const parsed = tryParsePhamViJson(json);
-        if (!parsed) return { idNhomChuyenNganh: '' };
+        if (!parsed) return { idDanhMucChuyenNganh: '' };
         return {
-            idNhomChuyenNganh: parsed.idChuyenNganh,
+            idDanhMucChuyenNganh: parsed.idChuyenNganh,
             phamViChuyenNganh: parsed,
         };
     } catch {
-        return { idNhomChuyenNganh: '' };
+        return { idDanhMucChuyenNganh: '' };
     }
 }
 
 function encodePhamViPayload(scopeConfig: GroupScopeConfig): string {
     const parsed = scopeConfig.phamViChuyenNganh;
-    if (!parsed) return scopeConfig.idNhomChuyenNganh ?? '';
+    if (!parsed) return scopeConfig.idDanhMucChuyenNganh ?? '';
     const payload: PhamViChuyenNganhConfig = {
         idChuyenNganh: parsed.idChuyenNganh,
         idChuyenNganhDoc: parsed.idChuyenNganhDoc.map((entry) => ({
@@ -207,13 +207,20 @@ export async function getMyPermissions() {
         },
     }));
 
+    // Parse ActionsPerCN (B3 — AccessGate)
+    const actionsPerCn = (res.actionsPerCn ?? []).map(entry => ({
+        idChuyenNganh: entry.idChuyenNganh,
+        actions: [...entry.actions] as import('../types/permission').PermissionAction[],
+    }));
+
     return {
         phanHe,
         chucNang,
         scopeType:    res.scopeType,
         anchorNodeId: res.anchorNodeId,
         nganhDocIds:  [...res.nganhDocIds],
-        idNhomChuyenNganh: res.idNhomChuyenNganh,
+        idDanhMucChuyenNganh: res.idDanhMucChuyenNganh,
+        actionsPerCn,
     };
 }
 
@@ -280,13 +287,13 @@ export async function deleteNhomNguoiDung(id: string): Promise<{ success: boolea
 export async function getGroupPermissions(idNhom: string): Promise<GroupPermissions> {
     const req = create(GetGroupPermissionsRequestSchema, { idNhom });
     const res = await phanQuyenClient.getGroupPermissions(req);
-    const decoded = decodePhamViPayload(res.idNhomChuyenNganh);
+    const decoded = decodePhamViPayload(res.idDanhMucChuyenNganh);
     return {
         checkedCodes: [...res.checkedCodes],
         scopeType: res.scopeType || 'SUBTREE',
         anchorNodeId: res.anchorNodeId || '',
         multiNodeIds: [...res.multiNodeIds],
-        idNhomChuyenNganh: decoded.idNhomChuyenNganh,
+        idDanhMucChuyenNganh: decoded.idDanhMucChuyenNganh,
         phamViChuyenNganh: decoded.phamViChuyenNganh,
     };
 }
@@ -304,7 +311,7 @@ export async function saveGroupPermissions(
         scopeType: scopeConfig.scopeType,
         anchorNodeId: scopeConfig.anchorNodeId ?? '',
         multiNodeIds: scopeConfig.multiNodeIds ?? [],
-        idNhomChuyenNganh: encodePhamViPayload(scopeConfig),
+        idDanhMucChuyenNganh: encodePhamViPayload(scopeConfig),
     });
     await phanQuyenClient.saveGroupPermissions(req);
 }
@@ -325,7 +332,7 @@ export async function listGroupUsers(idNhom: string): Promise<UserInGroupInfo[]>
         isExpired:    u.isExpired,
         ngayHetHan:   tsToIso(u.ngayHetHan),
         idNguoiUyQuyen: u.idNguoiUyQuyen,
-        idNhomChuyenNganh: u.idNhomChuyenNganh,
+        idDanhMucChuyenNganh: u.idDanhMucChuyenNganh,
     }));
 }
 
@@ -365,7 +372,7 @@ export async function listAllAssignments(
         ngayTao:       tsToIso(a.ngayTao),
         ngayHetHan:    tsToIso(a.ngayHetHan),
         idNguoiUyQuyen: a.idNguoiUyQuyen,
-        idNhomChuyenNganh: a.idNhomChuyenNganh,
+        idDanhMucChuyenNganh: a.idDanhMucChuyenNganh,
     }));
     return { items, totalCount: res.totalCount };
 }
@@ -380,7 +387,7 @@ export async function assignUserToGroup(params: {
     loai?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
 }): Promise<string> {
     const req = create(AssignUserRequestSchema, {
         idNguoiDung:  params.idNguoiDung,
@@ -390,7 +397,7 @@ export async function assignUserToGroup(params: {
         loai:         params.loai         ?? 'Direct',
         ngayHetHan:   isoToTimestamp(params.ngayHetHan),
         idNguoiUyQuyen: params.idNguoiUyQuyen ?? '',
-        idNhomChuyenNganh: params.idNhomChuyenNganh ?? '',
+        idDanhMucChuyenNganh: params.idDanhMucChuyenNganh ?? '',
     });
     const res = await phanQuyenClient.assignUserToGroup(req);
     return res.id;

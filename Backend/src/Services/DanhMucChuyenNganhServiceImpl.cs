@@ -6,45 +6,40 @@ using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using protos;
+using Google.Protobuf.WellKnownTypes;
 
 namespace Backend.Services;
 
 [Authorize]
-public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganhServiceBase
+public class DanhMucChuyenNganhServiceImpl : DanhMucChuyenNganhService.DanhMucChuyenNganhServiceBase
 {
-    private const string ColNhomChuyenNganh = "NhomChuyenNganh";
+    private const string ColDanhMucChuyenNganh = "DanhMucChuyenNganh";
 
     // ── GetList ───────────────────────────────────────────────────
-    public override async Task<NhomChuyenNganhListResponse> GetList(
-        NhomChuyenNganhListRequest request, ServerCallContext context)
+    public override async Task<DanhMucChuyenNganhListResponse> GetList(
+        DanhMucChuyenNganhListRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColNhomChuyenNganh);
+        var col = db.GetCollection<BsonDocument>(ColDanhMucChuyenNganh);
 
         var filters = new List<FilterDefinition<BsonDocument>>();
 
-        // Search text - using direct string property (not wrapper)
         if (!string.IsNullOrEmpty(request.SearchText))
         {
             var search = request.SearchText;
             filters.Add(Builders<BsonDocument>.Filter.Or(
                 Builders<BsonDocument>.Filter.Regex("_id", new BsonRegularExpression(search, "i")),
-                Builders<BsonDocument>.Filter.Regex("Ten", new BsonRegularExpression(search, "i"))));
-        }
-
-        // KichHoat filter - using direct bool property
-        if (request.KichHoat.HasValue)
-        {
-            filters.Add(Builders<BsonDocument>.Filter.Eq("KichHoat", request.KichHoat.Value));
+                Builders<BsonDocument>.Filter.Regex("Ten", new BsonRegularExpression(search, "i")),
+                Builders<BsonDocument>.Filter.Regex("VietTat", new BsonRegularExpression(search, "i"))));
         }
 
         var filter = filters.Count > 0
             ? Builders<BsonDocument>.Filter.And(filters)
             : FilterDefinition<BsonDocument>.Empty;
 
-        var docs = await col.Find(filter).ToListAsync();
+        var docs = await col.Find(filter).SortBy(x => x["ThuTu"]).ToListAsync();
 
-        var response = new NhomChuyenNganhListResponse();
+        var response = new DanhMucChuyenNganhListResponse();
         foreach (var doc in docs)
         {
             response.Items.Add(ToProto(doc));
@@ -54,25 +49,25 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
     }
 
     // ── Get ───────────────────────────────────────────────────────
-    public override async Task<NhomChuyenNganhGetResponse> Get(
-        NhomChuyenNganhGetRequest request, ServerCallContext context)
+    public override async Task<DanhMucChuyenNganhGetResponse> Get(
+        DanhMucChuyenNganhGetRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColNhomChuyenNganh);
+        var col = db.GetCollection<BsonDocument>(ColDanhMucChuyenNganh);
 
         var doc = await col.Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
             .FirstOrDefaultAsync();
 
         if (doc == null)
         {
-            return new NhomChuyenNganhGetResponse
+            return new DanhMucChuyenNganhGetResponse
             {
                 Success = false,
-                Message = "Không tìm thấy nhóm chuyên ngành"
+                Message = "Không tìm thấy danh mục chuyên ngành"
             };
         }
 
-        return new NhomChuyenNganhGetResponse
+        return new DanhMucChuyenNganhGetResponse
         {
             Item = ToProto(doc),
             Success = true
@@ -80,16 +75,20 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
     }
 
     // ── Save ──────────────────────────────────────────────────────
-    public override async Task<NhomChuyenNganhSaveResponse> Save(
-        NhomChuyenNganhSaveRequest request, ServerCallContext context)
+    public override async Task<DanhMucChuyenNganhSaveResponse> Save(
+        DanhMucChuyenNganhSaveRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColNhomChuyenNganh);
+        var col = db.GetCollection<BsonDocument>(ColDanhMucChuyenNganh);
         var userName = context.GetUserName() ?? "";
         var now = DateTime.UtcNow;
         var isNew = request.IsNew;
 
-        var id = isNew ? Guid.NewGuid().ToString() : request.Item.Id;
+        var id = request.Item.Id;
+        if (string.IsNullOrEmpty(id) && isNew)
+        {
+            return new DanhMucChuyenNganhSaveResponse { Success = false, Message = "Id không được để trống" };
+        }
 
         if (isNew)
         {
@@ -97,9 +96,8 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
             {
                 { "_id", id },
                 { "Ten", request.Item.Ten },
-                { "MoTa", request.Item.MoTa },
-                { "DanhSachCn", new BsonArray(request.Item.DanhSachCn.ToList()) },
-                { "KichHoat", request.Item.KichHoat },
+                { "VietTat", (BsonValue)request.Item.VietTat ?? BsonNull.Value },
+                { "ThuTu", request.Item.ThuTu },
                 { "NguoiTao", userName },
                 { "NguoiSua", userName },
                 { "NgayTao", now },
@@ -111,9 +109,8 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
         {
             var update = Builders<BsonDocument>.Update
                 .Set("Ten", request.Item.Ten)
-                .Set("MoTa", request.Item.MoTa)
-                .Set("DanhSachCn", new BsonArray(request.Item.DanhSachCn.ToList()))
-                .Set("KichHoat", request.Item.KichHoat)
+                .Set("VietTat", (BsonValue)request.Item.VietTat ?? BsonNull.Value)
+                .Set("ThuTu", request.Item.ThuTu)
                 .Set("NguoiSua", userName)
                 .Set("NgaySua", now);
 
@@ -122,7 +119,7 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
                 update);
         }
 
-        return new NhomChuyenNganhSaveResponse
+        return new DanhMucChuyenNganhSaveResponse
         {
             Id = id,
             Success = true,
@@ -131,30 +128,28 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
     }
 
     // ── Delete ─────────────────────────────────────────────────────
-    public override async Task<NhomChuyenNganhDeleteResponse> Delete(
-        NhomChuyenNganhDeleteRequest request, ServerCallContext context)
+    public override async Task<DanhMucChuyenNganhDeleteResponse> Delete(
+        DanhMucChuyenNganhDeleteRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColNhomChuyenNganh);
+        var col = db.GetCollection<BsonDocument>(ColDanhMucChuyenNganh);
 
-        // Kiểm tra tồn tại
         var doc = await col.Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
             .FirstOrDefaultAsync();
 
         if (doc == null)
         {
-            return new NhomChuyenNganhDeleteResponse
+            return new DanhMucChuyenNganhDeleteResponse
             {
                 Success = false,
-                Message = "Không tìm thấy nhóm chuyên ngành"
+                Message = "Không tìm thấy danh mục chuyên ngành"
             };
         }
 
-        // Xóa
         var result = await col.DeleteOneAsync(
             Builders<BsonDocument>.Filter.Eq("_id", request.Id));
 
-        return new NhomChuyenNganhDeleteResponse
+        return new DanhMucChuyenNganhDeleteResponse
         {
             Success = result.DeletedCount > 0,
             Message = result.DeletedCount > 0 ? "Xóa thành công" : "Xóa thất bại",
@@ -164,20 +159,20 @@ public class NhomChuyenNganhServiceImpl : NhomChuyenNganhService.NhomChuyenNganh
 
     // ── Helpers ───────────────────────────────────────────────────
 
-    private static NhomChuyenNganh ToProto(BsonDocument doc)
+    private static DanhMucChuyenNganh ToProto(BsonDocument doc)
     {
-        var item = new NhomChuyenNganh
+        var item = new DanhMucChuyenNganh
         {
             Id = doc.IdString(),
-            KichHoat = doc.BoolOr("KichHoat"),
+            ThuTu = doc.IntOr("ThuTu"),
+            NgayTao = doc.DateTimeOr("NgayTao")?.ToTimestamp(),
+            NgaySua = doc.DateTimeOr("NgaySua")?.ToTimestamp()
         };
 
         item.Ten = doc.StringOr("Ten");
-        item.MoTa = doc.StringOr("MoTa");
-
-        var dsCn = doc.ArrayOr("DanhSachCn");
-        if (dsCn != null)
-            item.DanhSachCn.AddRange(dsCn.Strings());
+        item.VietTat = doc.StringOr("VietTat");
+        item.NguoiTao = doc.StringOr("NguoiTao");
+        item.NguoiSua = doc.StringOr("NguoiSua");
 
         return item;
     }

@@ -84,8 +84,16 @@ export interface GroupScopeConfig {
     scopeType: ScopeType;
     anchorNodeId?: string;
     multiNodeIds: string[];
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
     phamViChuyenNganh?: PhamViChuyenNganhConfig;
+}
+
+// ── AccessGate: action-per-CN (maps to proto ChuyenNganhAccess) ────────────────
+
+/** Một entry trả về từ GetMyPermissions.actionsPerCn */
+export interface ChuyenNganhAccessEntry {
+    idChuyenNganh: string;
+    actions: PermissionAction[];
 }
 
 export interface PermissionUserRow {
@@ -99,7 +107,7 @@ export interface PermissionUserRow {
     anchorNodeId?: string;
     anchorNodeName?: string;
     scopeType?: string;
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
     idAssignment?: string;
@@ -119,7 +127,7 @@ export interface PermissionAssignmentRow {
     anchorNodeName: string;
     anchorNodePath: string;
     scopeType: ScopeType | '';
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
     idNguoiUyQuyen?: string;
     multiNodeIds?: string[];
     multiNodeNames?: string[];

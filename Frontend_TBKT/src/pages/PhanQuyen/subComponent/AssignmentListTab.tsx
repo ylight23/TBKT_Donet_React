@@ -26,11 +26,11 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import CloseIcon from '@mui/icons-material/Close';
 
 import type { PermissionAssignmentRow, ScopeConfig } from '../../../types/permission';
-import { SCOPE_TYPES } from '../data/permissionData';
+import { scopeLookup } from '../data/permissionData';
 import CompareScopeDialog from './CompareScopeDialog';
 
 // ── Lookup map (Rule: js-index-maps) ──────────────────────────────────────────
-const scopeMap = new Map(SCOPE_TYPES.map(s => [s.value, s]));
+const scopeMap = scopeLookup;
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 

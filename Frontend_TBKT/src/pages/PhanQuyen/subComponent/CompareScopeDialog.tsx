@@ -25,9 +25,9 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 
 import type { PermissionAssignmentRow } from '../../../types/permission';
-import { SCOPE_TYPES } from '../data/permissionData';
+import { scopeLookup } from '../data/permissionData';
 
-const scopeMap = new Map(SCOPE_TYPES.map(s => [s.value, s]));
+const scopeMap = scopeLookup;
 
 function formatDate(d?: string) {
     if (!d) return '—';

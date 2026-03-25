@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -122,6 +123,38 @@ const RoleSidebar: React.FC<RoleSidebarProps> = ({
 }) => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    // ── VIRTUALIZATION LOGIC ──
+    // 1. Flatten roles into a single list of rows (Headers + Items)
+    const sidebarRows = useMemo(() => {
+        const rows: ({ type: 'header'; label: string; count?: number } | { type: 'role'; data: Role; isSystem: boolean })[] = [];
+        
+        if (systemRoles.length > 0) {
+            rows.push({ type: 'header', label: 'HỆ THỐNG' });
+            systemRoles.forEach(r => rows.push({ type: 'role', data: r, isSystem: true }));
+        }
+        
+        if (customRoles.length > 0) {
+            rows.push({ type: 'header', label: 'TÙY CHỈNH', count: customRoles.length });
+            customRoles.forEach(r => rows.push({ type: 'role', data: r, isSystem: false }));
+        }
+        
+        return rows;
+    }, [systemRoles, customRoles]);
+
+    // 2. Initialize virtualizer
+    const rowVirtualizer = useVirtualizer({
+        count: sidebarRows.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: (index) => (sidebarRows[index]?.type === 'header' ? 32 : 44),
+        overscan: 10,
+    });
+
+    // Sync measurement when list structure changes
+    useEffect(() => {
+        rowVirtualizer.measure();
+    }, [sidebarRows, rowVirtualizer]);
 
     return (
         <Box
@@ -158,73 +191,94 @@ const RoleSidebar: React.FC<RoleSidebarProps> = ({
                 </Typography>
             </Box>
 
-            {/* Scrollable role list */}
-            <Box sx={{ flex: 1, overflow: 'auto', px: 1, py: 1.5 }}>
-                {/* System roles */}
-                <Typography
-                    variant="overline"
-                    sx={{
-                        fontSize: 9.5,
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        color: 'text.disabled',
-                        px: 1,
-                        pb: 0.5,
-                        display: 'block',
-                    }}
-                >
-                    HỆ THỐNG
-                </Typography>
-                {systemRoles.map((role) => (
-                    <SidebarRole
-                        key={role.id}
-                        role={role}
-                        selected={selectedRoleId === role.id}
-                        onClick={() => onSelectRole(role.id)}
-                    />
-                ))}
-
-                {/* Custom roles */}
+            {/* Scrollable role list (Virtual) */}
+            <Box 
+                ref={parentRef}
+                sx={{ 
+                    flex: 1, 
+                    overflow: 'auto', 
+                    px: 1, 
+                    py: 1,
+                    position: 'relative',
+                    // Custom scrollbar
+                    '&::-webkit-scrollbar': { width: 5 },
+                    '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.divider, 0.4), borderRadius: 3 },
+                }}
+            >
                 <Box
                     sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        px: 1,
-                        pt: 2,
-                        pb: 0.5,
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
                     }}
                 >
-                    <Typography
-                        variant="overline"
-                        sx={{
-                            fontSize: 9.5,
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
-                            color: 'text.disabled',
-                        }}
-                    >
-                        TÙY CHỈNH
-                    </Typography>
-                    <Typography
-                        sx={{
-                            fontSize: 9,
-                            fontWeight: 700,
-                            color: 'primary.main',
-                        }}
-                    >
-                        {customRoles.length} role
-                    </Typography>
+                    {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                        const row = sidebarRows[virtualItem.index];
+                        if (!row) return null;
+
+                        if (row.type === 'header') {
+                            return (
+                                <Box
+                                    key={virtualItem.key}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: `${virtualItem.size}px`,
+                                        transform: `translateY(${virtualItem.start}px)`,
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        px: 1.25,
+                                        pt: virtualItem.index === 0 ? 0.5 : 2,
+                                        pb: 0.5,
+                                        zIndex: 1,
+                                        bgcolor: isDark ? 'background.paper' : '#ffffff', // Background to prevent overlap during scroll
+                                    }}
+                                >
+                                    <Typography
+                                        variant="overline"
+                                        sx={{
+                                            fontSize: 9.5,
+                                            fontWeight: 700,
+                                            letterSpacing: '0.1em',
+                                            color: 'text.disabled',
+                                        }}
+                                    >
+                                        {row.label}
+                                    </Typography>
+                                    {row.count !== undefined && (
+                                        <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'primary.main' }}>
+                                            {row.count} role
+                                        </Typography>
+                                    )}
+                                </Box>
+                            );
+                        }
+
+                        return (
+                            <Box
+                                key={virtualItem.key}
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: `${virtualItem.size}px`,
+                                    transform: `translateY(${virtualItem.start}px)`,
+                                }}
+                            >
+                                <SidebarRole
+                                    role={row.data}
+                                    selected={selectedRoleId === row.data.id}
+                                    onClick={() => onSelectRole(row.data.id)}
+                                    onDelete={!row.isSystem ? () => onDeleteRole(row.data.id) : undefined}
+                                />
+                            </Box>
+                        );
+                    })}
                 </Box>
-                {customRoles.map((role) => (
-                    <SidebarRole
-                        key={role.id}
-                        role={role}
-                        selected={selectedRoleId === role.id}
-                        onClick={() => onSelectRole(role.id)}
-                        onDelete={() => onDeleteRole(role.id)}
-                    />
-                ))}
             </Box>
 
             {/* Create button */}
@@ -233,26 +287,31 @@ const RoleSidebar: React.FC<RoleSidebarProps> = ({
                     onClick={onCreateRole}
                     sx={{
                         width: '100%',
-                        py: 1,
+                        py: 1.25,
                         px: 1.5,
-                        borderRadius: 2,
+                        borderRadius: 2.5,
                         border: `1.5px dashed ${theme.palette.divider}`,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 0.75,
-                        color: 'text.disabled',
+                        justifyContent: 'center',
+                        gap: 1,
+                        color: 'text.secondary',
                         fontSize: 12,
-                        fontWeight: 500,
-                        transition: 'all 0.15s',
+                        fontWeight: 600,
+                        transition: 'all 0.2s',
                         '&:hover': {
                             borderColor: theme.palette.primary.main,
                             color: 'primary.main',
                             bgcolor: alpha(theme.palette.primary.main, 0.04),
+                            transform: 'translateY(-1px)',
                         },
+                        '&:active': {
+                            transform: 'translateY(0)',
+                        }
                     }}
                 >
-                    <AddCircleOutlineIcon sx={{ fontSize: 16 }} />
+                    <AddCircleOutlineIcon sx={{ fontSize: 18 }} />
                     Tạo custom role
                 </Box>
             </Box>

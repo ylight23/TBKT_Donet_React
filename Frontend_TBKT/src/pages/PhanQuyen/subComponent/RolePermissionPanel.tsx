@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -254,24 +255,14 @@ const RolePermissionPanel: React.FC<RolePermissionPanelProps> = ({
 }) => {
     const theme = useTheme();
     const isSystem = selectedRole?.type === 'SYSTEM';
+    const parentRef = useRef<HTMLDivElement>(null);
 
     const [search, setSearch] = useState('');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
         () => Object.fromEntries(permissionGroups.map(g => [g.group, true]))
     );
 
-    const allPermCodes = useMemo(
-        () => permissionGroups.flatMap(g => g.permissions.map(p => p.code)),
-        [permissionGroups],
-    );
-    const allPermCodesSet = useMemo(() => new Set(allPermCodes), [allPermCodes]);
-    const totalPerms = allPermCodes.length;
-    const checkedCount = useMemo(
-        () => checkedPermissions.filter(c => allPermCodesSet.has(c)).length,
-        [checkedPermissions, allPermCodesSet],
-    );
-    const progress = totalPerms > 0 ? (checkedCount / totalPerms) * 100 : 0;
-
+    // Filtered groups memo
     const filteredGroups = useMemo(() => {
         if (!search.trim()) return permissionGroups;
         const q = search.toLowerCase();
@@ -284,6 +275,39 @@ const RolePermissionPanel: React.FC<RolePermissionPanelProps> = ({
             }))
             .filter(g => g.permissions.length > 0);
     }, [permissionGroups, search]);
+
+    // Initialize virtualizer
+    const rowVirtualizer = useVirtualizer({
+        count: filteredGroups.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: (index) => {
+            const group = filteredGroups[index];
+            if (!group) return 56;
+            const expanded = expandedGroups[group.group] ?? true;
+            if (!expanded) return 56;
+            const rowCount = Math.ceil(group.permissions.length / 3);
+            return 56 + (rowCount * 60) + 2; // Header (56) + Grid rows (60 each)
+        },
+        overscan: 5,
+        // Since expansion changes size, we need to re-measure
+    });
+
+    // Re-measure when expansion or data changes
+    useEffect(() => {
+        rowVirtualizer.measure();
+    }, [expandedGroups, filteredGroups, rowVirtualizer]);
+
+    const allPermCodes = useMemo(
+        () => permissionGroups.flatMap(g => g.permissions.map(p => p.code)),
+        [permissionGroups],
+    );
+    const allPermCodesSet = useMemo(() => new Set(allPermCodes), [allPermCodes]);
+    const totalPerms = allPermCodes.length;
+    const checkedCount = useMemo(
+        () => checkedPermissions.filter(c => allPermCodesSet.has(c)).length,
+        [checkedPermissions, allPermCodesSet],
+    );
+    const progress = totalPerms > 0 ? (checkedCount / totalPerms) * 100 : 0;
 
     const handleToggleExpand = useCallback((groupName: string) => {
         setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
@@ -354,21 +378,56 @@ const RolePermissionPanel: React.FC<RolePermissionPanelProps> = ({
                 </Box>
             )}
 
-            {/* Permission groups */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {filteredGroups.map((group) => (
-                    <PermissionGroupCard
-                        key={group.group}
-                        group={group}
-                        checkedCodes={checkedPermissions}
-                        isSystem={isSystem}
-                        roleColor={selectedRole?.color || theme.palette.primary.main}
-                        expanded={expandedGroups[group.group] ?? true}
-                        onToggleExpand={() => handleToggleExpand(group.group)}
-                        onTogglePerm={onTogglePermission}
-                        onToggleGroup={onToggleGroup}
-                    />
-                ))}
+            {/* Permission groups (Virtualized) */}
+            <Box 
+                ref={parentRef}
+                sx={{ 
+                    maxHeight: 'calc(100vh - 380px)', 
+                    overflow: 'auto', 
+                    pr: 1,
+                    position: 'relative',
+                    '&::-webkit-scrollbar': { width: 5 },
+                    '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.divider, 0.4), borderRadius: 3 },
+                }}
+            >
+                <Box
+                    sx={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                >
+                    {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                        const group = filteredGroups[virtualItem.index];
+                        if (!group) return null;
+                        
+                        return (
+                            <Box
+                                key={virtualItem.key}
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    // Height is managed by virtualizer, but we wrap the content
+                                    transform: `translateY(${virtualItem.start}px)`,
+                                    pb: 1, // spacing between groups
+                                }}
+                            >
+                                <PermissionGroupCard
+                                    group={group}
+                                    checkedCodes={checkedPermissions}
+                                    isSystem={isSystem}
+                                    roleColor={selectedRole?.color || theme.palette.primary.main}
+                                    expanded={expandedGroups[group.group] ?? true}
+                                    onToggleExpand={() => handleToggleExpand(group.group)}
+                                    onTogglePerm={onTogglePermission}
+                                    onToggleGroup={onToggleGroup}
+                                />
+                            </Box>
+                        );
+                    })}
+                </Box>
             </Box>
         </Box>
     );

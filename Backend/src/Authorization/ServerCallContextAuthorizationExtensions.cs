@@ -63,4 +63,53 @@ public static class ServerCallContextAuthorizationExtensions
 
         return context.CanAccessModuleAction(funcName: "thamso_restore", "view");
     }
+
+    // ── AccessGate integration ──────────────────────────────────────
+
+    private const string AccessGateKey = "__AccessGate";
+
+    /// <summary>
+    /// Get AccessGate from request context (async version — preferred for new code).
+    /// Builds and caches on first call per request.
+    /// </summary>
+    public static async Task<AccessGate> GetAccessGateAsync(this ServerCallContext? context)
+    {
+        if (context == null) return AccessGate.Empty;
+
+        // Check if already built (per-request cache via HttpContext.Items)
+        var httpContext = context.GetHttpContext();
+        if (httpContext.Items.TryGetValue(AccessGateKey, out var cached) && cached is AccessGate gate)
+            return gate;
+
+        // Build from UserPermissionCache
+        var userName = context.GetUserName();
+        var userId = context.GetUserID();
+        gate = await AccessGateBuilder.BuildFromCacheAsync(userId ?? "", userName);
+
+        // Cache for the rest of this request
+        httpContext.Items[AccessGateKey] = gate;
+        return gate;
+    }
+
+    /// <summary>
+    /// Get AccessGate from request context (sync version — for gradual migration).
+    /// If not yet built, builds synchronously from cache.
+    /// Prefer <see cref="GetAccessGateAsync"/> in new code.
+    /// </summary>
+    public static AccessGate GetAccessGate(this ServerCallContext? context)
+    {
+        if (context == null) return AccessGate.Empty;
+
+        var httpContext = context.GetHttpContext();
+        if (httpContext.Items.TryGetValue(AccessGateKey, out var cached) && cached is AccessGate gate)
+            return gate;
+
+        // Sync fallback — safe for migration, not ideal for perf
+        var userName = context.GetUserName();
+        var userId = context.GetUserID();
+        gate = AccessGateBuilder.BuildFromCacheAsync(userId ?? "", userName).GetAwaiter().GetResult();
+
+        httpContext.Items[AccessGateKey] = gate;
+        return gate;
+    }
 }

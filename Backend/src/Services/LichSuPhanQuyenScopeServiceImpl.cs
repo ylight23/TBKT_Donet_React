@@ -124,7 +124,7 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
             { "IdNganhDocCu", new BsonArray(item.IdNganhDocCu.ToList()) },
             { "NgayHetHanCu", item.NgayHetHanCu?.ToDateTime() },
             { "IdNguoiUyQuyenCu", item.IdNguoiUyQuyenCu },
-            { "IdNhomChuyenNganhCu", item.IdNhomChuyenNganhCu },
+            { "IdDanhMucChuyenNganhCu", item.IdDanhMucChuyenNganhCu },
 
             // Scope mới
             { "ScopeTypeMoi", item.ScopeTypeMoi },
@@ -132,7 +132,7 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
             { "IdNganhDocMoi", new BsonArray(item.IdNganhDocMoi.ToList()) },
             { "NgayHetHanMoi", item.NgayHetHanMoi?.ToDateTime() },
             { "IdNguoiUyQuyenMoi", item.IdNguoiUyQuyenMoi },
-            { "IdNhomChuyenNganhMoi", item.IdNhomChuyenNganhMoi },
+            { "IdDanhMucChuyenNganhMoi", item.IdDanhMucChuyenNganhMoi },
 
             // Thời gian
             { "NgayThucHien", now },
@@ -165,13 +165,13 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
             ScopeTypeCu = doc.StringOr("ScopeTypeCu"),
             IdDonViScopeCu = doc.StringOr("IdDonViScopeCu"),
             IdNguoiUyQuyenCu = doc.StringOr("IdNguoiUyQuyenCu"),
-            IdNhomChuyenNganhCu = doc.StringOr("IdNhomChuyenNganhCu"),
+            IdDanhMucChuyenNganhCu = doc.StringOr("IdDanhMucChuyenNganhCu"),
 
             // Scope mới
             ScopeTypeMoi = doc.StringOr("ScopeTypeMoi"),
             IdDonViScopeMoi = doc.StringOr("IdDonViScopeMoi"),
             IdNguoiUyQuyenMoi = doc.StringOr("IdNguoiUyQuyenMoi"),
-            IdNhomChuyenNganhMoi = doc.StringOr("IdNhomChuyenNganhMoi"),
+            IdDanhMucChuyenNganhMoi = doc.StringOr("IdDanhMucChuyenNganhMoi"),
         };
 
         // GhiChu
@@ -206,5 +206,4 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
 
         return item;
     }
-
 }

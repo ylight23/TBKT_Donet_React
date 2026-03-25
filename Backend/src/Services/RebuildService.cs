@@ -27,7 +27,7 @@ public sealed class RebuildService
                 .Project(projectionBuilder.Include("IdNhomNguoiDung").Include("ScopeType")
                     .Include("IdDonViScope").Include("NgayHetHan")
                     .Include("IdNguoiUyQuyen")
-                    .Include("IdNganhDoc").Include("IdNhomChuyenNganh")
+                    .Include("IdNganhDoc").Include("IdDanhMucChuyenNganh")
                     .Include("IdChuyenNganhDoc").Include("PhamViChuyenNganh"))
                 .ToListAsync();
 
@@ -36,8 +36,9 @@ public sealed class RebuildService
             string? donViScope = null;
             DateTime? delegatedExpiry = null;
             string? idNguoiUyQuyen = null;
-            string? idNhomChuyenNganh = null;
+            string? idDanhMucChuyenNganh = null;
             var nganhDocIds = new HashSet<string>();
+            BsonDocument? bestPhamViDoc = null;
 
             foreach (var doc in memberDocs)
             {
@@ -97,9 +98,16 @@ public sealed class RebuildService
                     }
                 }
 
-                var nhomChuyenNganh = doc.StringOr("IdNhomChuyenNganh");
-                if (!string.IsNullOrEmpty(nhomChuyenNganh))
-                    idNhomChuyenNganh = nhomChuyenNganh;
+                // Collect PhamViChuyenNganh for AccessGate (A3)
+                if (bestPhamViDoc == null)
+                {
+                    if (phamViDoc != null && phamViDoc.ElementCount > 0)
+                        bestPhamViDoc = phamViDoc;
+                }
+
+                var danhmucChuyenNganh = doc.StringOr("IdDanhMucChuyenNganh");
+                if (!string.IsNullOrEmpty(danhmucChuyenNganh))
+                    idDanhMucChuyenNganh = danhmucChuyenNganh;
             }
 
             var tPhanHeND = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserSubsystemPermissions)
@@ -277,6 +285,7 @@ public sealed class RebuildService
                 { "PhanHe", phanHeArr },
                 { "ChucNang", chucNangArr },
                 { "NganhDocIds", new BsonArray(nganhDocIds) },
+                { "PhamViChuyenNganh", bestPhamViDoc != null ? (BsonValue)bestPhamViDoc : BsonNull.Value },
                 { "RebuiltAt", rebuildStart },
             };
 
@@ -284,8 +293,8 @@ public sealed class RebuildService
                 permDoc["NgayHetHan"] = delegatedExpiry.Value;
             if (!string.IsNullOrEmpty(idNguoiUyQuyen))
                 permDoc["IdNguoiUyQuyen"] = idNguoiUyQuyen;
-            if (!string.IsNullOrEmpty(idNhomChuyenNganh))
-                permDoc["IdNhomChuyenNganh"] = idNhomChuyenNganh;
+            if (!string.IsNullOrEmpty(idDanhMucChuyenNganh))
+                permDoc["IdDanhMucChuyenNganh"] = idDanhMucChuyenNganh;
 
             var filter = filterBuilder.And(
                 filterBuilder.Eq("_id", userId),

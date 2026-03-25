@@ -92,19 +92,28 @@ export const FALLBACK_ROLE_DEFAULTS: Record<string, string[]> = {
     ],
 };
 
-// ── Scope Options ──────────────────────────────────────────────────────────────
+// ── Primary Scope Options (B1 — simplified to 3) ──────────────────────────────
+// Chỉ 3 loại phổ biến hiển thị mặc định trên UI.
 
 export const SCOPE_TYPES: ScopeConfig[] = [
-    { value: 'SELF',             label: 'Cá nhân',       desc: 'Chỉ dữ liệu do chính user tạo ra',                          color: steelGray[400],                risk: 'LOW',      icon: '👤' },
-    { value: 'NODE_ONLY',        label: 'Node đơn',      desc: 'Chỉ đơn vị được gán, không bao gồm cấp con',                color: deepArmyGreen[600],            risk: 'LOW',      icon: '📍' },
-    { value: 'NODE_AND_CHILDREN',label: 'Node + Con',    desc: 'Đơn vị gán và toàn bộ cấp con trực tiếp',                  color: deepArmyGreen[500],            risk: 'MEDIUM',   icon: '🔽' },
-    { value: 'SUBTREE',          label: 'Cây con',       desc: 'Toàn bộ nhánh cây con từ node gán trở xuống',               color: deepArmyGreen[400],            risk: 'MEDIUM',   icon: '🌲' },
-    { value: 'SIBLINGS',         label: 'Anh-em',        desc: 'Các đơn vị cùng cha và cùng cấp với node gán',             color: armyOlive[600],                risk: 'MEDIUM',   icon: '↔️' },
-    { value: 'BRANCH',           label: 'Toàn nhánh',    desc: 'Từ node gán ngược lên đến root (chuỗi tổ tiên)',            color: armyOlive[500],                risk: 'MEDIUM',   icon: '🔼' },
-    { value: 'MULTI_NODE',       label: 'Đa chọn',       desc: 'Chọn thủ công nhiều đơn vị độc lập trên cây',              color: militaryGold[500],             risk: 'HIGH',     icon: '🔗' },
-    { value: 'ALL',              label: 'Toàn hệ thống', desc: 'Không giới hạn phạm vi — ẢNH HƯỞNG TOÀN BỘ',              color: statusColors.critical.main,    risk: 'CRITICAL', icon: '🌐' },
-    { value: 'DELEGATED',        label: 'Ủy quyền',      desc: 'Nhận ủy quyền từ chỉ huy cấp trên, có thời hạn',           color: statusColors.maintenance.main, risk: 'HIGH',     icon: '🤝' },
+    { value: 'SUBTREE',    label: 'Cây đơn vị',      desc: 'Toàn bộ nhánh từ đơn vị mình trở xuống — mặc định cho mọi user',   color: deepArmyGreen[400], risk: 'MEDIUM',   icon: '🌲', needsAnchor: true },
+    { value: 'DELEGATED',  label: 'Ủy quyền',         desc: 'Nhận ủy quyền từ chỉ huy cấp trên, có thời hạn',                  color: statusColors.maintenance.main, risk: 'HIGH', icon: '🤝', needsDelegated: true, needsAnchor: true },
+    { value: 'ALL',        label: 'Toàn hệ thống',    desc: 'Không giới hạn phạm vi — chỉ dành cho admin/cấp tổng cục',         color: statusColors.critical.main,    risk: 'CRITICAL', icon: '🌐' },
 ];
+
+// ── Advanced Scope Options (ẩn mặc định, dùng cho lookup/backward compat) ──────
+export const SCOPE_TYPES_ADVANCED: ScopeConfig[] = [
+    { value: 'SELF',              label: 'Cá nhân',          desc: 'Chỉ dữ liệu do chính user tạo ra',                          color: steelGray[400],         risk: 'LOW',    icon: '👤' },
+    { value: 'NODE_ONLY',         label: 'Node đơn',         desc: 'Chỉ đơn vị được gán, không bao gồm cấp con',                color: deepArmyGreen[600],     risk: 'LOW',    icon: '📍', needsAnchor: true },
+    { value: 'NODE_AND_CHILDREN', label: 'Node + Con',       desc: 'Đơn vị gán và toàn bộ cấp con trực tiếp',                   color: deepArmyGreen[500],     risk: 'MEDIUM', icon: '🔽', needsAnchor: true },
+    { value: 'SIBLINGS',          label: 'Anh-em',           desc: 'Các đơn vị cùng cha và cùng cấp với node gán',               color: armyOlive[600],         risk: 'MEDIUM', icon: '↔️', needsAnchor: true },
+    { value: 'BRANCH',            label: 'Toàn nhánh',       desc: 'Từ node gán ngược lên đến root (chuỗi tổ tiên)',             color: armyOlive[500],         risk: 'MEDIUM', icon: '🔼', needsAnchor: true },
+    { value: 'MULTI_NODE',        label: 'Đa chọn',          desc: 'Chọn thủ công nhiều đơn vị độc lập trên cây',                color: militaryGold[500],       risk: 'HIGH',   icon: '🔗', needsMultiNode: true },
+];
+
+// ── Full scope map (all types) — dùng cho lookup badge/label/color ─────────────
+export const ALL_SCOPE_TYPES: ScopeConfig[] = [...SCOPE_TYPES, ...SCOPE_TYPES_ADVANCED];
+export const scopeLookup = new Map(ALL_SCOPE_TYPES.map(s => [s.value, s]));
 
 // ── Default Scopes per Role ────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -20,7 +21,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import officeApi from '../../../apis/officeApi';
-import { listNhomChuyenNganh } from '../../../apis/nhomChuyenNganhApi';
+import { listDanhMucChuyenNganh } from '../../../apis/danhmucChuyenNganhApi';
 import type {
     ChuyenNganhDocScope,
     GroupScopeConfig,
@@ -29,7 +30,7 @@ import type {
     Role,
     ScopeType,
 } from '../../../types/permission';
-import { SCOPE_TYPES } from '../data/permissionData';
+import { SCOPE_TYPES, ALL_SCOPE_TYPES } from '../data/permissionData';
 
 type OfficeOption = {
     id: string;
@@ -52,12 +53,12 @@ const BLOCKED_CROSS_ACTIONS = new Set<PermissionAction>(['delete', 'approve', 'u
 
 const ACTION_LABELS: Record<PermissionAction, string> = {
     view: 'Xem',
-    add: 'Them',
-    edit: 'Sua',
-    delete: 'Xoa',
-    approve: 'Duyet',
-    unapprove: 'Huy duyet',
-    download: 'Tai',
+    add: 'Thêm',
+    edit: 'Sửa',
+    delete: 'Xoá',
+    approve: 'Duyệt',
+    unapprove: 'Huỷ duyệt',
+    download: 'Tải',
     print: 'In',
 };
 
@@ -76,7 +77,7 @@ const DEFAULT_SCOPE_CONFIG: GroupScopeConfig = {
     scopeType: 'SUBTREE',
     anchorNodeId: '',
     multiNodeIds: [],
-    idNhomChuyenNganh: '',
+    idDanhMucChuyenNganh: '',
     phamViChuyenNganh: undefined,
 };
 
@@ -89,7 +90,7 @@ function toDepth(id?: string): number {
 }
 
 function getMode(scopeType: ScopeType) {
-    const scope = SCOPE_TYPES.find((item) => item.value === scopeType) ?? SCOPE_TYPES[0];
+    const scope = ALL_SCOPE_TYPES.find((item) => item.value === scopeType) ?? SCOPE_TYPES[0];
     return {
         ...scope,
         needsAnchor: ['NODE_ONLY', 'NODE_AND_CHILDREN', 'SUBTREE', 'SIBLINGS', 'BRANCH', 'DELEGATED'].includes(scopeType),
@@ -187,6 +188,198 @@ function buildQuery(
     return [unitQuery, cnQuery, ownText, crossText];
 }
 
+// ── Optimized ScopeTypeSelector ──────────────────────────────────
+interface ScopeTypeSelectorProps {
+    config: GroupScopeConfig;
+    onSelect: (type: ScopeType) => void;
+    theme: any;
+}
+
+const ScopeTypeSelector = React.memo(({ config, onSelect, theme }: ScopeTypeSelectorProps) => {
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {SCOPE_TYPES.map((scope) => {
+                const active = config.scopeType === scope.value;
+                return (
+                    <ButtonBase
+                        key={scope.value}
+                        onClick={() => onSelect(scope.value as ScopeType)}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            p: 1.5,
+                            borderRadius: 2.5,
+                            border: `1.5px solid ${active ? scope.color : theme.palette.divider}`,
+                            bgcolor: active ? alpha(scope.color, 0.05) : 'transparent',
+                            justifyContent: 'flex-start',
+                            textAlign: 'left',
+                            transition: 'all 0.15s ease',
+                            '&:hover': {
+                                bgcolor: active ? alpha(scope.color, 0.08) : alpha(theme.palette.action.hover, 0.04),
+                                borderColor: active ? scope.color : alpha(theme.palette.divider, 0.8),
+                            },
+                        }}
+                    >
+                        {active ? (
+                            <RadioButtonCheckedIcon sx={{ fontSize: 18, color: scope.color }} />
+                        ) : (
+                            <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                        )}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography 
+                                sx={{ 
+                                    fontWeight: 700, 
+                                    fontSize: 13.5, 
+                                    color: active ? scope.color : 'text.primary',
+                                    lineHeight: 1.2,
+                                    mb: 0.25 
+                                }}
+                            >
+                                {scope.label}
+                            </Typography>
+                            <Typography 
+                                sx={{ 
+                                    fontSize: 11.5, 
+                                    color: 'text.secondary', 
+                                    opacity: 0.85,
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 1,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {scope.desc}
+                            </Typography>
+                        </Box>
+                        {scope.risk && (
+                            <Chip 
+                                size="small" 
+                                label={scope.risk} 
+                                sx={{ 
+                                    height: 20, 
+                                    fontSize: 10, 
+                                    fontWeight: 700,
+                                    bgcolor: active ? alpha(scope.color, 0.1) : undefined,
+                                    color: active ? scope.color : undefined,
+                                }} 
+                            />
+                        )}
+                    </ButtonBase>
+                );
+            })}
+        </Box>
+    );
+});
+
+// ── Optimized OfficeNode ───────────────────────────────────────────
+
+interface OfficeNodeProps {
+    office: OfficeOption;
+    depth: number;
+    isExpanded: boolean;
+    checked: boolean;
+    multi: boolean;
+    hasChildren: boolean;
+    onSelect: (id: string) => void;
+    onToggleExpand: (id: string) => void;
+    theme: any;
+}
+
+const OfficeNode = React.memo(({
+    office,
+    depth,
+    isExpanded,
+    checked,
+    multi,
+    hasChildren,
+    onSelect,
+    onToggleExpand,
+    theme,
+}: OfficeNodeProps) => {
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <ButtonBase
+                onClick={() => onSelect(office.id)}
+                sx={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    py: 0.75,
+                    px: 1,
+                    pl: `${0.75 + depth * 1.5}rem`,
+                    borderRadius: 1.5,
+                    bgcolor: checked ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                    borderLeft: `2px solid ${checked ? theme.palette.primary.main : 'transparent'}`,
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                        bgcolor: checked 
+                            ? alpha(theme.palette.primary.main, 0.12) 
+                            : alpha(theme.palette.action.hover, 0.04),
+                    },
+                }}
+            >
+                <Box
+                    component="span"
+                    onClick={(event: React.MouseEvent) => {
+                        if (hasChildren) {
+                            event.stopPropagation();
+                            onToggleExpand(office.id);
+                        }
+                    }}
+                    sx={{ 
+                        width: 24, 
+                        height: 24,
+                        mr: 0.5, 
+                        display: 'inline-flex', 
+                        alignItems: 'center',
+                        justifyContent: 'center', 
+                        color: 'text.disabled',
+                        borderRadius: '50%',
+                        transition: 'background 0.2s',
+                        '&:hover': hasChildren ? { bgcolor: alpha(theme.palette.divider, 0.5) } : {},
+                    }}
+                >
+                    {hasChildren ? (
+                        isExpanded ? <KeyboardArrowDownIcon sx={{ fontSize: 18 }} /> : <KeyboardArrowRightIcon sx={{ fontSize: 18 }} />
+                    ) : null}
+                </Box>
+                <Box sx={{ mr: 1, color: checked ? 'primary.main' : 'text.disabled', display: 'flex' }}>
+                    {multi
+                        ? (checked ? <CheckBoxIcon sx={{ fontSize: 20 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 20 }} />)
+                        : (checked ? <RadioButtonCheckedIcon sx={{ fontSize: 20 }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 20 }} />)}
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography 
+                        sx={{ 
+                            fontSize: 12.5, 
+                            fontWeight: checked ? 700 : 500, 
+                            color: checked ? 'text.primary' : 'text.secondary',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {office.label}
+                    </Typography>
+                    <Typography 
+                        sx={{ 
+                            fontSize: 10, 
+                            color: 'text.disabled', 
+                            fontFamily: "'JetBrains Mono', monospace",
+                            opacity: 0.8,
+                        }}
+                    >
+                        {office.id}
+                    </Typography>
+                </Box>
+            </ButtonBase>
+        </Box>
+    );
+});
+
+// ── Optimized OfficeTree ───────────────────────────────────────────
+
 function OfficeTree({
     offices,
     selectedId,
@@ -201,87 +394,136 @@ function OfficeTree({
     onSelect: (id: string) => void;
 }) {
     const theme = useTheme();
-    const roots = useMemo(() => offices.filter((item) => !item.parentId).map((item) => item.id), [offices]);
-    const [expanded, setExpanded] = useState<Set<string>>(new Set(roots.slice(0, 2)));
-
-    useEffect(() => {
-        setExpanded(new Set(roots.slice(0, 2)));
-    }, [roots]);
-
-    const childrenMap = useMemo(() => {
+    const parentRef = useRef<HTMLDivElement>(null);
+    
+    // Memoize office data structures
+    const { roots, childrenMap, officeMap } = useMemo(() => {
         const map = new Map<string, OfficeOption[]>();
+        const oMap = new Map<string, OfficeOption>();
+        const rootList: string[] = [];
         for (const office of offices) {
+            oMap.set(office.id, office);
+            if (!office.parentId) {
+                rootList.push(office.id);
+            }
             const key = office.parentId || '__root__';
-            map.set(key, [...(map.get(key) ?? []), office]);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(office);
         }
-        return map;
+        return { roots: rootList, childrenMap: map, officeMap: oMap };
     }, [offices]);
 
-    const renderNode = (office: OfficeOption, depth = 0): React.ReactNode => {
-        const children = childrenMap.get(office.id) ?? [];
-        const isExpanded = expanded.has(office.id);
-        const checked = multi ? (selectedIds ?? []).includes(office.id) : selectedId === office.id;
-        return (
-            <React.Fragment key={office.id}>
-                <ButtonBase
-                    onClick={() => onSelect(office.id)}
-                    sx={{
-                        width: '100%',
-                        justifyContent: 'flex-start',
-                        textAlign: 'left',
-                        py: 0.75,
-                        px: 1,
-                        pl: `${1 + depth * 1.6}rem`,
-                        borderRadius: 1.5,
-                        bgcolor: checked ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-                        borderLeft: `2px solid ${checked ? theme.palette.primary.main : 'transparent'}`,
-                    }}
-                >
-                    <Box
-                        component="span"
-                        onClick={(event: React.MouseEvent) => {
-                            if (children.length === 0) return;
-                            event.stopPropagation();
-                            setExpanded((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(office.id)) next.delete(office.id);
-                                else next.add(office.id);
-                                return next;
-                            });
-                        }}
-                        sx={{ width: 18, mr: 0.5, display: 'inline-flex', justifyContent: 'center', color: 'text.disabled' }}
-                    >
-                        {children.length > 0 ? (isExpanded ? <KeyboardArrowDownIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowRightIcon sx={{ fontSize: 16 }} />) : null}
-                    </Box>
-                    <Box sx={{ mr: 1, color: checked ? 'primary.main' : 'text.disabled' }}>
-                        {multi
-                            ? (checked ? <CheckBoxIcon sx={{ fontSize: 18 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 18 }} />)
-                            : (checked ? <RadioButtonCheckedIcon sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 18 }} />)}
-                    </Box>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography sx={{ fontSize: 12.5, fontWeight: checked ? 700 : 500, color: checked ? 'text.primary' : 'text.secondary' }}>
-                            {office.label}
-                        </Typography>
-                        <Typography sx={{ fontSize: 10, color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace" }}>
-                            {office.id}
-                        </Typography>
-                    </Box>
-                </ButtonBase>
-                {children.length > 0 && (
-                    <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                        {children.map((child) => renderNode(child, depth + 1))}
-                    </Collapse>
-                )}
-            </React.Fragment>
-        );
-    };
+    // Track expanded state
+    const [expanded, setExpanded] = useState<Set<string>>(new Set(roots.slice(0, 3)));
+
+    const handleToggleExpand = React.useCallback((id: string) => {
+        setExpanded(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    // Selection helper
+    const isChecked = React.useCallback((id: string) => {
+        return multi ? (selectedIds ?? []).includes(id) : selectedId === id;
+    }, [multi, selectedIds, selectedId]);
+
+    // ── VIRTUALIZATION LOGIC ──
+    // 1. Flatten the tree into only visible (expanded) nodes
+    const visibleNodes = useMemo(() => {
+        const list: { office: OfficeOption; depth: number; hasChildren: boolean }[] = [];
+        
+        const traverse = (ids: string[], depth = 0) => {
+            for (const id of ids) {
+                const office = officeMap.get(id);
+                if (!office) continue;
+                const children = childrenMap.get(id) ?? [];
+                list.push({ office, depth, hasChildren: children.length > 0 });
+                if (expanded.has(id) && children.length > 0) {
+                    traverse(children.map(c => c.id), depth + 1);
+                }
+            }
+        };
+
+        traverse(roots);
+        return list;
+    }, [roots, officeMap, childrenMap, expanded]);
+
+    // 2. Initialize the virtualizer
+    const rowVirtualizer = useVirtualizer({
+        count: visibleNodes.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 44, // Fixed height for tree rows
+        overscan: 10,
+    });
+
+    // Re-measure when nodes change
+    useEffect(() => {
+        rowVirtualizer.measure();
+    }, [visibleNodes, rowVirtualizer]);
 
     return (
-        <Box sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 2, bgcolor: 'background.default', maxHeight: 260, overflow: 'auto', p: 0.75 }}>
-            {roots.map((rootId) => {
-                const office = offices.find((item) => item.id === rootId);
-                return office ? renderNode(office) : null;
-            })}
+        <Box 
+            ref={parentRef}
+            sx={{ 
+                border: `1px solid ${theme.palette.divider}`, 
+                borderRadius: 2.5, 
+                bgcolor: 'background.default', 
+                maxHeight: 320, 
+                overflow: 'auto', 
+                position: 'relative', // Vital for virtual positioning
+                // Custom scrollbar
+                '&::-webkit-scrollbar': { width: 6 },
+                '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
+                '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.divider, 0.5), borderRadius: 3 },
+            }}
+        >
+            {visibleNodes.length > 0 ? (
+                <Box
+                    sx={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                >
+                    {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                        const node = visibleNodes[virtualItem.index];
+                        if (!node) return null;
+                        
+                        return (
+                            <Box
+                                key={virtualItem.key}
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: `${virtualItem.size}px`,
+                                    transform: `translateY(${virtualItem.start}px)`,
+                                }}
+                            >
+                                <OfficeNode
+                                    office={node.office}
+                                    depth={node.depth}
+                                    isExpanded={expanded.has(node.office.id)}
+                                    checked={isChecked(node.office.id)}
+                                    multi={multi || false}
+                                    hasChildren={node.hasChildren}
+                                    onSelect={onSelect}
+                                    onToggleExpand={handleToggleExpand}
+                                    theme={theme}
+                                />
+                            </Box>
+                        );
+                    })}
+                </Box>
+            ) : (
+                <Typography variant="body2" sx={{ p: 2, color: 'text.disabled', textAlign: 'center' }}>
+                    Không có dữ liệu đơn vị
+                </Typography>
+            )}
         </Box>
     );
 }
@@ -332,15 +574,13 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         (async () => {
             setNhomLoading(true);
             try {
-                const items = await listNhomChuyenNganh(true);
+                const items = await listDanhMucChuyenNganh("");
                 if (!cancelled && items.length > 0) {
                     const map = new Map<string, ChuyenNganhOption>();
                     for (const fallback of FALLBACK_CHUYEN_NGANH) map.set(fallback.id, fallback);
-                    for (const group of items) {
-                        for (const cnId of group.danhSachCn) {
-                            if (map.has(cnId)) continue;
-                            map.set(cnId, { id: cnId, label: cnId, color: '#64748b' });
-                        }
+                    for (const item of items) {
+                        if (map.has(item.id)) continue;
+                        map.set(item.id, { id: item.id, label: item.ten, color: '#64748b' });
                     }
                     setChuyenNganhOptions(Array.from(map.values()));
                 }
@@ -361,7 +601,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         if (JSON.stringify(normalizedPhamVi) === JSON.stringify(config.phamViChuyenNganh)) return;
         onScopeChange({
             ...config,
-            idNhomChuyenNganh: normalizedPhamVi?.idChuyenNganh || '',
+            idDanhMucChuyenNganh: normalizedPhamVi?.idChuyenNganh || '',
             phamViChuyenNganh: normalizedPhamVi,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -372,27 +612,55 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         [chuyenNganhOptions],
     );
 
-    const affectedOffices = useMemo(() => getAffectedOffices(offices, config), [offices, config]);
-    const queryLines = useMemo(() => buildQuery(config, offices, normalizedPhamVi, cnMap), [config, offices, normalizedPhamVi, cnMap]);
+    // ── DEFERRED PREVIEW (Optimization) ────────────────────────────────
+    // Using deferred values for calculations ensures UI updates (clicks)
+    // are prioritized over heavy filtering of large office lists.
+    const deferredConfig = useDeferredValue(config);
+    const deferredPhamVi = useDeferredValue(normalizedPhamVi);
 
-    const patchConfig = (patch: Partial<GroupScopeConfig>) => {
+    const affectedOffices = useMemo(
+        () => getAffectedOffices(offices, deferredConfig), 
+        [offices, deferredConfig]
+    );
+    const queryLines = useMemo(
+        () => buildQuery(deferredConfig, offices, deferredPhamVi, cnMap), 
+        [deferredConfig, offices, deferredPhamVi, cnMap]
+    );
+
+    // Track config in ref for stable callbacks
+    const configRef = useRef(config);
+    configRef.current = config;
+
+    const patchConfig = useCallback((patch: Partial<GroupScopeConfig>) => {
+        const current = configRef.current;
         const next: GroupScopeConfig = {
-            ...config,
+            ...current,
             ...patch,
-            multiNodeIds: patch.multiNodeIds ?? config.multiNodeIds,
+            multiNodeIds: patch.multiNodeIds ?? current.multiNodeIds,
         };
         if (next.scopeType === 'MULTI_NODE') next.anchorNodeId = '';
         else next.multiNodeIds = [];
         if (next.scopeType === 'SELF' || next.scopeType === 'ALL') next.anchorNodeId = '';
         onScopeChange(next);
-    };
+    }, [onScopeChange]);
 
-    const patchPhamVi = (nextPhamVi: PhamViChuyenNganhConfig | undefined) => {
+    const patchPhamVi = useCallback((nextPhamVi: PhamViChuyenNganhConfig | undefined) => {
         patchConfig({
-            idNhomChuyenNganh: nextPhamVi?.idChuyenNganh || '',
+            idDanhMucChuyenNganh: nextPhamVi?.idChuyenNganh || '',
             phamViChuyenNganh: nextPhamVi,
         });
-    };
+    }, [patchConfig]);
+
+    const handleSelectAnchor = useCallback((id: string) => patchConfig({ anchorNodeId: id }), [patchConfig]);
+
+    const handleToggleMulti = useCallback((id: string) => {
+        const current = configRef.current;
+        patchConfig({
+            multiNodeIds: current.multiNodeIds.includes(id)
+                ? current.multiNodeIds.filter((item) => item !== id)
+                : [...current.multiNodeIds, id],
+        });
+    }, [patchConfig]);
 
     const changeCnGoc = (id: string) => {
         const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
@@ -459,75 +727,51 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, lineHeight: 1.7 }}>
-                        Cau hinh pham vi du lieu mac dinh cho role <strong>{selectedRole?.name}</strong>. Chieu 1 loc theo cay don vi, Chieu 2 loc va phan quyen theo tung chuyen nganh.
+                        Cấu hình phạm vi dữ liệu mặc định cho role <strong>{selectedRole?.name}</strong>. Chiều 1 lọc theo cây đơn vị, Chiều 2 lọc và phân quyền theo từng chuyên ngành.
                     </Typography>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHIEU 1 - PHAM VI DON VI
+                        CHIỀU 1 — PHẠM VI ĐƠN VỊ
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {SCOPE_TYPES.map((scope) => {
-                            const active = config.scopeType === scope.value;
-                            return (
-                                <ButtonBase
-                                    key={scope.value}
-                                    onClick={() => patchConfig({ scopeType: scope.value as ScopeType })}
-                                    sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1.5,
-                                        p: 1.5,
-                                        borderRadius: 2.5,
-                                        border: `1.5px solid ${active ? scope.color : theme.palette.divider}`,
-                                        bgcolor: active ? alpha(scope.color, 0.05) : 'transparent',
-                                        justifyContent: 'flex-start',
-                                        textAlign: 'left',
-                                    }}
-                                >
-                                    {active ? <RadioButtonCheckedIcon sx={{ fontSize: 18, color: scope.color }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />}
-                                    <Box sx={{ flex: 1 }}>
-                                        <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: active ? scope.color : 'text.primary' }}>{scope.label}</Typography>
-                                        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{scope.desc}</Typography>
-                                    </Box>
-                                    <Chip size="small" label={scope.risk} sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
-                                </ButtonBase>
-                            );
-                        })}
-                    </Box>
+                    <ScopeTypeSelector 
+                        config={config} 
+                        onSelect={(type) => patchConfig({ scopeType: type })} 
+                        theme={theme} 
+                    />
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHON DON VI / NHANH
+                        CHỌN ĐƠN VỊ / NHÁNH
                     </Typography>
-                    {(officeLoading || nhomLoading) && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}><CircularProgress size={18} /><Typography variant="body2">Dang tai du lieu...</Typography></Box>}
+                    {(officeLoading || nhomLoading) && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}><CircularProgress size={18} /><Typography variant="body2">Đang tải dữ liệu...</Typography></Box>}
                     {!officeLoading && mode.needsAnchor && (
-                        <OfficeTree offices={offices} selectedId={config.anchorNodeId} onSelect={(id) => patchConfig({ anchorNodeId: id })} />
+                        <OfficeTree 
+                            offices={offices} 
+                            selectedId={config.anchorNodeId} 
+                            onSelect={handleSelectAnchor} 
+                        />
                     )}
                     {!officeLoading && mode.needsMultiNode && (
                         <OfficeTree
                             offices={offices}
                             multi
                             selectedIds={config.multiNodeIds}
-                            onSelect={(id) => patchConfig({
-                                multiNodeIds: config.multiNodeIds.includes(id)
-                                    ? config.multiNodeIds.filter((item) => item !== id)
-                                    : [...config.multiNodeIds, id],
-                            })}
+                            onSelect={handleToggleMulti}
                         />
                     )}
                     {!mode.needsAnchor && !mode.needsMultiNode && (
                         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
-                            Scope nay khong can anchor node. Delegated se bo sung nguoi uy quyen va ngay het han o luc gan user cu the.
+                            Scope này không cần anchor node. Delegated sẽ bổ sung người uỷ quyền và ngày hết hạn ở lúc gán user cụ thể.
                         </Typography>
                     )}
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHIEU 2 - PHAM VI CHUYEN NGANH
+                        CHIỀU 2 — PHẠM VI CHUYÊN NGÀNH
                     </Typography>
                     <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1 }}>
-                        Chon CN goc, mo rong CN doc cheo va bo actions rieng theo tung CN.
+                        Chọn CN gốc, mở rộng CN đọc chéo và bổ actions riêng theo từng CN.
                     </Typography>
 
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.8, mb: 1.5 }}>
@@ -548,7 +792,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                                 >
                                     <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: active ? cn.color : 'text.disabled', mr: 1 }} />
                                     <Typography sx={{ fontSize: 12, fontWeight: active ? 700 : 500, color: active ? 'text.primary' : 'text.secondary' }}>{cn.label}</Typography>
-                                    {active && <Chip size="small" label="CN Goc" sx={{ ml: 'auto', height: 18, fontSize: 10 }} />}
+                                    {active && <Chip size="small" label="CN Gốc" sx={{ ml: 'auto', height: 18, fontSize: 10 }} />}
                                 </ButtonBase>
                             );
                         })}
@@ -565,9 +809,9 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                                 <Box key={entry.id} sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(color, 0.45)}`, bgcolor: isOwn ? alpha(color, 0.08) : 'background.default' }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
                                         <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>{option?.label || entry.id}</Typography>
-                                        <Chip size="small" label={isOwn ? 'CN Goc' : 'Truy cap cheo'} sx={{ ml: 1, height: 18, fontSize: 10 }} />
+                                        <Chip size="small" label={isOwn ? 'CN Gốc' : 'Truy cập chéo'} sx={{ ml: 1, height: 18, fontSize: 10 }} />
                                         {!isOwn && (
-                                            <Tooltip title="Xoa CN cheo khoi pham vi">
+                                            <Tooltip title="Xóa CN chéo khỏi phạm vi">
                                                 <IconButton size="small" onClick={() => removeCrossCn(entry.id)} sx={{ ml: 'auto' }}>
                                                     <CloseIcon sx={{ fontSize: 16 }} />
                                                 </IconButton>
@@ -618,7 +862,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRUOC CAU HINH</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRƯỚC CẤU HÌNH</Typography>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.25 }}>
                         <Chip label={mode.label} />
                         {config.anchorNodeId && <Chip label={`Anchor: ${config.anchorNodeId}`} />}
@@ -630,7 +874,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>QUERY PREVIEW</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRƯỚC TRUY VẤN</Typography>
                     {queryLines.map((line, idx) => (
                         <React.Fragment key={idx}>
                             <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.8, color: idx < 2 ? 'text.primary' : 'text.secondary' }}>
@@ -642,7 +886,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHAM VI CHUYEN NGANH DOCUMENT</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHẠM VI CHUYÊN NGÀNH (DOCUMENT)</Typography>
                     <Box component="pre" sx={{ m: 0, p: 1.25, borderRadius: 2, bgcolor: 'background.default', border: `1px solid ${theme.palette.divider}`, fontSize: 11, lineHeight: 1.6, overflow: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
                         {JSON.stringify(normalizedPhamVi ?? null, null, 2)}
                     </Box>
@@ -651,22 +895,22 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`, bgcolor: alpha(theme.palette.warning.main, 0.06) }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.6 }}>
                         <WarningAmberIcon sx={{ fontSize: 17, color: 'warning.main' }} />
-                        <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'warning.main' }}>CAN NHAC THAY DOI SCHEMA</Typography>
+                        <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'warning.main' }}>CÂN NHẮC THAY ĐỔI SCHEMA</Typography>
                     </Box>
                     <Typography sx={{ fontSize: 12, lineHeight: 1.7, color: 'text.secondary' }}>
-                        Neu bo truong IDChuyenNganh tren entity trang bi, he thong mat kha nang loc chinh xac theo tung CN. Nen giu IDChuyenNganh va bo sung them IDChuyenNganhKT de loc chi tiet.
+                        Nếu bỏ trường IDChuyenNganh trên entity trang bị, hệ thống mất khả năng lọc chính xác theo từng CN. Nên giữ IDChuyenNganh và bổ sung thêm IDChuyenNganhKT để lọc chi tiết.
                     </Typography>
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>VUNG DON VI BI ANH HUONG</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>VÙNG ĐƠN VỊ BỊ ẢNH HƯỞNG</Typography>
                     {config.scopeType === 'SELF' || config.scopeType === 'ALL' ? (
                         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
-                            {config.scopeType === 'SELF' ? 'SELF loc theo CreatedBy, khong theo Office list.' : 'ALL bo qua gioi han don vi. Chieu 2 van co hieu luc neu da cau hinh pham vi chuyen nganh.'}
+                            {config.scopeType === 'SELF' ? 'SELF lọc theo CreatedBy, không theo Office list.' : 'ALL bỏ qua giới hạn đơn vị. Chiều 2 vẫn có hiệu lực nếu đã cấu hình phạm vi chuyên ngành.'}
                         </Typography>
                     ) : affectedOffices.length > 0 ? (
                         <>
-                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary', mb: 1 }}>{affectedOffices.length} don vi du kien</Typography>
+                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary', mb: 1 }}>{affectedOffices.length} đơn vị dự kiến</Typography>
                             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                                 {affectedOffices.slice(0, 24).map((office) => (
                                     <Chip key={office.id} label={`${office.id} - ${office.label}`} size="small" />
@@ -675,7 +919,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                             </Box>
                         </>
                     ) : (
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Chua co du lieu preview. Hay chon anchor node hoac multi-node phu hop.</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Chưa có dữ liệu preview. Hãy chọn anchor node hoặc multi-node phù hợp.</Typography>
                     )}
                 </Box>
             </Box>
@@ -683,4 +927,4 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     );
 };
 
-export default ScopeConfigPanel;
+export default React.memo(ScopeConfigPanel);

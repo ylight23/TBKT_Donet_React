@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -13,7 +14,7 @@ import EditIcon from '@mui/icons-material/Edit';
 
 import CommonDialog from '../../../components/Dialog/CommonDialog';
 import type { ScopeType } from '../../../types/permission';
-import { SCOPE_TYPES } from '../data/permissionData';
+import { SCOPE_TYPES, ALL_SCOPE_TYPES, scopeLookup } from '../data/permissionData';
 import employeeApi from '../../../apis/employeeApi';
 
 interface EmployeeOption {
@@ -36,7 +37,7 @@ export interface AssignUserDialogValue {
     anchorNodeId?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
 }
 
 export interface AssignUserDialogProps {
@@ -51,7 +52,7 @@ export interface AssignUserDialogProps {
     initialAnchorNodeId?: string;
     initialNgayHetHan?: string;
     initialIdNguoiUyQuyen?: string;
-    initialIdNhomChuyenNganh?: string;
+    initialIdDanhMucChuyenNganh?: string;
     onConfirm: (payload: AssignUserDialogValue) => Promise<void>;
 }
 
@@ -67,7 +68,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
     initialAnchorNodeId = '',
     initialNgayHetHan = '',
     initialIdNguoiUyQuyen = '',
-    initialIdNhomChuyenNganh = '',
+    initialIdDanhMucChuyenNganh = '',
     onConfirm,
 }) => {
     const theme = useTheme();
@@ -80,7 +81,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
     const [anchorNodeId, setAnchorNodeId] = useState(initialAnchorNodeId);
     const [ngayHetHan, setNgayHetHan] = useState(toDateInputValue(initialNgayHetHan));
     const [idNguoiUyQuyen, setIdNguoiUyQuyen] = useState(initialIdNguoiUyQuyen);
-    const [idNhomChuyenNganh, setIdNhomChuyenNganh] = useState(initialIdNhomChuyenNganh);
+    const [idDanhMucChuyenNganh, setIdDanhmucChuyenNganh] = useState(initialIdDanhMucChuyenNganh);
     const [saving, setSaving] = useState(false);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,7 +94,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         setAnchorNodeId(initialAnchorNodeId);
         setNgayHetHan(toDateInputValue(initialNgayHetHan));
         setIdNguoiUyQuyen(initialIdNguoiUyQuyen);
-        setIdNhomChuyenNganh(initialIdNhomChuyenNganh);
+        setIdDanhmucChuyenNganh(initialIdDanhMucChuyenNganh);
         setEmployees([]);
         setSaving(false);
     }, [
@@ -104,7 +105,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         initialAnchorNodeId,
         initialNgayHetHan,
         initialIdNguoiUyQuyen,
-        initialIdNhomChuyenNganh,
+        initialIdDanhMucChuyenNganh,
     ]);
 
     useEffect(() => {
@@ -119,7 +120,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
             setEmpLoading(true);
             try {
                 const list = await employeeApi.getListEmployees({ searchText: search });
-                setEmployees(list.slice(0, 30).map((e: any) => ({
+                setEmployees((list ?? []).slice(0, 100).map((e: any) => ({
                     id: e.id,
                     name: e.hoVaTen || e.id,
                     donVi: e.idDonVi || '',
@@ -147,7 +148,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                 anchorNodeId: anchorNodeId.trim() || undefined,
                 ngayHetHan: ngayHetHan || undefined,
                 idNguoiUyQuyen: idNguoiUyQuyen.trim() || undefined,
-                idNhomChuyenNganh: idNhomChuyenNganh.trim() || undefined,
+                idDanhMucChuyenNganh: idDanhMucChuyenNganh.trim() || undefined,
             });
             onClose();
         } catch (error) {
@@ -162,7 +163,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         anchorNodeId,
         ngayHetHan,
         idNguoiUyQuyen,
-        idNhomChuyenNganh,
+        idDanhMucChuyenNganh,
         onConfirm,
         onClose,
     ]);
@@ -170,18 +171,32 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
     const avatarLetters = (name: string) =>
         name.split(' ').map((word) => word[0] || '').join('').slice(0, 2).toUpperCase() || '?';
 
+    // ── VIRTUALIZATION FOR EMPLOYEES ──
+    const empParentRef = useRef<HTMLDivElement>(null);
+    const employeeVirtualizer = useVirtualizer({
+        count: employees.length,
+        getScrollElement: () => empParentRef.current,
+        estimateSize: () => 52,
+        overscan: 5,
+    });
+
+    // Re-measure when employee list changes (search results update)
+    useEffect(() => {
+        employeeVirtualizer.measure();
+    }, [employees, employeeVirtualizer]);
+
     return (
         <CommonDialog
             open={open}
             onClose={onClose}
-            title={editMode ? `Chinh pham vi: ${initialHoTen}` : 'Gan nguoi dung vao role'}
+            title={editMode ? `Chỉnh phạm vi: ${initialHoTen}` : 'Gán người dùng vào role'}
             subtitle={`Role: ${roleName}`}
             mode={editMode ? 'edit' : 'add'}
             icon={editMode ? <EditIcon /> : <PersonAddIcon />}
             color={roleColor}
             maxWidth="sm"
             onConfirm={handleConfirm}
-            confirmText={editMode ? 'Cap nhat pham vi' : 'Gan nguoi dung'}
+            confirmText={editMode ? 'Cập nhật phạm vi' : 'Gán người dùng'}
             disabled={!selectedId || saving}
             loading={saving}
         >
@@ -189,7 +204,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                 {!editMode && (
                     <Box>
                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                            CHON NGUOI DUNG
+                            CHỌN NGƯỜI DÙNG
                         </Typography>
 
                         {selectedId ? (
@@ -202,7 +217,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                     <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>{selectedId}</Typography>
                                 </Box>
                                 <Chip
-                                    label="Doi"
+                                    label="Đổi"
                                     size="small"
                                     onClick={() => { setSelectedId(''); setSelectedName(''); setSearch(''); }}
                                     sx={{ cursor: 'pointer', height: 22, fontSize: 11 }}
@@ -215,7 +230,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                     size="small"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Tim theo ten hoac ma nhan vien..."
+                                    placeholder="Tìm theo tên hoặc mã nhân viên..."
                                     autoFocus
                                     InputProps={{
                                         startAdornment: (
@@ -232,45 +247,74 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                 />
 
                                 {employees.length > 0 && (
-                                    <Box sx={{ mt: 1, maxHeight: 200, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                        {employees.map((employee) => (
-                                            <Box
-                                                key={employee.id}
-                                                onClick={() => { setSelectedId(employee.id); setSelectedName(employee.name); }}
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1.25,
-                                                    p: 1,
-                                                    borderRadius: 1.5,
-                                                    cursor: 'pointer',
-                                                    border: `1px solid ${theme.palette.divider}`,
-                                                    transition: 'all 0.12s',
-                                                    '&:hover': {
-                                                        bgcolor: alpha(theme.palette.primary.main, 0.04),
-                                                        borderColor: alpha(theme.palette.primary.main, 0.3),
-                                                    },
-                                                }}
-                                            >
-                                                <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: roleColor, color: '#fff', fontWeight: 700, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    {avatarLetters(employee.name)}
-                                                </Box>
-                                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                    <Typography sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>{employee.name}</Typography>
-                                                    {employee.donVi && (
-                                                        <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
-                                                            {employee.donVi}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            </Box>
-                                        ))}
+                                    <Box 
+                                        ref={empParentRef}
+                                        sx={{ 
+                                            mt: 1, 
+                                            maxHeight: 260, 
+                                            overflow: 'auto', 
+                                            position: 'relative',
+                                            // Custom scrollbar
+                                            '&::-webkit-scrollbar': { width: 5 },
+                                            '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.divider, 0.4), borderRadius: 3 },
+                                        }}
+                                    >
+                                        <Box
+                                            sx={{
+                                                height: `${employeeVirtualizer.getTotalSize()}px`,
+                                                width: '100%',
+                                                position: 'relative',
+                                            }}
+                                        >
+                                            {employeeVirtualizer.getVirtualItems().map((virtualItem) => {
+                                                const employee = employees[virtualItem.index];
+                                                if (!employee) return null;
+                                                return (
+                                                    <Box
+                                                        key={virtualItem.key}
+                                                        onClick={() => { setSelectedId(employee.id); setSelectedName(employee.name); }}
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: '100%',
+                                                            height: `${virtualItem.size}px`,
+                                                            transform: `translateY(${virtualItem.start}px)`,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 1.25,
+                                                            px: 1,
+                                                            py: 0.5,
+                                                            borderRadius: 1.5,
+                                                            cursor: 'pointer',
+                                                            borderBottom: `1px solid ${theme.palette.divider}`,
+                                                            transition: 'all 0.1s ease',
+                                                            '&:hover': {
+                                                                bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                                            },
+                                                        }}
+                                                    >
+                                                        <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: roleColor, color: '#fff', fontWeight: 700, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                            {avatarLetters(employee.name)}
+                                                        </Box>
+                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                            <Typography noWrap sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>{employee.name}</Typography>
+                                                            {employee.donVi && (
+                                                                <Typography noWrap variant="caption" sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                                                                    {employee.donVi}
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                );
+                                            })}
+                                        </Box>
                                     </Box>
                                 )}
 
                                 {search.trim() && !empLoading && employees.length === 0 && (
                                     <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.disabled', textAlign: 'center' }}>
-                                        Khong tim thay ket qua
+                                        Không tìm thấy kết quả
                                     </Typography>
                                 )}
                             </>
@@ -280,7 +324,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
 
                 <Box>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                        PHAM VI DU LIEU
+                        PHẠM VI DỮ LIỆU
                     </Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         {SCOPE_TYPES.map((scopeOption) => {
@@ -323,7 +367,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
 
                 <Box>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                        THAM SO SCOPE
+                        THAM SỐ SCOPE
                     </Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
                         <TextField
@@ -334,27 +378,27 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                             placeholder="vd: dv1, office-root"
                             disabled={scope === 'SELF' || scope === 'ALL'}
                             helperText={scope === 'SELF' || scope === 'ALL'
-                                ? 'Scope nay khong can anchor node'
-                                : 'Nhap ID don vi goc cho assignment'}
+                                ? 'Scope này không cần anchor node'
+                                : 'Nhập ID đơn vị gốc cho assignment'}
                         />
                         <TextField
                             size="small"
-                            label="Ngay het han"
+                            label="Ngày hết hạn"
                             type="date"
                             value={ngayHetHan}
                             onChange={(e) => setNgayHetHan(e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             helperText={scope === 'DELEGATED'
-                                ? 'Nen khai bao cho scope uy quyen'
-                                : 'De trong neu khong gioi han'}
+                                ? 'Nên khai báo cho scope uỷ quyền'
+                                : 'Để trống nếu không giới hạn'}
                         />
                         <TextField
                             size="small"
-                            label="ID nhom chuyen nganh"
-                            value={idNhomChuyenNganh}
-                            onChange={(e) => setIdNhomChuyenNganh(e.target.value)}
-                            placeholder="vd: nhom_tc_dien_tu"
-                            helperText="Bo trong neu khong gioi han chuyen nganh"
+                            label="ID danh mục chuyên ngành"
+                            value={idDanhMucChuyenNganh}
+                            onChange={(e) => setIdDanhmucChuyenNganh(e.target.value)}
+                            placeholder="vd: T, R, ..."
+                            helperText="Bỏ trống nếu không giới hạn chuyên ngành"
                         />
                     </Box>
                 </Box>
@@ -362,16 +406,16 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                 {scope === 'DELEGATED' && (
                     <Box>
                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                            UY QUYEN
+                            UỶ QUYỀN
                         </Typography>
                         <TextField
                             fullWidth
                             size="small"
-                            label="ID nguoi uy quyen"
+                            label="ID người uỷ quyền"
                             value={idNguoiUyQuyen}
                             onChange={(e) => setIdNguoiUyQuyen(e.target.value)}
-                            placeholder="Nhap ID user thuc hien uy quyen"
-                            helperText="Dung de audit nguon goc quyen uy quyen"
+                            placeholder="Nhập ID user thực hiện uỷ quyền"
+                            helperText="Dùng để audit nguồn gốc quyền uỷ quyền"
                         />
                     </Box>
                 )}

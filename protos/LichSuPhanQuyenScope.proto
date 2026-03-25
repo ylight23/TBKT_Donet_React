@@ -39,7 +39,7 @@ message LichSuPhanQuyenScope {
   repeated string id_nganh_doc_cu = 10;
   google.protobuf.Timestamp ngay_het_han_cu = 11;
   string id_nguoi_uy_quyen_cu = 12;
-  string id_nhom_chuyen_nganh_cu = 13;
+  string id_danh_muc_chuyen_nganh_cu = 13;
 
   // --- Scope mới ---
   string scope_type_moi = 14;           // sau khi thay đổi
@@ -47,7 +47,7 @@ message LichSuPhanQuyenScope {
   repeated string id_nganh_doc_moi = 16;
   google.protobuf.Timestamp ngay_het_han_moi = 17;
   string id_nguoi_uy_quyen_moi = 18;
-  string id_nhom_chuyen_nganh_moi = 19;
+  string id_danh_muc_chuyen_nganh_moi = 19;
 
   // Thời gian thực hiện
   google.protobuf.Timestamp ngay_thuc_hien = 20;

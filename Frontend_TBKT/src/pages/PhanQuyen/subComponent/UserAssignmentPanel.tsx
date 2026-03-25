@@ -13,11 +13,11 @@ import PlaceIcon from '@mui/icons-material/Place';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 
 import type { Role, PermissionUserRow, ScopeType } from '../../../types/permission';
-import { SCOPE_TYPES } from '../data/permissionData';
+import { scopeLookup } from '../data/permissionData';
 import AssignUserDialog, { type AssignUserDialogValue } from './AssignUserDialog';
 
 // ── Lookup map ─────────────────────────────────────────────────────────────────
-const scopeMap = new Map(SCOPE_TYPES.map(s => [s.value, s]));
+const scopeMap = scopeLookup;
 
 // ── User Row ──────────────────────────────────────────────────────────────────
 
@@ -181,7 +181,7 @@ interface EditState {
     anchorNodeId?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idNhomChuyenNganh?: string;
+    idDanhMucChuyenNganh?: string;
 }
 
 interface UserAssignmentPanelProps {
@@ -215,7 +215,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
             anchorNodeId: user.anchorNodeId,
             ngayHetHan: user.ngayHetHan,
             idNguoiUyQuyen: user.idNguoiUyQuyen,
-            idNhomChuyenNganh: user.idNhomChuyenNganh,
+            idDanhMucChuyenNganh: user.idDanhMucChuyenNganh,
         });
     }, []);
 
@@ -295,7 +295,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                     initialAnchorNodeId={editState.anchorNodeId}
                     initialNgayHetHan={editState.ngayHetHan}
                     initialIdNguoiUyQuyen={editState.idNguoiUyQuyen}
-                    initialIdNhomChuyenNganh={editState.idNhomChuyenNganh}
+                    initialIdDanhMucChuyenNganh={editState.idDanhMucChuyenNganh}
                     onConfirm={handleConfirmEdit}
                 />
             )}

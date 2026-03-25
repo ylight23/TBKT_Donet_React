@@ -41,6 +41,7 @@ import UserAssignmentPanel from './subComponent/UserAssignmentPanel';
 import AssignmentListTab from './subComponent/AssignmentListTab';
 import CloneRoleDialog from './subComponent/CloneRoleDialog';
 import type { AssignUserDialogValue } from './subComponent/AssignUserDialog';
+import CnGroupedPermissionView from './subComponent/CnGroupedPermissionView';
 
 // ── Tab config (hoisted static — Rule: rendering-hoist-jsx) ────────────────────
 
@@ -82,7 +83,7 @@ function usersInGroupToRows(users: UserInGroupInfo[]): PermissionUserRow[] {
         anchorNodeId:      u.anchorNodeId,
         anchorNodeName:    u.anchorNodeName || u.anchorNodeId,
         scopeType:         u.scopeType || undefined,
-        idNhomChuyenNganh: u.idNhomChuyenNganh,
+        idDanhMucChuyenNganh: u.idDanhMucChuyenNganh,
         ngayHetHan:        u.ngayHetHan,
         idNguoiUyQuyen:    u.idNguoiUyQuyen,
         idAssignment:      u.idAssignment,
@@ -103,7 +104,7 @@ function assignmentDetailToRow(a: AssignmentDetailInfo): PermissionAssignmentRow
         anchorNodeName: a.anchorNodeName || '',
         anchorNodePath: a.anchorNodeName || a.anchorNodeId || '',
         scopeType:     (a.scopeType as ScopeType) || '',
-        idNhomChuyenNganh: a.idNhomChuyenNganh,
+        idDanhMucChuyenNganh: a.idDanhMucChuyenNganh,
         idNguoiUyQuyen: a.idNguoiUyQuyen,
         delegatedBy:   a.idNguoiUyQuyen,
         delegatedByName: a.idNguoiUyQuyen,
@@ -112,6 +113,44 @@ function assignmentDetailToRow(a: AssignmentDetailInfo): PermissionAssignmentRow
         createdAt:     a.ngayTao || '',
         approvalStatus: 'APPROVED',
     };
+}
+
+function scopeNeedsAnchor(scopeType: ScopeType): boolean {
+    return ['NODE_ONLY', 'NODE_AND_CHILDREN', 'SUBTREE', 'SIBLINGS', 'BRANCH', 'DELEGATED'].includes(scopeType);
+}
+
+function isScopeConfigReady(scopeConfig: GroupScopeConfig): boolean {
+    if (scopeNeedsAnchor(scopeConfig.scopeType) && !scopeConfig.anchorNodeId) return false;
+    if (scopeConfig.scopeType === 'MULTI_NODE' && scopeConfig.multiNodeIds.length === 0) return false;
+    return true;
+}
+
+function getScopeSummary(scopeConfig: GroupScopeConfig): string {
+    const unitText = (() => {
+        switch (scopeConfig.scopeType) {
+            case 'SUBTREE':
+                return scopeConfig.anchorNodeId ? `Subtree @ ${scopeConfig.anchorNodeId}` : 'Subtree @ IDQuanTriDonVi';
+            case 'DELEGATED':
+                return scopeConfig.anchorNodeId ? `Delegated @ ${scopeConfig.anchorNodeId}` : 'Delegated';
+            case 'ALL':
+                return 'All units';
+            case 'MULTI_NODE':
+                return scopeConfig.multiNodeIds.length > 0 ? `MultiNode (${scopeConfig.multiNodeIds.length} anchors)` : 'MultiNode';
+            case 'NODE_ONLY':
+            case 'NODE_AND_CHILDREN':
+            case 'SIBLINGS':
+            case 'BRANCH':
+                return scopeConfig.anchorNodeId ? `${scopeConfig.scopeType} @ ${scopeConfig.anchorNodeId}` : scopeConfig.scopeType;
+            default:
+                return scopeConfig.scopeType;
+        }
+    })();
+    const cnText = scopeConfig.phamViChuyenNganh?.idChuyenNganh
+        ? `CN ${scopeConfig.phamViChuyenNganh.idChuyenNganh}`
+        : scopeConfig.idDanhMucChuyenNganh
+            ? `Nhom CN ${scopeConfig.idDanhMucChuyenNganh}`
+            : 'Tat ca chuyen nganh';
+    return `${unitText} · ${cnText}`;
 }
 
 // ── Main Page Component ───────────────────────────────────────────────────────
@@ -128,14 +167,15 @@ const PhanQuyenPage: React.FC = () => {
         scopeType: 'SUBTREE',
         anchorNodeId: '',
         multiNodeIds: [],
-        idNhomChuyenNganh: '',
+        idDanhMucChuyenNganh: '',
         phamViChuyenNganh: undefined,
     });
     const [permLoading, setPermLoading]         = useState(false);
     const [usersInGroup, setUsersInGroup]       = useState<UserInGroupInfo[]>([]);
     const [assignments, setAssignments]         = useState<AssignmentDetailInfo[]>([]);
     const [permissionGroups, setPermissionGroups] = useState(FALLBACK_PERMISSION_GROUPS);
-    const [activeTab, setActiveTab]             = useState<PermissionTabKey>('permissions');
+    const [activeTab, setActiveTab]             = useState<PermissionTabKey>('scope');
+    const [scopeReviewed, setScopeReviewed]     = useState(false);
     const [unsaved, setUnsaved]                 = useState(false);
     const [savedFlash, setSavedFlash]           = useState(false);
     const [showCloneModal, setShowCloneModal]   = useState(false);
@@ -147,6 +187,18 @@ const PhanQuyenPage: React.FC = () => {
     const isSystem   = selectedRole?.type === 'SYSTEM';
     const userRows = useMemo(() => usersInGroupToRows(usersInGroup), [usersInGroup]);
     const assignmentRows = useMemo(() => assignments.map(assignmentDetailToRow), [assignments]);
+    const scopeReady = useMemo(() => isScopeConfigReady(currentScopeConfig), [currentScopeConfig]);
+    const scopeSummary = useMemo(() => getScopeSummary(currentScopeConfig), [currentScopeConfig]);
+    const orderedTabs = useMemo(
+        () => ['scope', 'permissions', 'users', 'assignments']
+            .map((key) => TAB_DEFS.find((tab) => tab.key === key))
+            .filter((tab): tab is TabDef => Boolean(tab)),
+        [],
+    );
+    const hasCnScope = useMemo(() => 
+        Boolean(currentScopeConfig.phamViChuyenNganh?.idChuyenNganhDoc?.length),
+        [currentScopeConfig.phamViChuyenNganh]
+    );
 
     // ── Load groups on mount ───────────────────────────────────────────────────
     useEffect(() => {
@@ -198,11 +250,12 @@ const PhanQuyenPage: React.FC = () => {
                     scopeType: (perms.scopeType || 'SUBTREE') as ScopeType,
                     anchorNodeId: perms.anchorNodeId || '',
                     multiNodeIds: perms.multiNodeIds || [],
-                    idNhomChuyenNganh: perms.idNhomChuyenNganh || '',
+                    idDanhMucChuyenNganh: perms.idDanhMucChuyenNganh || '',
                     phamViChuyenNganh: perms.phamViChuyenNganh,
                 });
                 setUsersInGroup(users);
                 setUnsaved(false);
+                setScopeReviewed(false);
             } catch (e) {
                 console.error('[PhanQuyen] loadPermissions error:', e);
             } finally {
@@ -224,7 +277,8 @@ const PhanQuyenPage: React.FC = () => {
 
     const handleSelectRole = useCallback((roleId: string) => {
         setSelectedRoleId(roleId);
-        setActiveTab('permissions');
+        setActiveTab('scope');
+        setScopeReviewed(false);
     }, []);
 
     const handleTogglePermission = useCallback((code: string) => {
@@ -261,8 +315,15 @@ const PhanQuyenPage: React.FC = () => {
     const handleScopeChange = useCallback((scopeConfig: GroupScopeConfig) => {
         if (isSystem) return;
         setCurrentScopeConfig(scopeConfig);
+        setScopeReviewed(false);
         setUnsaved(true);
     }, [isSystem]);
+
+    const handleConfirmScope = useCallback(() => {
+        if (!scopeReady) return;
+        setScopeReviewed(true);
+        setActiveTab('permissions');
+    }, [scopeReady]);
 
     const handleSave = useCallback(async () => {
         if (!selectedRoleId) return;
@@ -320,7 +381,7 @@ const PhanQuyenPage: React.FC = () => {
             anchorNodeId: payload.anchorNodeId,
             ngayHetHan: payload.ngayHetHan,
             idNguoiUyQuyen: payload.idNguoiUyQuyen,
-            idNhomChuyenNganh: payload.idNhomChuyenNganh,
+            idDanhMucChuyenNganh: payload.idDanhMucChuyenNganh,
             loai: payload.scopeType === 'DELEGATED' ? 'Delegated' : 'Direct',
         });
         const users = await listGroupUsers(selectedRoleId);
@@ -340,7 +401,7 @@ const PhanQuyenPage: React.FC = () => {
             anchorNodeId: payload.anchorNodeId,
             ngayHetHan: payload.ngayHetHan,
             idNguoiUyQuyen: payload.idNguoiUyQuyen,
-            idNhomChuyenNganh: payload.idNhomChuyenNganh,
+            idDanhMucChuyenNganh: payload.idDanhMucChuyenNganh,
             loai: payload.scopeType === 'DELEGATED' ? 'Delegated' : 'Direct',
         });
         const users = await listGroupUsers(selectedRoleId);
@@ -503,28 +564,34 @@ const PhanQuyenPage: React.FC = () => {
 
                             {/* Tab bar */}
                             <Box sx={{ display: 'flex' }}>
-                                {TAB_DEFS.map((tab) => {
+                                {orderedTabs.map((tab) => {
                                     const isActive = activeTab === tab.key;
+                                    const isLocked = tab.key === 'permissions' && !scopeReviewed && !isSystem;
                                     const label = tab.getLabel
                                         ? tab.getLabel(selectedRole?.userCount ?? 0)
                                         : tab.label;
                                     return (
                                         <Box
                                             key={tab.key}
-                                            onClick={() => setActiveTab(tab.key)}
+                                            onClick={() => setActiveTab(isLocked ? 'scope' : tab.key)}
                                             sx={{
                                                 px: 2,
                                                 py: 1.25,
-                                                cursor: 'pointer',
+                                                cursor: isLocked ? 'not-allowed' : 'pointer',
                                                 fontSize: 13,
                                                 fontWeight: isActive ? 700 : 400,
-                                                color: isActive ? 'text.primary' : 'text.secondary',
+                                                color: isLocked
+                                                    ? 'text.disabled'
+                                                    : isActive
+                                                        ? 'text.primary'
+                                                        : 'text.secondary',
                                                 borderBottom: isActive
                                                     ? `2.5px solid ${selectedRole?.color || theme.palette.primary.main}`
                                                     : '2.5px solid transparent',
                                                 mb: '-1px',
                                                 transition: 'all 0.15s',
-                                                '&:hover': { color: 'text.primary' },
+                                                opacity: isLocked ? 0.6 : 1,
+                                                '&:hover': { color: isLocked ? 'text.disabled' : 'text.primary' },
                                             }}
                                         >
                                             {label}
@@ -536,21 +603,177 @@ const PhanQuyenPage: React.FC = () => {
 
                         {/* Tab panel */}
                         <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
-                            {activeTab === 'permissions' && (
-                                <RolePermissionPanel
-                                    selectedRole={selectedRole}
-                                    permissionGroups={permissionGroups}
-                                    checkedPermissions={checkedPerms}
-                                    onTogglePermission={handleTogglePermission}
-                                    onToggleGroup={handleToggleGroup}
-                                />
-                            )}
                             {activeTab === 'scope' && (
-                                <ScopeConfigPanel
-                                    selectedRole={selectedRole}
-                                    scopeConfig={currentScopeConfig}
-                                    onScopeChange={handleScopeChange}
-                                />
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <Box
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: 2,
+                                            bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                            border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 2,
+                                            flexWrap: 'wrap',
+                                        }}
+                                    >
+                                        <Box sx={{ flex: 1, minWidth: 260 }}>
+                                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                                                Bước 1. Chốt phạm vi dữ liệu trước khi cấu hình quyền thao tác
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Người dùng sẽ đi theo phạm vi đơn vị và chuyên ngành này trước. Sau khi xác nhận xong,
+                                                hệ thống mới mở phần vai trò và thao tác chức năng chi tiết.
+                                            </Typography>
+                                        </Box>
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            onClick={handleConfirmScope}
+                                            disabled={!scopeReady}
+                                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            Xác nhận phạm vi và tiếp tục
+                                        </Button>
+                                    </Box>
+                                    <ScopeConfigPanel
+                                        selectedRole={selectedRole}
+                                        scopeConfig={currentScopeConfig}
+                                        onScopeChange={handleScopeChange}
+                                    />
+                                </Box>
+                            )}
+                            {activeTab === 'permissions' && (
+                                (scopeReviewed || isSystem) ? (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        <Box
+                                            sx={{
+                                                p: 2,
+                                                borderRadius: 2,
+                                                bgcolor: alpha(theme.palette.success.main, 0.05),
+                                                border: `1px solid ${alpha(theme.palette.success.main, 0.14)}`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.5,
+                                                flexWrap: 'wrap',
+                                            }}
+                                        >
+                                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.primary' }}>
+                                                Bước 2. Cấu hình vai trò và thao tác trên dữ liệu đã chốt
+                                            </Typography>
+                                            <Chip
+                                                size="small"
+                                                label={scopeSummary}
+                                                sx={{
+                                                    height: 24,
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    bgcolor: alpha(theme.palette.success.main, 0.08),
+                                                    color: theme.palette.success.main,
+                                                }}
+                                            />
+                                        </Box>
+                                        {/* ── Bước 2a: cấu hình quyền chức năng cơ sở ── */}
+                                        <Box
+                                            sx={{
+                                                p: 1.75,
+                                                borderRadius: 2,
+                                                border: `1px solid ${theme.palette.divider}`,
+                                                bgcolor: alpha(theme.palette.divider, 0.03),
+                                            }}
+                                        >
+                                            <Typography
+                                                sx={{
+                                                    fontSize: 12,
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.08em',
+                                                    color: 'text.secondary',
+                                                    mb: 1.5,
+                                                    textTransform: 'uppercase',
+                                                }}
+                                            >
+                                                Quyền chức năng cơ sở
+                                            </Typography>
+                                            <Typography
+                                                sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1.5, lineHeight: 1.6 }}
+                                            >
+                                                Chọn quyền chức năng mà role này được phép. Đây là chiều 1 — xác định user có quyền gọi chức năng nào.
+                                                {hasCnScope && ' Kết hợp với phạm vi CN bên dưới để ra quyền thực tế.'}
+                                            </Typography>
+                                            <RolePermissionPanel
+                                                selectedRole={selectedRole}
+                                                permissionGroups={permissionGroups}
+                                                checkedPermissions={checkedPerms}
+                                                onTogglePermission={handleTogglePermission}
+                                                onToggleGroup={handleToggleGroup}
+                                            />
+                                        </Box>
+
+                                        {/* ── Bước 2b: quyền thực tế theo CN (nếu có) ── */}
+                                        {hasCnScope && (
+                                            <Box
+                                                sx={{
+                                                    p: 1.75,
+                                                    borderRadius: 2,
+                                                    border: `1px solid ${alpha(theme.palette.info.main, 0.18)}`,
+                                                    bgcolor: alpha(theme.palette.info.main, 0.02),
+                                                }}
+                                            >
+                                                <Typography
+                                                    sx={{
+                                                        fontSize: 12,
+                                                        fontWeight: 800,
+                                                        letterSpacing: '0.08em',
+                                                        color: 'text.secondary',
+                                                        mb: 0.75,
+                                                        textTransform: 'uppercase',
+                                                    }}
+                                                >
+                                                    Quyền thực tế theo từng Chuyên Ngành
+                                                </Typography>
+                                                <Typography
+                                                    sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1.5, lineHeight: 1.6 }}
+                                                >
+                                                    Giao nhau giữa quyền chức năng (trên) và phạm vi CN (đã chốt ở Bước 1).
+                                                    Mỗi CN hiện rõ module nào được thao tác gì — action bị CN chặn sẽ gạch ngang.
+                                                </Typography>
+                                                <CnGroupedPermissionView
+                                                    phamVi={currentScopeConfig.phamViChuyenNganh!}
+                                                    checkedCodes={checkedPerms}
+                                                    permissionGroups={permissionGroups}
+                                                />
+                                            </Box>
+                                        )}
+                                    </Box>
+                                ) : (
+                                    <Box
+                                        sx={{
+                                            p: 3,
+                                            borderRadius: 2,
+                                            bgcolor: 'background.default',
+                                            border: `1px dashed ${theme.palette.divider}`,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 1.5,
+                                            alignItems: 'flex-start',
+                                        }}
+                                    >
+                                        <Typography sx={{ fontSize: 15, fontWeight: 700, color: 'text.primary' }}>
+                                            Cần xác nhận phạm vi dữ liệu trước
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            UI này được đổi theo nghiệp vụ mới: phạm vi đơn vị và chuyên ngành là lớp nền.
+                                            Sau khi chốt xong phạm vi, vai trò và action mới có ý nghĩa trên tập dữ liệu cụ thể.
+                                        </Typography>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={() => setActiveTab('scope')}
+                                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            Quay lại tab phạm vi dữ liệu
+                                        </Button>
+                                    </Box>
+                                )
                             )}
                             {activeTab === 'users' && (
                                 <UserAssignmentPanel

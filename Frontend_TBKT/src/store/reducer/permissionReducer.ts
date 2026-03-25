@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { ChuyenNganhAccessEntry } from '../../types/permission';
 
 export interface PhanHePermission {
     maPhanHe: string;
@@ -18,6 +19,7 @@ export interface PermissionState {
     scopeType: string;
     anchorNodeId: string;
     nganhDocIds: string[];
+    actionsPerCn: ChuyenNganhAccessEntry[];
     loaded: boolean;
 }
 
@@ -27,6 +29,7 @@ const initialState: PermissionState = {
     scopeType: '',
     anchorNodeId: '',
     nganhDocIds: [],
+    actionsPerCn: [],
     loaded: false,
 };
 
@@ -40,6 +43,7 @@ const permissionSlice = createSlice({
             state.scopeType   = action.payload.scopeType;
             state.anchorNodeId = action.payload.anchorNodeId;
             state.nganhDocIds = action.payload.nganhDocIds;
+            state.actionsPerCn = action.payload.actionsPerCn;
             state.loaded      = true;
         },
         clearPermissions: () => initialState,
