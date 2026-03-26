@@ -99,7 +99,6 @@ Ngay cap nhat: 2026-03-24
 | Case | Status | Ghi chu |
 | --- | --- | --- |
 | UI gan user cho phep nhap/sua `anchorNodeId`. | PASS | Da them input vao `AssignUserDialog` va noi den API assign/edit; build frontend pass. |
-| UI gan user cho phep nhap/sua `scopeAttribute.field` va `scopeAttribute.value`. | PASS | Da them nhom input `BY_ATTRIBUTE` va map payload xuong gRPC. |
 | UI gan user cho phep nhap/sua `ngayHetHan`. | PASS | Da them input `date`, normalize prefill, va map sang timestamp request. |
 | UI gan user cho phep nhap/sua `idNguoiUyQuyen`. | PASS | Da them field `idNguoiUyQuyen` cho dialog va payload assign/edit. |
 | Edit assignment prefill lai du lieu scope hien co. | PASS | Da mo rong read-model tra `idNguoiUyQuyen` va FE prefill lai scope/anchor/date/attribute. |

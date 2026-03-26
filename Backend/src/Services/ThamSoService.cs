@@ -11,6 +11,7 @@ public class ThamSoServiceImpl(
     DynamicMenuService dynamicMenuService,
     DynamicMenuDataSourceService dynamicMenuDataSourceService,
     TemplateLayoutService templateLayoutService,
+    TemplateExportService templateExportService,
     ProtoSchemaDiscoveryService protoSchemaDiscoveryService) : ThamSoService.ThamSoServiceBase
 {
     [Authorize]
@@ -139,9 +140,23 @@ public class ThamSoServiceImpl(
         templateLayoutService.RestoreTemplateLayoutAsync(request, context);
 
     [Authorize]
+    public override Task ExportTemplateLayoutsStream(
+        ExportTemplateLayoutsRequest request,
+        IServerStreamWriter<JobProgressEvent> responseStream,
+        ServerCallContext context) =>
+        templateExportService.StreamExportTemplateLayoutsAsync(request, responseStream, context);
+
+    [Authorize]
     public override Task<SyncDynamicMenuDataSourcesFromProtoResponse> SyncDynamicMenuDataSourcesFromProto(
         SyncDynamicMenuDataSourcesFromProtoRequest request, ServerCallContext context) =>
         protoSchemaDiscoveryService.SyncDynamicMenuDataSourcesFromProtoAsync(request, context);
+
+    [Authorize]
+    public override Task SyncDynamicMenuDataSourcesFromProtoStream(
+        SyncDynamicMenuDataSourcesFromProtoRequest request,
+        IServerStreamWriter<JobProgressEvent> responseStream,
+        ServerCallContext context) =>
+        protoSchemaDiscoveryService.SyncDynamicMenuDataSourcesFromProtoStreamAsync(request, responseStream, context);
 
     [Authorize]
     public override Task<DiscoverCollectionFieldsResponse> DiscoverCollectionFields(

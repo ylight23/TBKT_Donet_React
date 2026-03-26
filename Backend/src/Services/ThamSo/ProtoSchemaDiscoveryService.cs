@@ -157,6 +157,200 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
         return response;
     }
 
+    public async Task SyncDynamicMenuDataSourcesFromProtoStreamAsync(
+        SyncDynamicMenuDataSourcesFromProtoRequest request,
+        IServerStreamWriter<JobProgressEvent> responseStream,
+        ServerCallContext context)
+    {
+        var jobId = Guid.NewGuid().ToString();
+        var warnings = new List<string>();
+
+        async Task WriteAsync(
+            string stage,
+            string message,
+            int processed = 0,
+            int total = 0,
+            string currentKey = "",
+            bool done = false,
+            bool success = false,
+            IEnumerable<string>? extraWarnings = null)
+        {
+            var evt = new JobProgressEvent
+            {
+                JobId = jobId,
+                Stage = stage,
+                Message = message,
+                Processed = processed,
+                Total = total,
+                CurrentKey = currentKey,
+                Done = done,
+                Success = success,
+                Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+            };
+            if (extraWarnings != null)
+                evt.Warnings.AddRange(extraWarnings);
+            await responseStream.WriteAsync(evt, context.CancellationToken);
+        }
+
+        if (!ServiceMutationPolicy.CanWriteThamSo(context, DynamicMenuDataSourcePermissionCode))
+        {
+            await WriteAsync(
+                stage: "FAILED",
+                message: "Khong co quyen dong bo datasource tu proto",
+                done: true,
+                success: false);
+            return;
+        }
+
+        await WriteAsync("STARTED", "Bat dau dong bo datasource tu proto");
+
+        try
+        {
+            var protoRegistryMap = await GetProtoRegistryAsync();
+            var requestedKey = request.SourceKey?.Trim() ?? string.Empty;
+            var toSync = string.IsNullOrWhiteSpace(requestedKey)
+                ? protoRegistryMap
+                : protoRegistryMap
+                    .Where(kvp =>
+                        kvp.Key.Equals(requestedKey, StringComparison.OrdinalIgnoreCase)
+                        || kvp.Value.Descriptor.Name.Equals(requestedKey, StringComparison.OrdinalIgnoreCase)
+                        || ToKebabCase(kvp.Value.Descriptor.Name).Equals(requestedKey, StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            if (toSync.Count == 0)
+            {
+                await WriteAsync(
+                    stage: "FAILED",
+                    message: $"Khong tim thay proto mapping cho source_key '{request.SourceKey}'",
+                    done: true,
+                    success: false);
+                return;
+            }
+
+            var filterBuilder = Builders<BsonDocument>.Filter;
+            var collection = Global.CollectionBsonDynamicMenuDataSource!;
+            var keys = toSync.Keys.ToList();
+            var existingDocs = await collection
+                .Find(filterBuilder.And(filterBuilder.In("SourceKey", keys), MongoDocumentHelpers.NotDeleted))
+                .ToListAsync(context.CancellationToken);
+
+            var existingMap = existingDocs.ToDictionary(
+                d => d.StringOr("SourceKey"),
+                d => d,
+                StringComparer.OrdinalIgnoreCase);
+
+            await WriteAsync(
+                stage: "RESOLVED",
+                message: $"Da xac dinh {toSync.Count} datasource can dong bo",
+                total: toSync.Count);
+
+            var processed = 0;
+            foreach (var (sourceKey, (sourceName, collectionName, descriptor)) in toSync)
+            {
+                context.CancellationToken.ThrowIfCancellationRequested();
+
+                await WriteAsync(
+                    stage: "SYNCING",
+                    message: $"Dang dong bo {sourceKey}",
+                    processed: processed,
+                    total: toSync.Count,
+                    currentKey: sourceKey);
+
+                try
+                {
+                    var fields = GetFieldsFromProtoDescriptor(descriptor);
+                    DynamicMenuDataSource item;
+
+                    if (existingMap.TryGetValue(sourceKey, out var existingBson))
+                    {
+                        item = BsonSerializer.Deserialize<DynamicMenuDataSource>(existingBson);
+                        item.Fields.Clear();
+                        item.Fields.AddRange(fields);
+                        item.SourceName = sourceName;
+                        item.CollectionName = collectionName;
+                        item.ManagementMode = ProtoManagementMode;
+                        item.ModifyDate = ProtobufTimestampConverter.GetNowTimestamp();
+                        item.CreateDate = existingBson.TimestampOr("CreateDate") ?? item.CreateDate;
+
+                        var bsonDoc = item.ToBsonDocument();
+                        bsonDoc["_id"] = item.Id;
+                        ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingBson, context, item.ModifyDate);
+                        await collection.ReplaceOneAsync(
+                            filterBuilder.Eq("_id", item.Id),
+                            bsonDoc,
+                            cancellationToken: context.CancellationToken);
+                    }
+                    else
+                    {
+                        item = new DynamicMenuDataSource
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            SourceKey = sourceKey,
+                            SourceName = sourceName,
+                            CollectionName = collectionName,
+                            ManagementMode = ProtoManagementMode,
+                            Enabled = true,
+                            CreateDate = ProtobufTimestampConverter.GetNowTimestamp(),
+                        };
+                        item.Fields.AddRange(fields);
+
+                        var bsonDoc = item.ToBsonDocument();
+                        bsonDoc["_id"] = item.Id;
+                        ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
+                        await collection.InsertOneAsync(bsonDoc, cancellationToken: context.CancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var warning = $"Datasource {sourceKey}: {ex.Message}";
+                    warnings.Add(warning);
+                    logger.LogWarning(ex, "SyncDynamicMenuDataSourcesFromProtoStream warning at {SourceKey}", sourceKey);
+                    await WriteAsync(
+                        stage: "WARNING",
+                        message: warning,
+                        processed: processed,
+                        total: toSync.Count,
+                        currentKey: sourceKey,
+                        extraWarnings: new[] { warning });
+                }
+
+                processed++;
+                await WriteAsync(
+                    stage: "PROGRESS",
+                    message: $"Da xu ly {processed}/{toSync.Count} datasource",
+                    processed: processed,
+                    total: toSync.Count,
+                    currentKey: sourceKey);
+            }
+
+            await WriteAsync(
+                stage: "COMPLETED",
+                message: warnings.Count == 0
+                    ? $"Dong bo thanh cong {processed} datasource"
+                    : $"Dong bo hoan tat voi {warnings.Count} canh bao",
+                processed: processed,
+                total: toSync.Count,
+                done: true,
+                success: warnings.Count == 0,
+                extraWarnings: warnings);
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("SyncDynamicMenuDataSourcesFromProtoStream canceled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "SyncDynamicMenuDataSourcesFromProtoStream error");
+            await WriteAsync(
+                stage: "FAILED",
+                message: $"Loi khi dong bo tu proto: {ex.Message}",
+                done: true,
+                success: false,
+                extraWarnings: warnings);
+        }
+    }
+
     public async Task<DiscoverCollectionFieldsResponse> DiscoverCollectionFieldsAsync(DiscoverCollectionFieldsRequest request)
     {
         var response = new DiscoverCollectionFieldsResponse();

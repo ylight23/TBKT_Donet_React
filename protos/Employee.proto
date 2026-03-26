@@ -11,8 +11,28 @@ service EmployeeService {
   rpc GetListEmployees (GetListEmployeesRequest) returns (GetListEmployeesResponse);
   rpc GetEmployee (GetEmployeeRequest) returns (GetEmployeeResponse);
   rpc SaveEmployee (SaveEmployeeRequest) returns (SaveEmployeeResponse);
+  rpc ImportEmployeesStream (ImportEmployeesStreamRequest) returns (stream ImportEmployeesStreamEvent);
   
   rpc DeleteEmployee (DeleteEmployeeRequest) returns (DeleteEmployeeResponse);
+}
+
+message ImportEmployeesStreamRequest {
+  repeated Employee items = 1;
+}
+
+message ImportEmployeesStreamEvent {
+  string job_id = 1;
+  string stage = 2;
+  string message = 3;
+  int32 processed = 4;
+  int32 total = 5;
+  int32 succeeded = 6;
+  int32 failed = 7;
+  string current_key = 8;
+  repeated string warnings = 9;
+  bool done = 10;
+  bool success = 11;
+  google.protobuf.Timestamp timestamp = 12;
 }
 
 message GetListEmployeesRequest {

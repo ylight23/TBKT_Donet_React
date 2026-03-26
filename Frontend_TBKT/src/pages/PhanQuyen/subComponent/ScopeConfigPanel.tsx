@@ -9,6 +9,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import TextField from '@mui/material/TextField';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
@@ -107,13 +108,18 @@ function sanitizeActions(actions: PermissionAction[], isOwn: boolean): Permissio
 
 function normalizePhamVi(
     phamVi: PhamViChuyenNganhConfig | undefined,
+    fallbackOwnId: string | undefined,
     chuyenNganhOptions: ChuyenNganhOption[],
 ): PhamViChuyenNganhConfig | undefined {
-    if (!chuyenNganhOptions.length && !phamVi) return undefined;
-    const ownId = phamVi?.idChuyenNganh || chuyenNganhOptions[0]?.id || '';
-    if (!ownId) return undefined;
+    if (!phamVi && !fallbackOwnId) return undefined;
+    if (!chuyenNganhOptions.length && !phamVi && !fallbackOwnId) return undefined;
     const entries = [...(phamVi?.idChuyenNganhDoc ?? [])];
+    const ownId = phamVi?.idChuyenNganh?.trim()
+        || fallbackOwnId?.trim()
+        || entries[0]?.id
+        || '';
     const ownEntry = entries.find((entry) => entry.id === ownId);
+    if (!ownId) return undefined;
     const normalized: ChuyenNganhDocScope[] = [
         { id: ownId, actions: sanitizeActions(ownEntry?.actions ?? ACTIONS_OWN_FULL, true) },
     ];
@@ -179,11 +185,11 @@ function buildQuery(
         ? `AND IDChuyenNganh IN [${cnIds.map((id) => `'${id}'`).join(', ')}]`
         : '-- Khong loc chuyen nganh (toan bo du lieu trong don vi)';
     const own = phamVi?.idChuyenNganhDoc.find((item) => item.id === phamVi.idChuyenNganh);
-    const ownText = own ? `Actions(CN goc ${cnMap.get(own.id)?.label || own.id}): ${own.actions.join(', ')}` : '-- Chua cau hinh actions CN goc';
+    const ownText = own ? `Actions(Chuyên ngành gốc ${cnMap.get(own.id)?.label || own.id}): ${own.actions.join(', ')}` : '-- Chua cau hinh actions Chuyên ngành gốc';
     const cross = (phamVi?.idChuyenNganhDoc ?? []).filter((item) => item.id !== phamVi?.idChuyenNganh);
     const crossText = cross.length > 0
         ? cross.map((item) => `Actions(${cnMap.get(item.id)?.label || item.id}): ${item.actions.join(', ')}`).join(' | ')
-        : '-- Chua mo rong CN cheo';
+        : '-- Chua mo rong Chuyên ngành phụ';
 
     return [unitQuery, cnQuery, ownText, crossText];
 }
@@ -546,6 +552,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     const [nhomLoading, setNhomLoading] = useState(true);
     const [offices, setOffices] = useState<OfficeOption[]>([]);
     const [chuyenNganhOptions, setChuyenNganhOptions] = useState<ChuyenNganhOption[]>(FALLBACK_CHUYEN_NGANH);
+    const [crossSearch, setCrossSearch] = useState('');
 
     useEffect(() => {
         let cancelled = false;
@@ -592,8 +599,8 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     }, []);
 
     const normalizedPhamVi = useMemo(
-        () => normalizePhamVi(config.phamViChuyenNganh, chuyenNganhOptions),
-        [config.phamViChuyenNganh, chuyenNganhOptions],
+        () => normalizePhamVi(config.phamViChuyenNganh, config.idDanhMucChuyenNganh, chuyenNganhOptions),
+        [config.phamViChuyenNganh, config.idDanhMucChuyenNganh, chuyenNganhOptions],
     );
 
     useEffect(() => {
@@ -663,7 +670,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     }, [patchConfig]);
 
     const changeCnGoc = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
         const source = current?.idChuyenNganhDoc ?? [];
         const next: PhamViChuyenNganhConfig = {
             idChuyenNganh: id,
@@ -679,7 +686,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const addCrossCn = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
         if (!current) return;
         if (current.idChuyenNganhDoc.some((entry) => entry.id === id)) return;
         patchPhamVi({
@@ -689,7 +696,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const removeCrossCn = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
         if (!current || current.idChuyenNganh === id) return;
         patchPhamVi({
             ...current,
@@ -698,7 +705,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const toggleAction = (entry: ChuyenNganhDocScope, action: PermissionAction) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
         if (!current) return;
         const isOwn = entry.id === current.idChuyenNganh;
         if (!isOwn && BLOCKED_CROSS_ACTIONS.has(action)) return;
@@ -719,8 +726,23 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         const selected = new Set((normalizedPhamVi?.idChuyenNganhDoc ?? []).map((entry) => entry.id));
         return chuyenNganhOptions.filter((option) => !selected.has(option.id));
     }, [chuyenNganhOptions, normalizedPhamVi]);
+    const filteredAvailableToAdd = useMemo(() => {
+        const keyword = crossSearch.trim().toLowerCase();
+        if (!keyword) return availableToAdd;
+        return availableToAdd.filter((option) =>
+            option.label.toLowerCase().includes(keyword) || option.id.toLowerCase().includes(keyword),
+        );
+    }, [availableToAdd, crossSearch]);
 
-    const crossCount = (normalizedPhamVi?.idChuyenNganhDoc ?? []).filter((entry) => entry.id !== normalizedPhamVi?.idChuyenNganh).length;
+    const ownCnEntry = useMemo(
+        () => (normalizedPhamVi?.idChuyenNganhDoc ?? []).find((entry) => entry.id === normalizedPhamVi?.idChuyenNganh),
+        [normalizedPhamVi],
+    );
+    const crossEntries = useMemo(
+        () => (normalizedPhamVi?.idChuyenNganhDoc ?? []).filter((entry) => entry.id !== normalizedPhamVi?.idChuyenNganh),
+        [normalizedPhamVi],
+    );
+    const crossCount = crossEntries.length;
 
     return (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(400px, 510px) minmax(360px, 1fr)' }, gap: 3 }}>
@@ -771,7 +793,10 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                         CHIỀU 2 — PHẠM VI CHUYÊN NGÀNH
                     </Typography>
                     <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1 }}>
-                        Chọn CN gốc, mở rộng CN đọc chéo và bổ actions riêng theo từng CN.
+                        Chọn chuyên ngành chính trước, sau đó mới chọn các chuyên ngành phụ cần truy cập chéo.
+                    </Typography>
+                    <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: 'text.primary', mb: 0.8 }}>
+                        1. Chọn chuyên ngành chính
                     </Typography>
 
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.8, mb: 1.5 }}>
@@ -792,70 +817,169 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                                 >
                                     <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: active ? cn.color : 'text.disabled', mr: 1 }} />
                                     <Typography sx={{ fontSize: 12, fontWeight: active ? 700 : 500, color: active ? 'text.primary' : 'text.secondary' }}>{cn.label}</Typography>
-                                    {active && <Chip size="small" label="CN Gốc" sx={{ ml: 'auto', height: 18, fontSize: 10 }} />}
+                                    {active && <Chip size="small" label="Chính" sx={{ ml: 'auto', height: 18, fontSize: 10 }} />}
                                 </ButtonBase>
                             );
                         })}
                     </Box>
 
+                    {ownCnEntry && (
+                        <Box sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main, 0.45)}`, bgcolor: alpha(cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main, 0.08), mb: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: 0.75, flexWrap: 'wrap' }}>
+                                <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
+                                    Chức năng chuyên ngành chính: {cnMap.get(ownCnEntry.id)?.label || ownCnEntry.id}
+                                </Typography>
+                                <Chip size="small" label="Chính" sx={{ height: 18, fontSize: 10 }} />
+                            </Box>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.65 }}>
+                                {ACTIONS_ALL.map((action) => {
+                                    const checked = ownCnEntry.actions.includes(action);
+                                    const color = cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main;
+                                    return (
+                                        <ButtonBase
+                                            key={`${ownCnEntry.id}-${action}`}
+                                            onClick={() => toggleAction(ownCnEntry, action)}
+                                            sx={{
+                                                justifyContent: 'flex-start',
+                                                textAlign: 'left',
+                                                px: 0.75,
+                                                py: 0.6,
+                                                borderRadius: 1,
+                                                border: `1px solid ${checked ? alpha(color, 0.55) : theme.palette.divider}`,
+                                                bgcolor: checked ? alpha(color, 0.12) : 'background.paper',
+                                                gap: 0.5,
+                                            }}
+                                        >
+                                            {checked ? <CheckBoxIcon sx={{ fontSize: 14 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 14 }} />}
+                                            <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>{ACTION_LABELS[action]}</Typography>
+                                        </ButtonBase>
+                                    );
+                                })}
+                            </Box>
+                        </Box>
+                    )}
+
                     <Divider sx={{ my: 1.25 }} />
 
+
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                        {(normalizedPhamVi?.idChuyenNganhDoc ?? []).map((entry) => {
-                            const isOwn = entry.id === normalizedPhamVi?.idChuyenNganh;
-                            const option = cnMap.get(entry.id);
-                            const color = option?.color || theme.palette.info.main;
-                            return (
-                                <Box key={entry.id} sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(color, 0.45)}`, bgcolor: isOwn ? alpha(color, 0.08) : 'background.default' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
-                                        <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>{option?.label || entry.id}</Typography>
-                                        <Chip size="small" label={isOwn ? 'CN Gốc' : 'Truy cập chéo'} sx={{ ml: 1, height: 18, fontSize: 10 }} />
-                                        {!isOwn && (
-                                            <Tooltip title="Xóa CN chéo khỏi phạm vi">
+                        <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: 'text.primary' }}>
+                            2. Chọn chuyên ngành phụ
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
+                                Danh sách chuyên ngành phụ
+                            </Typography>
+                            <Chip size="small" label={`${crossEntries.length} Chuyên ngành phụ`} sx={{ height: 18, fontSize: 10 }} />
+                        </Box>
+
+                        <TextField
+                            size="small"
+                            placeholder="Tìm chuyên ngành phụ để chọn"
+                            value={crossSearch}
+                            onChange={(event) => setCrossSearch(event.target.value)}
+                            sx={{
+                                maxWidth: 320,
+                                '& .MuiInputBase-root': {
+                                    fontSize: 12,
+                                    borderRadius: 2,
+                                },
+                            }}
+                        />
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 0.8,
+                                flexWrap: 'wrap',
+                                maxHeight: 172,
+                                overflowY: 'auto',
+                                p: 0.9,
+                                borderRadius: 2,
+                                border: `1px solid ${theme.palette.divider}`,
+                                bgcolor: 'background.default',
+                                mb: crossEntries.length > 0 ? 1.2 : 0,
+                            }}
+                        >
+                            {filteredAvailableToAdd.length === 0 ? (
+                                <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>
+                                    Khong tim thay chuyen nganh phu phu hop.
+                                </Typography>
+                            ) : (
+                                filteredAvailableToAdd.map((cn) => (
+                                    <ButtonBase
+                                        key={cn.id}
+                                        onClick={() => addCrossCn(cn.id)}
+                                        sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 0.45,
+                                            px: 0.9,
+                                            py: 0.55,
+                                            border: `1px dashed ${alpha(cn.color, 0.7)}`,
+                                            borderRadius: 8,
+                                            bgcolor: 'background.paper',
+                                        }}
+                                    >
+                                        <AddIcon sx={{ fontSize: 13, color: cn.color }} />
+                                        <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{cn.label}</Typography>
+                                    </ButtonBase>
+                                ))
+                            )}
+                        </Box>
+
+                        {crossEntries.length === 0 ? (
+                            <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>
+                                Chưa có chuyên ngành phụ nào được chọn.
+                            </Typography>
+                        ) : (
+                            crossEntries.map((entry) => {
+                                const option = cnMap.get(entry.id);
+                                const color = option?.color || theme.palette.info.main;
+                                return (
+                                    <Box key={entry.id} sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(color, 0.45)}`, bgcolor: 'background.default' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
+                                            <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
+                                                {option?.label || entry.id}
+                                            </Typography>
+                                            <Chip size="small" label="Phụ" sx={{ ml: 1, height: 18, fontSize: 10 }} />
+                                            <Tooltip title="Xóa chuyên ngành phụ khỏi phạm vi">
                                                 <IconButton size="small" onClick={() => removeCrossCn(entry.id)} sx={{ ml: 'auto' }}>
                                                     <CloseIcon sx={{ fontSize: 16 }} />
                                                 </IconButton>
                                             </Tooltip>
-                                        )}
+                                        </Box>
+                                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.65 }}>
+                                            {ACTIONS_ALL.map((action) => {
+                                                const checked = entry.actions.includes(action);
+                                                const disabled = BLOCKED_CROSS_ACTIONS.has(action);
+                                                return (
+                                                    <ButtonBase
+                                                        key={`${entry.id}-${action}`}
+                                                        onClick={() => !disabled && toggleAction(entry, action)}
+                                                        sx={{
+                                                            justifyContent: 'flex-start',
+                                                            textAlign: 'left',
+                                                            px: 0.75,
+                                                            py: 0.6,
+                                                            borderRadius: 1,
+                                                            border: `1px solid ${checked ? alpha(color, 0.55) : theme.palette.divider}`,
+                                                            bgcolor: disabled ? alpha(theme.palette.action.disabled, 0.12) : checked ? alpha(color, 0.12) : 'background.paper',
+                                                            opacity: disabled ? 0.5 : 1,
+                                                            gap: 0.5,
+                                                        }}
+                                                    >
+                                                        {checked ? <CheckBoxIcon sx={{ fontSize: 14 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 14 }} />}
+                                                        <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>{ACTION_LABELS[action]}</Typography>
+                                                    </ButtonBase>
+                                                );
+                                            })}
+                                        </Box>
                                     </Box>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.65 }}>
-                                        {ACTIONS_ALL.map((action) => {
-                                            const checked = entry.actions.includes(action);
-                                            const disabled = !isOwn && BLOCKED_CROSS_ACTIONS.has(action);
-                                            return (
-                                                <ButtonBase
-                                                    key={`${entry.id}-${action}`}
-                                                    onClick={() => !disabled && toggleAction(entry, action)}
-                                                    sx={{
-                                                        justifyContent: 'flex-start',
-                                                        textAlign: 'left',
-                                                        px: 0.75,
-                                                        py: 0.6,
-                                                        borderRadius: 1,
-                                                        border: `1px solid ${checked ? alpha(color, 0.55) : theme.palette.divider}`,
-                                                        bgcolor: disabled ? alpha(theme.palette.action.disabled, 0.12) : checked ? alpha(color, 0.12) : 'background.paper',
-                                                        opacity: disabled ? 0.5 : 1,
-                                                        gap: 0.5,
-                                                    }}
-                                                >
-                                                    {checked ? <CheckBoxIcon sx={{ fontSize: 14 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 14 }} />}
-                                                    <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>{ACTION_LABELS[action]}</Typography>
-                                                </ButtonBase>
-                                            );
-                                        })}
-                                    </Box>
-                                </Box>
-                            );
-                        })}
-                    </Box>
-
-                    <Box sx={{ mt: 1.2, display: 'flex', alignItems: 'center', gap: 0.8, flexWrap: 'wrap' }}>
-                        {availableToAdd.slice(0, 8).map((cn) => (
-                            <ButtonBase key={cn.id} onClick={() => addCrossCn(cn.id)} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.3, px: 0.9, py: 0.55, border: `1px dashed ${alpha(cn.color, 0.7)}`, borderRadius: 8 }}>
-                                <AddIcon sx={{ fontSize: 13, color: cn.color }} />
-                                <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{cn.label}</Typography>
-                            </ButtonBase>
-                        ))}
+                                );
+                            })
+                        )}
                     </Box>
                 </Box>
             </Box>
@@ -867,8 +991,8 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                         <Chip label={mode.label} />
                         {config.anchorNodeId && <Chip label={`Anchor: ${config.anchorNodeId}`} />}
                         {config.multiNodeIds.length > 0 && <Chip label={`${config.multiNodeIds.length} node`} />}
-                        {normalizedPhamVi?.idChuyenNganh && <Chip color="secondary" label={`CN goc: ${cnMap.get(normalizedPhamVi.idChuyenNganh)?.label || normalizedPhamVi.idChuyenNganh}`} />}
-                        {crossCount > 0 && <Chip color="warning" label={`CN cheo: ${crossCount}`} />}
+                        {normalizedPhamVi?.idChuyenNganh && <Chip color="secondary" label={`Chuyên ngành gốc: ${cnMap.get(normalizedPhamVi.idChuyenNganh)?.label || normalizedPhamVi.idChuyenNganh}`} />}
+                        {crossCount > 0 && <Chip color="warning" label={`Chuyên ngành phụ: ${crossCount}`} />}
                     </Box>
                     <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{mode.example || 'Khong co mo ta bo sung.'}</Typography>
                 </Box>

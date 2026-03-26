@@ -32,6 +32,7 @@ import {
     SaveTemplateLayoutRequestSchema,
     DeleteTemplateLayoutRequestSchema,
     RestoreTemplateLayoutRequestSchema,
+    ExportTemplateLayoutsRequestSchema,
     TemplateLayoutSchema,
     GetListDynamicMenuDataSourcesRequestSchema,
     SaveDynamicMenuDataSourceRequestSchema,
@@ -167,11 +168,39 @@ export interface LocalTemplateLayout {
     audit?: LocalAuditMetadata;
 }
 
+export interface StreamJobProgress {
+    jobId: string;
+    stage: string;
+    message: string;
+    processed: number;
+    total: number;
+    currentKey: string;
+    warnings: string[];
+    done: boolean;
+    success: boolean;
+    timestamp?: string;
+}
+
 const timestampToIso = (ts?: Timestamp | null): string | undefined => {
     if (!ts?.seconds) return undefined;
     const ms = Number(ts.seconds.toString()) * 1000;
     return Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
 };
+
+function mapJobProgress(event: any): StreamJobProgress {
+    return {
+        jobId: event.jobId,
+        stage: event.stage,
+        message: event.message,
+        processed: event.processed ?? 0,
+        total: event.total ?? 0,
+        currentKey: event.currentKey ?? '',
+        warnings: [...(event.warnings ?? [])],
+        done: event.done ?? false,
+        success: event.success ?? false,
+        timestamp: timestampToIso(event.timestamp),
+    };
+}
 
 const mapAuditMetadata = (item: {
     createDate?: Timestamp;
@@ -687,6 +716,28 @@ const thamSoApi = {
     },
 
     /** Xoá file JSON tĩnh tại public/templates/{key}.json */
+    async streamExportTemplateLayouts(
+        items: LocalTemplateLayout[],
+        onEvent?: (event: StreamJobProgress) => void,
+    ): Promise<StreamJobProgress[]> {
+        try {
+            const request = create(ExportTemplateLayoutsRequestSchema, {
+                ids: items.filter((item) => item.published).map((item) => item.id).filter(Boolean),
+                onlyPublished: true,
+            });
+            const events: StreamJobProgress[] = [];
+            for await (const event of thamSoClient.exportTemplateLayoutsStream(request)) {
+                const mapped = mapJobProgress(event);
+                events.push(mapped);
+                onEvent?.(mapped);
+            }
+            return events;
+        } catch (err) {
+            console.error('[thamSoApi] streamExportTemplateLayouts error:', err);
+            throw err;
+        }
+    },
+
     async deleteTemplateFile(key: string): Promise<void> {
         const res = await fetch(`/api/export-template/${encodeURIComponent(key)}`, { method: 'DELETE' });
         if (!res.ok) {
@@ -776,6 +827,25 @@ const thamSoApi = {
             return res.items.map(protoDynamicMenuDataSourceToLocal);
         } catch (err) {
             console.error('[thamSoApi] syncDynamicMenuDataSourcesFromProto error:', err);
+            throw err;
+        }
+    },
+
+    async streamSyncDynamicMenuDataSourcesFromProto(
+        sourceKey = '',
+        onEvent?: (event: StreamJobProgress) => void,
+    ): Promise<StreamJobProgress[]> {
+        try {
+            const request = create(SyncDynamicMenuDataSourcesFromProtoRequestSchema, { sourceKey });
+            const events: StreamJobProgress[] = [];
+            for await (const event of thamSoClient.syncDynamicMenuDataSourcesFromProtoStream(request)) {
+                const mapped = mapJobProgress(event);
+                events.push(mapped);
+                onEvent?.(mapped);
+            }
+            return events;
+        } catch (err) {
+            console.error('[thamSoApi] streamSyncDynamicMenuDataSourcesFromProto error:', err);
             throw err;
         }
     },

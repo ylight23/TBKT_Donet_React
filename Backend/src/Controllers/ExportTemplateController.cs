@@ -1,3 +1,4 @@
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
@@ -8,112 +9,76 @@ public record ExportTemplateRequest(string Key, string Name, string SchemaJson);
 [Route("api/export-template")]
 public class ExportTemplateController : ControllerBase
 {
-    private readonly string _outputDir;
+    private readonly TemplateExportService _templateExportService;
     private readonly ILogger<ExportTemplateController> _logger;
 
     public ExportTemplateController(
-        IConfiguration config,
-        IWebHostEnvironment env,
+        TemplateExportService templateExportService,
         ILogger<ExportTemplateController> logger)
     {
+        _templateExportService = templateExportService;
         _logger = logger;
-        var configuredPath = config["TemplateExportPath"];
-        // ContentRootPath = .../Backend/src  →  ../../Frontend_TBKT/public/templates
-        _outputDir = string.IsNullOrWhiteSpace(configuredPath)
-            ? Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..",
-                "Frontend_TBKT", "public", "templates"))
-            : Path.GetFullPath(configuredPath);
     }
 
     [HttpPost]
-    public IActionResult ExportOne([FromBody] ExportTemplateRequest req)
+    public async Task<IActionResult> ExportOne([FromBody] ExportTemplateRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Key) || req.Key.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return BadRequest(new { ok = false, message = "Template key không hợp lệ." });
+        {
+            return BadRequest(new { ok = false, message = "Template key khong hop le." });
+        }
 
         try
         {
-            Directory.CreateDirectory(_outputDir);
-            var filePath = Path.Combine(_outputDir, $"{req.Key}.json");
-            var payload = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                key = req.Key,
-                name = req.Name,
-                schemaJson = req.SchemaJson,
-            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-
-            System.IO.File.WriteAllText(filePath, payload);
-            _logger.LogInformation("[ExportTemplate] Wrote {File}", filePath);
+            var filePath = await _templateExportService.ExportOneAsync(
+                new TemplateExportPayload(req.Key, req.Name, req.SchemaJson),
+                HttpContext.RequestAborted);
             return Ok(new { ok = true, path = filePath });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[ExportTemplate] Lỗi ghi file {Key}", req.Key);
+            _logger.LogError(ex, "[ExportTemplate] Error writing file {Key}", req.Key);
             return StatusCode(500, new { ok = false, message = ex.Message });
         }
     }
 
     [HttpPost("all")]
-    public IActionResult ExportAll([FromBody] List<ExportTemplateRequest> items)
+    public async Task<IActionResult> ExportAll([FromBody] List<ExportTemplateRequest> items)
     {
         if (items == null || items.Count == 0)
-            return BadRequest(new { ok = false, message = "Danh sách rỗng." });
-
-        var saved = new List<string>();
-        var errors = new List<string>();
-
-        Directory.CreateDirectory(_outputDir);
-
-        foreach (var req in items)
         {
-            if (string.IsNullOrWhiteSpace(req.Key) || req.Key.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            {
-                errors.Add($"Key không hợp lệ: '{req.Key}'");
-                continue;
-            }
-            try
-            {
-                var filePath = Path.Combine(_outputDir, $"{req.Key}.json");
-                var payload = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    key = req.Key,
-                    name = req.Name,
-                    schemaJson = req.SchemaJson,
-                }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-
-                System.IO.File.WriteAllText(filePath, payload);
-                saved.Add(req.Key);
-                _logger.LogInformation("[ExportTemplate] Wrote {File}", filePath);
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"{req.Key}: {ex.Message}");
-                _logger.LogError(ex, "[ExportTemplate] Lỗi ghi file {Key}", req.Key);
-            }
+            return BadRequest(new { ok = false, message = "Danh sach rong." });
         }
+
+        var (saved, errors) = await _templateExportService.ExportAllAsync(
+            items.Select(item => new TemplateExportPayload(item.Key, item.Name, item.SchemaJson)),
+            HttpContext.RequestAborted);
 
         return Ok(new { ok = errors.Count == 0, saved, errors });
     }
 
     [HttpDelete("{key}")]
-    public IActionResult DeleteOne(string key)
+    public async Task<IActionResult> DeleteOne(string key)
     {
         if (string.IsNullOrWhiteSpace(key) || key.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return BadRequest(new { ok = false, message = "Template key không hợp lệ." });
+        {
+            return BadRequest(new { ok = false, message = "Template key khong hop le." });
+        }
 
-        var filePath = Path.Combine(_outputDir, $"{key}.json");
+        var filePath = Path.Combine(_templateExportService.OutputDir, $"{key}.json");
         if (!System.IO.File.Exists(filePath))
-            return NotFound(new { ok = false, message = $"File {key}.json không tồn tại." });
+        {
+            return NotFound(new { ok = false, message = $"File {key}.json khong ton tai." });
+        }
 
         try
         {
-            System.IO.File.Delete(filePath);
-            _logger.LogInformation("[ExportTemplate] Deleted {File}", filePath);
+            await _templateExportService.DeleteOneAsync(key, HttpContext.RequestAborted);
             return Ok(new { ok = true });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[ExportTemplate] Lỗi xoá file {Key}", key);
+            _logger.LogError(ex, "[ExportTemplate] Error deleting file {Key}", key);
             return StatusCode(500, new { ok = false, message = ex.Message });
         }
     }

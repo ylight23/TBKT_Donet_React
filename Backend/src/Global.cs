@@ -309,6 +309,17 @@ public static class Global
         }
     }
 
+    private static IMongoCollection<BsonDocument>? _collectionStoredFile;
+    public static IMongoCollection<BsonDocument>? CollectionStoredFile
+    {
+        get
+        {
+            if (_collectionStoredFile == null)
+                _collectionStoredFile = MongoDB?.GetCollection<BsonDocument>("StoredFile");
+            return _collectionStoredFile;
+        }
+    }
+
     public static void UseTBKTServices(this WebApplication app, IConfiguration config, string version)
     {
         // Initialize global logger
@@ -461,6 +472,8 @@ public static class Global
         InitOfficeSchema();
         InitThamSoIndexes();
         InitPhanQuyenIndexes();
+        InitFileTransferSchema();
+        SeedAccountEmployeeMappings();
         SeedDanhMucChuyenNganh();
         SeedPermissionCatalog();
         SeedDynamicMenuPermissions();
@@ -475,6 +488,7 @@ public static class Global
         app.MapGrpcService<PhanQuyenServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<DanhMucChuyenNganhServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<LichSuPhanQuyenScopeServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<FileTransferServiceImpl>().EnableGrpcWeb().RequireAuthorization();
 
         app.UseStaticFiles(new StaticFileOptions
         {
@@ -598,6 +612,8 @@ public static class Global
     {
         try
         {
+            CreateCollectionIfNotExist(PermissionCollectionNames.AccountEmployeeMappings);
+
             CreateMongoIndex(
                 MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments),
                 new CreateIndexModel<BsonDocument>(
@@ -670,12 +686,65 @@ public static class Global
                     Builders<BsonDocument>.IndexKeys.Ascending("NgayHetHanMoi"),
                     new CreateIndexOptions { Name = "idx_lichsu_scope_expire_new", Sparse = true }));
 
+            CreateMongoIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.AccountEmployeeMappings),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("UserName"),
+                    new CreateIndexOptions { Name = "ux_account_employee_map_username", Unique = true }));
+
+            CreateMongoIndex(
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.AccountEmployeeMappings),
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("ExternalUserId"),
+                    new CreateIndexOptions { Name = "ux_account_employee_map_external_user", Unique = true, Sparse = true }));
 
             Logger?.LogInformation("Initialized MongoDB indexes for PhanQuyen collections");
         }
         catch (Exception ex)
         {
             Logger?.LogError(ex, "Failed to initialize MongoDB indexes for PhanQuyen collections");
+            throw;
+        }
+    }
+
+    private static void InitFileTransferSchema()
+    {
+        try
+        {
+            CreateCollectionIfNotExist("StoredFile");
+
+            if (CollectionStoredFile == null)
+                return;
+
+            CreateMongoIndex(
+                CollectionStoredFile,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("UploadId"),
+                    new CreateIndexOptions { Name = "ux_stored_file_upload_id", Unique = true }));
+
+            CreateMongoIndex(
+                CollectionStoredFile,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("Completed").Ascending("Delete"),
+                    new CreateIndexOptions { Name = "idx_stored_file_completed_delete" }));
+
+            CreateMongoIndex(
+                CollectionStoredFile,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("Category").Ascending("FileKind"),
+                    new CreateIndexOptions { Name = "idx_stored_file_category_kind" }));
+
+            CreateMongoIndex(
+                CollectionStoredFile,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("ContentType"),
+                    new CreateIndexOptions { Name = "idx_stored_file_content_type" }));
+
+            Logger?.LogInformation("Initialized MongoDB schema and indexes for FileTransfer");
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to initialize MongoDB schema and indexes for FileTransfer");
             throw;
         }
     }
@@ -951,15 +1020,67 @@ public static class Global
         }
     }
 
+    private static void SeedAccountEmployeeMappings()
+    {
+        try
+        {
+            var collection = MongoDB?.GetCollection<BsonDocument>(PermissionCollectionNames.AccountEmployeeMappings);
+            if (collection == null)
+                return;
+
+            var now = DateTime.UtcNow;
+            var seedItems = new[]
+            {
+                new { UserName = "admin", Role = "admin" },
+                new { UserName = "superadmin", Role = "admin" },
+            };
+
+            var bulkOps = new List<WriteModel<BsonDocument>>();
+            foreach (var item in seedItems)
+            {
+                bulkOps.Add(new UpdateOneModel<BsonDocument>(
+                    Builders<BsonDocument>.Filter.Eq("UserName", item.UserName),
+                    Builders<BsonDocument>.Update
+                        .Set("UserName", item.UserName)
+                        .Set("Role", item.Role)
+                        .Set("Active", true)
+                        .SetOnInsert("EmployeeId", BsonNull.Value)
+                        .SetOnInsert("CreatedAt", now)
+                        .Set("UpdatedAt", now))
+                { IsUpsert = true });
+            }
+
+            if (bulkOps.Count > 0)
+                collection.BulkWrite(bulkOps);
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to seed account employee mappings");
+            throw;
+        }
+    }
+
+    public const string UnifiedMaPhanHe = "TBKT.ThongTin";
+
+    public static string NormalizeMaPhanHe(string? maPhanHe)
+    {
+        if (string.IsNullOrWhiteSpace(maPhanHe))
+            return "";
+
+        return UnifiedMaPhanHe;
+    }
+
     // Phan quyen: Kiem tra quyen truy cap phan mem
     public static bool CanAccessComponent(string userId, string maPhanHe)
     {
         if (MongoDB == null || string.IsNullOrEmpty(userId)) return false;
+        var normalizedMaPhanHe = NormalizeMaPhanHe(maPhanHe);
+        if (string.IsNullOrEmpty(normalizedMaPhanHe)) return false;
 
         // 1. Kiem tra quyen truy cap cua user
         var phanHeNDCol = MongoDB.GetCollection<BsonDocument>("PhanQuyenPhanHeNguoiDung");
         var phanHeNDFilter = Builders<BsonDocument>.Filter.Eq("IdNguoiDung", userId)
-                           & Builders<BsonDocument>.Filter.Eq("MaPhanHe", maPhanHe)
+                           & Builders<BsonDocument>.Filter.Eq("MaPhanHe", normalizedMaPhanHe)
                            & Builders<BsonDocument>.Filter.Eq("DuocTruyCap", true);
         if (phanHeNDCol.Find(phanHeNDFilter).Any())
             return true;
@@ -970,7 +1091,7 @@ public static class Global
 
         var phanHeNhomCol = MongoDB.GetCollection<BsonDocument>("PhanQuyenPhanHeNhomNguoiDung");
         var phanHeNhomFilter = Builders<BsonDocument>.Filter.In("IdNhomNguoiDung", nhomIds)
-                             & Builders<BsonDocument>.Filter.Eq("MaPhanHe", maPhanHe)
+                             & Builders<BsonDocument>.Filter.Eq("MaPhanHe", normalizedMaPhanHe)
                              & Builders<BsonDocument>.Filter.Eq("DuocTruyCap", true);
         return phanHeNhomCol.Find(phanHeNhomFilter).Any();
     }
@@ -980,12 +1101,14 @@ public static class Global
     {
         if (MongoDB == null || string.IsNullOrEmpty(userId)) return false;
         if (actions == null || actions.Length == 0) return false;
+        var normalizedMaPhanHe = NormalizeMaPhanHe(maPhanHe);
+        if (string.IsNullOrEmpty(normalizedMaPhanHe)) return false;
 
         // 1. Kiem tra quyen truy cap cua user
         var pqNDCol = MongoDB.GetCollection<BsonDocument>("PhanQuyenNguoiDung");
         var pqNDFilter = Builders<BsonDocument>.Filter.Eq("IdNguoiDung", userId)
                        & Builders<BsonDocument>.Filter.Eq("MaChucNang", funcName)
-                       & Builders<BsonDocument>.Filter.Eq("MaPhanHe", maPhanHe);
+                       & Builders<BsonDocument>.Filter.Eq("MaPhanHe", normalizedMaPhanHe);
         var pqNDDoc = pqNDCol.Find(pqNDFilter).FirstOrDefault();
         if (pqNDDoc != null && HasAnyAction(pqNDDoc, actions))
             return true;
@@ -997,7 +1120,7 @@ public static class Global
         var pqNhomCol = MongoDB.GetCollection<BsonDocument>("PhanQuyenNhomNguoiDung");
         var pqNhomFilter = Builders<BsonDocument>.Filter.In("IdNhomNguoiDung", nhomIds)
                          & Builders<BsonDocument>.Filter.Eq("MaChucNang", funcName)
-                         & Builders<BsonDocument>.Filter.Eq("MaPhanHe", maPhanHe);
+                         & Builders<BsonDocument>.Filter.Eq("MaPhanHe", normalizedMaPhanHe);
         var pqNhomDocs = pqNhomCol.Find(pqNhomFilter).ToList();
         return pqNhomDocs.Any(doc => HasAnyAction(doc, actions));
     }

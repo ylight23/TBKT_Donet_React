@@ -20,9 +20,10 @@ public static class AccessGateBuilder
     /// Build AccessGate from UserPermissionCache.
     /// Falls back to <see cref="AccessGate.Empty"/> if no cached doc exists.
     /// </summary>
-    public static async Task<AccessGate> BuildFromCacheAsync(string userId, string? userName = null)
+    public static async Task<AccessGate> BuildFromCacheAsync(string userId, string? userName = null, string? accountRole = null)
     {
-        if (userName is "superadmin" or "admin")
+        if (string.Equals(accountRole, "admin", StringComparison.OrdinalIgnoreCase)
+            || userName is "superadmin" or "admin")
             return AccessGate.SuperAdmin;
 
         if (string.IsNullOrEmpty(userId))

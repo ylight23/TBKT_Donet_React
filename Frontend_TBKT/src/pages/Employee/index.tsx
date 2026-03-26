@@ -1,18 +1,13 @@
 import React, { useMemo } from 'react';
-
-
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
-
-
+import Alert from '@mui/material/Alert';
+import LinearProgress from '@mui/material/LinearProgress';
 import Check from '@mui/icons-material/Check';
 import Close from '@mui/icons-material/Close';
-
-
 import type { GridColDef } from '@mui/x-data-grid';
-
 import Header from '../../components/Header';
 import ModalEmployee from './subComponent/ModalEmployee';
 import FilterEmployee from './subComponent/FilterEmployee';
@@ -26,40 +21,36 @@ import { formatDate } from '../../apis/employeeApi';
 import { TreeSkeleton, GridSkeleton } from '../../components/Skeletons';
 import StatsButton from '../../components/Stats/StatsButton';
 
-// ── Inner component ────────────────────────────────────────────────────────────
 const EmployeeInner: React.FC = () => {
     const { state, actions, meta } = useEmployee();
-    const { displayEmployees, officeMap, capBacMap, officeList, loading } = state;
+    const {
+        displayEmployees,
+        officeMap,
+        capBacMap,
+        officeList,
+        loading,
+        importProgress,
+        importLogs,
+    } = state;
     const { selectOffice, importEmployees, onImportSuccess } = actions;
     const { colors, employeeColumnMapping } = meta;
 
-    const isInitialLoading = loading;
-
-    // ── Memo stable: OfficeDictionary không re-init khi columns/employees đổi ─
     const officeDictionary = useMemo(() => (
         officeList.length === 0
             ? <TreeSkeleton rows={10} />
             : (
                 <Box sx={{ height: 'inherit' }}>
-                    <OfficeDictionary
-                        offices={officeList}    // ← stable ref từ context
-                        onSelect={selectOffice} // ← stable useCallback([])
-                    />
+                    <OfficeDictionary offices={officeList} onSelect={selectOffice} />
                 </Box>
             )
-    ), [officeList, selectOffice]);   // ← chỉ re-render khi officeList thực sự thay đổi
+    ), [officeList, selectOffice]);
 
     const columns = useMemo((): GridColDef<EmployeeItem>[] => [
+        { field: 'index', headerName: 'STT', flex: 0.5, type: 'number' },
+        { field: 'hoVaTen', headerName: 'Họ và tên', flex: 1.2 },
         {
-            field: 'index', headerName: 'STT',
-            flex: 0.5, type: 'number',
-        },
-        {
-            field: 'hoVaTen', headerName: 'Họ và tên',
-            flex: 1.2,
-        },
-        {
-            field: 'ngaySinh', headerName: 'Ngày sinh',
+            field: 'ngaySinh',
+            headerName: 'Ngày sinh',
             flex: 1,
             renderCell: (params) => (
                 <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '16px' }}>
@@ -68,7 +59,8 @@ const EmployeeInner: React.FC = () => {
             ),
         },
         {
-            field: 'idCapBac', headerName: 'Cấp bậc',
+            field: 'idCapBac',
+            headerName: 'Cấp bậc',
             flex: 1,
             renderCell: (params) => (
                 <Typography variant="body1" sx={{ color: colors.greenAccent[400], fontWeight: 600, fontSize: '11px' }}>
@@ -76,12 +68,10 @@ const EmployeeInner: React.FC = () => {
                 </Typography>
             ),
         },
+        { field: 'chucVu', headerName: 'Chức vụ', flex: 1 },
         {
-            field: 'chucVu', headerName: 'Chức vụ',
-            flex: 1,
-        },
-        {
-            field: 'idDonVi', headerName: 'Đơn vị',
+            field: 'idDonVi',
+            headerName: 'Đơn vị',
             flex: 1,
             renderCell: (params) => (
                 <Typography variant="body1" sx={{ color: colors.forestAccent[500], fontWeight: 600, fontSize: '16px' }}>
@@ -90,7 +80,8 @@ const EmployeeInner: React.FC = () => {
             ),
         },
         {
-            field: 'idQuanTriDonVi', headerName: 'Phạm vi quản trị',
+            field: 'idQuanTriDonVi',
+            headerName: 'Phạm vi quản trị',
             flex: 1,
             renderCell: (params) => (
                 <Typography variant="body1" sx={{ color: colors.forestAccent[400], fontWeight: 600, fontSize: '16px' }}>
@@ -99,7 +90,8 @@ const EmployeeInner: React.FC = () => {
             ),
         },
         {
-            field: 'kichHoat', headerName: 'Trạng thái',
+            field: 'kichHoat',
+            headerName: 'Trạng thái',
             flex: 0.8,
             renderCell: (params) => {
                 const isActive = params.row.kichHoat ?? (params.row as any).kichhoat ?? false;
@@ -114,29 +106,26 @@ const EmployeeInner: React.FC = () => {
             },
         },
         {
-            field: 'actions', type: 'actions', headerName: 'Hành động',
+            field: 'actions',
+            type: 'actions',
+            headerName: 'Hành động',
             width: 150,
-            sortable: false, filterable: false,
+            sortable: false,
+            filterable: false,
             renderCell: (params) => <ModalEmployee data={params.row} />,
-            // ← Xóa dispatch, colors, capBacList, officeList — đã dùng context
         },
-        // ── capBacMap/officeMap/colors thay đổi khi context update ────────────────
     ], [capBacMap, officeMap, colors]);
 
     return (
-        <Box sx={{ display: 'grid', gridTemplateRows: 'auto auto auto 1fr' }}>
-
-            {/* Header render ngay */}
+        <Box sx={{ display: 'grid', gridTemplateRows: 'auto auto auto auto 1fr' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Header title="Quản lý Cán bộ" subtitle="Danh sách cán bộ trong hệ thống" />
                 <StatsButton activeMenu="employee" />
             </Box>
 
-            {/* Filter + Toolbar render ngay */}
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 1, gap: 1, width: '100%' }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <FilterEmployee />
-                    {/* ← Xóa onFilter, capBacList, officeList, colors — đã dùng context */}
                 </Box>
                 <Stack direction="row" spacing={1} sx={{ flexShrink: 0, alignItems: 'center' }}>
                     <ExportExcel
@@ -154,20 +143,40 @@ const EmployeeInner: React.FC = () => {
                 </Stack>
             </Box>
 
-            {/* Create button render ngay */}
             <Box sx={{ justifySelf: 'end', mr: 1 }}>
                 <ModalEmployee />
-                {/* Xóa dispatch, colors, capBacList, officeList */}
             </Box>
 
-            {/* Tree + DataGrid: skeleton → real content */}
+            {importProgress && (
+                <Alert severity={importProgress.done && !importProgress.success ? 'warning' : 'info'} sx={{ mx: 1, mb: 1 }}>
+                    <Stack spacing={1}>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                            Import Excel
+                        </Typography>
+                        <Typography variant="body2">{importProgress.message}</Typography>
+                        <LinearProgress
+                            variant={importProgress.total > 0 ? 'determinate' : 'indeterminate'}
+                            value={importProgress.total > 0 ? (importProgress.processed / importProgress.total) * 100 : 0}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                            {`${importProgress.processed}/${importProgress.total} | Thành công: ${importProgress.succeeded} | Lỗi: ${importProgress.failed}`}
+                        </Typography>
+                        {importLogs.length > 0 && (
+                            <Box sx={{ maxHeight: 128, overflow: 'auto', bgcolor: 'background.default', borderRadius: 1, p: 1 }}>
+                                {importLogs.map((line, idx) => (
+                                    <Typography key={`${idx}-${line}`} variant="caption" display="block" color="text.secondary">
+                                        {line}
+                                    </Typography>
+                                ))}
+                            </Box>
+                        )}
+                    </Stack>
+                </Alert>
+            )}
+
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '2px', height: 'calc(100vh - 247px)' }}>
-
-                {/* Tree: chỉ re-render khi officeList thay đổi */}
                 {officeDictionary}
-
-                {/* DataGrid: skeleton → real */}
-                {isInitialLoading
+                {loading
                     ? <GridSkeleton rows={8} cols={9} />
                     : (
                         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: 'inherit' }}>
@@ -181,21 +190,15 @@ const EmployeeInner: React.FC = () => {
                                 includeToolbar
                                 fallbackRows={8}
                                 fallbackCols={9}
-                                sx={{
-                                    fontSize: '14px',
-                                    fontWeight: 600,
-                                    width: '100%',
-                                }}
+                                sx={{ fontSize: '14px', fontWeight: 600, width: '100%' }}
                             />
                         </Box>
-                    )
-                }
+                    )}
             </Box>
         </Box>
     );
 };
 
-// ── Page ───────────────────────────────────────────────────────────────────────
 const Employee: React.FC = () => (
     <EmployeeProvider>
         <EmployeeInner />

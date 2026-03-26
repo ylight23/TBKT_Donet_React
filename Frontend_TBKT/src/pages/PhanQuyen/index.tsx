@@ -31,8 +31,14 @@ import {
     listAllAssignments,
     removeUserFromGroup,
     assignUserToGroup,
+    streamRebuildPermissions,
 } from '../../apis/phanQuyenApi';
-import type { NhomNguoiDungInfo, UserInGroupInfo, AssignmentDetailInfo } from '../../apis/phanQuyenApi';
+import type {
+    NhomNguoiDungInfo,
+    UserInGroupInfo,
+    AssignmentDetailInfo,
+    RebuildPermissionsProgress,
+} from '../../apis/phanQuyenApi';
 
 import RoleSidebar from './subComponent/RoleSidebar';
 import RolePermissionPanel from './subComponent/RolePermissionPanel';
@@ -62,55 +68,55 @@ const TAB_DEFS: TabDef[] = [
 
 function nhomToRole(n: NhomNguoiDungInfo): Role {
     return {
-        id:          n.id,
-        name:        n.ten,
-        type:        n.loai === 'System' ? 'SYSTEM' : 'CUSTOM',
-        clonedFrom:  n.clonedFromId || undefined,
-        userCount:   n.userCount,
-        color:       n.color,
+        id: n.id,
+        name: n.ten,
+        type: n.loai === 'System' ? 'SYSTEM' : 'CUSTOM',
+        clonedFrom: n.clonedFromId || undefined,
+        userCount: n.userCount,
+        color: n.color,
         description: n.moTa,
     };
 }
 
 function usersInGroupToRows(users: UserInGroupInfo[]): PermissionUserRow[] {
     return users.map(u => ({
-        id:                u.idNguoiDung,
-        name:              u.hoTen || u.idNguoiDung,
-        email:             '',
-        avatar:            (u.hoTen || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
-        currentOffice:     u.donVi,
+        id: u.idNguoiDung,
+        name: u.hoTen || u.idNguoiDung,
+        email: '',
+        avatar: (u.hoTen || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+        currentOffice: u.donVi,
         currentOfficePath: u.anchorNodeId,
-        anchorNodeId:      u.anchorNodeId,
-        anchorNodeName:    u.anchorNodeName || u.anchorNodeId,
-        scopeType:         u.scopeType || undefined,
+        anchorNodeId: u.anchorNodeId,
+        anchorNodeName: u.anchorNodeName || u.anchorNodeId,
+        scopeType: u.scopeType || undefined,
         idDanhMucChuyenNganh: u.idDanhMucChuyenNganh,
-        ngayHetHan:        u.ngayHetHan,
-        idNguoiUyQuyen:    u.idNguoiUyQuyen,
-        idAssignment:      u.idAssignment,
+        ngayHetHan: u.ngayHetHan,
+        idNguoiUyQuyen: u.idNguoiUyQuyen,
+        idAssignment: u.idAssignment,
     }));
 }
 
 function assignmentDetailToRow(a: AssignmentDetailInfo): PermissionAssignmentRow {
     return {
-        id:            a.id,
-        userId:        a.idNguoiDung,
-        userName:      a.hoTen || a.idNguoiDung,
-        userAvatar:    (a.hoTen || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
-        userOffice:    a.donVi,
-        roleId:        a.idNhom,
-        roleName:      a.tenNhom,
-        roleColor:     a.colorNhom,
-        anchorNodeId:  a.anchorNodeId || '',
+        id: a.id,
+        userId: a.idNguoiDung,
+        userName: a.hoTen || a.idNguoiDung,
+        userAvatar: (a.hoTen || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+        userOffice: a.donVi,
+        roleId: a.idNhom,
+        roleName: a.tenNhom,
+        roleColor: a.colorNhom,
+        anchorNodeId: a.anchorNodeId || '',
         anchorNodeName: a.anchorNodeName || '',
         anchorNodePath: a.anchorNodeName || a.anchorNodeId || '',
-        scopeType:     (a.scopeType as ScopeType) || '',
+        scopeType: (a.scopeType as ScopeType) || '',
         idDanhMucChuyenNganh: a.idDanhMucChuyenNganh,
         idNguoiUyQuyen: a.idNguoiUyQuyen,
-        delegatedBy:   a.idNguoiUyQuyen,
+        delegatedBy: a.idNguoiUyQuyen,
         delegatedByName: a.idNguoiUyQuyen,
-        expiresAt:     a.ngayHetHan,
-        isExpired:     a.ngayHetHan ? new Date(a.ngayHetHan) < new Date() : false,
-        createdAt:     a.ngayTao || '',
+        expiresAt: a.ngayHetHan,
+        isExpired: a.ngayHetHan ? new Date(a.ngayHetHan) < new Date() : false,
+        createdAt: a.ngayTao || '',
         approvalStatus: 'APPROVED',
     };
 }
@@ -155,14 +161,30 @@ function getScopeSummary(scopeConfig: GroupScopeConfig): string {
 
 // ── Main Page Component ───────────────────────────────────────────────────────
 
+function isDefaultViewPermission(code: string, name?: string): boolean {
+    return code.endsWith('.view') || Boolean(name?.toLowerCase().startsWith('xem '));
+}
+
+function normalizeCheckedPermissions(codes: string[], permissionGroups: typeof FALLBACK_PERMISSION_GROUPS): string[] {
+    const normalized = new Set(codes);
+    permissionGroups.forEach((group) => {
+        group.permissions.forEach((permission) => {
+            if (isDefaultViewPermission(permission.code, permission.name)) {
+                normalized.add(permission.code);
+            }
+        });
+    });
+    return Array.from(normalized);
+}
+
 const PhanQuyenPage: React.FC = () => {
     const theme = useTheme();
 
     // ── State ──────────────────────────────────────────────────────────────────
-    const [groups, setGroups]                   = useState<NhomNguoiDungInfo[]>([]);
-    const [groupsLoading, setGroupsLoading]     = useState(true);
-    const [selectedRoleId, setSelectedRoleId]   = useState('');
-    const [checkedPerms, setCheckedPerms]       = useState<string[]>([]);
+    const [groups, setGroups] = useState<NhomNguoiDungInfo[]>([]);
+    const [groupsLoading, setGroupsLoading] = useState(true);
+    const [selectedRoleId, setSelectedRoleId] = useState('');
+    const [checkedPerms, setCheckedPerms] = useState<string[]>([]);
     const [currentScopeConfig, setCurrentScopeConfig] = useState<GroupScopeConfig>({
         scopeType: 'SUBTREE',
         anchorNodeId: '',
@@ -170,21 +192,23 @@ const PhanQuyenPage: React.FC = () => {
         idDanhMucChuyenNganh: '',
         phamViChuyenNganh: undefined,
     });
-    const [permLoading, setPermLoading]         = useState(false);
-    const [usersInGroup, setUsersInGroup]       = useState<UserInGroupInfo[]>([]);
-    const [assignments, setAssignments]         = useState<AssignmentDetailInfo[]>([]);
+    const [permLoading, setPermLoading] = useState(false);
+    const [usersInGroup, setUsersInGroup] = useState<UserInGroupInfo[]>([]);
+    const [assignments, setAssignments] = useState<AssignmentDetailInfo[]>([]);
     const [permissionGroups, setPermissionGroups] = useState(FALLBACK_PERMISSION_GROUPS);
-    const [activeTab, setActiveTab]             = useState<PermissionTabKey>('scope');
-    const [scopeReviewed, setScopeReviewed]     = useState(false);
-    const [unsaved, setUnsaved]                 = useState(false);
-    const [savedFlash, setSavedFlash]           = useState(false);
-    const [showCloneModal, setShowCloneModal]   = useState(false);
-    const [saving, setSaving]                   = useState(false);
+    const [activeTab, setActiveTab] = useState<PermissionTabKey>('scope');
+    const [scopeReviewed, setScopeReviewed] = useState(false);
+    const [unsaved, setUnsaved] = useState(false);
+    const [savedFlash, setSavedFlash] = useState(false);
+    const [showCloneModal, setShowCloneModal] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [rebuilding, setRebuilding] = useState(false);
+    const [rebuildProgress, setRebuildProgress] = useState<RebuildPermissionsProgress | null>(null);
 
     // ── Derived state ──────────────────────────────────────────────────────────
-    const allRoles   = useMemo(() => groups.map(nhomToRole), [groups]);
+    const allRoles = useMemo(() => groups.map(nhomToRole), [groups]);
     const selectedRole = useMemo(() => allRoles.find(r => r.id === selectedRoleId), [allRoles, selectedRoleId]);
-    const isSystem   = selectedRole?.type === 'SYSTEM';
+    const isSystem = selectedRole?.type === 'SYSTEM';
     const userRows = useMemo(() => usersInGroupToRows(usersInGroup), [usersInGroup]);
     const assignmentRows = useMemo(() => assignments.map(assignmentDetailToRow), [assignments]);
     const scopeReady = useMemo(() => isScopeConfigReady(currentScopeConfig), [currentScopeConfig]);
@@ -195,9 +219,39 @@ const PhanQuyenPage: React.FC = () => {
             .filter((tab): tab is TabDef => Boolean(tab)),
         [],
     );
-    const hasCnScope = useMemo(() => 
+    const hasCnScope = useMemo(() =>
         Boolean(currentScopeConfig.phamViChuyenNganh?.idChuyenNganhDoc?.length),
         [currentScopeConfig.phamViChuyenNganh]
+    );
+    const defaultViewPermissionCount = useMemo(
+        () => permissionGroups
+            .flatMap(group => group.permissions)
+            .filter(permission => isDefaultViewPermission(permission.code, permission.name)).length,
+        [permissionGroups],
+    );
+    const sensitivePermissionCount = useMemo(
+        () => permissionGroups
+            .flatMap(group => group.permissions)
+            .filter(permission => {
+                const code = permission.code.toLowerCase();
+                const name = permission.name.toLowerCase();
+                return code.includes('delete')
+                    || code.includes('approve')
+                    || code.includes('unapprove')
+                    || name.includes('xoa')
+                    || name.includes('huy')
+                    || name.includes('duyet');
+            }).length,
+        [permissionGroups],
+    );
+    const cnScopeCount = useMemo(
+        () => currentScopeConfig.phamViChuyenNganh?.idChuyenNganhDoc?.length || 0,
+        [currentScopeConfig.phamViChuyenNganh],
+    );
+    const cnActionCount = useMemo(
+        () => currentScopeConfig.phamViChuyenNganh?.idChuyenNganhDoc
+            ?.reduce((total, entry) => total + entry.actions.length, 0) || 0,
+        [currentScopeConfig.phamViChuyenNganh],
     );
 
     // ── Load groups on mount ───────────────────────────────────────────────────
@@ -283,21 +337,32 @@ const PhanQuyenPage: React.FC = () => {
 
     const handleTogglePermission = useCallback((code: string) => {
         if (isSystem) return;
+        const matchedPermission = permissionGroups
+            .flatMap(group => group.permissions)
+            .find(permission => permission.code === code);
+        if (isDefaultViewPermission(code, matchedPermission?.name)) return;
         setCheckedPerms(prev =>
             prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code],
         );
         setUnsaved(true);
-    }, [isSystem]);
+    }, [isSystem, permissionGroups]);
 
     const handleToggleGroup = useCallback((groupName: string) => {
         if (isSystem) return;
-        const groupCodes = permissionGroups.find(g => g.group === groupName)
-            ?.permissions.map(p => p.code) ?? [];
+        const groupPermissions = permissionGroups.find(g => g.group === groupName)?.permissions ?? [];
+        const groupCodes = groupPermissions.map(p => p.code);
+        const baselineCodes = groupPermissions
+            .filter(permission => isDefaultViewPermission(permission.code, permission.name))
+            .map(permission => permission.code);
+        const togglableCodes = groupPermissions
+            .filter(permission => !isDefaultViewPermission(permission.code, permission.name))
+            .map(permission => permission.code);
         setCheckedPerms(prev => {
-            const allChecked = groupCodes.every(c => prev.includes(c));
+            const normalizedPrev = new Set([...prev, ...baselineCodes]);
+            const allChecked = groupCodes.every(c => normalizedPrev.has(c));
             return allChecked
-                ? prev.filter(c => !groupCodes.includes(c))
-                : [...new Set([...prev, ...groupCodes])];
+                ? Array.from(normalizedPrev).filter(c => !togglableCodes.includes(c))
+                : Array.from(new Set([...normalizedPrev, ...togglableCodes]));
         });
         setUnsaved(true);
     }, [isSystem, permissionGroups]);
@@ -306,10 +371,14 @@ const PhanQuyenPage: React.FC = () => {
         () => permissionGroups.flatMap(g => g.permissions.map(p => p.code)),
         [permissionGroups],
     );
+    const normalizedCheckedPerms = useMemo(
+        () => normalizeCheckedPermissions(checkedPerms, permissionGroups),
+        [checkedPerms, permissionGroups],
+    );
     const allPermissionCodeSet = useMemo(() => new Set(allPermissionCodes), [allPermissionCodes]);
     const visibleCheckedPermCount = useMemo(
-        () => checkedPerms.filter(code => allPermissionCodeSet.has(code)).length,
-        [checkedPerms, allPermissionCodeSet],
+        () => normalizedCheckedPerms.filter(code => allPermissionCodeSet.has(code)).length,
+        [normalizedCheckedPerms, allPermissionCodeSet],
     );
 
     const handleScopeChange = useCallback((scopeConfig: GroupScopeConfig) => {
@@ -329,7 +398,8 @@ const PhanQuyenPage: React.FC = () => {
         if (!selectedRoleId) return;
         setSaving(true);
         try {
-            await saveGroupPermissions(selectedRoleId, checkedPerms, currentScopeConfig);
+            await saveGroupPermissions(selectedRoleId, normalizedCheckedPerms, currentScopeConfig);
+            setCheckedPerms(normalizedCheckedPerms);
             setUnsaved(false);
             setSavedFlash(true);
             setTimeout(() => setSavedFlash(false), 1800);
@@ -338,7 +408,23 @@ const PhanQuyenPage: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    }, [selectedRoleId, checkedPerms, currentScopeConfig]);
+    }, [selectedRoleId, normalizedCheckedPerms, currentScopeConfig]);
+
+    const handleRebuildPermissions = useCallback(async () => {
+        if (!selectedRoleId) return;
+        setRebuilding(true);
+        setRebuildProgress(null);
+        try {
+            await streamRebuildPermissions(
+                { idNhom: selectedRoleId },
+                (event) => setRebuildProgress(event),
+            );
+        } catch (e) {
+            console.error('[PhanQuyen] rebuild stream error:', e);
+        } finally {
+            setRebuilding(false);
+        }
+    }, [selectedRoleId]);
 
     const handleDeleteRole = useCallback(async (roleId: string) => {
         const res = await deleteNhomNguoiDung(roleId);
@@ -548,6 +634,15 @@ const PhanQuyenPage: React.FC = () => {
                                         }}
                                     />
                                 )}
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={handleRebuildPermissions}
+                                    disabled={rebuilding || !selectedRoleId}
+                                    sx={{ px: 2, py: 0.75, borderRadius: 2, fontSize: 13, fontWeight: 700, textTransform: 'none' }}
+                                >
+                                    {rebuilding ? 'Dang rebuild...' : 'Rebuild cache'}
+                                </Button>
                                 {!isSystem && (
                                     <Button
                                         variant="contained"
@@ -561,6 +656,36 @@ const PhanQuyenPage: React.FC = () => {
                                     </Button>
                                 )}
                             </Box>
+
+                            {rebuildProgress && (
+                                <Box
+                                    sx={{
+                                        mb: 1.5,
+                                        p: 1.5,
+                                        borderRadius: 2,
+                                        bgcolor: alpha(
+                                            rebuildProgress.done
+                                                ? (rebuildProgress.success ? theme.palette.success.main : theme.palette.warning.main)
+                                                : theme.palette.info.main,
+                                            0.06,
+                                        ),
+                                        border: `1px solid ${alpha(
+                                            rebuildProgress.done
+                                                ? (rebuildProgress.success ? theme.palette.success.main : theme.palette.warning.main)
+                                                : theme.palette.info.main,
+                                            0.16,
+                                        )}`,
+                                    }}
+                                >
+                                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.primary' }}>
+                                        {rebuildProgress.message}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {rebuildProgress.processed}/{rebuildProgress.total || '?'} user
+                                        {rebuildProgress.currentUserId ? ` · ${rebuildProgress.currentUserId}` : ''}
+                                    </Typography>
+                                </Box>
+                            )}
 
                             {/* Tab bar */}
                             <Box sx={{ display: 'flex' }}>
@@ -602,7 +727,7 @@ const PhanQuyenPage: React.FC = () => {
                         </Box>
 
                         {/* Tab panel */}
-                        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+                        <Box sx={{ flex: 1, overflow: 'auto', px: 2, py: 2.25 }}>
                             {activeTab === 'scope' && (
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     <Box
@@ -645,13 +770,22 @@ const PhanQuyenPage: React.FC = () => {
                             )}
                             {activeTab === 'permissions' && (
                                 (scopeReviewed || isSystem) ? (
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <Box
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: hasCnScope
+                                                ? { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' }
+                                                : '1fr',
+                                            gap: 1.5,
+                                            alignItems: 'start',
+                                        }}
+                                    >
                                         <Box
                                             sx={{
-                                                p: 2,
-                                                borderRadius: 2,
-                                                bgcolor: alpha(theme.palette.success.main, 0.05),
-                                                border: `1px solid ${alpha(theme.palette.success.main, 0.14)}`,
+                                                gridColumn: '1 / -1',
+                                                py: 1.25,
+                                                px: 0,
+                                                borderBottom: `1px solid ${alpha(theme.palette.success.main, 0.16)}`,
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: 1.5,
@@ -676,72 +810,170 @@ const PhanQuyenPage: React.FC = () => {
                                         {/* ── Bước 2a: cấu hình quyền chức năng cơ sở ── */}
                                         <Box
                                             sx={{
-                                                p: 1.75,
-                                                borderRadius: 2,
-                                                border: `1px solid ${theme.palette.divider}`,
-                                                bgcolor: alpha(theme.palette.divider, 0.03),
+                                                borderRadius: 2.5,
+                                                overflow: 'hidden',
+                                                bgcolor: 'background.paper',
+                                                border: `1px solid ${alpha(theme.palette.info.main, 0.18)}`,
                                             }}
                                         >
+                                            {/* <Box
+                                                sx={{
+                                                    px: 1.5,
+                                                    py: 1.35,
+                                                    bgcolor: alpha(theme.palette.info.main, 0.04),
+                                                    borderBottom: `1px solid ${alpha(theme.palette.info.main, 0.14)}`,
+                                                    display: 'grid',
+                                                    gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+                                                    gap: 1,
+                                                }}
+                                            >
+                                                <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                    <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Quyen co so</Typography>
+                                                    <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                        {visibleCheckedPermCount}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                    <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>View mac dinh</Typography>
+                                                    <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                        {defaultViewPermissionCount}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                    <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Quyen nhay cam</Typography>
+                                                    <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                        {sensitivePermissionCount}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                    <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Tong nhom</Typography>
+                                                    <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                        {permissionGroups.length}
+                                                    </Typography>
+                                                </Box>
+                                            </Box> */}
                                             <Typography
                                                 sx={{
+                                                    px: 1.5,
+                                                    py: 2,
                                                     fontSize: 12,
                                                     fontWeight: 800,
                                                     letterSpacing: '0.08em',
-                                                    color: 'text.secondary',
-                                                    mb: 1.5,
+                                                    color: theme.palette.info.dark,
+                                                    mt: 0,
+                                                    mb: 1,
+                                                    mx: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+
+                                                    width: '100%',
+                                                    
+                                                    bgcolor: alpha(theme.palette.info.main, 0.08),
+                                                    borderLeft: `4px solid ${theme.palette.info.main}`,
+                                                    borderRadius: 1,
                                                     textTransform: 'uppercase',
                                                 }}
                                             >
                                                 Quyền chức năng cơ sở
                                             </Typography>
                                             <Typography
-                                                sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1.5, lineHeight: 1.6 }}
+                                                sx={{ px: 1.5, fontSize: 11.5, color: 'text.secondary', mb: 1.25, lineHeight: 1.6 }}
                                             >
                                                 Chọn quyền chức năng mà role này được phép. Đây là chiều 1 — xác định user có quyền gọi chức năng nào.
                                                 {hasCnScope && ' Kết hợp với phạm vi CN bên dưới để ra quyền thực tế.'}
                                             </Typography>
-                                            <RolePermissionPanel
-                                                selectedRole={selectedRole}
-                                                permissionGroups={permissionGroups}
-                                                checkedPermissions={checkedPerms}
-                                                onTogglePermission={handleTogglePermission}
-                                                onToggleGroup={handleToggleGroup}
-                                            />
+                                            <Box sx={{ px: 1, pb: 1 }}>
+                                                <RolePermissionPanel
+                                                    selectedRole={selectedRole}
+                                                    permissionGroups={permissionGroups}
+                                                    checkedPermissions={checkedPerms}
+                                                    onTogglePermission={handleTogglePermission}
+                                                    onToggleGroup={handleToggleGroup}
+                                                />
+                                            </Box>
                                         </Box>
 
                                         {/* ── Bước 2b: quyền thực tế theo CN (nếu có) ── */}
                                         {hasCnScope && (
                                             <Box
                                                 sx={{
-                                                    p: 1.75,
-                                                    borderRadius: 2,
+                                                    borderRadius: 3,
+                                                    overflow: 'hidden',
+                                                    bgcolor: 'background.paper',
                                                     border: `1px solid ${alpha(theme.palette.info.main, 0.18)}`,
-                                                    bgcolor: alpha(theme.palette.info.main, 0.02),
                                                 }}
                                             >
+                                                {/* <Box
+                                                    sx={{
+                                                        px: 1.5,
+                                                        py: 1.35,
+                                                        bgcolor: alpha(theme.palette.info.main, 0.04),
+                                                        borderBottom: `1px solid ${alpha(theme.palette.info.main, 0.14)}`,
+                                                        display: 'grid',
+                                                        gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+                                                        gap: 1,
+                                                    }}
+                                                >
+                                                    <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                        <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Quyen thuc te</Typography>
+                                                        <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                            {cnActionCount}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                        <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Nhom CN</Typography>
+                                                        <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                            {cnScopeCount}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                        <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Role dang cap</Typography>
+                                                        <Typography sx={{ mt: 0.4, fontSize: 16, fontWeight: 800, color: 'text.primary' }}>
+                                                            {selectedRole?.userCount ?? 0}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ p: 1.1, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.03), border: `1px solid ${alpha(theme.palette.info.main, 0.14)}` }}>
+                                                        <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>Scope hien tai</Typography>
+                                                        <Typography sx={{ mt: 0.4, fontSize: 13, fontWeight: 800, color: 'text.primary' }}>
+                                                            {currentScopeConfig.scopeType}
+                                                        </Typography>
+                                                    </Box>
+                                                </Box> */}
                                                 <Typography
                                                     sx={{
+                                                        px: 1.5,
+                                                        py: 2,
                                                         fontSize: 12,
                                                         fontWeight: 800,
                                                         letterSpacing: '0.08em',
-                                                        color: 'text.secondary',
-                                                        mb: 0.75,
+                                                        color: theme.palette.info.dark,
+                                                        mt: 0,
+                                                        mb: 1,
+                                                        mx: 0,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        width: '100%',
+                                                        bgcolor: alpha(theme.palette.info.main, 0.08),
+                                                        borderLeft: `4px solid ${theme.palette.info.main}`,
+                                                        borderRadius: 1,
                                                         textTransform: 'uppercase',
                                                     }}
                                                 >
                                                     Quyền thực tế theo từng Chuyên Ngành
                                                 </Typography>
                                                 <Typography
-                                                    sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1.5, lineHeight: 1.6 }}
+                                                    sx={{ px: 1.5, fontSize: 11.5, color: 'text.secondary', mb: 1.25, lineHeight: 1.6 }}
                                                 >
                                                     Giao nhau giữa quyền chức năng (trên) và phạm vi CN (đã chốt ở Bước 1).
                                                     Mỗi CN hiện rõ module nào được thao tác gì — action bị CN chặn sẽ gạch ngang.
                                                 </Typography>
-                                                <CnGroupedPermissionView
-                                                    phamVi={currentScopeConfig.phamViChuyenNganh!}
-                                                    checkedCodes={checkedPerms}
-                                                    permissionGroups={permissionGroups}
-                                                />
+                                                <Box sx={{ px: 1.25, pb: 1.25 }}>
+                                                    <CnGroupedPermissionView
+                                                        phamVi={currentScopeConfig.phamViChuyenNganh!}
+                                                        checkedCodes={checkedPerms}
+                                                        permissionGroups={permissionGroups}
+                                                    />
+                                                </Box>
                                             </Box>
                                         )}
                                     </Box>

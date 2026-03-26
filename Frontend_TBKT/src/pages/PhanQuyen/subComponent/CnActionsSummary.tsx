@@ -197,7 +197,7 @@ const CnActionsSummary: React.FC<CnActionsSummaryProps> = ({
                                 </Typography>
                                 <Chip
                                     size="small"
-                                    label={entry.isOwn ? 'CN Gốc' : 'Truy cập chéo'}
+                                    label={entry.isOwn ? 'Chức năng chính' : 'Truy cập chéo'}
                                     sx={{
                                         height: 18,
                                         fontSize: 10,

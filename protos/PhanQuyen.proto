@@ -21,6 +21,7 @@ service PhanQuyenService {
   rpc ListAllAssignments(ListAllAssignmentsRequest) returns (ListAllAssignmentsResponse);
   rpc AssignUserToGroup(AssignUserRequest) returns (NguoiDungNhomNguoiDung);
   rpc RemoveUserFromGroup(RemoveUserRequest) returns (DeleteResponse);
+  rpc RebuildPermissionsStream(RebuildPermissionsStreamRequest) returns (stream RebuildPermissionsStreamEvent);
 }
 
 message GetMyPermissionsRequest {}
@@ -112,7 +113,6 @@ message NguoiDungNhomNguoiDung {
   google.protobuf.Timestamp ngay_sua = 9;
   string id_nguoi_uy_quyen = 10;
   reserved 11;
-  reserved "scope_attribute";
   string scope_type = 12;
   string id_don_vi_scope = 13;
   repeated string id_nganh_doc = 14;
@@ -197,6 +197,24 @@ message DeleteResponse {
   string message = 2;
 }
 
+message RebuildPermissionsStreamRequest {
+  string id_nhom = 1;
+  repeated string user_ids = 2;
+}
+
+message RebuildPermissionsStreamEvent {
+  string job_id = 1;
+  string stage = 2;
+  string message = 3;
+  int32 processed = 4;
+  int32 total = 5;
+  string current_user_id = 6;
+  repeated string warnings = 7;
+  bool done = 8;
+  bool success = 9;
+  google.protobuf.Timestamp timestamp = 10;
+}
+
 message GetGroupPermissionsRequest {
   string id_nhom = 1;
 }
@@ -232,7 +250,6 @@ message UserInGroup {
   bool is_expired = 7;
   google.protobuf.Timestamp ngay_het_han = 8;
   reserved 9;
-  reserved "scope_attribute";
   string anchor_node_name = 10;
   string id_nguoi_uy_quyen = 11;
   string id_danh_muc_chuyen_nganh = 12;
@@ -262,7 +279,6 @@ message AssignmentDetail {
   google.protobuf.Timestamp ngay_tao = 12;
   google.protobuf.Timestamp ngay_het_han = 13;
   reserved 14;
-  reserved "scope_attribute";
   string id_nguoi_uy_quyen = 15;
   string id_danh_muc_chuyen_nganh = 16;
 }
@@ -281,7 +297,6 @@ message AssignUserRequest {
   google.protobuf.Timestamp ngay_het_han = 6;
   string id_nguoi_uy_quyen = 7;
   reserved 8;
-  reserved "scope_attribute";
   string id_danh_muc_chuyen_nganh = 9;
 }
 

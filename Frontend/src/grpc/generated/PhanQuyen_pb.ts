@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file PhanQuyen.proto.
  */
 export const file_PhanQuyen: GenFile = /*@__PURE__*/
-  fileDesc("Cg9QaGFuUXV5ZW4ucHJvdG8SCVBoYW5RdXllbiIZChdHZXRNeVBlcm1pc3Npb25zUmVxdWVzdCIdChtHZXRQZXJtaXNzaW9uQ2F0YWxvZ1JlcXVlc3QiUAoMUGhhbkhlQWNjZXNzEhIKCm1hX3BoYW5faGUYASABKAkSFQoNZHVvY190cnV5X2NhcBgCIAEoCBIVCg1kdW9jX3F1YW5fdHJpGAMgASgIIncKCkFjdGlvbnNNYXASDAoEdmlldxgBIAEoCBILCgNhZGQYAiABKAgSDAoEZWRpdBgDIAEoCBIOCgZkZWxldGUYBCABKAgSDwoHYXBwcm92ZRgFIAEoCBIQCghkb3dubG9hZBgGIAEoCBINCgVwcmludBgHIAEoCCJiCg5DaHVjTmFuZ0FjY2VzcxIUCgxtYV9jaHVjX25hbmcYASABKAkSEgoKbWFfcGhhbl9oZRgCIAEoCRImCgdhY3Rpb25zGAMgASgLMhUuUGhhblF1eWVuLkFjdGlvbnNNYXAiugIKGEdldE15UGVybWlzc2lvbnNSZXNwb25zZRIoCgdwaGFuX2hlGAEgAygLMhcuUGhhblF1eWVuLlBoYW5IZUFjY2VzcxIsCgljaHVjX25hbmcYAiADKAsyGS5QaGFuUXV5ZW4uQ2h1Y05hbmdBY2Nlc3MSEgoKc2NvcGVfdHlwZRgDIAEoCRIWCg5hbmNob3Jfbm9kZV9pZBgEIAEoCRIVCg1uZ2FuaF9kb2NfaWRzGAUgAygJEjAKDG5nYXlfaGV0X2hhbhgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRaWRfbmd1b2lfdXlfcXV5ZW4YByABKAkSGAoQYW5jaG9yX3BhcmVudF9pZBgIIAEoCRIcChRpZF9uaG9tX2NodXllbl9uZ2FuaBgKIAEoCSIzChVQZXJtaXNzaW9uQ2F0YWxvZ0l0ZW0SDAoEY29kZRgBIAEoCRIMCgRuYW1lGAIgASgJImwKFlBlcm1pc3Npb25DYXRhbG9nR3JvdXASDQoFZ3JvdXAYASABKAkSDAoEaWNvbhgCIAEoCRI1CgtwZXJtaXNzaW9ucxgDIAMoCzIgLlBoYW5RdXllbi5QZXJtaXNzaW9uQ2F0YWxvZ0l0ZW0iUAocR2V0UGVybWlzc2lvbkNhdGFsb2dSZXNwb25zZRIwCgVpdGVtcxgBIAMoCzIhLlBoYW5RdXllbi5QZXJtaXNzaW9uQ2F0YWxvZ0dyb3VwIr4CCg1OaG9tTmd1b2lEdW5nEgoKAmlkGAEgASgJEhIKCm1hX3BoYW5faGUYAiABKAkSCwoDdGVuGAMgASgJEg0KBW1vX3RhGAQgASgJEhIKCmlzX2RlZmF1bHQYBSABKAgSEQoJbmd1b2lfdGFvGAYgASgJEiwKCG5nYXlfdGFvGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgluZ3VvaV9zdWEYCCABKAkSLAoIbmdheV9zdWEYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNvbG9yGAogASgJEgwKBGxvYWkYCyABKAkSFgoOY2xvbmVkX2Zyb21faWQYDCABKAkSEgoKdXNlcl9jb3VudBgNIAEoBRISCgpzY29wZV90eXBlGA4gASgJIqwDChZOZ3VvaUR1bmdOaG9tTmd1b2lEdW5nEgoKAmlkGAEgASgJEhUKDWlkX25ndW9pX2R1bmcYAiABKAkSGgoSaWRfbmhvbV9uZ3VvaV9kdW5nGAMgASgJEgwKBGxvYWkYBCABKAkSMAoMbmdheV9oZXRfaGFuGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgluZ3VvaV90YW8YBiABKAkSLAoIbmdheV90YW8YByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCW5ndW9pX3N1YRgIIAEoCRIsCghuZ2F5X3N1YRgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRaWRfbmd1b2lfdXlfcXV5ZW4YCiABKAkSEgoKc2NvcGVfdHlwZRgMIAEoCRIXCg9pZF9kb25fdmlfc2NvcGUYDSABKAkSFAoMaWRfbmdhbmhfZG9jGA4gAygJEhwKFGlkX25ob21fY2h1eWVuX25nYW5oGA8gASgJSgQICxAMUg9zY29wZV9hdHRyaWJ1dGUi4wIKGFBoYW5RdXllblBoYW5IZU5ndW9pRHVuZxIKCgJpZBgBIAEoCRIVCg1pZF9uZ3VvaV9kdW5nGAIgASgJEhIKCm1hX3BoYW5faGUYAyABKAkSFwoPdGlldV9kZV9waGFuX2hlGAQgASgJEhUKDWR1b2NfdHJ1eV9jYXAYBSABKAgSFQoNZHVvY19xdWFuX3RyaRgGIAEoCBIaChJpZF9uaG9tX25ndW9pX2R1bmcYByABKAkSEQoJbmd1b2lfdGFvGAggASgJEhEKCW5ndW9pX3N1YRgJIAEoCRIsCghuZ2F5X3RhbxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIbmdheV9zdWEYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnNjb3BlX3R5cGUYDCABKAkSFwoPaWRfZG9uX3ZpX3Njb3BlGA0gASgJIo8CChxQaGFuUXV5ZW5QaGFuSGVOaG9tTmd1b2lEdW5nEgoKAmlkGAEgASgJEhoKEmlkX25ob21fbmd1b2lfZHVuZxgCIAEoCRISCgptYV9waGFuX2hlGAMgASgJEhcKD3RpZXVfZGVfcGhhbl9oZRgEIAEoCRIVCg1kdW9jX3RydXlfY2FwGAUgASgIEhUKDWR1b2NfcXVhbl90cmkYBiABKAgSEQoJbmd1b2lfdGFvGAcgASgJEiwKCG5nYXlfdGFvGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgpzY29wZV90eXBlGAkgASgJEhcKD2lkX2Rvbl92aV9zY29wZRgKIAEoCSKdAwoSUGhhblF1eWVuTmd1b2lEdW5nEgoKAmlkGAEgASgJEhUKDWlkX25ndW9pX2R1bmcYAiABKAkSFAoMbWFfY2h1Y19uYW5nGAMgASgJEhkKEXRpZXVfZGVfY2h1Y19uYW5nGAQgASgJEhIKCm1hX3BoYW5faGUYBSABKAkSFAoMdGlldV9kZV9uaG9tGAYgASgJEhoKEmlkX25ob21fbmd1b2lfZHVuZxgHIAEoCRI7CgdhY3Rpb25zGAggAygLMiouUGhhblF1eWVuLlBoYW5RdXllbk5ndW9pRHVuZy5BY3Rpb25zRW50cnkSEQoJbmd1b2lfdGFvGAkgASgJEhEKCW5ndW9pX3N1YRgKIAEoCRIsCghuZ2F5X3RhbxgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIbmdheV9zdWEYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wGi4KDEFjdGlvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAg6AjgBIpICChZQaGFuUXV5ZW5OaG9tTmd1b2lEdW5nEgoKAmlkGAEgASgJEhoKEmlkX25ob21fbmd1b2lfZHVuZxgCIAEoCRIUCgxtYV9jaHVjX25hbmcYAyABKAkSGQoRdGlldV9kZV9jaHVjX25hbmcYBCABKAkSEgoKbWFfcGhhbl9oZRgFIAEoCRIaChJ0aWV1X2RlX25ob21fcXV5ZW4YBiABKAkSPwoHYWN0aW9ucxgHIAMoCzIuLlBoYW5RdXllbi5QaGFuUXV5ZW5OaG9tTmd1b2lEdW5nLkFjdGlvbnNFbnRyeRouCgxBY3Rpb25zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgIOgI4ASIaChhMaXN0TmhvbU5ndW9pRHVuZ1JlcXVlc3QiRAoZTGlzdE5ob21OZ3VvaUR1bmdSZXNwb25zZRInCgVpdGVtcxgBIAMoCzIYLlBoYW5RdXllbi5OaG9tTmd1b2lEdW5nIncKGFNhdmVOaG9tTmd1b2lEdW5nUmVxdWVzdBIKCgJpZBgBIAEoCRILCgN0ZW4YAiABKAkSDQoFbW9fdGEYAyABKAkSDQoFY29sb3IYBCABKAkSFgoOY2xvbmVkX2Zyb21faWQYBSABKAkSDAoEbG9haRgGIAEoCSIbCg1EZWxldGVSZXF1ZXN0EgoKAmlkGAEgASgJIjIKDkRlbGV0ZVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHbWVzc2FnZRgCIAEoCSItChpHZXRHcm91cFBlcm1pc3Npb25zUmVxdWVzdBIPCgdpZF9uaG9tGAEgASgJIpYBChtHZXRHcm91cFBlcm1pc3Npb25zUmVzcG9uc2USFQoNY2hlY2tlZF9jb2RlcxgBIAMoCRISCgpzY29wZV90eXBlGAIgASgJEhYKDmFuY2hvcl9ub2RlX2lkGAMgASgJEhYKDm11bHRpX25vZGVfaWRzGAQgAygJEhwKFGlkX25ob21fY2h1eWVuX25nYW5oGAUgASgJIqcBChtTYXZlR3JvdXBQZXJtaXNzaW9uc1JlcXVlc3QSDwoHaWRfbmhvbRgBIAEoCRIVCg1jaGVja2VkX2NvZGVzGAIgAygJEhIKCnNjb3BlX3R5cGUYAyABKAkSFgoOYW5jaG9yX25vZGVfaWQYBCABKAkSFgoObXVsdGlfbm9kZV9pZHMYBSADKAkSHAoUaWRfbmhvbV9jaHV5ZW5fbmdhbmgYBiABKAkiKAoVTGlzdEdyb3VwVXNlcnNSZXF1ZXN0Eg8KB2lkX25ob20YASABKAkitwIKC1VzZXJJbkdyb3VwEhUKDWlkX2Fzc2lnbm1lbnQYASABKAkSFQoNaWRfbmd1b2lfZHVuZxgCIAEoCRIOCgZob190ZW4YAyABKAkSDgoGZG9uX3ZpGAQgASgJEhIKCnNjb3BlX3R5cGUYBSABKAkSFgoOYW5jaG9yX25vZGVfaWQYBiABKAkSEgoKaXNfZXhwaXJlZBgHIAEoCBIwCgxuZ2F5X2hldF9oYW4YCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKEGFuY2hvcl9ub2RlX25hbWUYCiABKAkSGQoRaWRfbmd1b2lfdXlfcXV5ZW4YCyABKAkSHAoUaWRfbmhvbV9jaHV5ZW5fbmdhbmgYDCABKAlKBAgJEApSD3Njb3BlX2F0dHJpYnV0ZSI/ChZMaXN0R3JvdXBVc2Vyc1Jlc3BvbnNlEiUKBXVzZXJzGAEgAygLMhYuUGhhblF1eWVuLlVzZXJJbkdyb3VwIjwKGUxpc3RBbGxBc3NpZ25tZW50c1JlcXVlc3QSDAoEcGFnZRgBIAEoBRIRCglwYWdlX3NpemUYAiABKAUikAMKEEFzc2lnbm1lbnREZXRhaWwSCgoCaWQYASABKAkSFQoNaWRfbmd1b2lfZHVuZxgCIAEoCRIOCgZob190ZW4YAyABKAkSDgoGZG9uX3ZpGAQgASgJEg8KB2lkX25ob20YBSABKAkSEAoIdGVuX25ob20YBiABKAkSEgoKY29sb3JfbmhvbRgHIAEoCRISCgpzY29wZV90eXBlGAggASgJEhYKDmFuY2hvcl9ub2RlX2lkGAkgASgJEhgKEGFuY2hvcl9ub2RlX25hbWUYCiABKAkSDAoEbG9haRgLIAEoCRIsCghuZ2F5X3RhbxgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbmdheV9oZXRfaGFuGA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIZChFpZF9uZ3VvaV91eV9xdXllbhgPIAEoCRIcChRpZF9uaG9tX2NodXllbl9uZ2FuaBgQIAEoCUoECA4QD1IPc2NvcGVfYXR0cmlidXRlIl0KGkxpc3RBbGxBc3NpZ25tZW50c1Jlc3BvbnNlEioKBWl0ZW1zGAEgAygLMhsuUGhhblF1eWVuLkFzc2lnbm1lbnREZXRhaWwSEwoLdG90YWxfY291bnQYAiABKAUi9wEKEUFzc2lnblVzZXJSZXF1ZXN0EhUKDWlkX25ndW9pX2R1bmcYASABKAkSDwoHaWRfbmhvbRgCIAEoCRISCgpzY29wZV90eXBlGAMgASgJEhYKDmFuY2hvcl9ub2RlX2lkGAQgASgJEgwKBGxvYWkYBSABKAkSMAoMbmdheV9oZXRfaGFuGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIZChFpZF9uZ3VvaV91eV9xdXllbhgHIAEoCRIcChRpZF9uaG9tX2NodXllbl9uZ2FuaBgJIAEoCUoECAgQCVIPc2NvcGVfYXR0cmlidXRlIioKEVJlbW92ZVVzZXJSZXF1ZXN0EhUKDWlkX2Fzc2lnbm1lbnQYASABKAkiWgoPVGhhbVNvTmd1b2lEdW5nEgoKAmlkGAEgASgJEhUKDWlkX25ndW9pX2R1bmcYAiABKAkSEwoLdGVuX3RoYW1fc28YAyABKAkSDwoHZ2lhX3RyaRgEIAEoCTL5BwoQUGhhblF1eWVuU2VydmljZRJbChBHZXRNeVBlcm1pc3Npb25zEiIuUGhhblF1eWVuLkdldE15UGVybWlzc2lvbnNSZXF1ZXN0GiMuUGhhblF1eWVuLkdldE15UGVybWlzc2lvbnNSZXNwb25zZRJnChRHZXRQZXJtaXNzaW9uQ2F0YWxvZxImLlBoYW5RdXllbi5HZXRQZXJtaXNzaW9uQ2F0YWxvZ1JlcXVlc3QaJy5QaGFuUXV5ZW4uR2V0UGVybWlzc2lvbkNhdGFsb2dSZXNwb25zZRJeChFMaXN0TmhvbU5ndW9pRHVuZxIjLlBoYW5RdXllbi5MaXN0TmhvbU5ndW9pRHVuZ1JlcXVlc3QaJC5QaGFuUXV5ZW4uTGlzdE5ob21OZ3VvaUR1bmdSZXNwb25zZRJSChFTYXZlTmhvbU5ndW9pRHVuZxIjLlBoYW5RdXllbi5TYXZlTmhvbU5ndW9pRHVuZ1JlcXVlc3QaGC5QaGFuUXV5ZW4uTmhvbU5ndW9pRHVuZxJKChNEZWxldGVOaG9tTmd1b2lEdW5nEhguUGhhblF1eWVuLkRlbGV0ZVJlcXVlc3QaGS5QaGFuUXV5ZW4uRGVsZXRlUmVzcG9uc2USZAoTR2V0R3JvdXBQZXJtaXNzaW9ucxIlLlBoYW5RdXllbi5HZXRHcm91cFBlcm1pc3Npb25zUmVxdWVzdBomLlBoYW5RdXllbi5HZXRHcm91cFBlcm1pc3Npb25zUmVzcG9uc2USWQoUU2F2ZUdyb3VwUGVybWlzc2lvbnMSJi5QaGFuUXV5ZW4uU2F2ZUdyb3VwUGVybWlzc2lvbnNSZXF1ZXN0GhkuUGhhblF1eWVuLkRlbGV0ZVJlc3BvbnNlElUKDkxpc3RHcm91cFVzZXJzEiAuUGhhblF1eWVuLkxpc3RHcm91cFVzZXJzUmVxdWVzdBohLlBoYW5RdXllbi5MaXN0R3JvdXBVc2Vyc1Jlc3BvbnNlEmEKEkxpc3RBbGxBc3NpZ25tZW50cxIkLlBoYW5RdXllbi5MaXN0QWxsQXNzaWdubWVudHNSZXF1ZXN0GiUuUGhhblF1eWVuLkxpc3RBbGxBc3NpZ25tZW50c1Jlc3BvbnNlElQKEUFzc2lnblVzZXJUb0dyb3VwEhwuUGhhblF1eWVuLkFzc2lnblVzZXJSZXF1ZXN0GiEuUGhhblF1eWVuLk5ndW9pRHVuZ05ob21OZ3VvaUR1bmcSTgoTUmVtb3ZlVXNlckZyb21Hcm91cBIcLlBoYW5RdXllbi5SZW1vdmVVc2VyUmVxdWVzdBoZLlBoYW5RdXllbi5EZWxldGVSZXNwb25zZUIJqgIGcHJvdG9zYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Cg9QaGFuUXV5ZW4ucHJvdG8SCVBoYW5RdXllbiIZChdHZXRNeVBlcm1pc3Npb25zUmVxdWVzdCIdChtHZXRQZXJtaXNzaW9uQ2F0YWxvZ1JlcXVlc3QiUAoMUGhhbkhlQWNjZXNzEhIKCm1hX3BoYW5faGUYASABKAkSFQoNZHVvY190cnV5X2NhcBgCIAEoCBIVCg1kdW9jX3F1YW5fdHJpGAMgASgIIncKCkFjdGlvbnNNYXASDAoEdmlldxgBIAEoCBILCgNhZGQYAiABKAgSDAoEZWRpdBgDIAEoCBIOCgZkZWxldGUYBCABKAgSDwoHYXBwcm92ZRgFIAEoCBIQCghkb3dubG9hZBgGIAEoCBINCgVwcmludBgHIAEoCCJiCg5DaHVjTmFuZ0FjY2VzcxIUCgxtYV9jaHVjX25hbmcYASABKAkSEgoKbWFfcGhhbl9oZRgCIAEoCRImCgdhY3Rpb25zGAMgASgLMhUuUGhhblF1eWVuLkFjdGlvbnNNYXAiPQoRQ2h1eWVuTmdhbmhBY2Nlc3MSFwoPaWRfY2h1eWVuX25nYW5oGAEgASgJEg8KB2FjdGlvbnMYAiADKAki9AIKGEdldE15UGVybWlzc2lvbnNSZXNwb25zZRIoCgdwaGFuX2hlGAEgAygLMhcuUGhhblF1eWVuLlBoYW5IZUFjY2VzcxIsCgljaHVjX25hbmcYAiADKAsyGS5QaGFuUXV5ZW4uQ2h1Y05hbmdBY2Nlc3MSEgoKc2NvcGVfdHlwZRgDIAEoCRIWCg5hbmNob3Jfbm9kZV9pZBgEIAEoCRIVCg1uZ2FuaF9kb2NfaWRzGAUgAygJEjAKDG5nYXlfaGV0X2hhbhgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRaWRfbmd1b2lfdXlfcXV5ZW4YByABKAkSGAoQYW5jaG9yX3BhcmVudF9pZBgIIAEoCRIgChhpZF9kYW5oX211Y19jaHV5ZW5fbmdhbmgYCiABKAkSNAoOYWN0aW9uc19wZXJfY24YCyADKAsyHC5QaGFuUXV5ZW4uQ2h1eWVuTmdhbmhBY2Nlc3MiMwoVUGVybWlzc2lvbkNhdGFsb2dJdGVtEgwKBGNvZGUYASABKAkSDAoEbmFtZRgCIAEoCSJsChZQZXJtaXNzaW9uQ2F0YWxvZ0dyb3VwEg0KBWdyb3VwGAEgASgJEgwKBGljb24YAiABKAkSNQoLcGVybWlzc2lvbnMYAyADKAsyIC5QaGFuUXV5ZW4uUGVybWlzc2lvbkNhdGFsb2dJdGVtIlAKHEdldFBlcm1pc3Npb25DYXRhbG9nUmVzcG9uc2USMAoFaXRlbXMYASADKAsyIS5QaGFuUXV5ZW4uUGVybWlzc2lvbkNhdGFsb2dHcm91cCK+AgoNTmhvbU5ndW9pRHVuZxIKCgJpZBgBIAEoCRISCgptYV9waGFuX2hlGAIgASgJEgsKA3RlbhgDIAEoCRINCgVtb190YRgEIAEoCRISCgppc19kZWZhdWx0GAUgASgIEhEKCW5ndW9pX3RhbxgGIAEoCRIsCghuZ2F5X3RhbxgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJbmd1b2lfc3VhGAggASgJEiwKCG5nYXlfc3VhGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjb2xvchgKIAEoCRIMCgRsb2FpGAsgASgJEhYKDmNsb25lZF9mcm9tX2lkGAwgASgJEhIKCnVzZXJfY291bnQYDSABKAUSEgoKc2NvcGVfdHlwZRgOIAEoCSKwAwoWTmd1b2lEdW5nTmhvbU5ndW9pRHVuZxIKCgJpZBgBIAEoCRIVCg1pZF9uZ3VvaV9kdW5nGAIgASgJEhoKEmlkX25ob21fbmd1b2lfZHVuZxgDIAEoCRIMCgRsb2FpGAQgASgJEjAKDG5nYXlfaGV0X2hhbhgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJbmd1b2lfdGFvGAYgASgJEiwKCG5nYXlfdGFvGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgluZ3VvaV9zdWEYCCABKAkSLAoIbmdheV9zdWEYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEWlkX25ndW9pX3V5X3F1eWVuGAogASgJEhIKCnNjb3BlX3R5cGUYDCABKAkSFwoPaWRfZG9uX3ZpX3Njb3BlGA0gASgJEhQKDGlkX25nYW5oX2RvYxgOIAMoCRIgChhpZF9kYW5oX211Y19jaHV5ZW5fbmdhbmgYDyABKAlKBAgLEAxSD3Njb3BlX2F0dHJpYnV0ZSLjAgoYUGhhblF1eWVuUGhhbkhlTmd1b2lEdW5nEgoKAmlkGAEgASgJEhUKDWlkX25ndW9pX2R1bmcYAiABKAkSEgoKbWFfcGhhbl9oZRgDIAEoCRIXCg90aWV1X2RlX3BoYW5faGUYBCABKAkSFQoNZHVvY190cnV5X2NhcBgFIAEoCBIVCg1kdW9jX3F1YW5fdHJpGAYgASgIEhoKEmlkX25ob21fbmd1b2lfZHVuZxgHIAEoCRIRCgluZ3VvaV90YW8YCCABKAkSEQoJbmd1b2lfc3VhGAkgASgJEiwKCG5nYXlfdGFvGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghuZ2F5X3N1YRgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2NvcGVfdHlwZRgMIAEoCRIXCg9pZF9kb25fdmlfc2NvcGUYDSABKAkijwIKHFBoYW5RdXllblBoYW5IZU5ob21OZ3VvaUR1bmcSCgoCaWQYASABKAkSGgoSaWRfbmhvbV9uZ3VvaV9kdW5nGAIgASgJEhIKCm1hX3BoYW5faGUYAyABKAkSFwoPdGlldV9kZV9waGFuX2hlGAQgASgJEhUKDWR1b2NfdHJ1eV9jYXAYBSABKAgSFQoNZHVvY19xdWFuX3RyaRgGIAEoCBIRCgluZ3VvaV90YW8YByABKAkSLAoIbmdheV90YW8YCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnNjb3BlX3R5cGUYCSABKAkSFwoPaWRfZG9uX3ZpX3Njb3BlGAogASgJIp0DChJQaGFuUXV5ZW5OZ3VvaUR1bmcSCgoCaWQYASABKAkSFQoNaWRfbmd1b2lfZHVuZxgCIAEoCRIUCgxtYV9jaHVjX25hbmcYAyABKAkSGQoRdGlldV9kZV9jaHVjX25hbmcYBCABKAkSEgoKbWFfcGhhbl9oZRgFIAEoCRIUCgx0aWV1X2RlX25ob20YBiABKAkSGgoSaWRfbmhvbV9uZ3VvaV9kdW5nGAcgASgJEjsKB2FjdGlvbnMYCCADKAsyKi5QaGFuUXV5ZW4uUGhhblF1eWVuTmd1b2lEdW5nLkFjdGlvbnNFbnRyeRIRCgluZ3VvaV90YW8YCSABKAkSEQoJbmd1b2lfc3VhGAogASgJEiwKCG5nYXlfdGFvGAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghuZ2F5X3N1YRgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaLgoMQWN0aW9uc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCDoCOAEikgIKFlBoYW5RdXllbk5ob21OZ3VvaUR1bmcSCgoCaWQYASABKAkSGgoSaWRfbmhvbV9uZ3VvaV9kdW5nGAIgASgJEhQKDG1hX2NodWNfbmFuZxgDIAEoCRIZChF0aWV1X2RlX2NodWNfbmFuZxgEIAEoCRISCgptYV9waGFuX2hlGAUgASgJEhoKEnRpZXVfZGVfbmhvbV9xdXllbhgGIAEoCRI/CgdhY3Rpb25zGAcgAygLMi4uUGhhblF1eWVuLlBoYW5RdXllbk5ob21OZ3VvaUR1bmcuQWN0aW9uc0VudHJ5Gi4KDEFjdGlvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAg6AjgBIhoKGExpc3ROaG9tTmd1b2lEdW5nUmVxdWVzdCJEChlMaXN0TmhvbU5ndW9pRHVuZ1Jlc3BvbnNlEicKBWl0ZW1zGAEgAygLMhguUGhhblF1eWVuLk5ob21OZ3VvaUR1bmcidwoYU2F2ZU5ob21OZ3VvaUR1bmdSZXF1ZXN0EgoKAmlkGAEgASgJEgsKA3RlbhgCIAEoCRINCgVtb190YRgDIAEoCRINCgVjb2xvchgEIAEoCRIWCg5jbG9uZWRfZnJvbV9pZBgFIAEoCRIMCgRsb2FpGAYgASgJIhsKDURlbGV0ZVJlcXVlc3QSCgoCaWQYASABKAkiMgoORGVsZXRlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJIkQKH1JlYnVpbGRQZXJtaXNzaW9uc1N0cmVhbVJlcXVlc3QSDwoHaWRfbmhvbRgBIAEoCRIQCgh1c2VyX2lkcxgCIAMoCSLqAQodUmVidWlsZFBlcm1pc3Npb25zU3RyZWFtRXZlbnQSDgoGam9iX2lkGAEgASgJEg0KBXN0YWdlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSEQoJcHJvY2Vzc2VkGAQgASgFEg0KBXRvdGFsGAUgASgFEhcKD2N1cnJlbnRfdXNlcl9pZBgGIAEoCRIQCgh3YXJuaW5ncxgHIAMoCRIMCgRkb25lGAggASgIEg8KB3N1Y2Nlc3MYCSABKAgSLQoJdGltZXN0YW1wGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItChpHZXRHcm91cFBlcm1pc3Npb25zUmVxdWVzdBIPCgdpZF9uaG9tGAEgASgJIpoBChtHZXRHcm91cFBlcm1pc3Npb25zUmVzcG9uc2USFQoNY2hlY2tlZF9jb2RlcxgBIAMoCRISCgpzY29wZV90eXBlGAIgASgJEhYKDmFuY2hvcl9ub2RlX2lkGAMgASgJEhYKDm11bHRpX25vZGVfaWRzGAQgAygJEiAKGGlkX2RhbmhfbXVjX2NodXllbl9uZ2FuaBgFIAEoCSKrAQobU2F2ZUdyb3VwUGVybWlzc2lvbnNSZXF1ZXN0Eg8KB2lkX25ob20YASABKAkSFQoNY2hlY2tlZF9jb2RlcxgCIAMoCRISCgpzY29wZV90eXBlGAMgASgJEhYKDmFuY2hvcl9ub2RlX2lkGAQgASgJEhYKDm11bHRpX25vZGVfaWRzGAUgAygJEiAKGGlkX2RhbmhfbXVjX2NodXllbl9uZ2FuaBgGIAEoCSIoChVMaXN0R3JvdXBVc2Vyc1JlcXVlc3QSDwoHaWRfbmhvbRgBIAEoCSK7AgoLVXNlckluR3JvdXASFQoNaWRfYXNzaWdubWVudBgBIAEoCRIVCg1pZF9uZ3VvaV9kdW5nGAIgASgJEg4KBmhvX3RlbhgDIAEoCRIOCgZkb25fdmkYBCABKAkSEgoKc2NvcGVfdHlwZRgFIAEoCRIWCg5hbmNob3Jfbm9kZV9pZBgGIAEoCRISCgppc19leHBpcmVkGAcgASgIEjAKDG5nYXlfaGV0X2hhbhgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQYW5jaG9yX25vZGVfbmFtZRgKIAEoCRIZChFpZF9uZ3VvaV91eV9xdXllbhgLIAEoCRIgChhpZF9kYW5oX211Y19jaHV5ZW5fbmdhbmgYDCABKAlKBAgJEApSD3Njb3BlX2F0dHJpYnV0ZSI/ChZMaXN0R3JvdXBVc2Vyc1Jlc3BvbnNlEiUKBXVzZXJzGAEgAygLMhYuUGhhblF1eWVuLlVzZXJJbkdyb3VwIjwKGUxpc3RBbGxBc3NpZ25tZW50c1JlcXVlc3QSDAoEcGFnZRgBIAEoBRIRCglwYWdlX3NpemUYAiABKAUilAMKEEFzc2lnbm1lbnREZXRhaWwSCgoCaWQYASABKAkSFQoNaWRfbmd1b2lfZHVuZxgCIAEoCRIOCgZob190ZW4YAyABKAkSDgoGZG9uX3ZpGAQgASgJEg8KB2lkX25ob20YBSABKAkSEAoIdGVuX25ob20YBiABKAkSEgoKY29sb3JfbmhvbRgHIAEoCRISCgpzY29wZV90eXBlGAggASgJEhYKDmFuY2hvcl9ub2RlX2lkGAkgASgJEhgKEGFuY2hvcl9ub2RlX25hbWUYCiABKAkSDAoEbG9haRgLIAEoCRIsCghuZ2F5X3RhbxgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbmdheV9oZXRfaGFuGA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIZChFpZF9uZ3VvaV91eV9xdXllbhgPIAEoCRIgChhpZF9kYW5oX211Y19jaHV5ZW5fbmdhbmgYECABKAlKBAgOEA9SD3Njb3BlX2F0dHJpYnV0ZSJdChpMaXN0QWxsQXNzaWdubWVudHNSZXNwb25zZRIqCgVpdGVtcxgBIAMoCzIbLlBoYW5RdXllbi5Bc3NpZ25tZW50RGV0YWlsEhMKC3RvdGFsX2NvdW50GAIgASgFIvsBChFBc3NpZ25Vc2VyUmVxdWVzdBIVCg1pZF9uZ3VvaV9kdW5nGAEgASgJEg8KB2lkX25ob20YAiABKAkSEgoKc2NvcGVfdHlwZRgDIAEoCRIWCg5hbmNob3Jfbm9kZV9pZBgEIAEoCRIMCgRsb2FpGAUgASgJEjAKDG5nYXlfaGV0X2hhbhgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRaWRfbmd1b2lfdXlfcXV5ZW4YByABKAkSIAoYaWRfZGFuaF9tdWNfY2h1eWVuX25nYW5oGAkgASgJSgQICBAJUg9zY29wZV9hdHRyaWJ1dGUiKgoRUmVtb3ZlVXNlclJlcXVlc3QSFQoNaWRfYXNzaWdubWVudBgBIAEoCSJaCg9UaGFtU29OZ3VvaUR1bmcSCgoCaWQYASABKAkSFQoNaWRfbmd1b2lfZHVuZxgCIAEoCRITCgt0ZW5fdGhhbV9zbxgDIAEoCRIPCgdnaWFfdHJpGAQgASgJMu0IChBQaGFuUXV5ZW5TZXJ2aWNlElsKEEdldE15UGVybWlzc2lvbnMSIi5QaGFuUXV5ZW4uR2V0TXlQZXJtaXNzaW9uc1JlcXVlc3QaIy5QaGFuUXV5ZW4uR2V0TXlQZXJtaXNzaW9uc1Jlc3BvbnNlEmcKFEdldFBlcm1pc3Npb25DYXRhbG9nEiYuUGhhblF1eWVuLkdldFBlcm1pc3Npb25DYXRhbG9nUmVxdWVzdBonLlBoYW5RdXllbi5HZXRQZXJtaXNzaW9uQ2F0YWxvZ1Jlc3BvbnNlEl4KEUxpc3ROaG9tTmd1b2lEdW5nEiMuUGhhblF1eWVuLkxpc3ROaG9tTmd1b2lEdW5nUmVxdWVzdBokLlBoYW5RdXllbi5MaXN0TmhvbU5ndW9pRHVuZ1Jlc3BvbnNlElIKEVNhdmVOaG9tTmd1b2lEdW5nEiMuUGhhblF1eWVuLlNhdmVOaG9tTmd1b2lEdW5nUmVxdWVzdBoYLlBoYW5RdXllbi5OaG9tTmd1b2lEdW5nEkoKE0RlbGV0ZU5ob21OZ3VvaUR1bmcSGC5QaGFuUXV5ZW4uRGVsZXRlUmVxdWVzdBoZLlBoYW5RdXllbi5EZWxldGVSZXNwb25zZRJkChNHZXRHcm91cFBlcm1pc3Npb25zEiUuUGhhblF1eWVuLkdldEdyb3VwUGVybWlzc2lvbnNSZXF1ZXN0GiYuUGhhblF1eWVuLkdldEdyb3VwUGVybWlzc2lvbnNSZXNwb25zZRJZChRTYXZlR3JvdXBQZXJtaXNzaW9ucxImLlBoYW5RdXllbi5TYXZlR3JvdXBQZXJtaXNzaW9uc1JlcXVlc3QaGS5QaGFuUXV5ZW4uRGVsZXRlUmVzcG9uc2USVQoOTGlzdEdyb3VwVXNlcnMSIC5QaGFuUXV5ZW4uTGlzdEdyb3VwVXNlcnNSZXF1ZXN0GiEuUGhhblF1eWVuLkxpc3RHcm91cFVzZXJzUmVzcG9uc2USYQoSTGlzdEFsbEFzc2lnbm1lbnRzEiQuUGhhblF1eWVuLkxpc3RBbGxBc3NpZ25tZW50c1JlcXVlc3QaJS5QaGFuUXV5ZW4uTGlzdEFsbEFzc2lnbm1lbnRzUmVzcG9uc2USVAoRQXNzaWduVXNlclRvR3JvdXASHC5QaGFuUXV5ZW4uQXNzaWduVXNlclJlcXVlc3QaIS5QaGFuUXV5ZW4uTmd1b2lEdW5nTmhvbU5ndW9pRHVuZxJOChNSZW1vdmVVc2VyRnJvbUdyb3VwEhwuUGhhblF1eWVuLlJlbW92ZVVzZXJSZXF1ZXN0GhkuUGhhblF1eWVuLkRlbGV0ZVJlc3BvbnNlEnIKGFJlYnVpbGRQZXJtaXNzaW9uc1N0cmVhbRIqLlBoYW5RdXllbi5SZWJ1aWxkUGVybWlzc2lvbnNTdHJlYW1SZXF1ZXN0GiguUGhhblF1eWVuLlJlYnVpbGRQZXJtaXNzaW9uc1N0cmVhbUV2ZW50MAFCCaoCBnByb3Rvc2IGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message PhanQuyen.GetMyPermissionsRequest
@@ -142,6 +142,31 @@ export const ChucNangAccessSchema: GenMessage<ChucNangAccess> = /*@__PURE__*/
   messageDesc(file_PhanQuyen, 4);
 
 /**
+ * ── AccessGate: action-per-CN response ──────────────────────────────
+ * Cho client biết: trên CN này, user được thực hiện actions nào.
+ *
+ * @generated from message PhanQuyen.ChuyenNganhAccess
+ */
+export type ChuyenNganhAccess = Message<"PhanQuyen.ChuyenNganhAccess"> & {
+  /**
+   * @generated from field: string id_chuyen_nganh = 1;
+   */
+  idChuyenNganh: string;
+
+  /**
+   * @generated from field: repeated string actions = 2;
+   */
+  actions: string[];
+};
+
+/**
+ * Describes the message PhanQuyen.ChuyenNganhAccess.
+ * Use `create(ChuyenNganhAccessSchema)` to create a new message.
+ */
+export const ChuyenNganhAccessSchema: GenMessage<ChuyenNganhAccess> = /*@__PURE__*/
+  messageDesc(file_PhanQuyen, 5);
+
+/**
  * @generated from message PhanQuyen.GetMyPermissionsResponse
  */
 export type GetMyPermissionsResponse = Message<"PhanQuyen.GetMyPermissionsResponse"> & {
@@ -186,9 +211,14 @@ export type GetMyPermissionsResponse = Message<"PhanQuyen.GetMyPermissionsRespon
   anchorParentId: string;
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 10;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 10;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
+
+  /**
+   * @generated from field: repeated PhanQuyen.ChuyenNganhAccess actions_per_cn = 11;
+   */
+  actionsPerCn: ChuyenNganhAccess[];
 };
 
 /**
@@ -196,7 +226,7 @@ export type GetMyPermissionsResponse = Message<"PhanQuyen.GetMyPermissionsRespon
  * Use `create(GetMyPermissionsResponseSchema)` to create a new message.
  */
 export const GetMyPermissionsResponseSchema: GenMessage<GetMyPermissionsResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 5);
+  messageDesc(file_PhanQuyen, 6);
 
 /**
  * @generated from message PhanQuyen.PermissionCatalogItem
@@ -218,7 +248,7 @@ export type PermissionCatalogItem = Message<"PhanQuyen.PermissionCatalogItem"> &
  * Use `create(PermissionCatalogItemSchema)` to create a new message.
  */
 export const PermissionCatalogItemSchema: GenMessage<PermissionCatalogItem> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 6);
+  messageDesc(file_PhanQuyen, 7);
 
 /**
  * @generated from message PhanQuyen.PermissionCatalogGroup
@@ -245,7 +275,7 @@ export type PermissionCatalogGroup = Message<"PhanQuyen.PermissionCatalogGroup">
  * Use `create(PermissionCatalogGroupSchema)` to create a new message.
  */
 export const PermissionCatalogGroupSchema: GenMessage<PermissionCatalogGroup> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 7);
+  messageDesc(file_PhanQuyen, 8);
 
 /**
  * @generated from message PhanQuyen.GetPermissionCatalogResponse
@@ -262,7 +292,7 @@ export type GetPermissionCatalogResponse = Message<"PhanQuyen.GetPermissionCatal
  * Use `create(GetPermissionCatalogResponseSchema)` to create a new message.
  */
 export const GetPermissionCatalogResponseSchema: GenMessage<GetPermissionCatalogResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 8);
+  messageDesc(file_PhanQuyen, 9);
 
 /**
  * @generated from message PhanQuyen.NhomNguoiDung
@@ -344,7 +374,7 @@ export type NhomNguoiDung = Message<"PhanQuyen.NhomNguoiDung"> & {
  * Use `create(NhomNguoiDungSchema)` to create a new message.
  */
 export const NhomNguoiDungSchema: GenMessage<NhomNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 9);
+  messageDesc(file_PhanQuyen, 10);
 
 /**
  * @generated from message PhanQuyen.NguoiDungNhomNguoiDung
@@ -416,9 +446,9 @@ export type NguoiDungNhomNguoiDung = Message<"PhanQuyen.NguoiDungNhomNguoiDung">
   idNganhDoc: string[];
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 15;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 15;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
 };
 
 /**
@@ -426,7 +456,7 @@ export type NguoiDungNhomNguoiDung = Message<"PhanQuyen.NguoiDungNhomNguoiDung">
  * Use `create(NguoiDungNhomNguoiDungSchema)` to create a new message.
  */
 export const NguoiDungNhomNguoiDungSchema: GenMessage<NguoiDungNhomNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 10);
+  messageDesc(file_PhanQuyen, 11);
 
 /**
  * @generated from message PhanQuyen.PhanQuyenPhanHeNguoiDung
@@ -503,7 +533,7 @@ export type PhanQuyenPhanHeNguoiDung = Message<"PhanQuyen.PhanQuyenPhanHeNguoiDu
  * Use `create(PhanQuyenPhanHeNguoiDungSchema)` to create a new message.
  */
 export const PhanQuyenPhanHeNguoiDungSchema: GenMessage<PhanQuyenPhanHeNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 11);
+  messageDesc(file_PhanQuyen, 12);
 
 /**
  * @generated from message PhanQuyen.PhanQuyenPhanHeNhomNguoiDung
@@ -565,7 +595,7 @@ export type PhanQuyenPhanHeNhomNguoiDung = Message<"PhanQuyen.PhanQuyenPhanHeNho
  * Use `create(PhanQuyenPhanHeNhomNguoiDungSchema)` to create a new message.
  */
 export const PhanQuyenPhanHeNhomNguoiDungSchema: GenMessage<PhanQuyenPhanHeNhomNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 12);
+  messageDesc(file_PhanQuyen, 13);
 
 /**
  * @generated from message PhanQuyen.PhanQuyenNguoiDung
@@ -637,7 +667,7 @@ export type PhanQuyenNguoiDung = Message<"PhanQuyen.PhanQuyenNguoiDung"> & {
  * Use `create(PhanQuyenNguoiDungSchema)` to create a new message.
  */
 export const PhanQuyenNguoiDungSchema: GenMessage<PhanQuyenNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 13);
+  messageDesc(file_PhanQuyen, 14);
 
 /**
  * @generated from message PhanQuyen.PhanQuyenNhomNguoiDung
@@ -684,7 +714,7 @@ export type PhanQuyenNhomNguoiDung = Message<"PhanQuyen.PhanQuyenNhomNguoiDung">
  * Use `create(PhanQuyenNhomNguoiDungSchema)` to create a new message.
  */
 export const PhanQuyenNhomNguoiDungSchema: GenMessage<PhanQuyenNhomNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 14);
+  messageDesc(file_PhanQuyen, 15);
 
 /**
  * @generated from message PhanQuyen.ListNhomNguoiDungRequest
@@ -697,7 +727,7 @@ export type ListNhomNguoiDungRequest = Message<"PhanQuyen.ListNhomNguoiDungReque
  * Use `create(ListNhomNguoiDungRequestSchema)` to create a new message.
  */
 export const ListNhomNguoiDungRequestSchema: GenMessage<ListNhomNguoiDungRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 15);
+  messageDesc(file_PhanQuyen, 16);
 
 /**
  * @generated from message PhanQuyen.ListNhomNguoiDungResponse
@@ -714,7 +744,7 @@ export type ListNhomNguoiDungResponse = Message<"PhanQuyen.ListNhomNguoiDungResp
  * Use `create(ListNhomNguoiDungResponseSchema)` to create a new message.
  */
 export const ListNhomNguoiDungResponseSchema: GenMessage<ListNhomNguoiDungResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 16);
+  messageDesc(file_PhanQuyen, 17);
 
 /**
  * @generated from message PhanQuyen.SaveNhomNguoiDungRequest
@@ -756,7 +786,7 @@ export type SaveNhomNguoiDungRequest = Message<"PhanQuyen.SaveNhomNguoiDungReque
  * Use `create(SaveNhomNguoiDungRequestSchema)` to create a new message.
  */
 export const SaveNhomNguoiDungRequestSchema: GenMessage<SaveNhomNguoiDungRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 17);
+  messageDesc(file_PhanQuyen, 18);
 
 /**
  * @generated from message PhanQuyen.DeleteRequest
@@ -773,7 +803,7 @@ export type DeleteRequest = Message<"PhanQuyen.DeleteRequest"> & {
  * Use `create(DeleteRequestSchema)` to create a new message.
  */
 export const DeleteRequestSchema: GenMessage<DeleteRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 18);
+  messageDesc(file_PhanQuyen, 19);
 
 /**
  * @generated from message PhanQuyen.DeleteResponse
@@ -795,7 +825,91 @@ export type DeleteResponse = Message<"PhanQuyen.DeleteResponse"> & {
  * Use `create(DeleteResponseSchema)` to create a new message.
  */
 export const DeleteResponseSchema: GenMessage<DeleteResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 19);
+  messageDesc(file_PhanQuyen, 20);
+
+/**
+ * @generated from message PhanQuyen.RebuildPermissionsStreamRequest
+ */
+export type RebuildPermissionsStreamRequest = Message<"PhanQuyen.RebuildPermissionsStreamRequest"> & {
+  /**
+   * @generated from field: string id_nhom = 1;
+   */
+  idNhom: string;
+
+  /**
+   * @generated from field: repeated string user_ids = 2;
+   */
+  userIds: string[];
+};
+
+/**
+ * Describes the message PhanQuyen.RebuildPermissionsStreamRequest.
+ * Use `create(RebuildPermissionsStreamRequestSchema)` to create a new message.
+ */
+export const RebuildPermissionsStreamRequestSchema: GenMessage<RebuildPermissionsStreamRequest> = /*@__PURE__*/
+  messageDesc(file_PhanQuyen, 21);
+
+/**
+ * @generated from message PhanQuyen.RebuildPermissionsStreamEvent
+ */
+export type RebuildPermissionsStreamEvent = Message<"PhanQuyen.RebuildPermissionsStreamEvent"> & {
+  /**
+   * @generated from field: string job_id = 1;
+   */
+  jobId: string;
+
+  /**
+   * @generated from field: string stage = 2;
+   */
+  stage: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * @generated from field: int32 processed = 4;
+   */
+  processed: number;
+
+  /**
+   * @generated from field: int32 total = 5;
+   */
+  total: number;
+
+  /**
+   * @generated from field: string current_user_id = 6;
+   */
+  currentUserId: string;
+
+  /**
+   * @generated from field: repeated string warnings = 7;
+   */
+  warnings: string[];
+
+  /**
+   * @generated from field: bool done = 8;
+   */
+  done: boolean;
+
+  /**
+   * @generated from field: bool success = 9;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 10;
+   */
+  timestamp?: Timestamp;
+};
+
+/**
+ * Describes the message PhanQuyen.RebuildPermissionsStreamEvent.
+ * Use `create(RebuildPermissionsStreamEventSchema)` to create a new message.
+ */
+export const RebuildPermissionsStreamEventSchema: GenMessage<RebuildPermissionsStreamEvent> = /*@__PURE__*/
+  messageDesc(file_PhanQuyen, 22);
 
 /**
  * @generated from message PhanQuyen.GetGroupPermissionsRequest
@@ -812,7 +926,7 @@ export type GetGroupPermissionsRequest = Message<"PhanQuyen.GetGroupPermissionsR
  * Use `create(GetGroupPermissionsRequestSchema)` to create a new message.
  */
 export const GetGroupPermissionsRequestSchema: GenMessage<GetGroupPermissionsRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 20);
+  messageDesc(file_PhanQuyen, 23);
 
 /**
  * @generated from message PhanQuyen.GetGroupPermissionsResponse
@@ -839,9 +953,9 @@ export type GetGroupPermissionsResponse = Message<"PhanQuyen.GetGroupPermissions
   multiNodeIds: string[];
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 5;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 5;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
 };
 
 /**
@@ -849,7 +963,7 @@ export type GetGroupPermissionsResponse = Message<"PhanQuyen.GetGroupPermissions
  * Use `create(GetGroupPermissionsResponseSchema)` to create a new message.
  */
 export const GetGroupPermissionsResponseSchema: GenMessage<GetGroupPermissionsResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 21);
+  messageDesc(file_PhanQuyen, 24);
 
 /**
  * @generated from message PhanQuyen.SaveGroupPermissionsRequest
@@ -881,9 +995,9 @@ export type SaveGroupPermissionsRequest = Message<"PhanQuyen.SaveGroupPermission
   multiNodeIds: string[];
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 6;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 6;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
 };
 
 /**
@@ -891,7 +1005,7 @@ export type SaveGroupPermissionsRequest = Message<"PhanQuyen.SaveGroupPermission
  * Use `create(SaveGroupPermissionsRequestSchema)` to create a new message.
  */
 export const SaveGroupPermissionsRequestSchema: GenMessage<SaveGroupPermissionsRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 22);
+  messageDesc(file_PhanQuyen, 25);
 
 /**
  * @generated from message PhanQuyen.ListGroupUsersRequest
@@ -908,7 +1022,7 @@ export type ListGroupUsersRequest = Message<"PhanQuyen.ListGroupUsersRequest"> &
  * Use `create(ListGroupUsersRequestSchema)` to create a new message.
  */
 export const ListGroupUsersRequestSchema: GenMessage<ListGroupUsersRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 23);
+  messageDesc(file_PhanQuyen, 26);
 
 /**
  * @generated from message PhanQuyen.UserInGroup
@@ -965,9 +1079,9 @@ export type UserInGroup = Message<"PhanQuyen.UserInGroup"> & {
   idNguoiUyQuyen: string;
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 12;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 12;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
 };
 
 /**
@@ -975,7 +1089,7 @@ export type UserInGroup = Message<"PhanQuyen.UserInGroup"> & {
  * Use `create(UserInGroupSchema)` to create a new message.
  */
 export const UserInGroupSchema: GenMessage<UserInGroup> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 24);
+  messageDesc(file_PhanQuyen, 27);
 
 /**
  * @generated from message PhanQuyen.ListGroupUsersResponse
@@ -992,7 +1106,7 @@ export type ListGroupUsersResponse = Message<"PhanQuyen.ListGroupUsersResponse">
  * Use `create(ListGroupUsersResponseSchema)` to create a new message.
  */
 export const ListGroupUsersResponseSchema: GenMessage<ListGroupUsersResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 25);
+  messageDesc(file_PhanQuyen, 28);
 
 /**
  * @generated from message PhanQuyen.ListAllAssignmentsRequest
@@ -1014,7 +1128,7 @@ export type ListAllAssignmentsRequest = Message<"PhanQuyen.ListAllAssignmentsReq
  * Use `create(ListAllAssignmentsRequestSchema)` to create a new message.
  */
 export const ListAllAssignmentsRequestSchema: GenMessage<ListAllAssignmentsRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 26);
+  messageDesc(file_PhanQuyen, 29);
 
 /**
  * @generated from message PhanQuyen.AssignmentDetail
@@ -1091,9 +1205,9 @@ export type AssignmentDetail = Message<"PhanQuyen.AssignmentDetail"> & {
   idNguoiUyQuyen: string;
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 16;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 16;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
 };
 
 /**
@@ -1101,7 +1215,7 @@ export type AssignmentDetail = Message<"PhanQuyen.AssignmentDetail"> & {
  * Use `create(AssignmentDetailSchema)` to create a new message.
  */
 export const AssignmentDetailSchema: GenMessage<AssignmentDetail> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 27);
+  messageDesc(file_PhanQuyen, 30);
 
 /**
  * @generated from message PhanQuyen.ListAllAssignmentsResponse
@@ -1123,7 +1237,7 @@ export type ListAllAssignmentsResponse = Message<"PhanQuyen.ListAllAssignmentsRe
  * Use `create(ListAllAssignmentsResponseSchema)` to create a new message.
  */
 export const ListAllAssignmentsResponseSchema: GenMessage<ListAllAssignmentsResponse> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 28);
+  messageDesc(file_PhanQuyen, 31);
 
 /**
  * @generated from message PhanQuyen.AssignUserRequest
@@ -1165,9 +1279,9 @@ export type AssignUserRequest = Message<"PhanQuyen.AssignUserRequest"> & {
   idNguoiUyQuyen: string;
 
   /**
-   * @generated from field: string id_nhom_chuyen_nganh = 9;
+   * @generated from field: string id_danh_muc_chuyen_nganh = 9;
    */
-  idNhomChuyenNganh: string;
+  idDanhMucChuyenNganh: string;
 };
 
 /**
@@ -1175,7 +1289,7 @@ export type AssignUserRequest = Message<"PhanQuyen.AssignUserRequest"> & {
  * Use `create(AssignUserRequestSchema)` to create a new message.
  */
 export const AssignUserRequestSchema: GenMessage<AssignUserRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 29);
+  messageDesc(file_PhanQuyen, 32);
 
 /**
  * @generated from message PhanQuyen.RemoveUserRequest
@@ -1192,7 +1306,7 @@ export type RemoveUserRequest = Message<"PhanQuyen.RemoveUserRequest"> & {
  * Use `create(RemoveUserRequestSchema)` to create a new message.
  */
 export const RemoveUserRequestSchema: GenMessage<RemoveUserRequest> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 30);
+  messageDesc(file_PhanQuyen, 33);
 
 /**
  * @generated from message PhanQuyen.ThamSoNguoiDung
@@ -1224,7 +1338,7 @@ export type ThamSoNguoiDung = Message<"PhanQuyen.ThamSoNguoiDung"> & {
  * Use `create(ThamSoNguoiDungSchema)` to create a new message.
  */
 export const ThamSoNguoiDungSchema: GenMessage<ThamSoNguoiDung> = /*@__PURE__*/
-  messageDesc(file_PhanQuyen, 31);
+  messageDesc(file_PhanQuyen, 34);
 
 /**
  * @generated from service PhanQuyen.PhanQuyenService
@@ -1317,6 +1431,14 @@ export const PhanQuyenService: GenService<{
     methodKind: "unary";
     input: typeof RemoveUserRequestSchema;
     output: typeof DeleteResponseSchema;
+  },
+  /**
+   * @generated from rpc PhanQuyen.PhanQuyenService.RebuildPermissionsStream
+   */
+  rebuildPermissionsStream: {
+    methodKind: "server_streaming";
+    input: typeof RebuildPermissionsStreamRequestSchema;
+    output: typeof RebuildPermissionsStreamEventSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_PhanQuyen, 0);

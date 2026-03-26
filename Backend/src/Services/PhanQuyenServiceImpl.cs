@@ -1,6 +1,7 @@
 using Backend.Authorization;
 using Backend.Converter;
 using Backend.Common.Bson;
+using Backend.Common.Protobuf;
 
 using Grpc.Core;
 using Microsoft.AspNetCore.Authorization;
@@ -73,7 +74,7 @@ public class PhanQuyenServiceImpl(
 
         // superadmin / admin → full access
         var userName = context.GetUserName();
-        if (userName == "superadmin" || userName == "admin")
+        if (context.IsAdminAccount())
             return new GetMyPermissionsResponse { ScopeType = "admin" };
 
         var db = Global.MongoDB!;
@@ -122,7 +123,7 @@ public class PhanQuyenServiceImpl(
             {
                 response.PhanHe.Add(new PhanHeAccess
                 {
-                    MaPhanHe    = d.StringOr("MaPhanHe"),
+                    MaPhanHe    = Global.NormalizeMaPhanHe(d.StringOr("MaPhanHe")),
                     DuocTruyCap = d.BoolOr("DuocTruyCap"),
                     DuocQuanTri = d.BoolOr("DuocQuanTri"),
                 });
@@ -138,7 +139,7 @@ public class PhanQuyenServiceImpl(
                 response.ChucNang.Add(new ChucNangAccess
                 {
                     MaChucNang = d.StringOr("MaChucNang"),
-                    MaPhanHe   = d.StringOr("MaPhanHe"),
+                    MaPhanHe   = Global.NormalizeMaPhanHe(d.StringOr("MaPhanHe")),
                     Actions    = ParseActions(d),
                 });
             }
@@ -380,6 +381,10 @@ public class PhanQuyenServiceImpl(
         // Aggregate user count per group in one query
         var countAgg = new BsonDocument[]
         {
+            new("$match", new BsonDocument
+            {
+                { "IdNguoiDung", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
+            }),
             new("$group", new BsonDocument
             {
                 { "_id",   "$IdNhomNguoiDung" },
@@ -542,6 +547,7 @@ public class PhanQuyenServiceImpl(
     {
         var db       = Global.MongoDB!;
         var pqCol    = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupFunctionPermissions);
+        var nhomCol  = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroups);
         var F        = Builders<BsonDocument>.Filter;
         var userName = context.GetUserName() ?? "";
         var now      = DateTime.UtcNow;
@@ -568,6 +574,9 @@ public class PhanQuyenServiceImpl(
             multiNodeIds.Clear();
         }
 
+        var nhomDoc = await nhomCol.Find(F.Eq("_id", ParseId(request.IdNhom))).FirstOrDefaultAsync();
+        var nhomMaPhanHe = Global.NormalizeMaPhanHe(nhomDoc.StringOr("MaPhanHe"));
+
         // Atomic BulkWrite: delete old codes not in new set + upsert new codes
         var bulkOps = new List<WriteModel<BsonDocument>>();
 
@@ -587,6 +596,7 @@ public class PhanQuyenServiceImpl(
                 { "_id",              Guid.NewGuid().ToString() },
                 { "IdNhomNguoiDung", request.IdNhom },
                 { "MaChucNang",      code },
+                { "MaPhanHe",        nhomMaPhanHe },
                 { "Actions",         new BsonDocument { { "view", true } } },
                 { "NguoiTao",        userName },
                 { "NgayTao",         now },
@@ -643,7 +653,11 @@ public class PhanQuyenServiceImpl(
 
         var pipeline = new BsonDocument[]
         {
-            new("$match", new BsonDocument("IdNhomNguoiDung", request.IdNhom)),
+            new("$match", new BsonDocument
+            {
+                { "IdNhomNguoiDung", request.IdNhom },
+                { "IdNguoiDung", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
+            }),
             new("$lookup", new BsonDocument
             {
                 { "from", PermissionCollectionNames.Employees },
@@ -729,6 +743,7 @@ public class PhanQuyenServiceImpl(
     {
         var db        = Global.MongoDB!;
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
+        var validAssignmentFilter = Builders<BsonDocument>.Filter.Nin("IdNguoiDung", new BsonArray { BsonNull.Value, "" });
 
         // Single pipeline: double $lookup (NhomNguoiDung + Employee) → 1 round-trip
         var uidToOid = new BsonDocument("$convert", new BsonDocument
@@ -738,10 +753,11 @@ public class PhanQuyenServiceImpl(
         var pageSize = request.PageSize > 0 ? request.PageSize : 50;
 
         // Count total (lightweight — no $lookup)
-        var countTask = memberCol.CountDocumentsAsync(FilterDefinition<BsonDocument>.Empty);
+        var countTask = memberCol.CountDocumentsAsync(validAssignmentFilter);
 
         var pipeline = new BsonDocument[]
         {
+            new("$match", new BsonDocument("IdNguoiDung", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }))),
             new("$sort",  new BsonDocument("NgayTao", -1)),
             new("$skip",  (page - 1) * pageSize),
             new("$limit", pageSize),
@@ -849,6 +865,9 @@ public class PhanQuyenServiceImpl(
     public override async Task<NguoiDungNhomNguoiDung> AssignUserToGroup(
         AssignUserRequest request, ServerCallContext context)
     {
+        if (string.IsNullOrWhiteSpace(request.IdNguoiDung))
+            throw new RpcException(new Grpc.Core.Status(StatusCode.InvalidArgument, "IdNguoiDung khong duoc de trong"));
+
         var db        = Global.MongoDB!;
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments);
         var userName  = context.GetUserName() ?? "";
@@ -883,7 +902,6 @@ public class PhanQuyenServiceImpl(
                     .Set("PhamViChuyenNganh", phamViChuyenNganhDoc != null ? (BsonValue)phamViChuyenNganhDoc : BsonNull.Value)
                     .Set("Loai",             request.Loai)
                     .Set("IdNguoiUyQuyen",   request.IdNguoiUyQuyen)
-                    .Unset("ScopeAttribute")
                     .Set("NguoiSua",         userName)
                     .Set("NgaySua",          now)
                     .Set("NgayHetHan",       request.NgayHetHan != null
@@ -954,5 +972,126 @@ public class PhanQuyenServiceImpl(
             Success = result.DeletedCount > 0,
             Message = result.DeletedCount > 0 ? "" : "Không tìm thấy bản ghi",
         };
+    }
+    public override async Task RebuildPermissionsStream(
+        RebuildPermissionsStreamRequest request,
+        IServerStreamWriter<RebuildPermissionsStreamEvent> responseStream,
+        ServerCallContext context)
+    {
+        var userName = context.GetUserName() ?? string.Empty;
+        if (!context.IsAdminAccount())
+            throw new RpcException(new Grpc.Core.Status(StatusCode.PermissionDenied, "Khong co quyen rebuild permission cache"));
+
+        var jobId = Guid.NewGuid().ToString();
+        var warnings = new List<string>();
+
+        async Task WriteAsync(
+            string stage,
+            string message,
+            int processed = 0,
+            int total = 0,
+            string currentUserId = "",
+            bool done = false,
+            bool success = false,
+            IEnumerable<string>? extraWarnings = null)
+        {
+            var evt = new RebuildPermissionsStreamEvent
+            {
+                JobId = jobId,
+                Stage = stage,
+                Message = message,
+                Processed = processed,
+                Total = total,
+                CurrentUserId = currentUserId,
+                Done = done,
+                Success = success,
+                Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+            };
+            if (extraWarnings != null)
+                evt.Warnings.AddRange(extraWarnings);
+            await responseStream.WriteAsync(evt, context.CancellationToken);
+        }
+
+        await WriteAsync("STARTED", "Bat dau rebuild permission cache");
+
+        var db = Global.MongoDB!;
+        var userIds = NormalizeStringList(request.UserIds);
+
+        if (!string.IsNullOrWhiteSpace(request.IdNhom))
+        {
+            var groupUserIds = (await db.GetCollection<BsonDocument>(PermissionCollectionNames.UserGroupAssignments)
+                    .Find(Builders<BsonDocument>.Filter.Eq("IdNhomNguoiDung", request.IdNhom.Trim()))
+                    .Project(Builders<BsonDocument>.Projection.Include("IdNguoiDung"))
+                    .ToListAsync(context.CancellationToken))
+                .Select(doc => doc.StringOr("IdNguoiDung"))
+                .Where(id => !string.IsNullOrWhiteSpace(id));
+
+            userIds = NormalizeStringList(userIds.Concat(groupUserIds));
+        }
+
+        if (userIds.Count == 0)
+        {
+            await WriteAsync(
+                stage: "FAILED",
+                message: "Khong co user nao de rebuild",
+                done: true,
+                success: false);
+            return;
+        }
+
+        await WriteAsync(
+            stage: "RESOLVED",
+            message: $"Da xac dinh {userIds.Count} user can rebuild",
+            total: userIds.Count);
+
+        var processed = 0;
+        foreach (var uid in userIds)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            await WriteAsync(
+                stage: "REBUILDING",
+                message: $"Dang rebuild cho {uid}",
+                processed: processed,
+                total: userIds.Count,
+                currentUserId: uid);
+
+            try
+            {
+                await rebuildService.RebuildForUser(uid);
+            }
+            catch (Exception ex)
+            {
+                var warning = $"User {uid}: {ex.Message}";
+                warnings.Add(warning);
+                _logger.LogWarning(ex, "RebuildPermissionsStream warning for {UserId}", uid);
+                await WriteAsync(
+                    stage: "WARNING",
+                    message: warning,
+                    processed: processed,
+                    total: userIds.Count,
+                    currentUserId: uid,
+                    extraWarnings: new[] { warning });
+            }
+
+            processed++;
+            await WriteAsync(
+                stage: "PROGRESS",
+                message: $"Da rebuild {processed}/{userIds.Count} user",
+                processed: processed,
+                total: userIds.Count,
+                currentUserId: uid);
+        }
+
+        await WriteAsync(
+            stage: "COMPLETED",
+            message: warnings.Count == 0
+                ? $"Rebuild thanh cong {processed} user"
+                : $"Rebuild hoan tat voi {warnings.Count} canh bao",
+            processed: processed,
+            total: userIds.Count,
+            done: true,
+            success: warnings.Count == 0,
+            extraWarnings: warnings);
     }
 }

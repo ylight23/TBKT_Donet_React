@@ -6,6 +6,7 @@ import {
     GetEmployeeRequestSchema,
     SaveEmployeeRequestSchema,
     DeleteEmployeeRequestSchema,
+    ImportEmployeesStreamRequestSchema,
     EmployeeSchema,
     EmployeeSearchSchema,
     GetListEmployeesResponseSchema,
@@ -15,6 +16,20 @@ import { employeeClient } from '../grpc/grpcClient';
 
 // Module-level cache: key = "<seconds>_<nanos>_<locale>"
 const formatDateCache = new Map<string, string>();
+
+export interface EmployeeImportProgress {
+    jobId: string;
+    stage: string;
+    message: string;
+    processed: number;
+    total: number;
+    succeeded: number;
+    failed: number;
+    currentKey: string;
+    warnings: string[];
+    done: boolean;
+    success: boolean;
+}
 
 export function formatDate(
     ts?: Timestamp | null,
@@ -199,6 +214,44 @@ const employeeApi = {
             return res;
         } catch (err: any) {
             console.error('[employeeApi] deleteApi error:', err);
+            throw err;
+        }
+    },
+
+    async streamImportEmployees(
+        items: Employee[],
+        onEvent?: (event: EmployeeImportProgress) => void,
+    ): Promise<EmployeeImportProgress[]> {
+        try {
+            const request = create(ImportEmployeesStreamRequestSchema, {
+                items: items.map((item) => create(EmployeeSchema, {
+                    ...item,
+                    ngaySinh: toTimestamp(item.ngaySinh),
+                })),
+            });
+
+            const events: EmployeeImportProgress[] = [];
+            for await (const event of employeeClient.importEmployeesStream(request)) {
+                const mapped: EmployeeImportProgress = {
+                    jobId: event.jobId,
+                    stage: event.stage,
+                    message: event.message,
+                    processed: event.processed,
+                    total: event.total,
+                    succeeded: event.succeeded,
+                    failed: event.failed,
+                    currentKey: event.currentKey,
+                    warnings: [...(event.warnings ?? [])],
+                    done: event.done,
+                    success: event.success,
+                };
+                events.push(mapped);
+                onEvent?.(mapped);
+            }
+
+            return events;
+        } catch (err: any) {
+            console.error('[employeeApi] streamImportEmployees error:', err);
             throw err;
         }
     },

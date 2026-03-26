@@ -8,6 +8,7 @@ internal static class PermissionCollectionNames
     public const string UserFunctionPermissions = "PhanQuyenNguoiDung";
     public const string GroupFunctionPermissions = "PhanQuyenNhomNguoiDung";
     public const string UserGroups = "NhomNguoiDung";
+    public const string AccountEmployeeMappings = "TaiKhoanNguoiDungMap";
     public const string Employees = "Employee";
     public const string Offices = "Office";
     public const string UserPermissionCache = "UserPermission";

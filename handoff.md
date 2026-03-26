@@ -38,7 +38,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | P1 | Enforce quyền runtime cho menu động | BE lead | Thêm kiểm tra `permissionCode` trong `GetListDynamicMenus` và/hoặc `GetDynamicMenuRows`; chỉ trả menu/dữ liệu user có quyền `view` | Ẩn menu động user không có quyền; không render item trái quyền ở sidebar và block menu | Viết test case user có quyền / không có quyền / admin | P0 | User không thể thấy hoặc gọi thành công menu động trái quyền; test pass cho 3 role chính |
 | P2 | Chuẩn hóa mapping `permissionCode -> view action` | BE + FE | Chốt helper kiểm tra quyền theo `permissionCode` thống nhất với permission catalog | Dùng chung một rule khi gọi `canFunc(...)` hoặc equivalent | Kiểm thử menu static và dynamic dùng cùng rule | P0 | Không còn khác biệt giữa menu static và dynamic khi kiểm tra quyền xem |
-| P3 | Hoàn thiện UI scope động / ABAC | FE owner | Hỗ trợ đầy đủ request fields đã có ở backend như `scopeAttribute`, `ngayHetHan`, `anchorNodeId`, `idNguoiUyQuyen` | Thêm form nhập/sửa scope nâng cao ở màn hình phân quyền | Viết test case với scope theo thuộc tính, scope hết hạn, delegated | P1 | Người dùng có thể tạo/sửa assignment với scope nâng cao và backend đọc lại đúng |
+| P3 | Hoàn thiện UI scope động / ABAC | FE owner | Hỗ trợ đầy đủ request fields đã có ở backend như `ngayHetHan`, `anchorNodeId`, `idNguoiUyQuyen` | Thêm form nhập/sửa scope nâng cao ở màn hình phân quyền | Viết test case với scope hết hạn, delegated | P1 | Người dùng có thể tạo/sửa assignment với scope nâng cao và backend đọc lại đúng |
 | D1 | Khóa toàn vẹn datasource -> menu khi save menu | BE owner | `SaveDynamicMenu` validate datasource tồn tại và active; fail rõ nếu invalid | Hiển thị lỗi rõ ràng trong màn cấu hình menu | Test save menu với datasource hợp lệ / disable / đã xóa | P0 | Không thể lưu menu tham chiếu datasource không hợp lệ |
 | D2 | Chốt hành vi xóa datasource | BE lead | Chọn 1 trong 2: chặn xóa nếu còn menu dùng, hoặc cascade soft delete menu liên quan | FE hiển thị warning trước khi xóa theo rule đã chốt | QA test cả nhánh chặn và nhánh cascade theo rule cuối cùng | P0 | Không còn trạng thái datasource bị xóa nhưng menu runtime vẫn gãy âm thầm |
 | D3 | Cảnh báo field mapping lỗi giữa datasource và menu | BE + FE | Cung cấp metadata hoặc API giúp phát hiện field menu không còn trong datasource | Hiển thị warning trong màn cấu hình menu và preview sample data | Test khi đổi field registry hoặc sync proto làm mất field cũ | P1 | Người cấu hình nhìn thấy mismatch trước khi publish/use runtime |
@@ -154,7 +154,6 @@ Mục tiêu:
 
 Đầu việc:
 - [ ] FE: form gán quyền hỗ trợ `anchorNodeId`
-- [ ] FE: form gán quyền hỗ trợ `scopeAttribute`
 - [ ] FE: form gán quyền hỗ trợ `ngayHetHan`
 - [ ] FE: form gán quyền hỗ trợ `idNguoiUyQuyen` nếu nghiệp vụ cần
 - [ ] BE: rà lại input validation cho các field scope nâng cao
@@ -300,7 +299,7 @@ Get-Content Frontend_TBKT\src\pages\CauHinhTemplate\hooks\useFormConfigManager.t
 ```
 
 ## Bước tiếp theo
-1. Hoàn thiện `P3`: UI scope động / ABAC cho các field như `anchorNodeId`, `scopeAttribute`, `ngayHetHan`, `idNguoiUyQuyen`.
+1. Hoàn thiện `P3`: UI scope động / ABAC cho các field như `anchorNodeId`, `ngayHetHan`, `idNguoiUyQuyen`.
 2. Chạy checklist tại [dynamic-config-regression.md](D:/TBKT_Donet_React/docs/regression/dynamic-config-regression.md) cho 3 cụm: permission, datasource/menu, form/json runtime.
 3. Nếu muốn đi thêm một bước nền tảng, cân nhắc tách checklist QA thành test case có `Test ID / Steps / Expected`.
 4. Sau khi QA ổn định, mới cân nhắc các bước tối ưu cao hơn như import/export config, history chi tiết hơn, hoặc trash view liên phiên.

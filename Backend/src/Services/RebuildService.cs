@@ -142,7 +142,7 @@ public sealed class RebuildService
 
             foreach (var doc in tPhanHeND.Result)
             {
-                var maPH = doc.StringOr("MaPhanHe");
+                var maPH = Global.NormalizeMaPhanHe(doc.StringOr("MaPhanHe"));
                 if (string.IsNullOrEmpty(maPH))
                     continue;
 
@@ -168,7 +168,7 @@ public sealed class RebuildService
 
             foreach (var doc in tPhanHeNhom.Result)
             {
-                var maPH = doc.StringOr("MaPhanHe");
+                var maPH = Global.NormalizeMaPhanHe(doc.StringOr("MaPhanHe"));
                 if (string.IsNullOrEmpty(maPH))
                     continue;
 
@@ -200,7 +200,7 @@ public sealed class RebuildService
             foreach (var doc in tChucNangND.Result)
             {
                 var maCN = doc.StringOr("MaChucNang");
-                var maPH = doc.StringOr("MaPhanHe");
+                var maPH = Global.NormalizeMaPhanHe(doc.StringOr("MaPhanHe"));
                 if (string.IsNullOrEmpty(maCN))
                     continue;
 
@@ -216,7 +216,7 @@ public sealed class RebuildService
             foreach (var doc in tChucNangNhom.Result)
             {
                 var maCN = doc.StringOr("MaChucNang");
-                var maPH = doc.StringOr("MaPhanHe");
+                var maPH = Global.NormalizeMaPhanHe(doc.StringOr("MaPhanHe"));
                 if (string.IsNullOrEmpty(maCN))
                     continue;
 

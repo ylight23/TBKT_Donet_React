@@ -11,6 +11,7 @@ import {
     ListAllAssignmentsRequestSchema,
     AssignUserRequestSchema,
     RemoveUserRequestSchema,
+    RebuildPermissionsStreamRequestSchema,
 } from '../grpc/generated/PhanQuyen_pb';
 import type { ChucNangPermission, PhanHePermission } from '../store/reducer/permissionReducer';
 import { phanQuyenClient } from '../grpc/grpcClient';
@@ -79,6 +80,19 @@ export interface AssignmentDetailInfo {
     idDanhMucChuyenNganh?: string;
 }
 
+export interface RebuildPermissionsProgress {
+    jobId: string;
+    stage: string;
+    message: string;
+    processed: number;
+    total: number;
+    currentUserId: string;
+    warnings: string[];
+    done: boolean;
+    success: boolean;
+    timestamp?: string;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function tsToIso(ts?: { seconds: bigint; nanos: number } | null): string | undefined {
@@ -97,6 +111,21 @@ function isoToTimestamp(value?: string): { seconds: bigint; nanos: number } | un
     return {
         seconds: BigInt(seconds),
         nanos,
+    };
+}
+
+function mapRebuildProgress(event: any): RebuildPermissionsProgress {
+    return {
+        jobId: event.jobId,
+        stage: event.stage,
+        message: event.message,
+        processed: event.processed ?? 0,
+        total: event.total ?? 0,
+        currentUserId: event.currentUserId ?? '',
+        warnings: [...(event.warnings ?? [])],
+        done: event.done ?? false,
+        success: event.success ?? false,
+        timestamp: tsToIso(event.timestamp),
     };
 }
 
@@ -410,6 +439,23 @@ export async function removeUserFromGroup(idAssignment: string): Promise<void> {
     await phanQuyenClient.removeUserFromGroup(req);
 }
 
+export async function streamRebuildPermissions(
+    params: { idNhom?: string; userIds?: string[] },
+    onEvent?: (event: RebuildPermissionsProgress) => void,
+): Promise<RebuildPermissionsProgress[]> {
+    const req = create(RebuildPermissionsStreamRequestSchema, {
+        idNhom: params.idNhom ?? '',
+        userIds: params.userIds ?? [],
+    });
+    const events: RebuildPermissionsProgress[] = [];
+    for await (const event of phanQuyenClient.rebuildPermissionsStream(req)) {
+        const mapped = mapRebuildProgress(event);
+        events.push(mapped);
+        onEvent?.(mapped);
+    }
+    return events;
+}
+
 export default {
     getMyPermissions,
     getPermissionCatalog,
@@ -422,4 +468,5 @@ export default {
     listAllAssignments,
     assignUserToGroup,
     removeUserFromGroup,
+    streamRebuildPermissions,
 };

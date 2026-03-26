@@ -17,6 +17,13 @@ namespace Backend.Services;
 public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnvironment environment) :
    EmployeeService.EmployeeServiceBase
 {
+    private static string NormalizeEmployeeName(string? value)
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+
+    private static Task WriteImportEventAsync(
+        IServerStreamWriter<ImportEmployeesStreamEvent> responseStream,
+        ImportEmployeesStreamEvent item)
+        => responseStream.WriteAsync(item);
 
 
      [Authorize]
@@ -336,6 +343,148 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
         }
 
         return response;
+    }
+
+
+     [Authorize]
+    public override async Task ImportEmployeesStream(
+        ImportEmployeesStreamRequest request,
+        IServerStreamWriter<ImportEmployeesStreamEvent> responseStream,
+        ServerCallContext context)
+    {
+        var jobId = Guid.NewGuid().ToString();
+        var total = request.Items.Count;
+        var succeeded = 0;
+        var failed = 0;
+        var warnings = new List<string>();
+
+        await WriteImportEventAsync(responseStream, new ImportEmployeesStreamEvent
+        {
+            JobId = jobId,
+            Stage = "STARTED",
+            Message = "Bat dau import danh sach can bo",
+            Total = total,
+            Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+        });
+
+        var existingEmployees = await Global.CollectionEmployee!
+            .Find(Builders<Employee>.Filter.Ne(x => x.Delete, true))
+            .ToListAsync(context.CancellationToken);
+
+        var existingByName = existingEmployees
+            .Where(item => !string.IsNullOrWhiteSpace(item.HoVaTen))
+            .GroupBy(item => NormalizeEmployeeName(item.HoVaTen))
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        await WriteImportEventAsync(responseStream, new ImportEmployeesStreamEvent
+        {
+            JobId = jobId,
+            Stage = "IMPORTING",
+            Message = $"Dang xu ly {total} ban ghi",
+            Total = total,
+            Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+        });
+
+        for (var i = 0; i < request.Items.Count; i++)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            var item = request.Items[i];
+            var normalizedName = NormalizeEmployeeName(item.HoVaTen);
+
+            if (string.IsNullOrWhiteSpace(normalizedName))
+            {
+                failed++;
+                var warning = $"Dong {i + 1}: thieu HoVaTen";
+                warnings.Add(warning);
+                await WriteImportEventAsync(responseStream, new ImportEmployeesStreamEvent
+                {
+                    JobId = jobId,
+                    Stage = "WARNING",
+                    Message = "Bo qua ban ghi thieu ho va ten",
+                    Processed = i + 1,
+                    Total = total,
+                    Succeeded = succeeded,
+                    Failed = failed,
+                    CurrentKey = $"row-{i + 1}",
+                    Warnings = { warning },
+                    Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+                });
+                continue;
+            }
+
+            try
+            {
+                if (existingByName.TryGetValue(normalizedName, out var existing))
+                {
+                    item.Id = existing.Id;
+                    item.CreateDate = existing.CreateDate;
+                    item.CreateBy = existing.CreateBy;
+                    item.Delete = false;
+                    item.ModifyDate = ProtobufTimestampConverter.GetNowTimestamp();
+
+                    var filter = Builders<Employee>.Filter.Eq(x => x.Id, existing.Id);
+                    await Global.CollectionEmployee.ReplaceOneAsync(filter, item, cancellationToken: context.CancellationToken);
+                }
+                else
+                {
+                    item.Id = Guid.NewGuid().ToString();
+                    item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
+                    item.Delete = false;
+                    await Global.CollectionEmployee.InsertOneAsync(item, cancellationToken: context.CancellationToken);
+                }
+
+                existingByName[normalizedName] = item;
+                succeeded++;
+                await WriteImportEventAsync(responseStream, new ImportEmployeesStreamEvent
+                {
+                    JobId = jobId,
+                    Stage = "PROGRESS",
+                    Message = $"Da xu ly {item.HoVaTen}",
+                    Processed = i + 1,
+                    Total = total,
+                    Succeeded = succeeded,
+                    Failed = failed,
+                    CurrentKey = item.HoVaTen ?? item.Id,
+                    Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+                });
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                var warning = $"{item.HoVaTen ?? $"row-{i + 1}"}: {ex.Message}";
+                warnings.Add(warning);
+                await WriteImportEventAsync(responseStream, new ImportEmployeesStreamEvent
+                {
+                    JobId = jobId,
+                    Stage = "WARNING",
+                    Message = $"Khong the luu {item.HoVaTen}",
+                    Processed = i + 1,
+                    Total = total,
+                    Succeeded = succeeded,
+                    Failed = failed,
+                    CurrentKey = item.HoVaTen ?? $"row-{i + 1}",
+                    Warnings = { warning },
+                    Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+                });
+            }
+        }
+
+        await WriteImportEventAsync(responseStream, new ImportEmployeesStreamEvent
+        {
+            JobId = jobId,
+            Stage = warnings.Count == 0 ? "COMPLETED" : "COMPLETED_WITH_WARNINGS",
+            Message = warnings.Count == 0
+                ? $"Import thanh cong {succeeded}/{total} ban ghi"
+                : $"Import xong {succeeded}/{total} ban ghi, co {failed} canh bao",
+            Processed = total,
+            Total = total,
+            Succeeded = succeeded,
+            Failed = failed,
+            Warnings = { warnings },
+            Done = true,
+            Success = failed == 0,
+            Timestamp = ProtobufTimestampConverter.GetNowTimestamp(),
+        });
     }
 
 

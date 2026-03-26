@@ -5,6 +5,7 @@ import type { RootState } from '../store';
 export const useMyPermissions = () => {
     const permissions = useSelector((s: RootState) => s.permissionReducer);
     const isAdmin = permissions.scopeType === 'admin';
+    const normalizeMaPhanHe = (maPhanHe: string) => maPhanHe?.trim() ? 'TBKT.ThongTin' : '';
 
     // Debug log khi state thay đổi
     useEffect(() => {
@@ -29,7 +30,8 @@ export const useMyPermissions = () => {
     const canPhanHe = useCallback(
         (maPhanHe: string) => {
             if (isAdmin) return true;
-            return permissions.phanHe.some(ph => ph.maPhanHe === maPhanHe && ph.duocTruyCap);
+            const normalized = normalizeMaPhanHe(maPhanHe);
+            return permissions.phanHe.some(ph => normalizeMaPhanHe(ph.maPhanHe) === normalized && ph.duocTruyCap);
         },
         [isAdmin, permissions.phanHe]
     );

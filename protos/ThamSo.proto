@@ -42,6 +42,7 @@ service ThamSoService {
   rpc DeleteDynamicMenuDataSource(DeleteDynamicMenuDataSourceRequest) returns (Base.DeleteBaseResponse);
   rpc RestoreDynamicMenuDataSource(RestoreDynamicMenuDataSourceRequest) returns (Base.StatusResponse);
   rpc SyncDynamicMenuDataSourcesFromProto(SyncDynamicMenuDataSourcesFromProtoRequest) returns (SyncDynamicMenuDataSourcesFromProtoResponse);
+  rpc SyncDynamicMenuDataSourcesFromProtoStream(SyncDynamicMenuDataSourcesFromProtoRequest) returns (stream JobProgressEvent);
   rpc DiscoverCollectionFields(DiscoverCollectionFieldsRequest) returns (DiscoverCollectionFieldsResponse);
   rpc GetDynamicMenuRows(GetDynamicMenuRowsRequest) returns (GetDynamicMenuRowsResponse);
 
@@ -50,6 +51,20 @@ service ThamSoService {
   rpc SaveTemplateLayout(SaveTemplateLayoutRequest) returns (SaveTemplateLayoutResponse);
   rpc DeleteTemplateLayout(DeleteTemplateLayoutRequest) returns (Base.DeleteBaseResponse);
   rpc RestoreTemplateLayout(RestoreTemplateLayoutRequest) returns (Base.StatusResponse);
+  rpc ExportTemplateLayoutsStream(ExportTemplateLayoutsRequest) returns (stream JobProgressEvent);
+}
+
+message JobProgressEvent {
+  string job_id = 1;
+  string stage = 2;
+  string message = 3;
+  int32 processed = 4;
+  int32 total = 5;
+  string current_key = 6;
+  repeated string warnings = 7;
+  bool done = 8;
+  bool success = 9;
+  google.protobuf.Timestamp timestamp = 10;
 }
 
 // ============================================================
@@ -371,4 +386,9 @@ message DeleteTemplateLayoutRequest {
 
 message RestoreTemplateLayoutRequest {
   repeated string ids = 1;
+}
+
+message ExportTemplateLayoutsRequest {
+  repeated string ids = 1;
+  bool only_published = 2;
 }

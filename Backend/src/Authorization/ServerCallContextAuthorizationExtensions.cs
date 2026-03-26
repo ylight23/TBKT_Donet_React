@@ -8,8 +8,7 @@ public static class ServerCallContextAuthorizationExtensions
     public static bool CanAccessModule(this ServerCallContext? context, string maPhanHe)
     {
         if (context == null) return false;
-        var userName = context.GetUserName();
-        if (userName == "superadmin" || userName == "admin")
+        if (context.IsAdminAccount())
             return true;
         var userId = context.GetUserID();
         if (string.IsNullOrEmpty(userId)) return false;
@@ -19,8 +18,7 @@ public static class ServerCallContextAuthorizationExtensions
     public static bool CanAccessModuleAction(this ServerCallContext? context, string maPhanHe, string funcName, params string[]? actions)
     {
         if (context == null) return false;
-        var userName = context.GetUserName();
-        if (userName == "superadmin" || userName == "admin")
+        if (context.IsAdminAccount())
             return true;
         var userId = context.GetUserID();
         if (string.IsNullOrEmpty(userId)) return false;
@@ -30,8 +28,7 @@ public static class ServerCallContextAuthorizationExtensions
     public static bool CanAccessModuleAction(this ServerCallContext? context, string funcName, params string[]? actions)
     {
         if (context == null) return false;
-        var userName = context.GetUserName();
-        if (userName == "superadmin" || userName == "admin")
+        if (context.IsAdminAccount())
             return true;
         var userId = context.GetUserID();
         if (string.IsNullOrEmpty(userId)) return false;
@@ -57,8 +54,7 @@ public static class ServerCallContextAuthorizationExtensions
     {
         if (context == null) return false;
 
-        var userName = context.GetUserName();
-        if (userName == "superadmin")
+        if (context.IsAdminAccount())
             return true;
 
         return context.CanAccessModuleAction(funcName: "thamso_restore", "view");
@@ -84,7 +80,7 @@ public static class ServerCallContextAuthorizationExtensions
         // Build from UserPermissionCache
         var userName = context.GetUserName();
         var userId = context.GetUserID();
-        gate = await AccessGateBuilder.BuildFromCacheAsync(userId ?? "", userName);
+        gate = await AccessGateBuilder.BuildFromCacheAsync(userId ?? "", userName, context.GetAccountRole());
 
         // Cache for the rest of this request
         httpContext.Items[AccessGateKey] = gate;
@@ -107,7 +103,7 @@ public static class ServerCallContextAuthorizationExtensions
         // Sync fallback — safe for migration, not ideal for perf
         var userName = context.GetUserName();
         var userId = context.GetUserID();
-        gate = AccessGateBuilder.BuildFromCacheAsync(userId ?? "", userName).GetAwaiter().GetResult();
+        gate = AccessGateBuilder.BuildFromCacheAsync(userId ?? "", userName, context.GetAccountRole()).GetAwaiter().GetResult();
 
         httpContext.Items[AccessGateKey] = gate;
         return gate;

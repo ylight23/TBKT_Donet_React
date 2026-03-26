@@ -9,6 +9,7 @@ import {
   CircularProgress,
   Divider,
   IconButton,
+  LinearProgress,
   Stack,
   Switch,
   TextField,
@@ -24,6 +25,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import thamSoApi, {
   type DataSourceConfig,
   type DataSourceField,
+  type StreamJobProgress,
 } from '../../apis/thamSoApi';
 import { notifyDynamicMenuConfigChanged } from '../../hooks/useDynamicMenuConfig';
 import LazyDataGrid from '../../components/LazyDataGrid';
@@ -72,6 +74,8 @@ const CauHinhDataSource: React.FC = () => {
   const [form, setForm] = useState<DataSourceFormState>(INITIAL_FORM);
   const [editingId, setEditingId] = useState<string>('');
   const [syncingFromProto, setSyncingFromProto] = useState<boolean>(false);
+  const [syncProgress, setSyncProgress] = useState<StreamJobProgress | null>(null);
+  const [syncLogs, setSyncLogs] = useState<string[]>([]);
   // discover states
   const [discovering, setDiscovering] = useState<boolean>(false);
   const [browseCollectionName, setBrowseCollectionName] = useState<string>('');
@@ -236,7 +240,16 @@ const CauHinhDataSource: React.FC = () => {
     try {
       setSyncingFromProto(true);
       setError('');
-      const synced = await thamSoApi.syncDynamicMenuDataSourcesFromProto(sourceKey);
+      setSyncLogs([]);
+      setSyncProgress(null);
+      const events = await thamSoApi.streamSyncDynamicMenuDataSourcesFromProto(sourceKey, (event) => {
+        setSyncProgress(event);
+        setSyncLogs((prev) => {
+          const line = `${event.stage}: ${event.message}${event.currentKey ? ` (${event.currentKey})` : ''}`;
+          return [line, ...prev].slice(0, 12);
+        });
+      });
+      const synced = events;
       await loadItems();
       setError('');
       console.log('[CauHinhDataSource] syncFromProto:', synced.length, 'đã đồng bộ');
@@ -332,6 +345,51 @@ const CauHinhDataSource: React.FC = () => {
         </Stack>
 
         {error && <Alert severity="warning">{error}</Alert>}
+        {(syncingFromProto || syncProgress) && (
+          <Card variant="outlined">
+            <CardContent>
+              <Stack spacing={1.5}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1}>
+                  <Typography variant="h6" fontWeight={700}>Streaming progress</Typography>
+                  {syncProgress && (
+                    <Chip
+                      size="small"
+                      color={syncProgress.done ? (syncProgress.success ? 'success' : 'warning') : 'primary'}
+                      label={syncProgress.stage || 'STARTED'}
+                    />
+                  )}
+                </Stack>
+                {syncProgress && (
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      {syncProgress.message}
+                    </Typography>
+                    <LinearProgress
+                      variant={syncProgress.total > 0 ? 'determinate' : 'indeterminate'}
+                      value={syncProgress.total > 0 ? (syncProgress.processed / syncProgress.total) * 100 : 0}
+                    />
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Chip size="small" label={`Tien trinh ${syncProgress.processed}/${syncProgress.total || '?'}`} />
+                      {syncProgress.currentKey && <Chip size="small" variant="outlined" label={syncProgress.currentKey} />}
+                    </Stack>
+                  </>
+                )}
+                {syncLogs.length > 0 && (
+                  <Box sx={{ bgcolor: 'background.default', borderRadius: 1, p: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary">Log gan nhat</Typography>
+                    <Stack spacing={0.5} sx={{ mt: 1 }}>
+                      {syncLogs.map((line, index) => (
+                        <Typography key={`${line}-${index}`} variant="caption" sx={{ fontFamily: 'monospace' }}>
+                          {line}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
         <Alert severity="info">
           `Sync từ Proto` là nguồn chuẩn cho datasource entity chính. `Khám phá` collection chỉ dùng cho fallback/manual datasource hoặc dữ liệu legacy.
         </Alert>
