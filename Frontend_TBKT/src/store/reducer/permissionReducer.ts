@@ -4,7 +4,6 @@ import type { ChuyenNganhAccessEntry } from '../../types/permission';
 export interface PhanHePermission {
     maPhanHe: string;
     duocTruyCap: boolean;
-    duocQuanTri: boolean;
 }
 
 export interface ChucNangPermission {

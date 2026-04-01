@@ -96,7 +96,7 @@ export const FALLBACK_ROLE_DEFAULTS: Record<string, string[]> = {
 // Chỉ 3 loại phổ biến hiển thị mặc định trên UI.
 
 export const SCOPE_TYPES: ScopeConfig[] = [
-    { value: 'SUBTREE',    label: 'Cây đơn vị',      desc: 'Toàn bộ nhánh từ đơn vị mình trở xuống — mặc định cho mọi user',   color: deepArmyGreen[400], risk: 'MEDIUM',   icon: '🌲', needsAnchor: true },
+    { value: 'SUBTREE',    label: 'Trực thuộc',      desc: 'Toàn bộ nhánh từ đơn vị mình trở xuống — mặc định cho mọi user',   color: deepArmyGreen[400], risk: 'MEDIUM',   icon: '🌲', needsAnchor: true },
     { value: 'DELEGATED',  label: 'Ủy quyền',         desc: 'Nhận ủy quyền từ chỉ huy cấp trên, có thời hạn',                  color: statusColors.maintenance.main, risk: 'HIGH', icon: '🤝', needsDelegated: true, needsAnchor: true },
     { value: 'ALL',        label: 'Toàn hệ thống',    desc: 'Không giới hạn phạm vi — chỉ dành cho admin/cấp tổng cục',         color: statusColors.critical.main,    risk: 'CRITICAL', icon: '🌐' },
 ];

@@ -5,33 +5,110 @@ namespace Backend.Authorization;
 
 public static class ServerCallContextAuthorizationExtensions
 {
+    public static bool CanAccessServiceScope(this ServerCallContext? context, string maPhanHe)
+    {
+        if (context == null) return false;
+        var gate = context.GetAccessGate();
+        if (gate.IsSuperAdmin)
+        {
+            AuditSuperAdminBypass(context, $"servicescope:{maPhanHe}");
+            return true;
+        }
+
+        var userId = context.GetUserID();
+        if (string.IsNullOrEmpty(userId)) return false;
+
+        var serviceScope = ServiceScopeResolver.ResolveServiceScope(maPhanHe);
+        if (string.IsNullOrWhiteSpace(serviceScope))
+            return false;
+
+        // Backward-compatible fallback for old cache docs not yet rebuilt with ServiceScopes.
+        if (gate.ServiceScopes.Count == 0)
+            return Global.CanAccessComponent(userId, maPhanHe);
+
+        return gate.CanAccessServiceScope(serviceScope);
+    }
+
+    public static void RequireServiceScope(this ServerCallContext? context, string maPhanHe)
+    {
+        if (context.CanAccessServiceScope(maPhanHe))
+            return;
+
+        var serviceScope = ServiceScopeResolver.ResolveServiceScope(maPhanHe);
+        throw new RpcException(new Status(
+            StatusCode.PermissionDenied,
+            $"Khong co quyen truy cap service scope '{serviceScope}'."));
+    }
+
     public static bool CanAccessModule(this ServerCallContext? context, string maPhanHe)
     {
         if (context == null) return false;
-        if (context.IsAdminAccount())
+        var gate = context.GetAccessGate();
+        if (gate.IsSuperAdmin)
+        {
+            AuditSuperAdminBypass(context, $"module:{maPhanHe}");
             return true;
+        }
         var userId = context.GetUserID();
         if (string.IsNullOrEmpty(userId)) return false;
+
+        if (gate.ServiceScopes.Count > 0)
+            return gate.CanAccessModule(maPhanHe);
+
+        // Backward-compatible fallback for old cache docs.
         return Global.CanAccessComponent(userId, maPhanHe);
     }
 
     public static bool CanAccessModuleAction(this ServerCallContext? context, string maPhanHe, string funcName, params string[]? actions)
     {
         if (context == null) return false;
-        if (context.IsAdminAccount())
+        var gate = context.GetAccessGate();
+        if (gate.IsSuperAdmin)
+        {
+            AuditSuperAdminBypass(context, $"action:{maPhanHe}:{funcName}:{string.Join(",", actions ?? [])}");
             return true;
+        }
         var userId = context.GetUserID();
         if (string.IsNullOrEmpty(userId)) return false;
+
+        // Prefer AccessGate strict-order policy:
+        // superadmin -> module gate -> action -> CN(scope)
+        if (gate.ServiceScopes.Count > 0 || gate.FuncActions.Count > 0)
+        {
+            if (!gate.CanAccessModule(maPhanHe))
+                return false;
+            if (actions == null || actions.Length == 0)
+                return gate.CanCallFunc(funcName);
+            return actions.Any(a => gate.CanPerformAction(maPhanHe, funcName, a, null));
+        }
+
+        // Backward-compatible fallback for old cache docs.
+        if (!context.CanAccessServiceScope(maPhanHe)) return false;
         return Global.CanAccessComponentAction(userId, maPhanHe, funcName, actions);
     }
 
     public static bool CanAccessModuleAction(this ServerCallContext? context, string funcName, params string[]? actions)
     {
         if (context == null) return false;
-        if (context.IsAdminAccount())
+        var gate = context.GetAccessGate();
+        if (gate.IsSuperAdmin)
+        {
+            AuditSuperAdminBypass(context, $"action:{Global.UnifiedMaPhanHe}:{funcName}:{string.Join(",", actions ?? [])}");
             return true;
+        }
         var userId = context.GetUserID();
         if (string.IsNullOrEmpty(userId)) return false;
+
+        if (gate.ServiceScopes.Count > 0 || gate.FuncActions.Count > 0)
+        {
+            if (!gate.CanAccessModule(Global.UnifiedMaPhanHe))
+                return false;
+            if (actions == null || actions.Length == 0)
+                return gate.CanCallFunc(funcName);
+            return actions.Any(a => gate.CanPerformAction(Global.UnifiedMaPhanHe, funcName, a, null));
+        }
+
+        if (!context.CanAccessServiceScope(Global.UnifiedMaPhanHe)) return false;
         return Global.CanAccessComponentAction(userId, funcName, actions);
     }
 
@@ -107,5 +184,21 @@ public static class ServerCallContextAuthorizationExtensions
 
         httpContext.Items[AccessGateKey] = gate;
         return gate;
+    }
+
+    private static void AuditSuperAdminBypass(ServerCallContext? context, string target)
+    {
+        var userId = context.GetUserID() ?? "(unknown)";
+        var userName = context.GetUserName() ?? "(unknown)";
+        var method = context?.Method ?? "(unknown)";
+
+        Global.Logger?.LogWarning(
+            "[AUTHZ_SUPERADMIN_BYPASS] UserId={UserId} UserName={UserName} Method={Method} Target={Target}",
+            userId,
+            userName,
+            method,
+            target);
+
+        AuthorizationAudit.WriteSuperAdminBypass(userId, userName, method, target);
     }
 }

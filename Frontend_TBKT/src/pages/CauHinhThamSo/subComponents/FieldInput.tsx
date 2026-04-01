@@ -441,6 +441,21 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, onChange }
         );
     }
 
+    if (field.type === 'text') {
+        return (
+            <TextField
+                fullWidth
+                size="small"
+                type="text"
+                value={currentValue}
+                onChange={(e) => onChange(field.key, e.target.value)}
+                error={Boolean(error)}
+                helperText={error || ' '}
+                inputProps={{ inputMode: 'text' }}
+            />
+        );
+    }
+
     return (
         <TextField
             fullWidth size="small"

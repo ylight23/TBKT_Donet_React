@@ -48,24 +48,6 @@ export function formatDate(
     return result;
 }
 
-
-// export interface EmployeeBody {
-//     id?: string;
-//     tenTaiKhoan?: string;
-//     matKhau?: string;
-//     hoVaTen?: string;
-//     idDonVi?: string;
-//     idQuanTriDonVi?: string;
-//     idCapBac?: string;
-//     chucVu?: string;
-//     dienThoai?: string;
-//     hinhAnh?: string;
-//     email?: string;
-//     delete?: boolean;
-//     ngaySinh?: Timestamp;
-//     kichHoat?: boolean;
-// }
-
 export interface SearchParams {
     employee?: EmployeeBody;
     searchText?: string;

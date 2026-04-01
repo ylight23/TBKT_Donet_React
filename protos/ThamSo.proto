@@ -44,9 +44,13 @@ service ThamSoService {
   rpc SyncDynamicMenuDataSourcesFromProto(SyncDynamicMenuDataSourcesFromProtoRequest) returns (SyncDynamicMenuDataSourcesFromProtoResponse);
   rpc SyncDynamicMenuDataSourcesFromProtoStream(SyncDynamicMenuDataSourcesFromProtoRequest) returns (stream JobProgressEvent);
   rpc DiscoverCollectionFields(DiscoverCollectionFieldsRequest) returns (DiscoverCollectionFieldsResponse);
+  rpc PreviewCollectionDocuments(PreviewCollectionDocumentsRequest) returns (PreviewCollectionDocumentsResponse);
   rpc GetDynamicMenuRows(GetDynamicMenuRowsRequest) returns (GetDynamicMenuRowsResponse);
+  rpc SaveDynamicMenuRow(SaveDynamicMenuRowRequest) returns (SaveDynamicMenuRowResponse);
 
   // Puck template layout
+  rpc GetListTemplateLayoutSummaries(GetListTemplateLayoutSummariesRequest) returns (GetListTemplateLayoutSummariesResponse);
+  rpc GetTemplateLayoutDetail(GetTemplateLayoutDetailRequest) returns (GetTemplateLayoutDetailResponse);
   rpc GetListTemplateLayouts(GetListTemplateLayoutsRequest) returns (GetListTemplateLayoutsResponse);
   rpc SaveTemplateLayout(SaveTemplateLayoutRequest) returns (SaveTemplateLayoutResponse);
   rpc DeleteTemplateLayout(DeleteTemplateLayoutRequest) returns (Base.DeleteBaseResponse);
@@ -272,6 +276,9 @@ message DynamicMenuDataSourceField {
   string key = 1;
   string label = 2;
   string data_type = 3;
+  bool required = 4;
+  string item_type = 5;
+  string item_schema_hint = 6;
 }
 
 message DynamicMenuDataSource {
@@ -283,6 +290,7 @@ message DynamicMenuDataSource {
   bool enabled = 6;
   reserved 7; // was: delete
   string management_mode = 8; // proto | manual
+  string template_key = 9;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
   string create_by = 12;
@@ -336,6 +344,18 @@ message DiscoverCollectionFieldsResponse {
   Base.ResponseMeta meta = 4;
 }
 
+message PreviewCollectionDocumentsRequest {
+  string collection_name = 1;
+  int32 limit = 2;
+}
+
+message PreviewCollectionDocumentsResponse {
+  string collection_name = 1;
+  repeated google.protobuf.Struct rows = 2;
+  int32 documents_scanned = 3;
+  Base.ResponseMeta meta = 4;
+}
+
 // Generic data rows for dynamic menu rendering.
 message GetDynamicMenuRowsRequest {
   string source_key = 1;
@@ -345,6 +365,18 @@ message GetDynamicMenuRowsRequest {
 message GetDynamicMenuRowsResponse {
   repeated google.protobuf.Struct rows = 1;
   Base.ResponseMeta meta = 2;
+}
+
+message SaveDynamicMenuRowRequest {
+  string source_key = 1;
+  google.protobuf.Struct row = 2;
+  bool upsert_by_id = 3;
+}
+
+message SaveDynamicMenuRowResponse {
+  string id = 1;
+  google.protobuf.Struct row = 2;
+  Base.ResponseMeta meta = 3;
 }
 
 // ============================================================
@@ -386,6 +418,35 @@ message DeleteTemplateLayoutRequest {
 
 message RestoreTemplateLayoutRequest {
   repeated string ids = 1;
+}
+
+message TemplateLayoutSummary {
+  string id = 1;
+  string key = 2;
+  string name = 3;
+  bool published = 4;
+  google.protobuf.Timestamp create_date = 10;
+  google.protobuf.Timestamp modify_date = 11;
+  string create_by = 12;
+  string modify_by = 13;
+  int32 version = 14;
+}
+
+message GetListTemplateLayoutSummariesRequest {}
+
+message GetListTemplateLayoutSummariesResponse {
+  repeated TemplateLayoutSummary items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+message GetTemplateLayoutDetailRequest {
+  string id = 1;
+  string key = 2;
+}
+
+message GetTemplateLayoutDetailResponse {
+  TemplateLayout item = 1;
+  Base.ResponseMeta meta = 2;
 }
 
 message ExportTemplateLayoutsRequest {

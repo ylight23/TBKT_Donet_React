@@ -1,35 +1,62 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Chip, Divider, Stack, Typography } from '@mui/material';
-import type { GridColDef } from '@mui/x-data-grid';
-import { useLocation, useParams } from 'react-router-dom';
-import { useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
-import { normalizeColumns, normalizeDataSource } from '../../configs/dynamicMenuConfig';
-import thamSoApi from '../../apis/thamSoApi';
-import TemplateRenderer from '../../components/TemplateRenderer';
-import LazyDataGrid from '../../components/LazyDataGrid';
+import React, { useMemo, useRef, useState } from "react";
+import { Alert, Box, Typography } from "@mui/material";
+import { useLocation, useParams } from "react-router-dom";
+import { useTheme, alpha } from "@mui/material/styles";
+import { useDynamicMenuConfig } from "../../hooks/useDynamicMenuConfig";
+import {
+  normalizeColumns,
+  normalizeDataSource,
+} from "../../configs/dynamicMenuConfig";
+import thamSoApi from "../../apis/thamSoApi";
+import TemplateRenderer from "../../components/TemplateRenderer";
+import { validateFieldValue } from "../CauHinhThamSo/utils";
+import { getRealSetIds } from "../CauHinhThamSo/subComponents/formTabMeta";
+import { getStableFormConfigKey } from "../../utils/formConfigKeys";
+import notify from "../../utils/notification";
+import type {
+  CreateDialogState,
+  RuntimeIntentEvent,
+} from "./types";
+import DynamicRowDialog from "./components/DynamicRowDialog";
+import RowViewDialog from "./components/RowViewDialog";
+import LegacyPipelineSection from "./components/LegacyPipelineSection";
+import { useLegacyMenuDongLogic } from "./hooks/useLegacyMenuDongLogic";
+import { useTemplateButtonIntentListener } from "./hooks/useTemplateButtonIntentListener";
+import { useDataTableRowActionListener } from "./hooks/useDataTableRowActionListener";
+import {
+  buildFallbackFields,
+  parsePayloadObject,
+  resolveFieldsFromForm,
+  resolveTabGroupsFromForm,
+} from "./helpers";
 
 const MAX_COLUMNS = 12;
 
-const getValueByKey = (source: Record<string, unknown>, key: string): string => {
-  const value = source[key];
-  if (value == null) return '';
-  if (typeof value === 'object') {
-    if ('value' in (value as Record<string, unknown>)) {
-      const nested = (value as Record<string, unknown>).value;
-      return nested == null ? '' : String(nested);
-    }
-    return '';
-  }
-  return String(value);
+const INITIAL_CREATE_STATE: CreateDialogState = {
+  open: false,
+  mode: "create",
+  loading: false,
+  submitLoading: false,
+  error: "",
+  formKey: "",
+  endpoint: "",
+  actionKey: "create_item",
+  fields: [],
+  tabGroups: [],
+  values: {},
+  errors: {},
+  info: "",
 };
 
 const MenuDong: React.FC = () => {
-  const { menuId = '' } = useParams();
+  const theme = useTheme();
+  const titleBg = `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)} 0%, ${alpha(theme.palette.primary.main, 0.06)} 100%)`;
+  const { menuId = "" } = useParams();
   const location = useLocation();
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const { items, dataSources } = useDynamicMenuConfig();
-  const [backendRows, setBackendRows] = useState<Record<string, unknown>[]>([]);
-  const [loadingRows, setLoadingRows] = useState<boolean>(false);
-  const [loadError, setLoadError] = useState<string>('');
+  const [createDialog, setCreateDialog] =
+    useState<CreateDialogState>(INITIAL_CREATE_STATE);
 
   const menuConfig =
     items.find((item) => item.path === location.pathname) ||
@@ -37,66 +64,292 @@ const MenuDong: React.FC = () => {
 
   const hasConfig = !!menuConfig;
 
-  // If the menu has a templateKey, render via TemplateRenderer (new pipeline)
-  const useTemplate = hasConfig && !!menuConfig!.templateKey;
-
   // Legacy DataGrid fields (backward compat)
   const gridCount = hasConfig ? Math.max(1, menuConfig!.gridCount) : 1;
-  const dataSource = hasConfig ? normalizeDataSource(menuConfig!.dataSource) : '';
-  const columnCount = hasConfig ? Math.min(MAX_COLUMNS, Math.max(1, menuConfig!.columnCount || 4)) : 4;
+  const dataSource = hasConfig
+    ? normalizeDataSource(menuConfig!.dataSource)
+    : "";
+  const columnCount = hasConfig
+    ? Math.min(MAX_COLUMNS, Math.max(1, menuConfig!.columnCount || 4))
+    : 4;
   const columns = hasConfig
-    ? normalizeColumns(dataSource, columnCount, menuConfig!.columns, dataSources)
+    ? normalizeColumns(
+        dataSource,
+        columnCount,
+        menuConfig!.columns,
+        dataSources,
+      )
     : [];
-
-  const gridColumns: GridColDef[] = columns.map((col, idx) => ({
-    field: `col${idx + 1}`,
-    headerName: col.name,
-    flex: 1,
-    minWidth: 140,
-  }));
-  const visibleColumnLabels = gridColumns.map((col) => col.headerName || col.field);
+  const defaultColumnLabels = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    columns.forEach((col) => {
+      const key = (col.key || "").trim();
+      const name = (col.name || "").trim();
+      if (!key || !name) return;
+      map[key] = name;
+      map[key.toLowerCase()] = name;
+    });
+    return map;
+  }, [columns]);
 
   const dsConfig = dataSources.find((ds) => ds.sourceKey === dataSource);
-  const dsDisplayName = dsConfig?.sourceName || dataSource;
+  // Runtime uses datasource.templateKey as primary source of truth.
+  const runtimeTemplateKey = (
+    dsConfig?.templateKey || menuConfig?.templateKey || ""
+  ).trim();
+  const useTemplate = hasConfig && !!runtimeTemplateKey;
 
-  useEffect(() => {
-    if (!hasConfig || !dataSource || useTemplate) return;
-
-    const loadRows = async (): Promise<void> => {
-      try {
-        setLoadingRows(true);
-        setLoadError('');
-        const rows = await thamSoApi.getDynamicMenuRows(dataSource);
-        setBackendRows(rows);
-      } catch (err) {
-        setLoadError((err as Error)?.message || 'Không thể tải dữ liệu từ backend');
-        setBackendRows([]);
-      } finally {
-        setLoadingRows(false);
+  const openCreateDialog = async (
+    detail: RuntimeIntentEvent,
+  ): Promise<void> => {
+    const payload = parsePayloadObject(detail.payloadJson);
+    const requestedActionKey = String(detail.actionKey || "").trim().toLowerCase();
+    const payloadFormKey = String(payload.formKey || "").trim();
+    const fallbackFormKey = requestedActionKey === "create_item"
+      ? ""
+      : String(runtimeTemplateKey || "").trim();
+    const formKey = payloadFormKey || fallbackFormKey;
+    if (!formKey) {
+      if (requestedActionKey === "create_item") {
+        notify.error(
+          "Thieu formKey cho create_item. Vui long cau hinh createFormKey tren button hoac payloadJson.formKey.",
+        );
+      } else {
+        notify.error("Khong xac dinh duoc formKey de mo popup Them");
       }
-    };
+      return;
+    }
+    setCreateDialog((prev) => ({
+      ...prev,
+      open: true,
+      mode: "create",
+      loading: true,
+      submitLoading: false,
+      error: "",
+      formKey,
+      endpoint: String(
+        detail.endpoint || payload.endpoint || menuConfig?.dataSource || "",
+      ).trim(),
+      actionKey:
+        String(detail.actionKey || "create_item").trim() || "create_item",
+      fields: [],
+      values: {},
+      errors: {},
+      info: "",
+      tabGroups: [],
+    }));
 
-    void loadRows();
-  }, [dataSource, hasConfig, useTemplate, dsDisplayName]);
+    try {
+      const [allFields, allFieldSets, allForms] = await Promise.all([
+        thamSoApi.getListDynamicFields(),
+        thamSoApi.getListFieldSets(),
+        thamSoApi.getListFormConfigs(),
+      ]);
 
-  const mappedRows = useMemo(() => {
-    if (!backendRows.length) return [];
-    return backendRows.map((source, rowIndex) => {
-      const row: Record<string, string> = {
-        id: String(source.id ?? `row-${rowIndex + 1}`),
-      };
-      columns.forEach((col, colIdx) => {
-        row[`col${colIdx + 1}`] = getValueByKey(source, col.key);
+      const formConfig = allForms.find(
+        (f) => getStableFormConfigKey(f) === formKey,
+      );
+      if (!formConfig) {
+        setCreateDialog((prev) => ({
+          ...prev,
+          loading: false,
+          error: `Khong tim thay FormConfig key: ${formKey}`,
+        }));
+        return;
+      }
+
+      const fields = resolveFieldsFromForm(formConfig, allFieldSets, allFields);
+      const tabGroups = resolveTabGroupsFromForm(
+        formConfig,
+        allFieldSets,
+        allFields,
+      );
+      const finalFields =
+        fields.length > 0
+          ? fields
+          : buildFallbackFields(columns, dsConfig?.fields ?? []);
+      const fallbackTabGroups =
+        tabGroups.length > 0
+          ? tabGroups
+          : [{ id: "__fallback__", label: "Thong tin", fields: finalFields }];
+      const normalizedTabGroups = fallbackTabGroups.map((group, index) => ({
+        id: group.id || `tab_${index + 1}`,
+        label: group.label || `Tab ${index + 1}`,
+        fields: Array.isArray(group.fields) ? group.fields : [],
+      }));
+      const requestedSetIds = Array.from(
+        new Set(
+          formConfig.tabs
+            .flatMap((tab) =>
+              getRealSetIds(tab).map((id) => String(id || "").trim()),
+            )
+            .filter(Boolean),
+        ),
+      );
+      const globalSetIdSet = new Set(allFieldSets.map((set) => set.id));
+      const missingSetIds = requestedSetIds.filter(
+        (id) => !globalSetIdSet.has(id),
+      );
+      console.log("[MenuDong] create-dialog resolve", {
+        formKey,
+        fromFormFields: fields.length,
+        tabs: formConfig.tabs.length,
+        resolvedTabs: normalizedTabGroups.length,
+        fallbackColumns: columns.length,
+        fallbackDsFields: dsConfig?.fields?.length ?? 0,
+        finalFields: finalFields.length,
+        missingSetIds,
       });
-      return row;
+
+      if (finalFields.length === 0) {
+        const debugInfo = `v2: tabs=${formConfig.tabs.length}, cols=${columns.length}, dsFields=${dsConfig?.fields?.length ?? 0}`;
+        setCreateDialog((prev) => ({
+          ...prev,
+          loading: false,
+          error: `FormConfig "${formKey}" khong co field active (${debugInfo})`,
+        }));
+        return;
+      }
+
+      const info =
+        fields.length === 0 && finalFields.length > 0
+          ? "Dang dung fallback field tu DataSource/columns vi FormConfig chua map duoc DynamicField."
+          : "";
+      setCreateDialog((prev) => ({
+        ...prev,
+        loading: false,
+        fields: finalFields,
+        tabGroups: normalizedTabGroups,
+        info,
+      }));
+    } catch (err) {
+      setCreateDialog((prev) => ({
+        ...prev,
+        loading: false,
+        error: (err as Error)?.message || "Khong the tai cau hinh form dong",
+      }));
+    }
+  };
+
+  const {
+    loadError,
+    loadingRows,
+    mappedRows,
+    gridColumns,
+    visibleColumnLabels,
+    dsDisplayName,
+    viewDialog,
+    closeViewDialog,
+    handleViewRow,
+    handleEditRow,
+    handleDeleteRow,
+    handleExportRow,
+    handlePrintRow,
+    refreshRows,
+  } = useLegacyMenuDongLogic({
+    hasConfig,
+    useTemplate,
+    dataSource,
+    columns,
+    dataSources,
+    menuConfig,
+    runtimeTemplateKey,
+    openCreateDialog,
+    setCreateDialog,
+  });
+
+  const closeCreateDialog = (): void => setCreateDialog(INITIAL_CREATE_STATE);
+
+  const handleCreateFieldChange = (key: string, value: string): void => {
+    setCreateDialog((prev) => ({
+      ...prev,
+      values: { ...prev.values, [key]: value },
+      errors: { ...prev.errors, [key]: null },
+    }));
+  };
+
+  const submitCreateDialog = async (): Promise<void> => {
+    const nextErrors: Record<string, string | null> = {};
+    createDialog.fields.forEach((field) => {
+      nextErrors[field.key] = validateFieldValue(
+        createDialog.values[field.key],
+        field,
+      );
     });
-  }, [backendRows, columns]);
+    const firstError = Object.values(nextErrors).find((msg) => Boolean(msg));
+    if (firstError) {
+      setCreateDialog((prev) => ({ ...prev, errors: nextErrors }));
+      return;
+    }
+
+    try {
+      setCreateDialog((prev) => ({ ...prev, submitLoading: true }));
+      const targetSourceKey = (
+        createDialog.endpoint ||
+        dataSource ||
+        ""
+      ).trim();
+      if (!targetSourceKey)
+        throw new Error("Khong xac dinh duoc sourceKey de luu du lieu");
+      await thamSoApi.saveDynamicMenuRow(
+        targetSourceKey,
+        createDialog.values,
+        true,
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("template:datasource:refresh", {
+          detail: {
+            sourceKey: dataSource || null,
+            menuId: menuConfig?.id || null,
+            formKey: createDialog.formKey || null,
+          },
+        }),
+      );
+      if (!useTemplate && targetSourceKey) {
+        try {
+          await refreshRows(targetSourceKey);
+        } catch (reloadErr) {
+          notify.error(
+            (reloadErr as Error)?.message || "Khong the tai du lieu sau khi luu",
+          );
+        }
+      }
+      notify.success(
+        createDialog.mode === "edit"
+          ? "Da cap nhat du lieu"
+          : "Da luu du lieu tao moi",
+      );
+      closeCreateDialog();
+    } catch (err) {
+      setCreateDialog((prev) => ({
+        ...prev,
+        submitLoading: false,
+        error: (err as Error)?.message || "Khong the submit du lieu",
+      }));
+    }
+  };
+
+  useTemplateButtonIntentListener({
+    importInputRef,
+    openCreateDialog,
+  });
+
+  useDataTableRowActionListener({
+    onView: handleViewRow,
+    onEdit: handleEditRow,
+    onDelete: handleDeleteRow,
+    onPrint: handlePrintRow,
+    onExport: handleExportRow,
+  });
 
   if (!hasConfig) {
     return (
       <Box sx={{ p: 2 }}>
+        <input ref={importInputRef} type="file" style={{ display: "none" }} />
         <Alert severity="warning">
-          Không tìm thấy cấu hình menu động. Vui lòng kiểm tra lại trong trang cấu hình menu động.
+          Không tìm thấy cấu hình menu động. Vui lòng kiểm tra lại trong trang
+          cấu hình menu động.
         </Alert>
       </Box>
     );
@@ -105,72 +358,88 @@ const MenuDong: React.FC = () => {
   // ── New pipeline: render via Puck template ──
   if (useTemplate) {
     return (
-      <Box sx={{ p: 2 }}>
+      <Box
+        sx={{
+          p: 2,
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <input ref={importInputRef} type="file" style={{ display: "none" }} />
         <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5 }}>
           {menuConfig!.title}
         </Typography>
-        <TemplateRenderer templateKey={menuConfig!.templateKey} />
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <TemplateRenderer
+            templateKey={runtimeTemplateKey}
+            defaultSourceKey={dataSource}
+            defaultColumnLabels={defaultColumnLabels}
+            defaultColumns={columns}
+            fillParent
+          />
+        </Box>
+        <DynamicRowDialog
+          state={createDialog}
+          titleBg={titleBg}
+          onClose={closeCreateDialog}
+          onSubmit={() => {
+            void submitCreateDialog();
+          }}
+          onChange={handleCreateFieldChange}
+        />
+        <RowViewDialog
+          state={viewDialog}
+          titleBg={titleBg}
+          onClose={closeViewDialog}
+        />
       </Box>
     );
   }
 
   // ── Legacy pipeline: DataGrid ──
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5 }}>
-        {menuConfig!.title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Menu này đang cấu hình {gridCount} DataGrid, mỗi grid hiển thị {columnCount} cột, source:{' '}
-        <strong>{dsDisplayName}</strong>.
-      </Typography>
-
-      {loadError && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          {loadError}
-        </Alert>
-      )}
-
-      <Box
-        sx={{
-          display: 'grid',
-          gap: 2,
-          gridTemplateColumns: { xs: '1fr', xl: gridCount > 1 ? '1fr 1fr' : '1fr' },
+    <>
+      <input ref={importInputRef} type="file" style={{ display: "none" }} />
+      <LegacyPipelineSection
+        title={menuConfig!.title}
+        gridCount={gridCount}
+        columnCount={columnCount}
+        dsDisplayName={dsDisplayName}
+        loadError={loadError}
+        visibleColumnLabels={visibleColumnLabels}
+        mappedRows={mappedRows}
+        gridColumns={gridColumns}
+        loadingRows={loadingRows}
+        onView={handleViewRow}
+        onEdit={handleEditRow}
+        onDelete={handleDeleteRow}
+        onPrint={handlePrintRow}
+        onExport={handleExportRow}
+      />
+      <DynamicRowDialog
+        state={createDialog}
+        titleBg={titleBg}
+        onClose={closeCreateDialog}
+        onSubmit={() => {
+          void submitCreateDialog();
         }}
-      >
-        {Array.from({ length: gridCount }).map((_, index) => (
-          <Box
-            key={`grid-${index + 1}`}
-            sx={{ px: 0.5, py: 1, borderTop: '1px solid', borderColor: 'divider' }}
-          >
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-              DataGrid #{index + 1}
-            </Typography>
-
-            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
-              {visibleColumnLabels.map((label) => (
-                <Chip key={`${index + 1}-${label}`} size="small" label={label} variant="outlined" />
-              ))}
-            </Stack>
-
-            <Box sx={{ height: 320 }}>
-              <LazyDataGrid
-                rows={mappedRows}
-                columns={gridColumns}
-                loading={loadingRows}
-                disableRowSelectionOnClick
-                pageSizeOptions={[5, 10, 20]}
-                initialState={{ pagination: { paginationModel: { pageSize: 5, page: 0 } } }}
-                fallbackRows={5}
-                fallbackCols={Math.max(visibleColumnLabels.length, 4)}
-              />
-            </Box>
-
-            {index < gridCount - 1 && <Divider sx={{ mt: 2 }} />}
-          </Box>
-        ))}
-      </Box>
-    </Box>
+        onChange={handleCreateFieldChange}
+      />
+      <RowViewDialog
+        state={viewDialog}
+        titleBg={titleBg}
+        onClose={closeViewDialog}
+      />
+    </>
   );
 };
 

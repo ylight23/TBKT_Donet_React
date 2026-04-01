@@ -52,6 +52,7 @@ public static class AccessGateBuilder
     {
         var funcActions = ParseFuncActions(doc);
         var (visibleCNs, actionsPerCN) = ParseChuyenNganhScope(doc);
+        var serviceScopes = ParseServiceScopes(doc);
 
         return new AccessGate
         {
@@ -62,6 +63,7 @@ public static class AccessGateBuilder
             FuncActions = funcActions,
             VisibleCNs = visibleCNs,
             ActionsPerCN = actionsPerCN,
+            ServiceScopes = serviceScopes,
         };
     }
 
@@ -178,4 +180,24 @@ public static class AccessGateBuilder
     [
         "view", "add", "edit", "delete", "approve", "unapprove", "download", "print"
     ];
+
+    private static List<string> ParseServiceScopes(BsonDocument doc)
+    {
+        // Prefer explicit cached field from RebuildService (new format).
+        var explicitScopes = doc.ArrayOr("ServiceScopes");
+        if (explicitScopes != null)
+        {
+            var normalized = explicitScopes.Strings()
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (normalized.Count > 0)
+                return normalized;
+        }
+
+        // Backward-compatible fallback: derive from PhanHe.MaPhanHe (old cache docs).
+        var phanHeArr = doc.ArrayOr("PhanHe");
+        return ServiceScopeResolver.ExtractFromPhanHeDocs(phanHeArr);
+    }
 }

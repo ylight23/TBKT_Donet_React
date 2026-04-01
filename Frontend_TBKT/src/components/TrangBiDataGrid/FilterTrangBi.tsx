@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useContext } from 'react';
+import React, { useState, useCallback, useMemo, useContext, useEffect } from 'react';
 import {
     Box,
     TextField,
@@ -37,6 +37,7 @@ import { ChatLuong, TrangThaiTrangBi } from '../../data/mockTBData';
 import OfficeDictionaryDialog from '../../pages/Employee/subComponent/OfficeDictionaryDialog';
 import { OfficeNode } from '../../pages/Office/subComponent/OfficeDictionary';
 import OfficeContext from '../../context/OfficeContext';
+import { listDanhMucChuyenNganh } from '../../apis/danhmucChuyenNganhApi';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -66,15 +67,6 @@ interface FilterTrangBiProps {
 
 const CAP_CHAT_LUONG_OPTIONS = Object.values(ChatLuong);
 const TINH_TRANG_SU_DUNG_OPTIONS = Object.values(TrangThaiTrangBi);
-
-const PHAN_NGANH_OPTIONS = [
-    'Vô tuyến điện',
-    'Radar',
-    'Xe máy',
-    'Hàng không',
-    'Vệ tinh',
-    'Cơ điện',
-];
 
 const NHOM_OPTIONS = [
     'Nhóm 1',
@@ -123,6 +115,28 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
 
     const [openOfficeDialog, setOpenOfficeDialog] = useState(false);
     const [currentOfficeField, setCurrentOfficeField] = useState<'donVi' | 'donViQuanLy' | null>(null);
+    const [phanNganhOptions, setPhanNganhOptions] = useState<string[]>([]);
+
+    useEffect(() => {
+        let isMounted = true;
+        listDanhMucChuyenNganh()
+            .then((items) => {
+                if (!isMounted) return;
+                const options = items
+                    .map((item) => (item.vietTat?.trim() || item.ten?.trim() || item.id?.trim()))
+                    .filter((value): value is string => Boolean(value));
+                setPhanNganhOptions(options);
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setPhanNganhOptions([]);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -324,7 +338,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
                             InputProps={{ sx: { borderRadius: 2.5} }}
                         >
                             <MenuItem value=""><em>Tất cả</em></MenuItem>
-                            {PHAN_NGANH_OPTIONS.map(opt => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                            {phanNganhOptions.map(opt => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
                         </TextField>
                     </Grid>
 

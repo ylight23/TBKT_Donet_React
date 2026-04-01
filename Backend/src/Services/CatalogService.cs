@@ -11,6 +11,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using System.Text.RegularExpressions;
 using protos;
 using Status = Grpc.Core.Status;
 
@@ -19,6 +20,43 @@ namespace Backend.Services;
  [Authorize]  // Use default Bearer authentication
 public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnvironment environment) : CatalogService.CatalogServiceBase
 {
+    private const string DanhMucTrangBiCatalogName = "DanhMucTrangBi";
+
+    private static readonly Dictionary<string, string> TrangBiLegacyIdFields = new(StringComparer.Ordinal)
+    {
+        ["IDCapTren"] = "IdCapTren",
+        ["IDChuyenNganhKT"] = "IdChuyenNganhKT",
+        ["IDNganh"] = "IdNganh",
+        ["IDDonViTinh"] = "IdDonViTinh",
+        ["IDTBKTNhom1"] = "IdTBKTNhom1",
+        ["IDQuocGiaSanXuat"] = "IdQuocGiaSanXuat",
+        ["IDMaKiemKe"] = "IdMaKiemKe",
+    };
+
+    private static string EscapeRegex(string input) => Regex.Escape(input);
+
+    private static void NormalizeTrangBiFieldNames(BsonDocument bson)
+    {
+        foreach (var (legacyName, normalizedName) in TrangBiLegacyIdFields)
+        {
+            if (bson.Contains(legacyName) && !bson.Contains(normalizedName))
+            {
+                bson[normalizedName] = bson[legacyName];
+            }
+        }
+    }
+
+    private static CatalogTree DeserializeCatalogTree(BsonDocument bson)
+    {
+        var item = BsonSerializer.Deserialize<CatalogTree>(bson);
+        if (string.IsNullOrWhiteSpace(item.Id))
+        {
+            item.Id = bson.IdString();
+        }
+
+        return item;
+    }
+
     // private readonly ILogger<CatalogService> _logger;
     // private const string funcNameCatalog = "catalog";
     // public CatalogService(ILogger<CatalogService> logger)
@@ -483,12 +521,18 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             if (!string.IsNullOrEmpty(request.ParentId))
             {
                 if (!request.LoadAll)
-                    filter &= builder.Eq("IDCapTren", request.ParentId);
+                    filter &= builder.Or(
+                        builder.Eq("IdCapTren", request.ParentId),
+                        builder.Eq("IDCapTren", request.ParentId));
                 else
-                    filter &= builder.Regex("_id", "/^" + request.ParentId + ".*/i");
+                    filter &= builder.Regex("_id", "/^" + EscapeRegex(request.ParentId) + ".*/i");
             }
             else if (!request.LoadAll)
-                filter &= builder.Or(builder.Eq("IDCapTren", request.ParentId), builder.Eq("IDCapTren", BsonNull.Value));
+                filter &= builder.Or(
+                    builder.Eq("IdCapTren", request.ParentId),
+                    builder.Eq("IdCapTren", BsonNull.Value),
+                    builder.Eq("IDCapTren", request.ParentId),
+                    builder.Eq("IDCapTren", BsonNull.Value));
             if (request.InIds.Count > 0)
                 filter &= builder.In("_id", request.InIds);
             if (request.ExcludeLeaf)
@@ -496,54 +540,80 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             if (request.OnlyLeaf)
                 filter &= builder.Eq("CoCapDuoi", false);
             if (!string.IsNullOrWhiteSpace(request.SearchText))
-                filter &= builder.Regex("Ten", "/.*" + request.SearchText + ".*/i");
+                filter &= builder.Or(
+                    builder.Regex("Ten", "/.*" + EscapeRegex(request.SearchText) + ".*/i"),
+                    builder.Regex("TenDayDu", "/.*" + EscapeRegex(request.SearchText) + ".*/i"));
             //var listIDs = !request.LoadAll ? collection.Find<CatalogTree>(Builders<CatalogTree>.Filter.Regex(x => x.Id, "/^" + request.IDCapTren + ".*/i")).ToEnumerable().Select(c => c.Id) : null;
             if (request.ExtendedFields != null && request.ExtendedFields.Count > 0)
             {
-                //filter &= builder.ElemMatch(x => x.Parameters, x=>x.OwnerName == "DonVi");
                 foreach (var item in request.ExtendedFields)
                 {
-                    if (!string.IsNullOrEmpty(item.Name))
+                    if (string.IsNullOrEmpty(item.Name))
                     {
-                        filter &= builder.ElemMatch("Parameters", builder.Eq("Name", item.Name));
+                        continue;
+                    }
+
+                    // DanhMucTrangBi luu tru metadata o root fields (IDChuyenNganhKT, IDNganh, Nhom, ...),
+                    // khong luu trong Parameters nhu mot so catalog khac.
+                    if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var candidateFieldNames = new List<string> { item.Name };
+                        if (item.Name.StartsWith("ID", StringComparison.Ordinal))
+                        {
+                            candidateFieldNames.Add("Id" + item.Name.Substring(2));
+                        }
+                        else if (item.Name.StartsWith("Id", StringComparison.Ordinal))
+                        {
+                            candidateFieldNames.Add("ID" + item.Name.Substring(2));
+                        }
+
                         if (item.IntValue != null)
                         {
-                            filter &= builder.ElemMatch("Parameters", builder.Eq("IntValue", item.IntValue));
+                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.IntValue)));
                         }
                         else if (item.BoolValue != null)
                         {
-                            filter &= builder.ElemMatch("Parameters", builder.Eq("BoolValue", item.BoolValue));
+                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.BoolValue)));
                         }
                         else if (item.StringValue != null)
                         {
-                            filter &= builder.ElemMatch("Parameters", builder.Eq("StringValue", item.StringValue));
+                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.StringValue)));
                         }
                         else if (item.DoubleValue != null)
                         {
-                            filter &= builder.ElemMatch("Parameters", builder.Eq("DoubleValue", item.DoubleValue));
+                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.DoubleValue)));
                         }
+                        continue;
+                    }
+
+                    filter &= builder.ElemMatch("Parameters", builder.Eq("Name", item.Name));
+                    if (item.IntValue != null)
+                    {
+                        filter &= builder.ElemMatch("Parameters", builder.Eq("IntValue", item.IntValue));
+                    }
+                    else if (item.BoolValue != null)
+                    {
+                        filter &= builder.ElemMatch("Parameters", builder.Eq("BoolValue", item.BoolValue));
+                    }
+                    else if (item.StringValue != null)
+                    {
+                        filter &= builder.ElemMatch("Parameters", builder.Eq("StringValue", item.StringValue));
+                    }
+                    else if (item.DoubleValue != null)
+                    {
+                        filter &= builder.ElemMatch("Parameters", builder.Eq("DoubleValue", item.DoubleValue));
                     }
                 }
             }
             var set = collection.Find<BsonDocument>(filter).SortBy(bson => bson["ThuTuSapXep"]).ToList();
             foreach (var bson in set)
             {
-                var catalogTree = BsonSerializer.Deserialize<CatalogTree>(bson);
-                response.Items.Add(catalogTree);
-                var parametersBson = bson.ArrayOr("Parameters");
-                if (parametersBson != null)
+                if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
                 {
-                    var parameters = parametersBson.Documents()
-                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
-                        .ToArray();
-                    catalogTree.Parameters.AddRange(parameters);
+                    NormalizeTrangBiFieldNames(bson);
                 }
-                var tagsBson = bson.ArrayOr("Tags");
-                if (tagsBson != null)
-                {
-                    var tags = tagsBson.Strings().ToArray();
-                    catalogTree.Tags.AddRange(tags);
-                }
+
+                response.Items.Add(DeserializeCatalogTree(bson));
             }
 
             // if (request.CatalogName == "HanhChinh")
@@ -662,21 +732,12 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             var catalog = collection.Find<BsonDocument>(filter).FirstOrDefault();
             if (catalog != null)
             {
-                response.Item = BsonSerializer.Deserialize<CatalogTree>(catalog);
-                var parametersBson = catalog.ArrayOr("Parameters");
-                if (parametersBson != null)
+                if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
                 {
-                    var parameters = parametersBson.Documents()
-                        .Select(doc => BsonSerializer.Deserialize<ExtendedField>(doc))
-                        .ToArray();
-                    response.Item.Parameters.AddRange(parameters);
+                    NormalizeTrangBiFieldNames(catalog);
                 }
-                var tagsBson = catalog.ArrayOr("Tags");
-                if (tagsBson != null)
-                {
-                    var tags = tagsBson.Strings().ToArray();
-                    response.Item.Tags.AddRange(tags);
-                }
+
+                response.Item = DeserializeCatalogTree(catalog);
             }
             response.Success = true;
         }

@@ -74,17 +74,40 @@ export const useFormConfigManager = () => {
 
   const saveForm = useCallback(async (form: LocalFormConfig, isNew: boolean) => {
     const id = form.id;
+    if (isNew && pendingCreatesRef.current.has(id)) {
+      return;
+    }
     if (isNew) pendingCreatesRef.current.add(id);
     try {
       const response = await dispatch(saveFormConfig({ formConfig: form, isNew })).unwrap();
       if (response && isNew && response.formConfig.id !== form.id) {
-        setForms((prev) => prev.map((f) => (f.id === form.id ? response.formConfig : f)));
+        setForms((prev) =>
+          prev.map((f) =>
+            f.id === form.id
+              ? {
+                  ...response.formConfig,
+                  ...f,
+                  id: response.formConfig.id,
+                }
+              : f,
+          ),
+        );
         setActiveFormId(response.formConfig.id);
       }
     } finally {
       pendingCreatesRef.current.delete(id);
     }
   }, [dispatch]);
+
+  const persistFormNow = useCallback(async (form: LocalFormConfig) => {
+    const old = saveTimersRef.current.get(form.id);
+    if (old !== undefined) {
+      window.clearTimeout(old);
+      saveTimersRef.current.delete(form.id);
+    }
+    const isNew = isTempFormId(form.id) && !storeForms.some((sf) => sf.id === form.id);
+    await saveForm(form, isNew);
+  }, [saveForm, storeForms]);
 
   const removeForm = useCallback(async (id: string) => {
     const old = saveTimersRef.current.get(id);
@@ -145,6 +168,7 @@ export const useFormConfigManager = () => {
     activeFormId,
     setActiveFormId,
     setForms: setFormsAndPersist,
+    persistFormNow,
     loading,
     loaded,
   };

@@ -69,6 +69,12 @@ public sealed class AccessGate
     public IReadOnlyDictionary<string, HashSet<string>> ActionsPerCN { get; init; }
         = new Dictionary<string, HashSet<string>>();
 
+    /// <summary>
+    /// Internal service scopes resolved from MaPhanHe, used for microservice-ready enforcement.
+    /// Example: "tbkt-thongtin", "tbkt-kythuat".
+    /// </summary>
+    public IReadOnlyList<string> ServiceScopes { get; init; } = Array.Empty<string>();
+
     // ── Guard methods ───────────────────────────────────────────────
 
     /// <summary>
@@ -123,6 +129,27 @@ public sealed class AccessGate
     }
 
     /// <summary>
+    /// Check whether the current user policy contains the given internal service scope.
+    /// </summary>
+    public bool CanAccessServiceScope(string serviceScope)
+    {
+        if (IsSuperAdmin) return true;
+        if (string.IsNullOrWhiteSpace(serviceScope)) return false;
+        if (ServiceScopes.Count == 0) return false;
+        return ServiceScopes.Contains(serviceScope, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Module-level gate (DuocTruyCap) check by MaPhanHe.
+    /// </summary>
+    public bool CanAccessModule(string maPhanHe)
+    {
+        if (IsSuperAdmin) return true;
+        var serviceScope = ServiceScopeResolver.ResolveServiceScope(maPhanHe);
+        return CanAccessServiceScope(serviceScope);
+    }
+
+    /// <summary>
     /// Lấy danh sách actions cho phép trên 1 CN cụ thể (chỉ chiều CN).
     /// Dùng cho response API — client biết được "CN này được làm gì".
     /// </summary>
@@ -160,6 +187,22 @@ public sealed class AccessGate
         // Chiều 2: quyền trên CN cụ thể
         if (!CanActOnCN(action, idChuyenNganh)) return false;
 
+        return true;
+    }
+
+    /// <summary>
+    /// Full policy check in strict order:
+    /// 1) SuperAdmin -> allow
+    /// 2) DuocTruyCap (module gate) -> deny if closed
+    /// 3) Action on function -> deny if missing
+    /// 4) Scope on CN -> deny if out of scope
+    /// </summary>
+    public bool CanPerformAction(string maPhanHe, string maChucNang, string action, string? idChuyenNganh)
+    {
+        if (IsSuperAdmin) return true;
+        if (!CanAccessModule(maPhanHe)) return false;
+        if (!CanCallFunc(maChucNang, action)) return false;
+        if (!CanActOnCN(action, idChuyenNganh)) return false;
         return true;
     }
 

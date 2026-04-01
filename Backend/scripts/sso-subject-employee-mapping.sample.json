@@ -1,0 +1,21 @@
+[
+  {
+    "provider": "wso2",
+    "issuer": "https://localhost:9443/oauth2/token",
+    "subject": "replace-with-sso-subject-1",
+    "employeeId": "replace-with-employee-id-1",
+    "userName": "optional-login-hint",
+    "role": "user",
+    "active": true,
+    "lastLoginAt": "2026-03-27T01:07:08.333Z",
+    "lastAccessAt": "2026-03-27T02:30:00.000Z"
+  },
+  {
+    "provider": "wso2",
+    "issuer": "https://localhost:9443/oauth2/token",
+    "subject": "replace-with-sso-subject-2",
+    "employeeId": "replace-with-employee-id-2",
+    "role": "admin",
+    "active": true
+  }
+]

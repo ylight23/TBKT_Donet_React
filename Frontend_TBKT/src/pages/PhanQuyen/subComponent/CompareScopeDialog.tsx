@@ -37,15 +37,13 @@ function isExpired(d?: string) {
     return !!d && new Date(d) < new Date();
 }
 
-// ── User picker ────────────────────────────────────────────────────────────────
-
 interface PickerProps {
     label: string;
     accentColor: string;
     options: PermissionAssignmentRow[];
     value: PermissionAssignmentRow | null;
     onChange: (a: PermissionAssignmentRow | null) => void;
-    exclude?: string;   // id to hide from options
+    exclude?: string;
 }
 
 const UserPicker: React.FC<PickerProps> = ({ label, accentColor, options, value, onChange, exclude }) => {
@@ -126,8 +124,6 @@ const UserPicker: React.FC<PickerProps> = ({ label, accentColor, options, value,
     );
 };
 
-// ── Comparison row ─────────────────────────────────────────────────────────────
-
 interface CompareRowProps {
     label: string;
     valA: React.ReactNode;
@@ -155,7 +151,6 @@ const CompareRow: React.FC<CompareRowProps> = ({ label, valA, valB, same }) => {
                     : alpha(theme.palette.warning.main, 0.2)}`,
             }}
         >
-            {/* Value A */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                     <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600, fontSize: 10 }}>
@@ -165,7 +160,6 @@ const CompareRow: React.FC<CompareRowProps> = ({ label, valA, valB, same }) => {
                 <Box>{valA}</Box>
             </Box>
 
-            {/* Center icon */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {same ? (
                     <Tooltip title="Giống nhau" arrow>
@@ -178,7 +172,6 @@ const CompareRow: React.FC<CompareRowProps> = ({ label, valA, valB, same }) => {
                 )}
             </Box>
 
-            {/* Value B */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                     <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600, fontSize: 10 }}>
@@ -190,8 +183,6 @@ const CompareRow: React.FC<CompareRowProps> = ({ label, valA, valB, same }) => {
         </Box>
     );
 };
-
-// ── Helpers for rendered values ────────────────────────────────────────────────
 
 function RoleChip({ a }: { a: PermissionAssignmentRow }) {
     return (
@@ -260,8 +251,6 @@ function PathText({ path }: { path: string }) {
     );
 }
 
-// ── Main dialog ────────────────────────────────────────────────────────────────
-
 export interface CompareScopeDialogProps {
     open: boolean;
     onClose: () => void;
@@ -278,7 +267,6 @@ const CompareScopeDialog: React.FC<CompareScopeDialogProps> = ({ open, onClose, 
 
     const canCompare = selA !== null && selB !== null;
 
-    // ── Comparison rows (only rendered when both selected) ──────────────────
     const rows = useMemo(() => {
         if (!selA || !selB) return [];
         return [
@@ -355,7 +343,17 @@ const CompareScopeDialog: React.FC<CompareScopeDialogProps> = ({ open, onClose, 
             fullWidth
             PaperProps={{ sx: { borderRadius: 3 } }}
         >
-            <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <DialogTitle
+                sx={{
+                    pb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)} 0%, ${alpha(theme.palette.primary.main, 0.06)} 100%)`,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                }}
+            >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CompareIcon sx={{ fontSize: 20, color: 'primary.main' }} />
                     <Typography fontWeight={700} fontSize={15}>So sánh phạm vi phân quyền</Typography>
@@ -380,7 +378,6 @@ const CompareScopeDialog: React.FC<CompareScopeDialogProps> = ({ open, onClose, 
             <Divider />
 
             <DialogContent sx={{ pt: 2 }}>
-                {/* ── Picker row ── */}
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'stretch', mb: 2 }}>
                     <UserPicker
                         label="Người dùng A"
@@ -391,7 +388,6 @@ const CompareScopeDialog: React.FC<CompareScopeDialogProps> = ({ open, onClose, 
                         exclude={selB?.id}
                     />
 
-                    {/* vs divider */}
                     <Box sx={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         flexShrink: 0, width: 28,
@@ -409,7 +405,6 @@ const CompareScopeDialog: React.FC<CompareScopeDialogProps> = ({ open, onClose, 
                     />
                 </Box>
 
-                {/* ── Comparison table ── */}
                 {canCompare ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                         {rows.map((row, i) => (

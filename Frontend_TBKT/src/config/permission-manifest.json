@@ -116,9 +116,9 @@
     { "title": "Chuyen cap chat luong", "path": "/chuyen-cap-chat-luong", "icon": "StarRate", "active": "chuyenCap", "permissionCodes": ["chuyencap.view"] },
     { "title": "Thong ke bao cao", "path": "/thong-ke-bao-cao", "icon": "BarChart", "active": "thongKe", "permissionCodes": ["thongke.view"] },
     { "title": "Cau hinh tham so", "path": "/cau-hinh-tham-so", "icon": "Settings", "active": "cauHinhThamSo", "permissionCodes": ["thamso_dynamicfield", "thamso_fieldset", "thamso_formconfig"] },
-    { "title": "Cau hinh menu", "path": "/cau-hinh-menu", "icon": "Settings", "active": "cauHinhMenu", "permissionCodes": ["thamso_dynamicmenu"] },
-    { "title": "Cau hinh datasource", "path": "/cau-hinh-data-source", "icon": "Storage", "active": "cauHinhDataSource", "permissionCodes": ["thamso_dynamicmenu_datasource"] },
     { "title": "Cau hinh template", "path": "/cau-hinh-template", "icon": "LibraryBooks", "active": "cauHinhTemplate", "permissionCodes": ["thamso_templatelayout", "thamso_formconfig"] },
+    { "title": "Cau hinh datasource", "path": "/cau-hinh-data-source", "icon": "Storage", "active": "cauHinhDataSource", "permissionCodes": ["thamso_dynamicmenu_datasource"] },
+    { "title": "Cau hinh menu", "path": "/cau-hinh-menu", "icon": "Settings", "active": "cauHinhMenu", "permissionCodes": ["thamso_dynamicmenu"] },
     { "title": "Phan quyen", "path": "/phan-quyen", "icon": "AdminPanelSettings", "active": "phanQuyen", "permissionCodes": ["config.role"] }
   ]
 }

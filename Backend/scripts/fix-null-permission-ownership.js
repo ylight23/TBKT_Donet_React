@@ -24,12 +24,12 @@ const summary = {
 // 1) Backfill group scope from existing group data instead of legacy null-user assignments.
 const scopeBackfillFilter = {
   ScopeType: { $nin: [null, "", "ALL", "SELF", "MULTI_NODE", "MULTINODE"] },
-  $or: [{ IdDonViScope: null }, { IdDonViScope: "" }],
+  $or: [{ IdDonViUyQuyenQT: null }, { IdDonViUyQuyenQT: "" }, { IdDonViUyQuyenQT: { $exists: false } }],
   IdDonVi: { $nin: [null, ""] },
 };
 const scopeBackfillResult = db.NhomNguoiDung.updateMany(
   scopeBackfillFilter,
-  [{ $set: { IdDonViScope: "$IdDonVi" } }],
+  [{ $set: { IdDonViUyQuyenQT: "$IdDonVi" } }],
 );
 summary.groupScopeBackfilled = scopeBackfillResult.modifiedCount;
 
@@ -55,7 +55,6 @@ if (systemGroup) {
       MaPhanHe: doc.MaPhanHe ?? "core",
       TieuDeNhomQuyen: doc.TieuDeNhom ?? "Hệ thống",
       Actions: doc.Actions ?? { view: true },
-      IdCapTren: doc.IdCapTren ?? "",
       NguoiTao: doc.NguoiTao ?? "migration",
       NguoiSua: doc.NguoiSua ?? null,
       NgayTao: doc.NgayTao ?? new Date(),

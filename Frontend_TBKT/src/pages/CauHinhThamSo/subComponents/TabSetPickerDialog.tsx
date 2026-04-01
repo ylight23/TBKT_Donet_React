@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -22,6 +23,7 @@ import {
 import CommonDialog from '../../../components/Dialog/CommonDialog';
 import ViewQuiltIcon from '@mui/icons-material/ViewQuilt';
 import DynamicFormIcon from '@mui/icons-material/DynamicForm';
+import catalogApi, { type TrangBiSpecializationOption } from '../../../apis/catalogApi';
 
 import {
     LocalDynamicField as DynamicField,
@@ -43,11 +45,40 @@ interface TabSetPickerDialogProps {
 const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, allTabs, fieldSets, fields, onSave, onClose }) => {
     const [draft, setDraft] = useState<FormTabConfig>(tab);
     const [meta, setMeta] = useState<TabMeta>(parseTabMeta(tab));
+    const [specializationOptions, setSpecializationOptions] = useState<TrangBiSpecializationOption[]>([]);
+    const [specializationLoading, setSpecializationLoading] = useState(false);
+    const [specializationError, setSpecializationError] = useState('');
 
     useEffect(() => {
         setDraft(tab);
         setMeta(parseTabMeta(tab));
     }, [tab]);
+
+    useEffect(() => {
+        if (!open || meta.tabType !== 'sync-leaf') return;
+        let cancelled = false;
+
+        const loadSpecializations = async () => {
+            try {
+                setSpecializationLoading(true);
+                setSpecializationError('');
+                const options = await catalogApi.getTrangBiSpecializationOptions();
+                if (!cancelled) setSpecializationOptions(options);
+            } catch (error) {
+                if (!cancelled) {
+                    setSpecializationOptions([]);
+                    setSpecializationError((error as Error)?.message || 'Khong the tai danh sach chuyen nganh tu DanhMucTrangBi');
+                }
+            } finally {
+                if (!cancelled) setSpecializationLoading(false);
+            }
+        };
+
+        void loadSpecializations();
+        return () => {
+            cancelled = true;
+        };
+    }, [open, meta.tabType]);
 
     const isSyncGroup = meta.tabType === 'sync-group';
     const isSyncLeaf = meta.tabType === 'sync-leaf';
@@ -71,6 +102,8 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, allT
     const selectedSets = getRealSetIds(draft)
         .map((id) => fieldSets.find((s) => s.id === id))
         .filter(Boolean) as FieldSet[];
+    const validFieldSetIds = new Set(fieldSets.map((set) => set.id));
+    const orphanSetIds = getRealSetIds(draft).filter((id) => !validFieldSetIds.has(id));
 
     const selectedRealSetCount = selectedSets.length;
 
@@ -86,10 +119,20 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, allT
             icon={<ViewQuiltIcon />}
             color="#ec4899"
             maxWidth="md"
-            onConfirm={() => onSave(withTabMeta(draft, meta, getRealSetIds(draft)))}
+            onConfirm={() => {
+                const sanitizedSetIds = getRealSetIds(draft).filter((id) => validFieldSetIds.has(id));
+                onSave(withTabMeta(draft, meta, sanitizedSetIds));
+            }}
             confirmText="Cập nhật cấu hình"
             disabled={(!isSyncGroup && selectedRealSetCount === 0) || !draft.label || (isSyncLeaf && !meta.parentTabId)}
         >
+            {orphanSetIds.length > 0 && (
+                <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" color="warning.main">
+                        Phat hien {orphanSetIds.length} field set cu khong con ton tai, he thong se tu loai khi luu.
+                    </Typography>
+                </Box>
+            )}
             <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1, color: 'text.secondary' }}>TÊN HIỂN THỊ CỦA TAB</Typography>
                 <TextField
@@ -167,14 +210,37 @@ const TabSetPickerDialog: React.FC<TabSetPickerDialogProps> = ({ open, tab, allT
 
                         {isSyncLeaf && (
                             <Grid size={{ xs: 12, md: 4 }}>
-                                <TextField
-                                    fullWidth
-                                    size="small"
-                                    label="Mã chuyên ngành (category)"
-                                    value={meta.syncCategory ?? ''}
-                                    onChange={(e) => setMeta((prev) => ({ ...prev, syncCategory: e.target.value }))}
-                                    placeholder="Ví dụ: RADAR, TAU_THUYEN"
-                                />
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Chuyen nganh dong bo</InputLabel>
+                                    <Select
+                                        label="Chuyen nganh dong bo"
+                                        value={meta.syncCategory ?? ''}
+                                        onChange={(e) => setMeta((prev) => ({ ...prev, syncCategory: e.target.value }))}
+                                        disabled={specializationLoading}
+                                    >
+                                        <MenuItem value="">Chon chuyen nganh...</MenuItem>
+                                        {specializationOptions.map((option) => (
+                                            <MenuItem key={option.id} value={option.id}>
+                                                {option.label} ({option.count})
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}
+
+                        {isSyncLeaf && (
+                            <Grid size={{ xs: 12 }}>
+                                {specializationError && (
+                                    <Alert severity="warning" sx={{ py: 0.25 }}>
+                                        {specializationError}
+                                    </Alert>
+                                )}
+                                {!specializationError && (
+                                    <Typography variant="caption" color="text.secondary">
+                                        Sync category dang duoc map truc tiep tu API DanhMucTrangBi de giu cau hinh tham so va du lieu runtime dong nhat.
+                                    </Typography>
+                                )}
                             </Grid>
                         )}
 

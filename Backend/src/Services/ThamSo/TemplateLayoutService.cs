@@ -4,15 +4,49 @@ using Backend.Common.Mongo;
 using Backend.Common.Protobuf;
 using Grpc.Core;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using protos;
+using System.Diagnostics;
 
 namespace Backend.Services;
 
 public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
 {
     private const string PermissionCode = "thamso_templatelayout";
+
+    private static TemplateLayout ToTemplateLayout(BsonDocument itemBson)
+    {
+        var item = new TemplateLayout
+        {
+            Id = itemBson.IdString(),
+            Key = itemBson.StringOr("Key"),
+            Name = itemBson.StringOr("Name"),
+            SchemaJson = itemBson.StringOr("SchemaJson", "{}"),
+            Published = itemBson.BoolOr("Published"),
+            CreateDate = itemBson.TimestampOr("CreateDate"),
+            ModifyDate = itemBson.TimestampOr("ModifyDate"),
+        };
+
+        ApplyAuditMetadata(item, itemBson);
+        return item;
+    }
+
+    private static TemplateLayoutSummary ToTemplateLayoutSummary(BsonDocument itemBson)
+    {
+        var item = new TemplateLayoutSummary
+        {
+            Id = itemBson.IdString(),
+            Key = itemBson.StringOr("Key"),
+            Name = itemBson.StringOr("Name"),
+            Published = itemBson.BoolOr("Published"),
+            CreateDate = itemBson.TimestampOr("CreateDate"),
+            ModifyDate = itemBson.TimestampOr("ModifyDate"),
+            CreateBy = itemBson.StringOr("NguoiTao"),
+            ModifyBy = itemBson.StringOr("NguoiSua"),
+            Version = itemBson.IntOr("Version", 1),
+        };
+        return item;
+    }
 
     private static void ApplyAuditMetadata(TemplateLayout item, BsonDocument itemBson)
     {
@@ -32,12 +66,7 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
                 .Find(MongoDocumentHelpers.NotDeleted)
                 .ToListAsync();
 
-            response.Items.AddRange(items.Select(itemBson =>
-            {
-                var layout = BsonSerializer.Deserialize<TemplateLayout>(itemBson);
-                ApplyAuditMetadata(layout, itemBson);
-                return layout;
-            }));
+            response.Items.AddRange(items.Select(ToTemplateLayout));
 
             response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} items");
             logger.LogInformation("GetListTemplateLayouts: {Count} items", response.Items.Count);
@@ -46,6 +75,96 @@ public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
         {
             logger.LogError(ex, "GetListTemplateLayouts error");
             response.Meta = ThamSoResponseFactory.Fail("Loi khi tai danh sach template", ex.Message);
+        }
+
+        return response;
+    }
+
+    public async Task<GetListTemplateLayoutSummariesResponse> GetListTemplateLayoutSummariesAsync(GetListTemplateLayoutSummariesRequest request)
+    {
+        var response = new GetListTemplateLayoutSummariesResponse();
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var items = await Global.CollectionBsonTemplateLayout!
+                .Find(MongoDocumentHelpers.NotDeleted)
+                .Project(Builders<BsonDocument>.Projection
+                    .Include("_id")
+                    .Include("Key")
+                    .Include("Name")
+                    .Include("Published")
+                    .Include("CreateDate")
+                    .Include("ModifyDate")
+                    .Include("NguoiTao")
+                    .Include("NguoiSua")
+                    .Include("Version"))
+                .ToListAsync();
+
+            response.Items.AddRange(items.Select(ToTemplateLayoutSummary));
+            response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} items");
+            logger.LogInformation(
+                "[PERF][TemplateLayout][summary] Count={Count}, ElapsedMs={ElapsedMs}",
+                response.Items.Count,
+                sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GetListTemplateLayoutSummaries error");
+            response.Meta = ThamSoResponseFactory.Fail("Loi khi tai danh sach template summary", ex.Message);
+        }
+
+        return response;
+    }
+
+    public async Task<GetTemplateLayoutDetailResponse> GetTemplateLayoutDetailAsync(GetTemplateLayoutDetailRequest request)
+    {
+        var response = new GetTemplateLayoutDetailResponse();
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var filter = MongoDocumentHelpers.NotDeleted;
+            var lookupValue = string.Empty;
+            var lookupBy = string.Empty;
+            if (!string.IsNullOrWhiteSpace(request.Id))
+            {
+                lookupValue = request.Id.Trim();
+                lookupBy = "id";
+                filter &= Builders<BsonDocument>.Filter.Eq("_id", lookupValue);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Key))
+            {
+                lookupValue = request.Key.Trim();
+                lookupBy = "key";
+                filter &= Builders<BsonDocument>.Filter.Eq("Key", lookupValue);
+            }
+            else
+            {
+                response.Meta = ThamSoResponseFactory.Fail("Can truyen id hoac key");
+                return response;
+            }
+
+            var item = await Global.CollectionBsonTemplateLayout!
+                .Find(filter)
+                .FirstOrDefaultAsync();
+
+            if (item == null)
+            {
+                response.Meta = ThamSoResponseFactory.Fail("Khong tim thay template");
+                return response;
+            }
+
+            response.Item = ToTemplateLayout(item);
+            response.Meta = ThamSoResponseFactory.Ok("OK");
+            logger.LogInformation(
+                "[PERF][TemplateLayout][detail] LookupBy={LookupBy}, LookupValue={LookupValue}, ElapsedMs={ElapsedMs}",
+                lookupBy,
+                lookupValue,
+                sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GetTemplateLayoutDetail error");
+            response.Meta = ThamSoResponseFactory.Fail("Loi khi tai detail template", ex.Message);
         }
 
         return response;

@@ -1,6 +1,8 @@
 using Backend.Services;
 using Backend.Security;
+using Backend.Authorization;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Driver;
 using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,10 +36,12 @@ builder.Services.AddScoped<DynamicMenuDataSourceService>();
 builder.Services.AddScoped<TemplateLayoutService>();
 builder.Services.AddScoped<TemplateExportService>();
 builder.Services.AddScoped<ProtoSchemaDiscoveryService>();
+builder.Services.AddScoped<TrangBiCatalogService>();
 
 builder.Services.AddGrpc(options => 
 {
     options.EnableDetailedErrors = true;
+    options.Interceptors.Add<ServiceScopeGrpcInterceptor>();
 });
 builder.Services.AddControllers();
 
@@ -187,6 +191,39 @@ app.UseGrpcWeb();
 app.MapGet("/", () => "gRPC Server is running");
 
 app.UseTBKTServices(builder.Configuration, "v1");
+
+if (args.Any(a => string.Equals(a, "--rebuild-permissions-all", StringComparison.OrdinalIgnoreCase)))
+{
+    using var scope = app.Services.CreateScope();
+    var rebuildService = scope.ServiceProvider.GetRequiredService<Backend.Services.RebuildService>();
+    var db = Backend.Services.Global.MongoDB;
+    if (db == null)
+        throw new InvalidOperationException("MongoDB is not initialized.");
+
+    var userIds = await db.GetCollection<MongoDB.Bson.BsonDocument>(PermissionCollectionNames.Employees)
+        .Find(MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter.Empty)
+        .Project(MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Projection.Include("_id"))
+        .ToListAsync();
+
+    logger.LogInformation("[RebuildPermissionsAll] Started for {Count} users", userIds.Count);
+
+    var processed = 0;
+    foreach (var doc in userIds)
+    {
+        var uid = doc.GetValue("_id", MongoDB.Bson.BsonNull.Value).ToString();
+        if (string.IsNullOrWhiteSpace(uid))
+            continue;
+
+        await rebuildService.RebuildForUser(uid);
+        processed++;
+
+        if (processed % 100 == 0 || processed == userIds.Count)
+            logger.LogInformation("[RebuildPermissionsAll] Progress {Processed}/{Total}", processed, userIds.Count);
+    }
+
+    logger.LogInformation("[RebuildPermissionsAll] Completed {Processed}/{Total}", processed, userIds.Count);
+    return;
+}
 
 // Front-Channel Logout is handled by FrontChannelLogoutController
 

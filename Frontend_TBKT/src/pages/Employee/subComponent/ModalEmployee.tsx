@@ -35,8 +35,6 @@ import { useEmployee, EmployeeItem } from '../../../context/EmployeeContext';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface EmployeeFormData {
-    tenTaiKhoan: string;
-    matKhau: string;
     hoVaTen: string;
     idDonVi: string;
     idQuanTriDonVi: string;
@@ -56,8 +54,6 @@ interface ModalEmployeeProps {
 // ── Validation ─────────────────────────────────────────────────────────────────
 
 const createValidationSchema = Yup.object().shape({
-    tenTaiKhoan: Yup.string().required("Tên tài khoản là bắt buộc").min(3).max(255),
-    matKhau: Yup.string().required("Mật khẩu là bắt buộc").min(6).max(255),
     hoVaTen: Yup.string().required("Họ và tên là bắt buộc").max(255),
     email: Yup.string().required("Email là bắt buộc").email().max(255),
     dienThoai: Yup.string().required("Điện thoại là bắt buộc").matches(/^[0-9+\-() ]+$/).min(10).max(20),
@@ -71,8 +67,6 @@ const createValidationSchema = Yup.object().shape({
 });
 
 const updateValidationSchema = Yup.object().shape({
-    tenTaiKhoan: Yup.string().required("Tên tài khoản là bắt buộc").min(3).max(255),
-    matKhau: Yup.string().max(255),
     hoVaTen: Yup.string().required("Họ và tên là bắt buộc").max(255),
     email: Yup.string().required("Email là bắt buộc").email().max(255),
     dienThoai: Yup.string().required("Điện thoại là bắt buộc").matches(/^[0-9+\-() ]+$/).min(10).max(20),
@@ -108,7 +102,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
     const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmployeeFormData>({
         resolver: yupResolver(isUpdate ? updateValidationSchema : createValidationSchema) as any,
         mode: 'onBlur',
-        defaultValues: { tenTaiKhoan: '', matKhau: '', hoVaTen: '', idDonVi: '', idQuanTriDonVi: '', idCapBac: '', chucVu: '', dienThoai: '', hinhAnh: '', email: '', kichHoat: true },
+        defaultValues: { hoVaTen: '', idDonVi: '', idQuanTriDonVi: '', idCapBac: '', chucVu: '', dienThoai: '', hinhAnh: '', email: '', kichHoat: true },
     });
 
     const idDonViValue = watch('idDonVi');
@@ -120,7 +114,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
         const loadData = async () => {
             if (!isOpen) return;
             if (!data) {
-                reset({ tenTaiKhoan: '', matKhau: '', hoVaTen: '', idDonVi: '', idQuanTriDonVi: '', idCapBac: '', chucVu: '', dienThoai: '', hinhAnh: '', email: '', kichHoat: true });
+                reset({ hoVaTen: '', idDonVi: '', idQuanTriDonVi: '', idCapBac: '', chucVu: '', dienThoai: '', hinhAnh: '', email: '', kichHoat: true });
                 setImagePreview(null);
                 setOfficeNames({ idDonVi: '', idQuanTriDonVi: '' });
                 return;
@@ -141,8 +135,6 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                 }
 
                 const formData: EmployeeFormData = {
-                    tenTaiKhoan: freshData.tenTaiKhoan || '',
-                    matKhau: '',
                     hoVaTen: freshData.hoVaTen || '',
                     idDonVi: freshData.idDonVi || '',
                     idQuanTriDonVi: freshData.idQuanTriDonVi || '',
@@ -260,7 +252,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                 onConfirm={handleDelete}
                 mode="delete"
                 title="Xác nhận xóa cán bộ"
-                subtitle="Dữ liệu tài khoản và các thông tin liên quan sẽ bị gỡ bỏ."
+                subtitle="Dữ liệu hồ sơ nhân sự và các thông tin liên quan sẽ bị gỡ bỏ."
                 confirmText="Xóa cán bộ"
                 loading={isLoading}
             >
@@ -275,7 +267,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                 maxWidth="md"
                 mode={isUpdate ? 'edit' : 'add'}
                 title={isUpdate ? 'Cập nhật thông tin cán bộ' : 'Tạo mới cán bộ'}
-                subtitle="Quản lý thông cụ thể về hồ sơ cán bộ và tài khoản hệ thống"
+                subtitle="Quản lý hồ sơ nhân sự. Thông tin đăng nhập do SSO quản lý tập trung."
                 onConfirm={handleSubmit(handleSubmitForm)}
                 loading={isLoading}
                 confirmText={isUpdate ? 'Lưu cán bộ' : 'Tạo cán bộ'}
@@ -347,30 +339,12 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                                     <Box>
                                         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <Box sx={{ width: 4, height: 16, bgcolor: 'primary.main', borderRadius: 2.5}} />
-                                            Thông tin tài khoản & Liên hệ
+                                            Thông tin liên hệ
                                         </Typography>
                                         <Grid container spacing={2}>
-                                            <Grid size={6}>
-                                                <Controller name="tenTaiKhoan" control={control} render={({ field }) => (
-                                                    <TextField {...field} label="Tên tài khoản *" fullWidth size="small" error={!!errors.tenTaiKhoan} helperText={errors.tenTaiKhoan?.message} />
-                                                )} />
-                                            </Grid>
-                                            <Grid size={6}>
+                                            <Grid size={12}>
                                                 <Controller name="email" control={control} render={({ field }) => (
-                                                    <TextField {...field} label="Địa chỉ Email *" type="email" fullWidth size="small" error={!!errors.email} helperText={errors.email?.message} />
-                                                )} />
-                                            </Grid>
-                                            <Grid size={6}>
-                                                <Controller name="matKhau" control={control} render={({ field }) => (
-                                                    <TextField
-                                                        {...field}
-                                                        label={isUpdate ? 'Mật khẩu mới (để trống nếu không đổi)' : 'Mật khẩu đăng nhập *'}
-                                                        type="password"
-                                                        fullWidth
-                                                        size="small"
-                                                        error={!!errors.matKhau}
-                                                        helperText={errors.matKhau?.message}
-                                                    />
+                                                    <TextField {...field} label="Địa chỉ email *" type="email" fullWidth size="small" error={!!errors.email} helperText={errors.email?.message} />
                                                 )} />
                                             </Grid>
                                             <Grid size={6}>

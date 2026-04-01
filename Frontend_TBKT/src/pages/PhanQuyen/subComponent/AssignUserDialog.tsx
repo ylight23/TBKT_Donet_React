@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -13,14 +14,25 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EditIcon from '@mui/icons-material/Edit';
 
 import CommonDialog from '../../../components/Dialog/CommonDialog';
-import type { ScopeType } from '../../../types/permission';
+import type { ScopeType, PhamViChuyenNganhConfig } from '../../../types/permission';
 import { SCOPE_TYPES, ALL_SCOPE_TYPES, scopeLookup } from '../data/permissionData';
 import employeeApi from '../../../apis/employeeApi';
+import type { RootState } from '../../../store';
 
 interface EmployeeOption {
     id: string;
     name: string;
     donVi: string;
+    idQuanTriDonVi?: string;
+}
+
+function isInManagedUnitScope(employeeDonVi: string, managedDonVi: string): boolean {
+    const target = (employeeDonVi || '').trim();
+    const managed = (managedDonVi || '').trim();
+    if (!managed) return true;
+    if (!target) return false;
+    if (target === managed) return true;
+    return target.startsWith(`${managed}.`);
 }
 
 const toDateInputValue = (value?: string): string => {
@@ -37,7 +49,7 @@ export interface AssignUserDialogValue {
     anchorNodeId?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idDanhMucChuyenNganh?: string;
+    phamViChuyenNganh?: PhamViChuyenNganhConfig;
 }
 
 export interface AssignUserDialogProps {
@@ -52,7 +64,7 @@ export interface AssignUserDialogProps {
     initialAnchorNodeId?: string;
     initialNgayHetHan?: string;
     initialIdNguoiUyQuyen?: string;
-    initialIdDanhMucChuyenNganh?: string;
+    initialPhamViChuyenNganh?: PhamViChuyenNganhConfig;
     onConfirm: (payload: AssignUserDialogValue) => Promise<void>;
 }
 
@@ -68,7 +80,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
     initialAnchorNodeId = '',
     initialNgayHetHan = '',
     initialIdNguoiUyQuyen = '',
-    initialIdDanhMucChuyenNganh = '',
+    initialPhamViChuyenNganh,
     onConfirm,
 }) => {
     const theme = useTheme();
@@ -81,9 +93,13 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
     const [anchorNodeId, setAnchorNodeId] = useState(initialAnchorNodeId);
     const [ngayHetHan, setNgayHetHan] = useState(toDateInputValue(initialNgayHetHan));
     const [idNguoiUyQuyen, setIdNguoiUyQuyen] = useState(initialIdNguoiUyQuyen);
-    const [idDanhMucChuyenNganh, setIdDanhmucChuyenNganh] = useState(initialIdDanhMucChuyenNganh);
+    const [phamViChuyenNganh, setPhamViChuyenNganh] = useState<PhamViChuyenNganhConfig | undefined>(initialPhamViChuyenNganh);
+    const [managedOfficeId, setManagedOfficeId] = useState('');
+    const [workingOfficeId, setWorkingOfficeId] = useState('');
     const [saving, setSaving] = useState(false);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const currentUserId = useSelector((s: RootState) => s.authReducer.currentUser?.id || '');
+    const [currentAdminManagedOfficeId, setCurrentAdminManagedOfficeId] = useState('');
 
     useEffect(() => {
         if (!open) return;
@@ -94,7 +110,10 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         setAnchorNodeId(initialAnchorNodeId);
         setNgayHetHan(toDateInputValue(initialNgayHetHan));
         setIdNguoiUyQuyen(initialIdNguoiUyQuyen);
-        setIdDanhmucChuyenNganh(initialIdDanhMucChuyenNganh);
+        setPhamViChuyenNganh(initialPhamViChuyenNganh);
+        setManagedOfficeId('');
+        setWorkingOfficeId('');
+        setCurrentAdminManagedOfficeId('');
         setEmployees([]);
         setSaving(false);
     }, [
@@ -105,26 +124,54 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         initialAnchorNodeId,
         initialNgayHetHan,
         initialIdNguoiUyQuyen,
-        initialIdDanhMucChuyenNganh,
+        initialPhamViChuyenNganh,
     ]);
+
+    useEffect(() => {
+        if (!open || !currentUserId) {
+            setCurrentAdminManagedOfficeId('');
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const me: any = await employeeApi.getEmployee(currentUserId);
+                if (cancelled || !me) return;
+                const managedOffice =
+                    me.idQuanTriDonVi
+                    || me.IDQuanTriDonVi
+                    || me.idDonVi
+                    || me.IDDonVi
+                    || '';
+                setCurrentAdminManagedOfficeId(managedOffice);
+            } catch {
+                if (!cancelled) setCurrentAdminManagedOfficeId('');
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [open, currentUserId]);
 
     useEffect(() => {
         if (!open || editMode) return;
         if (timerRef.current) clearTimeout(timerRef.current);
-        if (!search.trim()) {
-            setEmployees([]);
-            return;
-        }
 
         timerRef.current = setTimeout(async () => {
             setEmpLoading(true);
             try {
-                const list = await employeeApi.getListEmployees({ searchText: search });
-                setEmployees((list ?? []).slice(0, 100).map((e: any) => ({
+                const keyword = search.trim();
+                const list = await employeeApi.getListEmployees(
+                    keyword ? { searchText: keyword } : null,
+                );
+                const mapped = (list ?? []).map((e: any) => ({
                     id: e.id,
                     name: e.hoVaTen || e.id,
-                    donVi: e.idDonVi || '',
-                })));
+                    donVi: e.idDonVi || e.IDDonVi || '',
+                    idQuanTriDonVi: e.idQuanTriDonVi || e.IDQuanTriDonVi || '',
+                }));
+                const filtered = currentAdminManagedOfficeId
+                    ? mapped.filter((e: EmployeeOption) => isInManagedUnitScope(e.donVi, currentAdminManagedOfficeId))
+                    : mapped;
+                setEmployees(filtered.slice(0, 100));
             } catch {
                 setEmployees([]);
             } finally {
@@ -135,7 +182,40 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         return () => {
             if (timerRef.current) clearTimeout(timerRef.current);
         };
-    }, [search, open, editMode]);
+    }, [search, open, editMode, currentAdminManagedOfficeId]);
+
+    useEffect(() => {
+        if (!open || !selectedId) {
+            setManagedOfficeId('');
+            setWorkingOfficeId('');
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const item: any = await employeeApi.getEmployee(selectedId);
+                if (cancelled || !item) return;
+                const adminOffice =
+                    item.idQuanTriDonVi
+                    || item.IDQuanTriDonVi
+                    || item.idDonVi
+                    || item.IDDonVi
+                    || '';
+                const workingOffice =
+                    item.idDonVi
+                    || item.IDDonVi
+                    || '';
+                setManagedOfficeId(adminOffice);
+                setWorkingOfficeId(workingOffice);
+            } catch {
+                if (!cancelled) {
+                    setManagedOfficeId('');
+                    setWorkingOfficeId('');
+                }
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [open, selectedId]);
 
     const handleConfirm = useCallback(async () => {
         if (!selectedId) return;
@@ -148,7 +228,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                 anchorNodeId: anchorNodeId.trim() || undefined,
                 ngayHetHan: ngayHetHan || undefined,
                 idNguoiUyQuyen: idNguoiUyQuyen.trim() || undefined,
-                idDanhMucChuyenNganh: idDanhMucChuyenNganh.trim() || undefined,
+                phamViChuyenNganh,
             });
             onClose();
         } catch (error) {
@@ -163,7 +243,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         anchorNodeId,
         ngayHetHan,
         idNguoiUyQuyen,
-        idDanhMucChuyenNganh,
+        phamViChuyenNganh,
         onConfirm,
         onClose,
     ]);
@@ -185,6 +265,9 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
         employeeVirtualizer.measure();
     }, [employees, employeeVirtualizer]);
 
+    const delegatedMissingAnchor = scope === 'DELEGATED' && !anchorNodeId.trim();
+    const canConfirm = Boolean(selectedId) && !saving && !delegatedMissingAnchor;
+
     return (
         <CommonDialog
             open={open}
@@ -194,13 +277,21 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
             mode={editMode ? 'edit' : 'add'}
             icon={editMode ? <EditIcon /> : <PersonAddIcon />}
             color={roleColor}
-            maxWidth="sm"
+            maxWidth="lg"
             onConfirm={handleConfirm}
             confirmText={editMode ? 'Cập nhật phạm vi' : 'Gán người dùng'}
-            disabled={!selectedId || saving}
+            disabled={!canConfirm}
             loading={saving}
         >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 1 }}>
+            <Box
+                sx={{
+                    display: editMode ? 'flex' : 'grid',
+                    gridTemplateColumns: editMode ? undefined : { xs: '1fr', lg: 'minmax(340px, 420px) minmax(520px, 1fr)' },
+                    alignItems: 'start',
+                    gap: 2.5,
+                    py: 1,
+                }}
+            >
                 {!editMode && (
                     <Box>
                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
@@ -215,6 +306,11 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                 <Box sx={{ flex: 1 }}>
                                     <Typography sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>{selectedName}</Typography>
                                     <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>{selectedId}</Typography>
+                                    {managedOfficeId && (
+                                        <Typography variant="caption" sx={{ display: 'block', color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                                            IDQuanTriDonVi: {managedOfficeId}
+                                        </Typography>
+                                    )}
                                 </Box>
                                 <Chip
                                     label="Đổi"
@@ -245,6 +341,11 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                         ) : null,
                                     }}
                                 />
+                                {currentAdminManagedOfficeId && (
+                                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontFamily: "'JetBrains Mono', monospace" }}>
+                                        Dang loc user theo IDQuanTriDonVi cua ban: {currentAdminManagedOfficeId}
+                                    </Typography>
+                                )}
 
                                 {employees.length > 0 && (
                                     <Box 
@@ -259,6 +360,9 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                             '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.divider, 0.4), borderRadius: 3 },
                                         }}
                                     >
+                                        <Typography variant="caption" sx={{ display: 'block', px: 1, pb: 0.5, color: 'text.secondary' }}>
+                                            Danh sách người dùng (đã lọc theo đơn vị quản trị)
+                                        </Typography>
                                         <Box
                                             sx={{
                                                 height: `${employeeVirtualizer.getTotalSize()}px`,
@@ -322,6 +426,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                     </Box>
                 )}
 
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
                         PHẠM VI DỮ LIỆU
@@ -377,9 +482,12 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                             onChange={(e) => setAnchorNodeId(e.target.value)}
                             placeholder="vd: dv1, office-root"
                             disabled={scope === 'SELF' || scope === 'ALL'}
+                            error={delegatedMissingAnchor}
                             helperText={scope === 'SELF' || scope === 'ALL'
                                 ? 'Scope này không cần anchor node'
-                                : 'Nhập ID đơn vị gốc cho assignment'}
+                                : scope === 'DELEGATED'
+                                    ? 'Bắt buộc: nhập đơn vị sẽ được ủy quyền quản trị'
+                                    : 'Nhập ID đơn vị gốc cho assignment'}
                         />
                         <TextField
                             size="small"
@@ -395,13 +503,55 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                         <TextField
                             size="small"
                             label="ID danh mục chuyên ngành"
-                            value={idDanhMucChuyenNganh}
-                            onChange={(e) => setIdDanhmucChuyenNganh(e.target.value)}
+                            value={phamViChuyenNganh?.idChuyenNganh ?? ''}
+                            onChange={(e) => {
+                                const nextId = e.target.value.trim();
+                                setPhamViChuyenNganh(
+                                    nextId
+                                        ? {
+                                            idChuyenNganh: nextId,
+                                            idChuyenNganhDoc: [
+                                                {
+                                                    id: nextId,
+                                                    actions: ['view', 'add', 'edit', 'delete', 'approve', 'unapprove', 'download', 'print'],
+                                                },
+                                            ],
+                                        }
+                                        : undefined,
+                                );
+                            }}
                             placeholder="vd: T, R, ..."
                             helperText="Bỏ trống nếu không giới hạn chuyên ngành"
                         />
                     </Box>
                 </Box>
+
+                {scope === 'DELEGATED' && (
+                    <Box sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(theme.palette.warning.main, 0.45)}`, bgcolor: alpha(theme.palette.warning.main, 0.08) }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'warning.main', display: 'block', mb: 0.75, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                            ĐỐI CHIẾU ỦY QUYỀN
+                        </Typography>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                            <Box sx={{ p: 1, borderRadius: 1.5, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
+                                <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 0.25 }}>Đơn vị đang quản trị</Typography>
+                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                                    {managedOfficeId || 'Chưa xác định từ hồ sơ user'}
+                                </Typography>
+                                {workingOfficeId && (
+                                    <Typography sx={{ fontSize: 10.5, color: 'text.disabled', mt: 0.25 }}>
+                                        Đơn vị công tác: {workingOfficeId}
+                                    </Typography>
+                                )}
+                            </Box>
+                            <Box sx={{ p: 1, borderRadius: 1.5, border: `1px solid ${delegatedMissingAnchor ? theme.palette.error.main : theme.palette.divider}`, bgcolor: delegatedMissingAnchor ? alpha(theme.palette.error.main, 0.06) : 'background.paper' }}>
+                                <Typography sx={{ fontSize: 11, color: delegatedMissingAnchor ? 'error.main' : 'text.secondary', mb: 0.25 }}>Đơn vị sẽ được ủy quyền</Typography>
+                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: delegatedMissingAnchor ? 'error.main' : 'text.primary' }}>
+                                    {anchorNodeId.trim() || 'Chưa chọn'}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Box>
+                )}
 
                 {scope === 'DELEGATED' && (
                     <Box>
@@ -419,6 +569,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                         />
                     </Box>
                 )}
+                </Box>
             </Box>
         </CommonDialog>
     );

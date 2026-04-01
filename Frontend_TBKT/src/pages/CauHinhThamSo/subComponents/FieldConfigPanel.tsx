@@ -312,15 +312,15 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                                 <Typography variant="caption" sx={{ fontWeight: 800, minWidth: 24, color: 'text.disabled' }}>
                                                     {idx + 1}.
                                                 </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    size="small"
-                                                    variant="standard"
-                                                    placeholder="Nhập giá trị..."
-                                                    value={opt}
-                                                    onChange={(e) => handleUpdateOption(idx, e.target.value)}
-                                                    InputProps={{ disableUnderline: true, sx: { fontWeight: 600 } }}
-                                                />
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    variant="outlined"
+                                    placeholder="Nhập giá trị..."
+                                    value={opt}
+                                    onChange={(e) => handleUpdateOption(idx, e.target.value)}
+                                    InputProps={{ sx: { fontWeight: 600 } }}
+                                />
                                                 <IconButton size="small" color="error" onClick={() => handleRemoveOption(idx)}>
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>

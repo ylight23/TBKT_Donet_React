@@ -85,6 +85,11 @@ public class ThamSoServiceImpl(
         dynamicMenuService.GetDynamicMenuRowsAsync(request, context);
 
     [Authorize]
+    public override Task<SaveDynamicMenuRowResponse> SaveDynamicMenuRow(
+        SaveDynamicMenuRowRequest request, ServerCallContext context) =>
+        dynamicMenuService.SaveDynamicMenuRowAsync(request, context);
+
+    [Authorize]
     public override Task<SaveDynamicMenuResponse> SaveDynamicMenu(
         SaveDynamicMenuRequest request, ServerCallContext context) =>
         dynamicMenuService.SaveDynamicMenuAsync(request, context);
@@ -118,6 +123,16 @@ public class ThamSoServiceImpl(
     public override Task<StatusResponse> RestoreDynamicMenuDataSource(
         RestoreDynamicMenuDataSourceRequest request, ServerCallContext context) =>
         dynamicMenuDataSourceService.RestoreDynamicMenuDataSourceAsync(request, context);
+
+    [Authorize]
+    public override Task<GetListTemplateLayoutSummariesResponse> GetListTemplateLayoutSummaries(
+        GetListTemplateLayoutSummariesRequest request, ServerCallContext context) =>
+        templateLayoutService.GetListTemplateLayoutSummariesAsync(request);
+
+    [Authorize]
+    public override Task<GetTemplateLayoutDetailResponse> GetTemplateLayoutDetail(
+        GetTemplateLayoutDetailRequest request, ServerCallContext context) =>
+        templateLayoutService.GetTemplateLayoutDetailAsync(request);
 
     [Authorize]
     public override Task<GetListTemplateLayoutsResponse> GetListTemplateLayouts(
@@ -162,4 +177,9 @@ public class ThamSoServiceImpl(
     public override Task<DiscoverCollectionFieldsResponse> DiscoverCollectionFields(
         DiscoverCollectionFieldsRequest request, ServerCallContext context) =>
         protoSchemaDiscoveryService.DiscoverCollectionFieldsAsync(request);
+
+    [Authorize]
+    public override Task<PreviewCollectionDocumentsResponse> PreviewCollectionDocuments(
+        PreviewCollectionDocumentsRequest request, ServerCallContext context) =>
+        protoSchemaDiscoveryService.PreviewCollectionDocumentsAsync(request);
 }

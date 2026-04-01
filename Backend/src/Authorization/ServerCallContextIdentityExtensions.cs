@@ -8,11 +8,13 @@ namespace Backend.Authorization;
 
 public static class ServerCallContextIdentityExtensions
 {
-    private const string AccountMappingCacheKey = "__AccountEmployeeMapping";
-    private const string AccountRoleCacheKey = "__AccountRole";
-    private const string ExternalUserIdCacheKey = "__ExternalUserId";
+    private const string SsoIdentityMappingCacheKey = "__SsoIdentityMapping";
+    private const string SsoRoleCacheKey = "__SsoRole";
+    private const string SsoSubjectCacheKey = "__SsoSubject";
+    private const string SsoIssuerCacheKey = "__SsoIssuer";
+    private const string SsoProviderCacheKey = "__SsoProvider";
 
-    private static BsonDocument? ResolveAccountMapping(this ServerCallContext? context)
+    private static BsonDocument? ResolveSsoIdentityMapping(this ServerCallContext? context)
     {
         if (context == null)
             return null;
@@ -21,39 +23,53 @@ public static class ServerCallContextIdentityExtensions
         if (httpContext == null)
             return null;
 
-        if (httpContext.Items.TryGetValue(AccountMappingCacheKey, out var cached))
+        if (httpContext.Items.TryGetValue(SsoIdentityMappingCacheKey, out var cached))
             return cached as BsonDocument;
 
         var userName = context.GetUserNameRaw();
-        var externalUserId = context.GetExternalUserId();
-        if (string.IsNullOrWhiteSpace(userName) && string.IsNullOrWhiteSpace(externalUserId))
+        var subject = context.GetSsoSubject();
+        var issuer = context.GetSsoIssuer();
+        var provider = context.GetSsoProvider();
+        if (string.IsNullOrWhiteSpace(userName) && string.IsNullOrWhiteSpace(subject))
         {
-            httpContext.Items[AccountMappingCacheKey] = null!;
+            httpContext.Items[SsoIdentityMappingCacheKey] = null!;
             return null;
         }
 
         var db = Global.MongoDB;
         if (db == null)
         {
-            httpContext.Items[AccountMappingCacheKey] = null!;
+            httpContext.Items[SsoIdentityMappingCacheKey] = null!;
             return null;
         }
 
-        var collection = db.GetCollection<BsonDocument>(PermissionCollectionNames.AccountEmployeeMappings);
+        var collection = db.GetCollection<BsonDocument>(PermissionCollectionNames.SsoIdentityMappings);
         var filters = new List<FilterDefinition<BsonDocument>>
         {
             Builders<BsonDocument>.Filter.Eq("Active", true),
         };
 
         var identityFilters = new List<FilterDefinition<BsonDocument>>();
+        if (!string.IsNullOrWhiteSpace(subject) && !string.IsNullOrWhiteSpace(provider))
+        {
+            identityFilters.Add(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("Provider", provider),
+                Builders<BsonDocument>.Filter.Eq("Subject", subject)));
+        }
+        if (!string.IsNullOrWhiteSpace(subject) && !string.IsNullOrWhiteSpace(issuer))
+        {
+            identityFilters.Add(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("Issuer", issuer),
+                Builders<BsonDocument>.Filter.Eq("Subject", subject)));
+        }
+        if (!string.IsNullOrWhiteSpace(subject))
+            identityFilters.Add(Builders<BsonDocument>.Filter.Eq("ExternalUserId", subject)); // backward compat
         if (!string.IsNullOrWhiteSpace(userName))
             identityFilters.Add(Builders<BsonDocument>.Filter.Eq("UserName", userName));
-        if (!string.IsNullOrWhiteSpace(externalUserId))
-            identityFilters.Add(Builders<BsonDocument>.Filter.Eq("ExternalUserId", externalUserId));
 
         if (identityFilters.Count == 0)
         {
-            httpContext.Items[AccountMappingCacheKey] = null!;
+            httpContext.Items[SsoIdentityMappingCacheKey] = null!;
             return null;
         }
 
@@ -62,7 +78,7 @@ public static class ServerCallContextIdentityExtensions
             : Builders<BsonDocument>.Filter.Or(identityFilters));
 
         var mapping = collection.Find(Builders<BsonDocument>.Filter.And(filters)).FirstOrDefault();
-        httpContext.Items[AccountMappingCacheKey] = mapping!;
+        httpContext.Items[SsoIdentityMappingCacheKey] = mapping!;
         return mapping;
     }
 
@@ -76,21 +92,59 @@ public static class ServerCallContextIdentityExtensions
              ?? claims?.FirstOrDefault(c => c.Type == "UserName"))?.Value + string.Empty;
     }
 
-    public static string? GetExternalUserId(this ServerCallContext? context)
+    public static string? GetSsoSubject(this ServerCallContext? context)
     {
         if (context == null)
             return null;
         var httpContext = context.GetHttpContext();
         if (httpContext == null)
             return null;
-        if (httpContext.Items.TryGetValue(ExternalUserIdCacheKey, out var cached) && cached is string cachedValue)
+        if (httpContext.Items.TryGetValue(SsoSubjectCacheKey, out var cached) && cached is string cachedValue)
             return cachedValue;
 
         var claims = httpContext.User?.Claims;
         var value = (claims?.FirstOrDefault(c => c.Type == "sub")
                   ?? claims?.FirstOrDefault(c => c.Type == "UserID"))?.Value + string.Empty;
-        httpContext.Items[ExternalUserIdCacheKey] = value ?? string.Empty;
+        httpContext.Items[SsoSubjectCacheKey] = value ?? string.Empty;
         return value;
+    }
+
+    public static string? GetSsoIssuer(this ServerCallContext? context)
+    {
+        if (context == null)
+            return null;
+        var httpContext = context.GetHttpContext();
+        if (httpContext == null)
+            return null;
+        if (httpContext.Items.TryGetValue(SsoIssuerCacheKey, out var cached) && cached is string cachedValue)
+            return cachedValue;
+
+        var claims = httpContext.User?.Claims;
+        var value = claims?.FirstOrDefault(c => c.Type == "iss")?.Value + string.Empty;
+        httpContext.Items[SsoIssuerCacheKey] = value ?? string.Empty;
+        return value;
+    }
+
+    public static string GetSsoProvider(this ServerCallContext? context)
+    {
+        if (context == null)
+            return "sso";
+        var httpContext = context.GetHttpContext();
+        if (httpContext == null)
+            return "sso";
+        if (httpContext.Items.TryGetValue(SsoProviderCacheKey, out var cached) && cached is string cachedValue)
+            return cachedValue;
+
+        var claims = httpContext.User?.Claims;
+        var provider = (claims?.FirstOrDefault(c => c.Type == "identity_provider")
+                     ?? claims?.FirstOrDefault(c => c.Type == "idp")
+                     ?? claims?.FirstOrDefault(c => c.Type == "Provider"))?.Value;
+
+        if (string.IsNullOrWhiteSpace(provider))
+            provider = "sso";
+
+        httpContext.Items[SsoProviderCacheKey] = provider;
+        return provider;
     }
 
     public static string? GetUserID(this ServerCallContext? context)
@@ -98,7 +152,7 @@ public static class ServerCallContextIdentityExtensions
         if (context == null)
             return null;
 
-        var mapping = context.ResolveAccountMapping();
+        var mapping = context.ResolveSsoIdentityMapping();
         var mappedEmployeeId = mapping?.GetValue("EmployeeId", BsonNull.Value);
         if (mappedEmployeeId != null && mappedEmployeeId != BsonNull.Value)
         {
@@ -112,16 +166,6 @@ public static class ServerCallContextIdentityExtensions
         var claim = claims?.FirstOrDefault(c => c.Type == "UserID")
                  ?? claims?.FirstOrDefault(c => c.Type == "sub");
         return claim?.Value + string.Empty;
-    }
-
-    public static int? GetUserAccessLevel(this ServerCallContext? context)
-    {
-        if (context == null)
-            return null;
-        var httpContext = context.GetHttpContext();
-        var claims = httpContext.User.Claims;
-        var claim = claims.FirstOrDefault(c => c.Type == "AccessLevel");
-        return !string.IsNullOrEmpty(claim?.Value) ? Backend.Converter.Converter.ToInt(claim?.Value) : null;
     }
 
     public static string? GetUserAdminOfficeID(this ServerCallContext? context)
@@ -158,23 +202,23 @@ public static class ServerCallContextIdentityExtensions
         if (httpContext == null)
             return "user";
 
-        if (httpContext.Items.TryGetValue(AccountRoleCacheKey, out var cached) && cached is string cachedRole)
+        if (httpContext.Items.TryGetValue(SsoRoleCacheKey, out var cached) && cached is string cachedRole)
             return cachedRole;
 
-        var mapping = context.ResolveAccountMapping();
+        var mapping = context.ResolveSsoIdentityMapping();
         var role = mapping?.GetValue("Role", BsonNull.Value);
         if (role != null && role != BsonNull.Value)
         {
             var mappedRole = role.ToString();
             if (!string.IsNullOrWhiteSpace(mappedRole))
             {
-                httpContext.Items[AccountRoleCacheKey] = mappedRole;
+                httpContext.Items[SsoRoleCacheKey] = mappedRole;
                 return mappedRole;
             }
         }
 
         var fallbackRole = context.GetUserNameRaw() is "admin" or "superadmin" ? "admin" : "user";
-        httpContext.Items[AccountRoleCacheKey] = fallbackRole;
+        httpContext.Items[SsoRoleCacheKey] = fallbackRole;
         return fallbackRole;
     }
 

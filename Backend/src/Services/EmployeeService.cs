@@ -88,8 +88,7 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
                     var searchTextFilters = builder.Or(
                         builder.Regex("HoVaTen", new BsonRegularExpression(searchEmployee.HoVaTen, "i")),
                         builder.Regex("Email", new BsonRegularExpression(searchEmployee.HoVaTen, "i")),
-                        builder.Regex("DienThoai", new BsonRegularExpression(searchEmployee.HoVaTen, "i")),
-                        builder.Regex("TenTaiKhoan", new BsonRegularExpression(searchEmployee.HoVaTen, "i"))
+                        builder.Regex("DienThoai", new BsonRegularExpression(searchEmployee.HoVaTen, "i"))
                     );
                     filters.Add(searchTextFilters);
                     logger.LogInformation($"Filter by search text: {searchEmployee.HoVaTen}");
@@ -185,32 +184,6 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
     }
 
 
-    // public override Task<GetListNewsResponse> GetListPubicNews(GetListNewsRequest request,
-    //     ServerCallContext context)
-    // {
-    //     request.SearchItem.PagerSettings.Filters.Add(new FilterDescriptor()
-    //     {
-    //         Property = nameof(News.Status),
-    //         FilterOperator = FilterOperator.Equals,
-    //         FilterValue = new ObjectValue()
-    //         {
-    //             Int32Value = (int)Status.On
-    //         }
-    //     });
-    //     // var accessLevel = context.GetUserAccessLevel();
-    //     // if (DiziApp.Shared.Server.Global.ThamSoHeThong?.MucTruyCap.Any() == true)
-    //     // {
-    //     //     request.SearchItem.PagerSettings.Filters.Add(new FilterDescriptor()
-    //     //     {
-    //     //         Property = nameof(News.AccessLevel),
-    //     //         FilterOperator = FilterOperator.LessThanOrEquals,
-    //     //         FilterValue = new ObjectValue() { Int32Value = accessLevel ?? 0 }
-    //     //     });
-    //     // }
-    //     return GetListNews(request, context);
-    // }
-
-
      [Authorize]
     public override async Task<GetEmployeeResponse> GetEmployee(GetEmployeeRequest request, ServerCallContext context)
     {
@@ -229,17 +202,6 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
 
             var filter = Builders<BsonDocument>.Filter.Eq(x => x["_id"], request.Id) &
                          Builders<BsonDocument>.Filter.Ne(x => x["Delete"], true);
-
-            // var accessLevel = context.GetUserAccessLevel();
-            // if (accessLevel.HasValue)
-            // {
-            //     filter &= builder.Lte("AccessLevel", accessLevel.Value);
-            // }
-            // else
-            // {
-            //     // no login -> chỉ xem public (level 0)
-            //     filter &= builder.Lte("AccessLevel", 0);
-            // }
 
             var itemBson = Global.CollectionBsonEmployee.Find(filter).FirstOrDefault();
 

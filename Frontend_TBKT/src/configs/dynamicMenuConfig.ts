@@ -33,7 +33,7 @@ export const normalizeColumns = (
 };
 
 export const normalizeDataSource = (value?: string): DynamicMenuDataSource => {
-  const normalized = (value || "").trim();
+  const normalized = (value || "").trim().toLowerCase();
   if (normalized.length > 0) return normalized;
   const values = DYNAMIC_MENU_SOURCE_OPTIONS_FALLBACK.map((item) => item.value);
   return values[0] || "employee";

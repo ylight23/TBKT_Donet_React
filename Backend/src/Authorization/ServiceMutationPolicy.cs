@@ -1,6 +1,7 @@
 using Backend.Common.Bson;
 using Backend.Common.Mongo;
 using Backend.Common.Protobuf;
+using Backend.Services;
 using Grpc.Core;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -147,7 +148,7 @@ internal static class ServiceMutationPolicy
         ServerCallContext? context, string maChucNang, string action, string? idChuyenNganh)
     {
         var gate = context.GetAccessGate();
-        if (!gate.CanPerformAction(maChucNang, action, idChuyenNganh))
+        if (!gate.CanPerformAction(Global.UnifiedMaPhanHe, maChucNang, action, idChuyenNganh))
         {
             throw new RpcException(new Status(
                 StatusCode.PermissionDenied,

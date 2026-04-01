@@ -5,12 +5,23 @@ import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { PUCK_CONFIG } from '../../features/templateRuntime/puckConfig';
 import { toEditorData } from '../../features/templateRuntime/editorData';
 import thamSoApi from '../../apis/thamSoApi';
+import { TemplateRuntimeProvider } from '../../features/templateRuntime/runtimeContext';
 
 interface TemplateRendererProps {
   templateKey: string;
+  defaultSourceKey?: string;
+  defaultColumnLabels?: Record<string, string>;
+  defaultColumns?: Array<{ key: string; name: string }>;
+  fillParent?: boolean;
 }
 
-const TemplateRenderer: React.FC<TemplateRendererProps> = ({ templateKey }) => {
+const TemplateRenderer: React.FC<TemplateRendererProps> = ({
+  templateKey,
+  defaultSourceKey,
+  defaultColumnLabels,
+  defaultColumns,
+  fillParent,
+}) => {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -95,14 +106,20 @@ const TemplateRenderer: React.FC<TemplateRendererProps> = ({ templateKey }) => {
   }
 
   return (
-    <Box
-      sx={{
-        '& [data-puck-component]': { marginTop: 0, marginBottom: 0 },
-        '& [data-puck-component] + [data-puck-component]': { marginTop: '2px' },
-      }}
-    >
-      <Render config={PUCK_CONFIG as Config} data={data} />
-    </Box>
+    <TemplateRuntimeProvider value={{ isRuntime: true, defaultSourceKey, defaultColumnLabels, defaultColumns }}>
+      <Box
+        sx={{
+          minHeight: fillParent ? '100%' : undefined,
+          height: fillParent ? '100%' : undefined,
+          display: fillParent ? 'flex' : undefined,
+          flexDirection: fillParent ? 'column' : undefined,
+          '& [data-puck-component]': { marginTop: 0, marginBottom: 0 },
+          '& [data-puck-component] + [data-puck-component]': { marginTop: '2px' },
+        }}
+      >
+        <Render config={PUCK_CONFIG as Config} data={data} />
+      </Box>
+    </TemplateRuntimeProvider>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
+﻿import React, { useEffect, useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -10,6 +10,8 @@ import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
@@ -54,31 +56,20 @@ const BLOCKED_CROSS_ACTIONS = new Set<PermissionAction>(['delete', 'approve', 'u
 
 const ACTION_LABELS: Record<PermissionAction, string> = {
     view: 'Xem',
-    add: 'Thêm',
-    edit: 'Sửa',
-    delete: 'Xoá',
-    approve: 'Duyệt',
-    unapprove: 'Huỷ duyệt',
-    download: 'Tải',
+    add: 'Them',
+    edit: 'Sua',
+    delete: 'Xoa',
+    approve: 'Duyet',
+    unapprove: 'Huy duyet',
+    download: 'Tai',
     print: 'In',
 };
-
-const FALLBACK_CHUYEN_NGANH: ChuyenNganhOption[] = [
-    { id: 'radar', label: 'Ra-da', color: '#3b82f6' },
-    { id: 'thongtin', label: 'Thong tin', color: '#0ea5a4' },
-    { id: 'tcdt', label: 'Tac chien DT', color: '#06b6d4' },
-    { id: 'tauthuyen', label: 'Tau thuyen', color: '#f59e0b' },
-    { id: 'phanhoa', label: 'Phong hoa', color: '#8b5cf6' },
-    { id: 'ten_lua', label: 'Ten lua', color: '#ef4444' },
-    { id: 'khongquan', label: 'Khong quan', color: '#1d4ed8' },
-    { id: 'haugcan', label: 'Hau can', color: '#a16207' },
-];
 
 const DEFAULT_SCOPE_CONFIG: GroupScopeConfig = {
     scopeType: 'SUBTREE',
     anchorNodeId: '',
     multiNodeIds: [],
-    idDanhMucChuyenNganh: '',
+    duocTruyCap: true,
     phamViChuyenNganh: undefined,
 };
 
@@ -108,14 +99,12 @@ function sanitizeActions(actions: PermissionAction[], isOwn: boolean): Permissio
 
 function normalizePhamVi(
     phamVi: PhamViChuyenNganhConfig | undefined,
-    fallbackOwnId: string | undefined,
     chuyenNganhOptions: ChuyenNganhOption[],
 ): PhamViChuyenNganhConfig | undefined {
-    if (!phamVi && !fallbackOwnId) return undefined;
-    if (!chuyenNganhOptions.length && !phamVi && !fallbackOwnId) return undefined;
+    if (!phamVi) return undefined;
+    if (!chuyenNganhOptions.length && !phamVi) return undefined;
     const entries = [...(phamVi?.idChuyenNganhDoc ?? [])];
     const ownId = phamVi?.idChuyenNganh?.trim()
-        || fallbackOwnId?.trim()
         || entries[0]?.id
         || '';
     const ownEntry = entries.find((entry) => entry.id === ownId);
@@ -185,16 +174,16 @@ function buildQuery(
         ? `AND IDChuyenNganh IN [${cnIds.map((id) => `'${id}'`).join(', ')}]`
         : '-- Khong loc chuyen nganh (toan bo du lieu trong don vi)';
     const own = phamVi?.idChuyenNganhDoc.find((item) => item.id === phamVi.idChuyenNganh);
-    const ownText = own ? `Actions(Chuyên ngành gốc ${cnMap.get(own.id)?.label || own.id}): ${own.actions.join(', ')}` : '-- Chua cau hinh actions Chuyên ngành gốc';
+    const ownText = own ? `Actions(Chuyen nganh goc ${cnMap.get(own.id)?.label || own.id}): ${own.actions.join(', ')}` : '-- Chua cau hinh actions Chuyen nganh goc';
     const cross = (phamVi?.idChuyenNganhDoc ?? []).filter((item) => item.id !== phamVi?.idChuyenNganh);
     const crossText = cross.length > 0
         ? cross.map((item) => `Actions(${cnMap.get(item.id)?.label || item.id}): ${item.actions.join(', ')}`).join(' | ')
-        : '-- Chua mo rong Chuyên ngành phụ';
+        : '-- Chua mo rong Chuyen nganh phu';
 
     return [unitQuery, cnQuery, ownText, crossText];
 }
 
-// ── Optimized ScopeTypeSelector ──────────────────────────────────
+// â”€â”€ Optimized ScopeTypeSelector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface ScopeTypeSelectorProps {
     config: GroupScopeConfig;
     onSelect: (type: ScopeType) => void;
@@ -278,7 +267,7 @@ const ScopeTypeSelector = React.memo(({ config, onSelect, theme }: ScopeTypeSele
     );
 });
 
-// ── Optimized OfficeNode ───────────────────────────────────────────
+// â”€â”€ Optimized OfficeNode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface OfficeNodeProps {
     office: OfficeOption;
@@ -384,7 +373,7 @@ const OfficeNode = React.memo(({
     );
 });
 
-// ── Optimized OfficeTree ───────────────────────────────────────────
+// â”€â”€ Optimized OfficeTree â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function OfficeTree({
     offices,
@@ -436,7 +425,7 @@ function OfficeTree({
         return multi ? (selectedIds ?? []).includes(id) : selectedId === id;
     }, [multi, selectedIds, selectedId]);
 
-    // ── VIRTUALIZATION LOGIC ──
+    // â”€â”€ VIRTUALIZATION LOGIC â”€â”€
     // 1. Flatten the tree into only visible (expanded) nodes
     const visibleNodes = useMemo(() => {
         const list: { office: OfficeOption; depth: number; hasChildren: boolean }[] = [];
@@ -527,7 +516,7 @@ function OfficeTree({
                 </Box>
             ) : (
                 <Typography variant="body2" sx={{ p: 2, color: 'text.disabled', textAlign: 'center' }}>
-                    Không có dữ liệu đơn vị
+                    Khong co du lieu don vi
                 </Typography>
             )}
         </Box>
@@ -551,7 +540,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     const [officeLoading, setOfficeLoading] = useState(true);
     const [nhomLoading, setNhomLoading] = useState(true);
     const [offices, setOffices] = useState<OfficeOption[]>([]);
-    const [chuyenNganhOptions, setChuyenNganhOptions] = useState<ChuyenNganhOption[]>(FALLBACK_CHUYEN_NGANH);
+    const [chuyenNganhOptions, setChuyenNganhOptions] = useState<ChuyenNganhOption[]>([]);
     const [crossSearch, setCrossSearch] = useState('');
 
     useEffect(() => {
@@ -582,15 +571,12 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
             setNhomLoading(true);
             try {
                 const items = await listDanhMucChuyenNganh("");
-                if (!cancelled && items.length > 0) {
-                    const map = new Map<string, ChuyenNganhOption>();
-                    for (const fallback of FALLBACK_CHUYEN_NGANH) map.set(fallback.id, fallback);
-                    for (const item of items) {
-                        if (map.has(item.id)) continue;
-                        map.set(item.id, { id: item.id, label: item.ten, color: '#64748b' });
-                    }
-                    setChuyenNganhOptions(Array.from(map.values()));
-                }
+                if (!cancelled)
+                    setChuyenNganhOptions(
+                        (items ?? []).map((item) => ({ id: item.id, label: item.ten, color: '#64748b' })),
+                    );
+            } catch {
+                if (!cancelled) setChuyenNganhOptions([]);
             } finally {
                 if (!cancelled) setNhomLoading(false);
             }
@@ -599,8 +585,8 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     }, []);
 
     const normalizedPhamVi = useMemo(
-        () => normalizePhamVi(config.phamViChuyenNganh, config.idDanhMucChuyenNganh, chuyenNganhOptions),
-        [config.phamViChuyenNganh, config.idDanhMucChuyenNganh, chuyenNganhOptions],
+        () => normalizePhamVi(config.phamViChuyenNganh, chuyenNganhOptions),
+        [config.phamViChuyenNganh, chuyenNganhOptions],
     );
 
     useEffect(() => {
@@ -608,7 +594,6 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         if (JSON.stringify(normalizedPhamVi) === JSON.stringify(config.phamViChuyenNganh)) return;
         onScopeChange({
             ...config,
-            idDanhMucChuyenNganh: normalizedPhamVi?.idChuyenNganh || '',
             phamViChuyenNganh: normalizedPhamVi,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -619,7 +604,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         [chuyenNganhOptions],
     );
 
-    // ── DEFERRED PREVIEW (Optimization) ────────────────────────────────
+    // â”€â”€ DEFERRED PREVIEW (Optimization) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Using deferred values for calculations ensures UI updates (clicks)
     // are prioritized over heavy filtering of large office lists.
     const deferredConfig = useDeferredValue(config);
@@ -653,7 +638,6 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
     const patchPhamVi = useCallback((nextPhamVi: PhamViChuyenNganhConfig | undefined) => {
         patchConfig({
-            idDanhMucChuyenNganh: nextPhamVi?.idChuyenNganh || '',
             phamViChuyenNganh: nextPhamVi,
         });
     }, [patchConfig]);
@@ -670,7 +654,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     }, [patchConfig]);
 
     const changeCnGoc = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
         const source = current?.idChuyenNganhDoc ?? [];
         const next: PhamViChuyenNganhConfig = {
             idChuyenNganh: id,
@@ -686,7 +670,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const addCrossCn = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
         if (!current) return;
         if (current.idChuyenNganhDoc.some((entry) => entry.id === id)) return;
         patchPhamVi({
@@ -696,7 +680,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const removeCrossCn = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
         if (!current || current.idChuyenNganh === id) return;
         patchPhamVi({
             ...current,
@@ -705,7 +689,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const toggleAction = (entry: ChuyenNganhDocScope, action: PermissionAction) => {
-        const current = normalizePhamVi(normalizedPhamVi, configRef.current.idDanhMucChuyenNganh, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
         if (!current) return;
         const isOwn = entry.id === current.idChuyenNganh;
         if (!isOwn && BLOCKED_CROSS_ACTIONS.has(action)) return;
@@ -749,10 +733,27 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, lineHeight: 1.7 }}>
-                        Cấu hình phạm vi dữ liệu mặc định cho role <strong>{selectedRole?.name}</strong>. Chiều 1 lọc theo cây đơn vị, Chiều 2 lọc và phân quyền theo từng chuyên ngành.
+                        Cau hinh pham vi du lieu mac dinh cho role <strong>{selectedRole?.name}</strong>. Chieu 1 loc theo cay don vi, Chieu 2 loc va phan quyen theo tung chuyen nganh.
                     </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                        <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={(
+                                <Switch
+                                    size="small"
+                                    checked={Boolean(config.duocTruyCap)}
+                                    onChange={(_, checked) => patchConfig({ duocTruyCap: checked })}
+                                />
+                            )}
+                            label={(
+                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary' }}>
+                                    Truy cap phan he
+                                </Typography>
+                            )}
+                        />
+                    </Box>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHIỀU 1 — PHẠM VI ĐƠN VỊ
+                        CHIEU 1 - PHAM VI DON VI
                     </Typography>
                     <ScopeTypeSelector 
                         config={config} 
@@ -763,9 +764,9 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHỌN ĐƠN VỊ / NHÁNH
+                        CHON DON VI / NHANH
                     </Typography>
-                    {(officeLoading || nhomLoading) && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}><CircularProgress size={18} /><Typography variant="body2">Đang tải dữ liệu...</Typography></Box>}
+                    {(officeLoading || nhomLoading) && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}><CircularProgress size={18} /><Typography variant="body2">Dang tai du lieu...</Typography></Box>}
                     {!officeLoading && mode.needsAnchor && (
                         <OfficeTree 
                             offices={offices} 
@@ -783,20 +784,33 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                     )}
                     {!mode.needsAnchor && !mode.needsMultiNode && (
                         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
-                            Scope này không cần anchor node. Delegated sẽ bổ sung người uỷ quyền và ngày hết hạn ở lúc gán user cụ thể.
+                            Scope nay khong can anchor node. Delegated se bo sung nguoi uy quyen va ngay het han o luc gan user cu the.
                         </Typography>
+                    )}
+                    {config.scopeType === 'DELEGATED' && (
+                        <Box sx={{ mt: 1.25, p: 1.25, borderRadius: 2, border: `1px solid ${alpha(theme.palette.warning.main, 0.45)}`, bgcolor: alpha(theme.palette.warning.main, 0.08) }}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'warning.main', mb: 0.5 }}>
+                                Kiem tra bat buoc cho Uy quyen
+                            </Typography>
+                            <Typography sx={{ fontSize: 11.5, color: 'text.secondary', lineHeight: 1.6 }}>
+                                Don vi dang quan tri: lay theo IDQuanTriDonVi cua tung user khi gan.
+                            </Typography>
+                            <Typography sx={{ fontSize: 11.5, color: config.anchorNodeId ? 'text.primary' : 'error.main', lineHeight: 1.6 }}>
+                                Don vi se duoc uy quyen: {config.anchorNodeId || 'Chua chon'}
+                            </Typography>
+                        </Box>
                     )}
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHIỀU 2 — PHẠM VI CHUYÊN NGÀNH
+                        CHIEU 2 - PHAM VI CHUYEN NGANH
                     </Typography>
                     <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1 }}>
-                        Chọn chuyên ngành chính trước, sau đó mới chọn các chuyên ngành phụ cần truy cập chéo.
+                        Chon chuyen nganh chinh truoc, sau do moi chon cac chuyen nganh phu can truy cap cheo.
                     </Typography>
                     <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: 'text.primary', mb: 0.8 }}>
-                        1. Chọn chuyên ngành chính
+                        1. Chon chuyen nganh chinh
                     </Typography>
 
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.8, mb: 1.5 }}>
@@ -817,7 +831,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                                 >
                                     <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: active ? cn.color : 'text.disabled', mr: 1 }} />
                                     <Typography sx={{ fontSize: 12, fontWeight: active ? 700 : 500, color: active ? 'text.primary' : 'text.secondary' }}>{cn.label}</Typography>
-                                    {active && <Chip size="small" label="Chính" sx={{ ml: 'auto', height: 18, fontSize: 10 }} />}
+                                    {active && <Chip size="small" label="Chinh" sx={{ ml: 'auto', height: 18, fontSize: 10 }} />}
                                 </ButtonBase>
                             );
                         })}
@@ -827,9 +841,9 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                         <Box sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main, 0.45)}`, bgcolor: alpha(cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main, 0.08), mb: 1.5 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: 0.75, flexWrap: 'wrap' }}>
                                 <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
-                                    Chức năng chuyên ngành chính: {cnMap.get(ownCnEntry.id)?.label || ownCnEntry.id}
+                                    Chuc nang chuyen nganh chinh: {cnMap.get(ownCnEntry.id)?.label || ownCnEntry.id}
                                 </Typography>
-                                <Chip size="small" label="Chính" sx={{ height: 18, fontSize: 10 }} />
+                                <Chip size="small" label="Chinh" sx={{ height: 18, fontSize: 10 }} />
                             </Box>
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.65 }}>
                                 {ACTIONS_ALL.map((action) => {
@@ -864,18 +878,18 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                         <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: 'text.primary' }}>
-                            2. Chọn chuyên ngành phụ
+                            2. Chon chuyen nganh phu
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
                             <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
-                                Danh sách chuyên ngành phụ
+                                Danh sach chuyen nganh phu
                             </Typography>
-                            <Chip size="small" label={`${crossEntries.length} Chuyên ngành phụ`} sx={{ height: 18, fontSize: 10 }} />
+                            <Chip size="small" label={`${crossEntries.length} Chuyen nganh phu`} sx={{ height: 18, fontSize: 10 }} />
                         </Box>
 
                         <TextField
                             size="small"
-                            placeholder="Tìm chuyên ngành phụ để chọn"
+                            placeholder="Tim chuyen nganh phu de chon"
                             value={crossSearch}
                             onChange={(event) => setCrossSearch(event.target.value)}
                             sx={{
@@ -931,7 +945,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                         {crossEntries.length === 0 ? (
                             <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>
-                                Chưa có chuyên ngành phụ nào được chọn.
+                                Chua co chuyen nganh phu nao duoc chon.
                             </Typography>
                         ) : (
                             crossEntries.map((entry) => {
@@ -943,8 +957,8 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                                             <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
                                                 {option?.label || entry.id}
                                             </Typography>
-                                            <Chip size="small" label="Phụ" sx={{ ml: 1, height: 18, fontSize: 10 }} />
-                                            <Tooltip title="Xóa chuyên ngành phụ khỏi phạm vi">
+                                            <Chip size="small" label="Phu" sx={{ ml: 1, height: 18, fontSize: 10 }} />
+                                            <Tooltip title="Xoa chuyen nganh phu khoi pham vi">
                                                 <IconButton size="small" onClick={() => removeCrossCn(entry.id)} sx={{ ml: 'auto' }}>
                                                     <CloseIcon sx={{ fontSize: 16 }} />
                                                 </IconButton>
@@ -986,19 +1000,19 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRƯỚC CẤU HÌNH</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRUOC CAU HINH</Typography>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.25 }}>
                         <Chip label={mode.label} />
                         {config.anchorNodeId && <Chip label={`Anchor: ${config.anchorNodeId}`} />}
                         {config.multiNodeIds.length > 0 && <Chip label={`${config.multiNodeIds.length} node`} />}
-                        {normalizedPhamVi?.idChuyenNganh && <Chip color="secondary" label={`Chuyên ngành gốc: ${cnMap.get(normalizedPhamVi.idChuyenNganh)?.label || normalizedPhamVi.idChuyenNganh}`} />}
-                        {crossCount > 0 && <Chip color="warning" label={`Chuyên ngành phụ: ${crossCount}`} />}
+                        {normalizedPhamVi?.idChuyenNganh && <Chip color="secondary" label={`Chuyen nganh goc: ${cnMap.get(normalizedPhamVi.idChuyenNganh)?.label || normalizedPhamVi.idChuyenNganh}`} />}
+                        {crossCount > 0 && <Chip color="warning" label={`Chuyen nganh phu: ${crossCount}`} />}
                     </Box>
                     <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{mode.example || 'Khong co mo ta bo sung.'}</Typography>
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRƯỚC TRUY VẤN</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRUOC TRUY VAN</Typography>
                     {queryLines.map((line, idx) => (
                         <React.Fragment key={idx}>
                             <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.8, color: idx < 2 ? 'text.primary' : 'text.secondary' }}>
@@ -1010,7 +1024,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHẠM VI CHUYÊN NGÀNH (DOCUMENT)</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHAM VI CHUYEN NGANH (DOCUMENT)</Typography>
                     <Box component="pre" sx={{ m: 0, p: 1.25, borderRadius: 2, bgcolor: 'background.default', border: `1px solid ${theme.palette.divider}`, fontSize: 11, lineHeight: 1.6, overflow: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
                         {JSON.stringify(normalizedPhamVi ?? null, null, 2)}
                     </Box>
@@ -1019,22 +1033,22 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`, bgcolor: alpha(theme.palette.warning.main, 0.06) }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.6 }}>
                         <WarningAmberIcon sx={{ fontSize: 17, color: 'warning.main' }} />
-                        <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'warning.main' }}>CÂN NHẮC THAY ĐỔI SCHEMA</Typography>
+                        <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'warning.main' }}>CAN NHAC THAY DOI SCHEMA</Typography>
                     </Box>
                     <Typography sx={{ fontSize: 12, lineHeight: 1.7, color: 'text.secondary' }}>
-                        Nếu bỏ trường IDChuyenNganh trên entity trang bị, hệ thống mất khả năng lọc chính xác theo từng CN. Nên giữ IDChuyenNganh và bổ sung thêm IDChuyenNganhKT để lọc chi tiết.
+                        Neu bo truong IDChuyenNganh tren entity trang bi, he thong mat kha nang loc chinh xac theo tung CN. Nen giu IDChuyenNganh va bo sung them IDChuyenNganhKT de loc chi tiet.
                     </Typography>
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>VÙNG ĐƠN VỊ BỊ ẢNH HƯỞNG</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>VUNG DON VI BI ANH HUONG</Typography>
                     {config.scopeType === 'SELF' || config.scopeType === 'ALL' ? (
                         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
-                            {config.scopeType === 'SELF' ? 'SELF lọc theo CreatedBy, không theo Office list.' : 'ALL bỏ qua giới hạn đơn vị. Chiều 2 vẫn có hiệu lực nếu đã cấu hình phạm vi chuyên ngành.'}
+                            {config.scopeType === 'SELF' ? 'SELF loc theo CreatedBy, khong theo Office list.' : 'ALL bo qua gioi han don vi. Chieu 2 van co hieu luc neu da cau hinh pham vi chuyen nganh.'}
                         </Typography>
                     ) : affectedOffices.length > 0 ? (
                         <>
-                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary', mb: 1 }}>{affectedOffices.length} đơn vị dự kiến</Typography>
+                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary', mb: 1 }}>{affectedOffices.length} don vi du kien</Typography>
                             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                                 {affectedOffices.slice(0, 24).map((office) => (
                                     <Chip key={office.id} label={`${office.id} - ${office.label}`} size="small" />
@@ -1043,7 +1057,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                             </Box>
                         </>
                     ) : (
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Chưa có dữ liệu preview. Hãy chọn anchor node hoặc multi-node phù hợp.</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Chua co du lieu preview. Hay chon anchor node hoac multi-node phu hop.</Typography>
                     )}
                 </Box>
             </Box>

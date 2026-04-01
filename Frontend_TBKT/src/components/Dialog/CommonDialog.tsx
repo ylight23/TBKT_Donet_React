@@ -14,6 +14,7 @@ import {
     SxProps,
     Theme,
     alpha,
+    useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -152,8 +153,10 @@ export const DialogShell: React.FC<DialogShellProps> = ({
     dividers = true,
     hideCloseButton = false,
 }) => {
+    const theme = useTheme();
     const config = getDialogModeConfig(mode);
     const mainColor = customColor || config.defaultColor;
+    const titleColor = customColor || theme.palette.primary.main;
     const mainIcon = icon || config.defaultIcon;
 
     return (
@@ -176,7 +179,7 @@ export const DialogShell: React.FC<DialogShellProps> = ({
         >
             <DialogTitle sx={{
                 p: 2.5,
-                background: `linear-gradient(135deg, ${alpha(mainColor, 0.1)} 0%, ${alpha(mainColor, 0.04)} 100%)`,
+                background: `linear-gradient(135deg, ${alpha(titleColor, 0.14)} 0%, ${alpha(titleColor, 0.06)} 100%)`,
                 borderBottom: '1px solid',
                 borderColor: 'divider',
                 display: 'flex',
@@ -189,13 +192,13 @@ export const DialogShell: React.FC<DialogShellProps> = ({
                         width: 44,
                         height: 44,
                         borderRadius: 2.5,
-                        bgcolor: alpha(mainColor, 0.12),
-                        color: mainColor,
+                        bgcolor: alpha(titleColor, 0.14),
+                        color: titleColor,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         border: '1px solid',
-                        borderColor: alpha(mainColor, 0.2),
+                        borderColor: alpha(titleColor, 0.24),
                         flexShrink: 0,
                     }}>
                         {mainIcon}

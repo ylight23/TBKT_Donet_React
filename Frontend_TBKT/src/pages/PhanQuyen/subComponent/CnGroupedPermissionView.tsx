@@ -72,9 +72,9 @@ const ACTION_VI: Record<PermissionAction, string> = {
 // ── CN colors ─────────────────────────────────────────────────────
 
 const CN_COLORS: Record<string, string> = {
-    radar: '#3b82f6', thongtin: '#0ea5a4', tcdt: '#06b6d4',
-    tauthuyen: '#f59e0b', phanhoa: '#8b5cf6', ten_lua: '#ef4444',
-    khongquan: '#1d4ed8', haugcan: '#a16207',
+    I: '#3b82f6', O: '#0ea5a4', H: '#06b6d4',
+    B: '#f59e0b', N: '#8b5cf6', C: '#ef4444',
+    A: '#1d4ed8', T: '#a16207',
 };
 
 function getCnColor(id: string): string {

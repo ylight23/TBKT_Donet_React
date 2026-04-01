@@ -35,6 +35,97 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
+    private static string? ReadString(BsonDocument doc, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (!doc.TryGetValue(key, out var value) || value.IsBsonNull)
+            {
+                continue;
+            }
+
+            var text = value.ToString();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text.Trim();
+            }
+        }
+
+        return null;
+    }
+
+    private static List<string> ReadStringArray(BsonDocument doc, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (!doc.TryGetValue(key, out var value) || !value.IsBsonArray)
+            {
+                continue;
+            }
+
+            var items = value.AsBsonArray
+                .Where(item => !item.IsBsonNull)
+                .Select(item => item.ToString()?.Trim())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Distinct(StringComparer.Ordinal)
+                .ToList()!;
+
+            if (items.Count > 0)
+            {
+                return items;
+            }
+        }
+
+        return [];
+    }
+
+    private static void HydrateTabsFromRawBson(BsonDocument formConfigDoc, FormConfig item)
+    {
+        if (!formConfigDoc.TryGetValue("Tabs", out var tabsValue) || !tabsValue.IsBsonArray)
+        {
+            return;
+        }
+
+        var tabDocs = tabsValue.AsBsonArray.OfType<BsonDocument>().ToList();
+        if (tabDocs.Count == 0)
+        {
+            return;
+        }
+
+        // Case 1: deserializer khong ra Tabs => dung raw Tabs de dung du lieu.
+        if (item.Tabs.Count == 0)
+        {
+            foreach (var tabDoc in tabDocs)
+            {
+                var tab = new FormTabConfig
+                {
+                    Id = ReadString(tabDoc, "Id", "_id", "id") ?? string.Empty,
+                    Label = ReadString(tabDoc, "Label", "label") ?? string.Empty,
+                };
+
+                tab.FieldSetIds.AddRange(ReadStringArray(tabDoc, "FieldSetIds", "field_set_ids", "setIds"));
+                item.Tabs.Add(tab);
+            }
+
+            return;
+        }
+
+        // Case 2: Tabs co roi nhung FieldSetIds bi rong do schema cu => bo sung theo index.
+        for (var i = 0; i < item.Tabs.Count && i < tabDocs.Count; i++)
+        {
+            if (item.Tabs[i].FieldSetIds.Count > 0)
+            {
+                continue;
+            }
+
+            var fallbackSetIds = ReadStringArray(tabDocs[i], "FieldSetIds", "field_set_ids", "setIds");
+            if (fallbackSetIds.Count > 0)
+            {
+                item.Tabs[i].FieldSetIds.AddRange(fallbackSetIds);
+            }
+        }
+    }
+
     private static async Task<List<string>> GetMissingActiveFieldSetIdsAsync(IEnumerable<string> fieldSetIds)
     {
         var normalizedIds = ServiceMutationPolicy.NormalizeIds(fieldSetIds);
@@ -227,6 +318,7 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 formConfigDoc.Remove("JoinedFieldSets");
 
                 var item = BsonSerializer.Deserialize<FormConfig>(formConfigDoc);
+                HydrateTabsFromRawBson(formConfigDoc, item);
                 item.Key = string.IsNullOrWhiteSpace(item.Key)
                     ? NormalizeFormKey(formConfigDoc.StringOr("Key") ?? item.Name)
                     : NormalizeFormKey(item.Key);

@@ -2,8 +2,10 @@ using Backend.Authorization;
 using Backend.Common.Bson;
 using Backend.Common.Mongo;
 using Backend.Common.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using MongoDB.Bson;
+using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using protos;
@@ -417,6 +419,61 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
         return response;
     }
 
+    public async Task<PreviewCollectionDocumentsResponse> PreviewCollectionDocumentsAsync(PreviewCollectionDocumentsRequest request)
+    {
+        var response = new PreviewCollectionDocumentsResponse();
+        try
+        {
+            var rawCollectionName = request.CollectionName?.Trim();
+            if (string.IsNullOrEmpty(rawCollectionName))
+            {
+                response.Meta = ThamSoResponseFactory.Fail("Vui lòng nhập tên collection.");
+                return response;
+            }
+
+            var collectionName = ResolveActualCollectionName(rawCollectionName);
+            var collection = Global.MongoDB?.GetCollection<BsonDocument>(collectionName);
+            if (collection == null)
+            {
+                response.Meta = ThamSoResponseFactory.Fail("Không thể kết nối MongoDB.");
+                return response;
+            }
+
+            var safeLimit = request.Limit <= 0 ? 10 : Math.Clamp(request.Limit, 1, 100);
+            var documents = await collection
+                .Find(Builders<BsonDocument>.Filter.Empty)
+                .Sort(Builders<BsonDocument>.Sort.Descending("_id"))
+                .Limit(safeLimit)
+                .ToListAsync();
+
+            var jsonSettings = new JsonWriterSettings
+            {
+                OutputMode = JsonOutputMode.RelaxedExtendedJson,
+            };
+
+            foreach (var doc in documents)
+            {
+                var json = doc.ToJson(jsonSettings);
+                response.Rows.Add(Struct.Parser.ParseJson(json));
+            }
+
+            response.CollectionName = collectionName;
+            response.DocumentsScanned = documents.Count;
+            response.Meta = ThamSoResponseFactory.Ok($"Preview {documents.Count} documents từ '{collectionName}'");
+
+            logger.LogInformation(
+                "PreviewCollectionDocuments: {Col} -> {Count} docs",
+                collectionName, documents.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "PreviewCollectionDocuments error");
+            response.Meta = ThamSoResponseFactory.Fail("Lỗi khi preview documents", ex.Message);
+        }
+
+        return response;
+    }
+
     public async Task SeedDefaultDynamicMenuDataSourcesAsync()
     {
         var defaults = new[]
@@ -633,7 +690,6 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
         var result = new List<DynamicMenuDataSourceField>();
         foreach (var field in descriptor.Fields.InDeclarationOrder())
         {
-            if (field.IsRepeated) continue;
             var dataType = GetProtoFieldTypeName(field);
             if (dataType == null) continue;
 
@@ -642,6 +698,8 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
                 Key = field.Name,
                 Label = field.Name,
                 DataType = dataType,
+                ItemType = GetProtoFieldItemType(field),
+                ItemSchemaHint = GetProtoFieldItemSchemaHint(field),
             });
         }
 
@@ -650,6 +708,12 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
 
     private static string? GetProtoFieldTypeName(Google.Protobuf.Reflection.FieldDescriptor field)
     {
+        if (field.IsRepeated)
+        {
+            // repeated <primitive|message> => array for datasource schema
+            return "array";
+        }
+
         if (field.FieldType == Google.Protobuf.Reflection.FieldType.Message)
         {
             var fullName = field.MessageType?.FullName ?? string.Empty;
@@ -676,6 +740,96 @@ public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> lo
                 or Google.Protobuf.Reflection.FieldType.Fixed32 or Google.Protobuf.Reflection.FieldType.Fixed64
                 or Google.Protobuf.Reflection.FieldType.SFixed32 or Google.Protobuf.Reflection.FieldType.SFixed64
                 or Google.Protobuf.Reflection.FieldType.Float or Google.Protobuf.Reflection.FieldType.Double => "number",
+            _ => "string",
+        };
+    }
+
+    private static string GetProtoFieldItemType(Google.Protobuf.Reflection.FieldDescriptor field)
+    {
+        if (!field.IsRepeated)
+            return string.Empty;
+
+        if (field.FieldType == Google.Protobuf.Reflection.FieldType.Message)
+        {
+            var fullName = field.MessageType?.FullName ?? string.Empty;
+            return fullName switch
+            {
+                "google.protobuf.Timestamp" => "date",
+                "google.protobuf.StringValue" => "string",
+                "google.protobuf.BoolValue" => "boolean",
+                "google.protobuf.Int32Value" or "google.protobuf.Int64Value"
+                    or "google.protobuf.UInt32Value" or "google.protobuf.UInt64Value"
+                    or "google.protobuf.FloatValue" or "google.protobuf.DoubleValue" => "number",
+                _ => "object",
+            };
+        }
+
+        return field.FieldType switch
+        {
+            Google.Protobuf.Reflection.FieldType.String => "string",
+            Google.Protobuf.Reflection.FieldType.Bool => "boolean",
+            Google.Protobuf.Reflection.FieldType.Int32 or Google.Protobuf.Reflection.FieldType.Int64
+                or Google.Protobuf.Reflection.FieldType.UInt32 or Google.Protobuf.Reflection.FieldType.UInt64
+                or Google.Protobuf.Reflection.FieldType.SInt32 or Google.Protobuf.Reflection.FieldType.SInt64
+                or Google.Protobuf.Reflection.FieldType.Fixed32 or Google.Protobuf.Reflection.FieldType.Fixed64
+                or Google.Protobuf.Reflection.FieldType.SFixed32 or Google.Protobuf.Reflection.FieldType.SFixed64
+                or Google.Protobuf.Reflection.FieldType.Float or Google.Protobuf.Reflection.FieldType.Double => "number",
+            _ => "string",
+        };
+    }
+
+    private static string GetProtoFieldItemSchemaHint(Google.Protobuf.Reflection.FieldDescriptor field)
+    {
+        if (!field.IsRepeated || field.FieldType != Google.Protobuf.Reflection.FieldType.Message)
+            return string.Empty;
+
+        var descriptor = field.MessageType;
+        if (descriptor == null) return string.Empty;
+
+        var fullName = descriptor.FullName ?? string.Empty;
+        if (fullName.StartsWith("google.protobuf.", StringComparison.Ordinal))
+            return string.Empty;
+
+        var parts = descriptor.Fields.InDeclarationOrder()
+            .Take(6)
+            .Select(f => $"{f.Name}:{GetProtoScalarTypeName(f)}")
+            .ToList();
+
+        if (parts.Count == 0) return string.Empty;
+        var total = descriptor.Fields.InDeclarationOrder().Count();
+        return "{ " + string.Join(", ", parts) + (total > parts.Count ? ", ..." : "") + " }";
+    }
+
+    private static string GetProtoScalarTypeName(Google.Protobuf.Reflection.FieldDescriptor field)
+    {
+        if (field.IsRepeated) return "array";
+
+        if (field.FieldType == Google.Protobuf.Reflection.FieldType.Message)
+        {
+            var fullName = field.MessageType?.FullName ?? string.Empty;
+            return fullName switch
+            {
+                "google.protobuf.Timestamp" => "date",
+                "google.protobuf.StringValue" => "string",
+                "google.protobuf.BoolValue" => "boolean",
+                "google.protobuf.Int32Value" or "google.protobuf.Int64Value"
+                    or "google.protobuf.UInt32Value" or "google.protobuf.UInt64Value"
+                    or "google.protobuf.FloatValue" or "google.protobuf.DoubleValue" => "number",
+                _ => "object",
+            };
+        }
+
+        return field.FieldType switch
+        {
+            Google.Protobuf.Reflection.FieldType.String => "string",
+            Google.Protobuf.Reflection.FieldType.Bool => "boolean",
+            Google.Protobuf.Reflection.FieldType.Int32 or Google.Protobuf.Reflection.FieldType.Int64
+                or Google.Protobuf.Reflection.FieldType.UInt32 or Google.Protobuf.Reflection.FieldType.UInt64
+                or Google.Protobuf.Reflection.FieldType.SInt32 or Google.Protobuf.Reflection.FieldType.SInt64
+                or Google.Protobuf.Reflection.FieldType.Fixed32 or Google.Protobuf.Reflection.FieldType.Fixed64
+                or Google.Protobuf.Reflection.FieldType.SFixed32 or Google.Protobuf.Reflection.FieldType.SFixed64
+                or Google.Protobuf.Reflection.FieldType.Float or Google.Protobuf.Reflection.FieldType.Double => "number",
+            Google.Protobuf.Reflection.FieldType.Enum => "enum",
             _ => "string",
         };
     }

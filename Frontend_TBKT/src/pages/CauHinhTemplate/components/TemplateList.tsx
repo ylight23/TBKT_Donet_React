@@ -15,22 +15,21 @@ import {
   Typography,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
-import FolderDeleteIcon from '@mui/icons-material/FolderDelete';
 import StorageIcon from '@mui/icons-material/Storage';
 import type { GridColDef } from '@mui/x-data-grid';
-import type { LocalTemplateLayout, StreamJobProgress } from '../../../apis/thamSoApi';
+import type { LocalTemplateLayout, LocalTemplateLayoutSummary, StreamJobProgress } from '../../../apis/thamSoApi';
 import thamSoApi from '../../../apis/thamSoApi';
 import LazyDataGrid from '../../../components/LazyDataGrid';
 import { buildAuditSummary } from '../../../utils/auditMeta';
 
 interface TemplateListProps {
-  items: LocalTemplateLayout[];
-  deletedItems: LocalTemplateLayout[];
+  items: LocalTemplateLayoutSummary[];
+  deletedItems: LocalTemplateLayoutSummary[];
   loading: boolean;
-  onEdit: (item: LocalTemplateLayout) => void;
+  onEdit: (item: LocalTemplateLayoutSummary) => void | Promise<void>;
   onDelete: (id: string) => void;
   onRestore: (id: string) => void | Promise<void>;
-  onTogglePublish: (item: LocalTemplateLayout) => Promise<void>;
+  onTogglePublish: (item: LocalTemplateLayoutSummary) => Promise<void>;
 }
 
 export const TemplateList: React.FC<TemplateListProps> = ({
@@ -51,10 +50,11 @@ export const TemplateList: React.FC<TemplateListProps> = ({
     msg: '',
   });
 
-  const handleExportOne = async (item: LocalTemplateLayout, e: React.MouseEvent) => {
+  const handleExportOne = async (item: LocalTemplateLayoutSummary, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await thamSoApi.exportTemplateToServer(item);
+      const detail = await thamSoApi.getTemplateLayoutDetail({ key: item.key });
+      await thamSoApi.exportTemplateToServer(detail);
       setSnack({ open: true, severity: 'success', msg: `Da ghi public/templates/${item.key}.json` });
     } catch (err: any) {
       setSnack({ open: true, severity: 'error', msg: err.message ?? 'Export that bai' });
@@ -87,17 +87,6 @@ export const TemplateList: React.FC<TemplateListProps> = ({
     }
   };
 
-  const handleDeleteFile = async (item: LocalTemplateLayout, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm(`Xoa file public/templates/${item.key}.json?`)) return;
-    try {
-      await thamSoApi.deleteTemplateFile(item.key);
-      setSnack({ open: true, severity: 'success', msg: `Da xoa public/templates/${item.key}.json` });
-    } catch (err: any) {
-      setSnack({ open: true, severity: 'error', msg: err.message ?? 'Xoa file that bai' });
-    }
-  };
-
   const columns: GridColDef[] = useMemo(() => [
     { field: 'key', headerName: 'Template key', minWidth: 160, flex: 1 },
     {
@@ -106,7 +95,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
       minWidth: 190,
       flex: 1,
       sortable: false,
-      valueGetter: (_, row) => buildAuditSummary((row as LocalTemplateLayout).audit),
+      valueGetter: (_, row) => buildAuditSummary((row as LocalTemplateLayoutSummary).audit),
     },
     { field: 'name', headerName: 'Ten template', minWidth: 200, flex: 1.2 },
     {
@@ -115,7 +104,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
       width: 120,
       sortable: false,
       renderCell: (params) => {
-        const item = params.row as LocalTemplateLayout;
+        const item = params.row as LocalTemplateLayoutSummary;
         return (
           <Tooltip title={item.published ? 'Click de dat lai thanh Draft' : 'Click de Published'}>
             <Stack direction="row" alignItems="center" spacing={0.5} onClick={(e) => { e.stopPropagation(); void onTogglePublish(item); }}>
@@ -134,25 +123,10 @@ export const TemplateList: React.FC<TemplateListProps> = ({
       width: 105,
       sortable: false,
       renderCell: (params) => (
-        <Tooltip title={`Ghi public/templates/${(params.row as LocalTemplateLayout).key}.json vao ma nguon`}>
+        <Tooltip title={`Ghi public/templates/${(params.row as LocalTemplateLayoutSummary).key}.json vao ma nguon`}>
           <span>
-            <Button size="small" startIcon={<DownloadIcon />} onClick={(e) => void handleExportOne(params.row as LocalTemplateLayout, e)}>
+            <Button size="small" startIcon={<DownloadIcon />} onClick={(e) => void handleExportOne(params.row as LocalTemplateLayoutSummary, e)}>
               Ghi file
-            </Button>
-          </span>
-        </Tooltip>
-      ),
-    },
-    {
-      field: '_deleteFile',
-      headerName: 'Xoa file',
-      width: 115,
-      sortable: false,
-      renderCell: (params) => (
-        <Tooltip title={`Xoa public/templates/${(params.row as LocalTemplateLayout).key}.json khoi ma nguon`}>
-          <span>
-            <Button size="small" color="warning" variant="outlined" startIcon={<FolderDeleteIcon />} onClick={(e) => void handleDeleteFile(params.row as LocalTemplateLayout, e)}>
-              Xoa file
             </Button>
           </span>
         </Tooltip>
@@ -164,9 +138,9 @@ export const TemplateList: React.FC<TemplateListProps> = ({
       width: 110,
       sortable: false,
       renderCell: (params) => (
-        <Tooltip title={`Xoa template "${(params.row as LocalTemplateLayout).key}" khoi MongoDB`}>
+        <Tooltip title={`Xoa template "${(params.row as LocalTemplateLayoutSummary).key}" khoi MongoDB`}>
           <span>
-            <Button size="small" color="error" variant="outlined" startIcon={<StorageIcon />} onClick={(e) => { e.stopPropagation(); onDelete((params.row as LocalTemplateLayout).id); }}>
+            <Button size="small" color="error" variant="outlined" startIcon={<StorageIcon />} onClick={(e) => { e.stopPropagation(); onDelete((params.row as LocalTemplateLayoutSummary).id); }}>
               Xoa DB
             </Button>
           </span>
@@ -228,7 +202,6 @@ export const TemplateList: React.FC<TemplateListProps> = ({
             <Typography variant="caption" color="text.disabled">Chu thich:</Typography>
             {([
               { icon: <DownloadIcon sx={{ fontSize: 13 }} />, label: 'Ghi file', color: 'primary.main' },
-              { icon: <FolderDeleteIcon sx={{ fontSize: 13 }} />, label: 'Xoa file', color: 'warning.main' },
               { icon: <StorageIcon sx={{ fontSize: 13 }} />, label: 'Xoa DB', color: 'error.main' },
             ] as const).map(({ icon, label, color }) => (
               <Stack key={label} direction="row" alignItems="center" spacing={0.25} sx={{ color }}>

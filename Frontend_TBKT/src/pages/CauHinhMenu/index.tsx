@@ -1,740 +1,1073 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    Chip,
-    Divider,
-    FormControlLabel,
-    MenuItem,
-    Select,
-    Stack,
-    Switch,
-    TextField,
-    Tooltip,
-    Typography,
-} from '@mui/material';
-import type { GridColDef } from '@mui/x-data-grid';
-import IconPickerPopover from '../CauHinhThamSo/subComponents/IconPickerPopover';
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  FormControlLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Switch,
+  TextField,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import type { GridColDef } from "@mui/x-data-grid";
+import IconPickerPopover from "../CauHinhThamSo/subComponents/IconPickerPopover";
 import {
-    normalizeColumnCount,
-    normalizeColumns,
-    normalizeDataSource,
-    normalizeGridCount,
-    normalizeMenuPath,
-    normalizePermissionCode,
-} from '../../configs/dynamicMenuConfig';
-import { buildFieldOptions, buildSourceOptions } from '../../configs/dynamicMenuDataSource';
-import { notifyDynamicMenuConfigChanged, useDynamicMenuConfig } from '../../hooks/useDynamicMenuConfig';
-import type { DynamicMenuConfigItem } from '../../types/dynamicMenu';
-import { nameToIcon } from '../../utils/thamSoUtils';
-import { buildAuditSummary } from '../../utils/auditMeta';
-import thamSoApi, { type LocalTemplateLayout } from '../../apis/thamSoApi';
-import LazyDataGrid from '../../components/LazyDataGrid';
+  normalizeColumns,
+  normalizeDataSource,
+  normalizeGridCount,
+  normalizeMenuPath,
+  normalizePermissionCode,
+} from "../../configs/dynamicMenuConfig";
+import {
+  buildFieldOptions,
+  buildSourceOptions,
+} from "../../configs/dynamicMenuDataSource";
+import {
+  notifyDynamicMenuConfigChanged,
+  useDynamicMenuConfig,
+} from "../../hooks/useDynamicMenuConfig";
+import type { DynamicMenuConfigItem } from "../../types/dynamicMenu";
+import { nameToIcon } from "../../utils/thamSoUtils";
+import { buildAuditSummary } from "../../utils/auditMeta";
+import thamSoApi, {
+  type LocalTemplateLayoutSummary,
+} from "../../apis/thamSoApi";
+import LazyDataGrid from "../../components/LazyDataGrid";
 
-interface FormColumnState {
-    key: string;
-    name: string;
-}
-
-interface FormState {
-    id: string;
-    title: string;
-    path: string;
-    icon: string;
-    templateKey: string;
-    permissionCode: string;
-    dataSource: string;
-    gridCount: number;
-    columnCount: number;
-    columns: FormColumnState[];
-}
+type FormCol = { key: string; name: string };
+type FormState = {
+  id: string;
+  title: string;
+  path: string;
+  icon: string;
+  templateKey: string;
+  permissionCode: string;
+  dataSource: string;
+  gridCount: number;
+  columnCount: number;
+  columns: FormCol[];
+};
+type DataSource = {
+  sourceKey: string;
+  sourceName: string;
+  enabled?: boolean;
+  fields: Array<{ key: string; label?: string }>;
+};
 
 const INITIAL_FORM: FormState = {
-    id: '',
-    title: '',
-    path: '',
-    icon: 'Assignment',
-    templateKey: '',
-    permissionCode: '',
-    dataSource: 'employee',
-    gridCount: 1,
-    columnCount: 4,
-    columns: [],
+  id: "",
+  title: "",
+  path: "",
+  icon: "Assignment",
+  templateKey: "",
+  permissionCode: "",
+  dataSource: "employee",
+  gridCount: 1,
+  columnCount: 4,
+  columns: [],
+};
+const toSlug = (v: string) =>
+  v
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+const norm = (v: string) => (v || "").trim().toLowerCase();
+const perfNow = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+const getValue = (obj: Record<string, unknown>, key: string) => {
+  const v = obj[key];
+  if (v == null) return "";
+  if (typeof v === "object" && v && "value" in v)
+    return String((v as { value?: unknown }).value ?? "");
+  return typeof v === "object" ? "" : String(v);
 };
 
-const toSlug = (value: string): string =>
-    value
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
+const getTemplateColsFromSchema = (schemaJson?: string): number | null => {
+  if (!schemaJson?.trim()) return null;
+  try {
+    const json = JSON.parse(schemaJson) as {
+      content?: Array<{ type?: string; props?: Record<string, unknown> }>;
+    };
+    const tables = (json.content ?? []).filter((b) => b?.type === "DataTable");
+    if (!tables.length) return null;
+    return (
+      tables.reduce(
+        (m, t) =>
+          Math.max(
+            m,
+            Array.isArray(t.props?.visibleColumns)
+              ? t.props.visibleColumns.length
+              : 0,
+            Array.isArray(t.props?.columns) ? t.props.columns.length : 0,
+          ),
+        0,
+      ) || null
+    );
+  } catch {
+    return null;
+  }
+};
 
-const getValueByKey = (source: Record<string, unknown>, key: string): string => {
-    const value = source[key];
-    if (value == null) return '';
-    if (typeof value === 'object') {
-        if ('value' in (value as Record<string, unknown>)) {
-            const nested = (value as Record<string, unknown>).value;
-            return nested == null ? '' : String(nested);
+function WorkflowStepper() {
+  const steps = [
+    {
+      label: "Tao template",
+      hint: "Vao CauHinhTemplate, tao template va dat key.",
+    },
+    {
+      label: "Chon datasource",
+      hint: "Menu dong doc du lieu tu datasource dang bat.",
+    },
+    {
+      label: "Mapping columns",
+      hint: "Kiem tra mapping va preview truoc khi luu.",
+    },
+  ];
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, mb: 2, borderRadius: 2 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={0}
+        divider={
+          <Typography sx={{ px: 1, color: "text.disabled", fontSize: 14 }}>
+            {">"}
+          </Typography>
         }
-        return '';
+      >
+        {steps.map((step, i) => (
+          <Tooltip key={step.label} title={step.hint} arrow>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  bgcolor: i < 2 ? "success.light" : "primary.main",
+                  color: i < 2 ? "success.dark" : "primary.contrastText",
+                }}
+              >
+                {i < 2 ? "OK" : "3"}
+              </Box>
+              <Typography variant="caption">{step.label}</Typography>
+            </Stack>
+          </Tooltip>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
+function FormModeBadge({
+  editingId,
+  title,
+}: {
+  editingId: string | null;
+  title: string;
+}) {
+  const theme = useTheme();
+  const isEditing = Boolean(editingId);
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        px: 1.5,
+        py: 1,
+        borderRadius: 1.5,
+        border: "1px solid",
+        borderColor: isEditing ? "warning.light" : "success.light",
+        bgcolor: isEditing
+          ? theme.palette.mode === "dark"
+            ? "rgba(237,108,2,0.08)"
+            : "warning.50"
+          : theme.palette.mode === "dark"
+            ? "rgba(46,125,50,0.08)"
+            : "success.50",
+      }}
+    >
+      <Box
+        sx={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          bgcolor: isEditing ? "warning.main" : "success.main",
+        }}
+      />
+      <Typography variant="body2" color="text.secondary">
+        {isEditing ? (
+          <>
+            Dang sua: <strong>{title}</strong>
+          </>
+        ) : (
+          <>Tao menu moi</>
+        )}
+      </Typography>
+    </Box>
+  );
+}
+
+const MenuForm = React.memo(function MenuForm({
+  editingId,
+  initialValues,
+  dataSources,
+  templates,
+  existingIds,
+  loading,
+  onSave,
+  onCancel,
+  getTemplateColumnCount,
+}: {
+  editingId: string | null;
+  initialValues: FormState;
+  dataSources: DataSource[];
+  templates: LocalTemplateLayoutSummary[];
+  existingIds: string[];
+  loading: boolean;
+  onSave: (
+    item: DynamicMenuConfigItem,
+    editingId: string | null,
+  ) => Promise<void>;
+  onCancel: () => void;
+  getTemplateColumnCount: (templateKey: string) => Promise<number | null>;
+}) {
+  const [form, setForm] = useState<FormState>(initialValues);
+  const [error, setError] = useState("");
+  const [iconAnchor, setIconAnchor] = useState<HTMLElement | null>(null);
+  const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [templateCols, setTemplateCols] = useState<number | null>(null);
+
+  useEffect(() => {
+    setForm(initialValues);
+    setError("");
+  }, [initialValues]);
+  useEffect(() => {
+    let canceled = false;
+    const key = (form.templateKey || "").trim();
+    if (!key) {
+      setTemplateCols(null);
+      return () => {
+        canceled = true;
+      };
     }
-    return String(value);
-};
+    void (async () => {
+      const count = await getTemplateColumnCount(key);
+      if (!canceled) setTemplateCols(count);
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [form.templateKey, getTemplateColumnCount]);
+
+  const ds = normalizeDataSource(form.dataSource);
+  const colCount = templateCols ?? Math.max(1, form.columnCount || 4);
+  const normalizedSources = useMemo(
+    () =>
+      dataSources.map((s) => ({
+        ...s,
+        enabled: Boolean(s.enabled),
+        fields: (s.fields ?? []).map((f) => ({
+          key: f.key,
+          label: f.label ?? f.key,
+        })),
+      })),
+    [dataSources],
+  );
+  const sourceOptions = useMemo(
+    () => buildSourceOptions(normalizedSources),
+    [normalizedSources],
+  );
+  const fieldOptions = useMemo(
+    () => buildFieldOptions(ds, normalizedSources),
+    [ds, normalizedSources],
+  );
+  const selected = useMemo(
+    () => dataSources.find((x) => norm(x.sourceKey) === norm(ds)) ?? null,
+    [dataSources, ds],
+  );
+  const columns = useMemo(
+    () => normalizeColumns(ds, colCount, form.columns, dataSources),
+    [ds, colCount, form.columns, dataSources],
+  );
+  const mismatch = useMemo(() => {
+    if (!selected) return new Set(columns.map((c) => c.key));
+    const valid = new Set(selected.fields.map((f) => norm(f.key)));
+    return new Set(
+      columns.filter((c) => !valid.has(norm(c.key))).map((c) => c.key),
+    );
+  }, [columns, selected]);
+
+  useEffect(() => {
+    if (!ds) return;
+    let canceled = false;
+    void (async () => {
+      try {
+        setPreviewLoading(true);
+        const rows = await thamSoApi.getDynamicMenuRows(ds, 10);
+        if (!canceled) setPreviewRows(rows);
+      } finally {
+        if (!canceled) setPreviewLoading(false);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [ds]);
+  const previewCols = useMemo<GridColDef[]>(
+    () =>
+      columns.map((c, i) => ({
+        field: `col_${i + 1}`,
+        headerName: c.name,
+        minWidth: 130,
+        flex: 1,
+      })),
+    [columns],
+  );
+  const previewGridRows = useDeferredValue(
+    useMemo(
+      () =>
+        previewRows.map((row, ri) => {
+          const item: Record<string, string> = {
+            id: String(row.id ?? `r-${ri}`),
+          };
+          columns.forEach((c, ci) => {
+            item[`col_${ci + 1}`] = getValue(row, c.key);
+          });
+          return item;
+        }),
+      [previewRows, columns],
+    ),
+  );
+
+  const submit = async () => {
+    const title = form.title.trim();
+    const id = editingId ?? toSlug(form.id || title);
+    if (!title) return setError("Vui long nhap ten menu.");
+    if (!id) return setError("Ma menu khong hop le.");
+    if (!selected) return setError("Vui long chon datasource hop le.");
+    if (existingIds.includes(id) && id !== editingId)
+      return setError("Ma menu da ton tai.");
+    const next: DynamicMenuConfigItem = {
+      id,
+      title,
+      path: normalizeMenuPath(form.path || "", id),
+      active: `menuDong_${id}`,
+      icon: form.icon || "Assignment",
+      permissionCode: normalizePermissionCode(form.permissionCode, id),
+      templateKey: form.templateKey.trim(),
+      dataSource: ds,
+      gridCount: normalizeGridCount(form.gridCount),
+      columnCount: colCount,
+      columns: normalizeColumns(ds, colCount, form.columns, dataSources),
+      enabled: true,
+    };
+    await onSave(next, editingId);
+    setForm(INITIAL_FORM);
+  };
+
+  return (
+    <Stack spacing={2}>
+      <FormModeBadge editingId={editingId} title={form.title || "..."} />
+      {error && (
+        <Alert severity="warning" onClose={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+      {mismatch.size > 0 && (
+        <Alert severity="warning">
+          {mismatch.size} cot map sai field: {[...mismatch].join(", ")}
+        </Alert>
+      )}
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <TextField
+            size="small"
+            label="Ten menu"
+            value={form.title}
+            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+          />
+          <Stack direction="row" spacing={1.5}>
+            <TextField
+              size="small"
+              fullWidth
+              label="Ma menu"
+              value={form.id}
+              disabled={Boolean(editingId)}
+              onChange={(e) => setForm((p) => ({ ...p, id: e.target.value }))}
+            />
+            <TextField
+              size="small"
+              fullWidth
+              label="Duong dan"
+              value={form.path}
+              onChange={(e) => setForm((p) => ({ ...p, path: e.target.value }))}
+            />
+          </Stack>
+          <TextField
+            size="small"
+            label="Ma quyen"
+            value={form.permissionCode}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, permissionCode: e.target.value }))
+            }
+          />
+          <Stack direction="row" spacing={1.5}>
+            <Select
+              size="small"
+              fullWidth
+              value={ds}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, dataSource: e.target.value }))
+              }
+            >
+              {sourceOptions.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </Select>
+            <Select
+              size="small"
+              fullWidth
+              value={form.templateKey}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, templateKey: e.target.value }))
+              }
+              displayEmpty
+            >
+              <MenuItem value="">
+                <em>- Chua chon -</em>
+              </MenuItem>
+              {templates.map((t) => (
+                <MenuItem key={t.key} value={t.key}>
+                  {t.published ? "" : "[Draft] "}
+                  {t.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={(e) => setIconAnchor(e.currentTarget)}
+              sx={{
+                flex: 1,
+                textTransform: "none",
+                justifyContent: "flex-start",
+                gap: 1,
+              }}
+            >
+              {nameToIcon(form.icon || "Assignment")}
+              <Typography variant="body2">
+                {form.icon || "Assignment"}
+              </Typography>
+            </Button>
+            <TextField
+              size="small"
+              type="number"
+              sx={{ width: 120 }}
+              value={normalizeGridCount(form.gridCount)}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  gridCount: Number(e.target.value) || 1,
+                }))
+              }
+            />
+            <TextField
+              size="small"
+              sx={{ width: 130 }}
+              value={colCount}
+              disabled
+            />
+          </Stack>
+          <IconPickerPopover
+            anchorEl={iconAnchor}
+            open={Boolean(iconAnchor)}
+            selectedIconName={form.icon || "Assignment"}
+            selectedColor="#2e7d32"
+            onSelect={(n) => {
+              setForm((p) => ({ ...p, icon: n || "Assignment" }));
+              setIconAnchor(null);
+            }}
+            onClose={() => setIconAnchor(null)}
+          />
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <Typography
+          variant="caption"
+          sx={{ color: "text.secondary", display: "block", mb: 1 }}
+        >
+          Mapping cot runtime
+        </Typography>
+        <Box
+          sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 42px", gap: 1 }}
+        >
+          {columns.map((c, idx) => (
+            <React.Fragment key={`col-${idx}`}>
+              <TextField
+                size="small"
+                value={c.name}
+                onChange={(e) =>
+                  setForm((p) => {
+                    const next = [
+                      ...normalizeColumns(ds, colCount, p.columns, dataSources),
+                    ];
+                    next[idx] = { ...next[idx], name: e.target.value };
+                    return { ...p, columns: next };
+                  })
+                }
+              />
+              <Select
+                size="small"
+                value={c.key}
+                onChange={(e) =>
+                  setForm((p) => {
+                    const next = [
+                      ...normalizeColumns(ds, colCount, p.columns, dataSources),
+                    ];
+                    next[idx] = { ...next[idx], key: e.target.value };
+                    return { ...p, columns: next };
+                  })
+                }
+              >
+                {fieldOptions.map((f) => (
+                  <MenuItem key={f.key} value={f.key}>
+                    {f.label}
+                  </MenuItem>
+                ))}
+              </Select>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {mismatch.has(c.key) ? (
+                  <WarningAmberIcon
+                    sx={{ color: "warning.main", fontSize: 18 }}
+                  />
+                ) : (
+                  <CheckCircleOutlineIcon
+                    sx={{ color: "success.main", fontSize: 18 }}
+                  />
+                )}
+              </Box>
+            </React.Fragment>
+          ))}
+        </Box>
+      </Paper>
+
+      <Stack direction="row" spacing={1}>
+        <Button
+          variant="contained"
+          sx={{ flex: 1 }}
+          onClick={() => void submit()}
+          disabled={loading}
+        >
+          {editingId ? "Cap nhat menu" : "Them menu"}
+        </Button>
+        {editingId && (
+          <Button variant="outlined" onClick={onCancel}>
+            Huy sua
+          </Button>
+        )}
+      </Stack>
+
+      <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Preview du lieu mau
+          </Typography>
+        </Box>
+        <Box sx={{ height: 280 }}>
+          <LazyDataGrid
+            rows={previewGridRows}
+            columns={previewCols}
+            loading={previewLoading}
+            disableRowSelectionOnClick
+            pageSizeOptions={[5, 10]}
+            fallbackRows={5}
+            fallbackCols={Math.max(previewCols.length, 3)}
+          />
+        </Box>
+      </Paper>
+    </Stack>
+  );
+});
 
 const CauHinhMenuDong: React.FC = () => {
-    const { items, dataSources, loading, error: loadError, reload, createItem, updateItem, deleteItem } = useDynamicMenuConfig();
-    const [deletedItems, setDeletedItems] = useState<DynamicMenuConfigItem[]>([]);
-    const [form, setForm] = useState<FormState>(INITIAL_FORM);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [error, setError] = useState<string>('');
-    const [templates, setTemplates] = useState<LocalTemplateLayout[]>([]);
-    const [iconPickerAnchorEl, setIconPickerAnchorEl] = useState<HTMLElement | null>(null);
-    const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
-    const [previewLoading, setPreviewLoading] = useState<boolean>(false);
-    const [previewError, setPreviewError] = useState<string>('');
+  const {
+    items,
+    dataSources,
+    loading,
+    error: loadError,
+    reload,
+    createItem,
+    updateItem,
+    deleteItem,
+  } = useDynamicMenuConfig();
+  const [deletedItems, setDeletedItems] = useState<DynamicMenuConfigItem[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [initialValues, setInitialValues] = useState<FormState>(INITIAL_FORM);
+  const [listError, setListError] = useState("");
+  const [templates, setTemplates] = useState<LocalTemplateLayoutSummary[]>([]);
+  const templateColCountCacheRef = useRef<Record<string, number | null>>({});
 
-    useEffect(() => {
-        const loadTemplates = async (): Promise<void> => {
-            try {
-                const result = await thamSoApi.getListTemplateLayouts();
-                setTemplates(result);
-            } catch {
-                setTemplates([]);
-            }
-        };
-        void loadTemplates();
-    }, []);
-
-    const normalizedDataSource = normalizeDataSource(form.dataSource);
-    const normalizedColumnCount = normalizeColumnCount(form.columnCount);
-    const normalizedGridCount = normalizeGridCount(form.gridCount);
-    const sourceOptions = useMemo(() => buildSourceOptions(dataSources), [dataSources]);
-    const selectedDataSource = dataSources.find((item) => item.sourceKey === normalizedDataSource) ?? null;
-    const fieldOptions = useMemo(
-        () => buildFieldOptions(normalizedDataSource, dataSources),
-        [normalizedDataSource, dataSources],
-    );
-    const normalizedFormColumns = useMemo(
-        () => normalizeColumns(normalizedDataSource, normalizedColumnCount, form.columns, dataSources),
-        [normalizedDataSource, normalizedColumnCount, form.columns, dataSources],
-    );
-
-    useEffect(() => {
-        setForm((prev) => {
-            const nextColumns = normalizeColumns(
-                normalizeDataSource(prev.dataSource),
-                normalizeColumnCount(prev.columnCount),
-                prev.columns,
-                dataSources,
-            );
-
-            if (nextColumns.length === prev.columns.length &&
-                nextColumns.every((item, index) => item.key === prev.columns[index]?.key && item.name === prev.columns[index]?.name)) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                columns: nextColumns,
-            };
+  useEffect(() => {
+    void (async () => {
+      const startedAt = perfNow();
+      try {
+        const summary = await thamSoApi.getListTemplateLayoutSummaries();
+        setTemplates(summary);
+        console.info("[PERF][CauHinhMenu][summary]", {
+          count: summary.length,
+          elapsedMs: Math.round(perfNow() - startedAt),
         });
-    }, [dataSources]);
+      } catch {
+        setTemplates([]);
+        console.info("[PERF][CauHinhMenu][summary]", {
+          count: 0,
+          elapsedMs: Math.round(perfNow() - startedAt),
+          failed: true,
+        });
+      }
+    })();
+  }, []);
+  const getTemplateColumnCount = useCallback(
+    async (templateKey: string): Promise<number | null> => {
+      const startedAt = perfNow();
+      const key = (templateKey || "").trim();
+      if (!key) return null;
+      if (Object.prototype.hasOwnProperty.call(templateColCountCacheRef.current, key)) {
+        const cached = templateColCountCacheRef.current[key];
+        console.info("[PERF][CauHinhMenu][cache-hit]", {
+          key,
+          cachedCount: cached,
+          elapsedMs: Math.round(perfNow() - startedAt),
+        });
+        return cached;
+      }
+      try {
+        const detail = await thamSoApi.getTemplateLayoutDetail({ key });
+        const count = getTemplateColsFromSchema(detail.schemaJson);
+        templateColCountCacheRef.current[key] = count;
+        console.info("[PERF][CauHinhMenu][detail]", {
+          key,
+          count,
+          elapsedMs: Math.round(perfNow() - startedAt),
+        });
+        return count;
+      } catch {
+        templateColCountCacheRef.current[key] = null;
+        console.info("[PERF][CauHinhMenu][detail]", {
+          key,
+          count: null,
+          elapsedMs: Math.round(perfNow() - startedAt),
+          failed: true,
+        });
+        return null;
+      }
+    },
+    [],
+  );
 
-    useEffect(() => {
-        if (!normalizedDataSource) {
-            setPreviewRows([]);
-            setPreviewError('');
-            return;
-        }
-
-        const loadPreview = async (): Promise<void> => {
-            try {
-                setPreviewLoading(true);
-                setPreviewError('');
-                const rows = await thamSoApi.getDynamicMenuRows(normalizedDataSource, 10);
-                setPreviewRows(rows);
-            } catch (err) {
-                setPreviewRows([]);
-                setPreviewError((err as Error)?.message || 'Khong the tai preview du lieu');
-            } finally {
-                setPreviewLoading(false);
-            }
-        };
-
-        void loadPreview();
-    }, [normalizedDataSource]);
-
-    const mismatchColumns = useMemo(() => {
-        if (!selectedDataSource) {
-            return normalizedFormColumns;
-        }
-
-        const fieldKeySet = new Set(selectedDataSource.fields.map((field) => field.key));
-        return normalizedFormColumns.filter((column) => !fieldKeySet.has(column.key));
-    }, [normalizedFormColumns, selectedDataSource]);
-
-    const rows = useMemo(
-        () => items.map((item) => {
-            const ds = dataSources.find((source) => source.sourceKey === item.dataSource);
-            const fieldKeySet = new Set((ds?.fields ?? []).map((field) => field.key));
-            const mismatchCount = (item.columns ?? []).filter((column) => !fieldKeySet.has(column.key)).length;
-
-            return {
-                ...item,
-                statusText: item.enabled ? 'Bat' : 'Tat',
-                templateName: templates.find((t) => t.key === item.templateKey)?.name || item.templateKey || '—',
-                sourceName: ds?.sourceName || item.dataSource,
-                mappingText: mismatchCount > 0 ? `${mismatchCount} cot loi` : 'Hop le',
-                auditText: buildAuditSummary(item.audit),
-            };
+  const existingIds = useMemo(() => items.map((x) => x.id), [items]);
+  const deferredItems = useDeferredValue(items);
+  const deferredDeleted = useDeferredValue(deletedItems);
+  const gridRows = useDeferredValue(
+    useMemo(
+      () =>
+        items.map((it) => {
+          const ds = dataSources.find(
+            (d) => norm(d.sourceKey) === norm(it.dataSource),
+          );
+          const keys = new Set((ds?.fields ?? []).map((f) => norm(f.key)));
+          const mismatch = (it.columns ?? []).filter(
+            (c) => !keys.has(norm(c.key)),
+          ).length;
+          return {
+            ...it,
+            sourceName: ds?.sourceName || it.dataSource,
+            mappingText: mismatch > 0 ? `${mismatch} cot loi` : "Hop le",
+            templateName:
+              templates.find((t) => t.key === it.templateKey)?.name ||
+              it.templateKey ||
+              "-",
+            statusText: it.enabled ? "Bat" : "Tat",
+            auditText: buildAuditSummary(it.audit),
+          };
         }),
-        [items, templates, dataSources],
-    );
-
-    const columns: GridColDef[] = [
-        { field: 'title', headerName: 'Ten menu', flex: 1.2, minWidth: 180 },
-        { field: 'path', headerName: 'Duong dan', flex: 1.2, minWidth: 180 },
-        { field: 'sourceName', headerName: 'Datasource', flex: 1, minWidth: 160 },
-        { field: 'mappingText', headerName: 'Mapping', flex: 0.8, minWidth: 140 },
-        { field: 'permissionCode', headerName: 'Ma quyen', flex: 1.1, minWidth: 180 },
-        { field: 'auditText', headerName: 'Cap nhat', flex: 1, minWidth: 190 },
-        {
-            field: 'icon',
-            headerName: 'Icon',
-            width: 80,
-            align: 'center',
-            headerAlign: 'center',
-            renderCell: (params) => (
-                <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
-                    {nameToIcon((params.value as string) || 'Assignment')}
-                </Box>
-            ),
-        },
-        { field: 'templateName', headerName: 'Template', flex: 1, minWidth: 160 },
-        { field: 'statusText', headerName: 'Trang thai', width: 120, align: 'center', headerAlign: 'center' },
-    ];
-
-    const previewGridColumns: GridColDef[] = normalizedFormColumns.map((column, index) => ({
-        field: `col_${index + 1}`,
-        headerName: column.name,
-        minWidth: 150,
+      [items, dataSources, templates],
+    ),
+  );
+  const gridColumns = useMemo<GridColDef[]>(
+    () => [
+      { field: "title", headerName: "Ten menu", flex: 1.2, minWidth: 160 },
+      {
+        field: "sourceName",
+        headerName: "Datasource",
+        flex: 0.9,
+        minWidth: 130,
+      },
+      { field: "mappingText", headerName: "Mapping", flex: 0.7, minWidth: 110 },
+      {
+        field: "permissionCode",
+        headerName: "Ma quyen",
         flex: 1,
-    }));
+        minWidth: 160,
+      },
+      {
+        field: "templateName",
+        headerName: "Template",
+        flex: 0.9,
+        minWidth: 140,
+      },
+      {
+        field: "statusText",
+        headerName: "Trang thai",
+        width: 100,
+        align: "center",
+        headerAlign: "center",
+      },
+      { field: "auditText", headerName: "Cap nhat", flex: 1, minWidth: 180 },
+    ],
+    [],
+  );
 
-    const previewGridRows = useMemo(
-        () => previewRows.map((row, rowIndex) => {
-            const item: Record<string, string> = {
-                id: String(row.id ?? `preview-${rowIndex + 1}`),
-            };
-            normalizedFormColumns.forEach((column, columnIndex) => {
-                item[`col_${columnIndex + 1}`] = getValueByKey(row, column.key);
-            });
-            return item;
-        }),
-        [previewRows, normalizedFormColumns],
-    );
+  const onEdit = useCallback(
+    (row: DynamicMenuConfigItem) => {
+      const cnt = Math.max(1, row.columnCount || 4);
+      setEditingId(row.id);
+      setInitialValues({
+        id: row.id,
+        title: row.title,
+        path: row.path,
+        icon: row.icon || "Assignment",
+        templateKey: row.templateKey || "",
+        permissionCode: row.permissionCode || "",
+        dataSource: normalizeDataSource(row.dataSource),
+        gridCount: normalizeGridCount(row.gridCount),
+        columnCount: cnt,
+        columns: normalizeColumns(
+          normalizeDataSource(row.dataSource),
+          cnt,
+          row.columns,
+          dataSources,
+        ),
+      });
+      if (row.templateKey) void getTemplateColumnCount(row.templateKey);
+      setListError("");
+    },
+    [dataSources, getTemplateColumnCount],
+  );
+  const onCancel = useCallback(() => {
+    setEditingId(null);
+    setInitialValues(INITIAL_FORM);
+    setListError("");
+  }, []);
+  const onSave = useCallback(
+    async (next: DynamicMenuConfigItem, id: string | null) => {
+      if (id) {
+        const cur = items.find((x) => x.id === id);
+        await updateItem({ ...next, enabled: cur?.enabled ?? true });
+      } else {
+        await createItem(next);
+      }
+      notifyDynamicMenuConfigChanged();
+      onCancel();
+    },
+    [items, updateItem, createItem, onCancel],
+  );
+  const onToggle = useCallback(
+    async (id: string) => {
+      try {
+        const t = items.find((x) => x.id === id);
+        if (!t) return;
+        await updateItem({ ...t, enabled: !t.enabled });
+        notifyDynamicMenuConfigChanged();
+      } catch (e) {
+        setListError((e as Error)?.message || "Khong the cap nhat trang thai");
+      }
+    },
+    [items, updateItem],
+  );
+  const onDelete = useCallback(
+    async (id: string) => {
+      const d = items.find((x) => x.id === id);
+      try {
+        await deleteItem(id);
+        if (d) setDeletedItems((p) => [d, ...p.filter((x) => x.id !== d.id)]);
+        notifyDynamicMenuConfigChanged();
+        if (editingId === id) onCancel();
+      } catch (e) {
+        setListError((e as Error)?.message || "Khong the xoa menu");
+      }
+    },
+    [deleteItem, editingId, items, onCancel],
+  );
+  const onRestore = useCallback(
+    async (id: string) => {
+      try {
+        setListError("");
+        await thamSoApi.restoreDynamicMenu(id);
+        setDeletedItems((p) => p.filter((x) => x.id !== id));
+        notifyDynamicMenuConfigChanged();
+        await reload();
+      } catch (e) {
+        setListError((e as Error)?.message || "Khong the khoi phuc menu");
+      }
+    },
+    [reload],
+  );
 
-    const resetForm = (): void => {
-        setForm(INITIAL_FORM);
-        setEditingId(null);
-        setError('');
-        setPreviewError('');
-    };
-
-    const handleColumnsSync = (nextSourceKey: string, nextColumnCount: number): void => {
-        setForm((prev) => ({
-            ...prev,
-            dataSource: nextSourceKey,
-            columnCount: nextColumnCount,
-            columns: normalizeColumns(nextSourceKey, nextColumnCount, prev.columns, dataSources),
-        }));
-    };
-
-    const handleCreateOrUpdate = async (): Promise<void> => {
-        const normalizedTitle = form.title.trim();
-        const normalizedId = editingId ?? toSlug(form.id || normalizedTitle);
-        const nextSourceKey = normalizeDataSource(form.dataSource);
-        const nextColumns = normalizeColumns(nextSourceKey, normalizedColumnCount, form.columns, dataSources);
-
-        if (!normalizedTitle) {
-            setError('Vui long nhap ten menu.');
-            return;
-        }
-
-        if (!normalizedId) {
-            setError('Ma menu khong hop le. Chi dung chu cai, so va dau gach ngang.');
-            return;
-        }
-
-        if (!selectedDataSource) {
-            setError('Vui long chon datasource hop le cho menu dong.');
-            return;
-        }
-
-        const duplicate = items.some((item) => item.id === normalizedId && item.id !== editingId);
-        if (duplicate) {
-            setError('Ma menu da ton tai. Vui long doi ma khac.');
-            return;
-        }
-
-        const nextItem: DynamicMenuConfigItem = {
-            id: normalizedId,
-            title: normalizedTitle,
-            path: normalizeMenuPath(form.path || '', normalizedId),
-            active: `menuDong_${normalizedId}`,
-            icon: (form.icon || 'Assignment').trim(),
-            permissionCode: normalizePermissionCode(form.permissionCode, normalizedId),
-            templateKey: form.templateKey.trim(),
-            dataSource: nextSourceKey,
-            gridCount: normalizedGridCount,
-            columnCount: normalizedColumnCount,
-            columns: nextColumns,
-            enabled: true,
-        };
-
-        try {
-            if (editingId) {
-                const current = items.find((item) => item.id === editingId);
-                await updateItem({ ...nextItem, enabled: current?.enabled ?? true });
-            } else {
-                await createItem(nextItem);
-            }
-
-            notifyDynamicMenuConfigChanged();
-            resetForm();
-        } catch (err) {
-            setError((err as Error)?.message || 'Khong the luu menu dong');
-        }
-    };
-
-    const handleEdit = (row: DynamicMenuConfigItem): void => {
-        setEditingId(row.id);
-        setForm({
-            id: row.id,
-            title: row.title,
-            path: row.path,
-            icon: row.icon || 'Assignment',
-            templateKey: row.templateKey || '',
-            permissionCode: row.permissionCode || '',
-            dataSource: normalizeDataSource(row.dataSource),
-            gridCount: normalizeGridCount(row.gridCount),
-            columnCount: normalizeColumnCount(row.columnCount),
-            columns: normalizeColumns(
-                normalizeDataSource(row.dataSource),
-                normalizeColumnCount(row.columnCount),
-                row.columns,
-                dataSources,
-            ),
-        });
-        setError('');
-    };
-
-    const handleSelectIcon = (iconName: string): void => {
-        setForm((prev) => ({ ...prev, icon: iconName || 'Assignment' }));
-        setIconPickerAnchorEl(null);
-    };
-
-    const handleToggle = async (id: string): Promise<void> => {
-        try {
-            const target = items.find((item) => item.id === id);
-            if (!target) return;
-            await updateItem({ ...target, enabled: !target.enabled });
-            notifyDynamicMenuConfigChanged();
-        } catch (err) {
-            setError((err as Error)?.message || 'Khong the cap nhat trang thai menu');
-        }
-    };
-
-    const handleDelete = async (id: string): Promise<void> => {
-        const deletedItem = items.find((item) => item.id === id);
-        try {
-            await deleteItem(id);
-            if (deletedItem) {
-                setDeletedItems((prev) => [deletedItem, ...prev.filter((item) => item.id !== deletedItem.id)]);
-            }
-            notifyDynamicMenuConfigChanged();
-            if (editingId === id) {
-                resetForm();
-            }
-        } catch (err) {
-            setError((err as Error)?.message || 'Khong the xoa menu dong');
-        }
-    };
-
-    const handleRestore = async (id: string): Promise<void> => {
-        try {
-            setError('');
-            await thamSoApi.restoreDynamicMenu(id);
-            setDeletedItems((prev) => prev.filter((item) => item.id !== id));
-            notifyDynamicMenuConfigChanged();
-            await reload();
-        } catch (err) {
-            setError((err as Error)?.message || 'Khong the khoi phuc menu dong');
-        }
-    };
-
-    const handleColumnChange = (index: number, field: keyof FormColumnState, value: string): void => {
-        setForm((prev) => {
-            const nextColumns = [...normalizedFormColumns];
-            nextColumns[index] = {
-                ...nextColumns[index],
-                [field]: value,
-            };
-            return {
-                ...prev,
-                columns: nextColumns,
-            };
-        });
-    };
-
-    return (
-        <Box sx={{ p: 2 }}>
-            <Stack spacing={2}>
-                <Typography variant="h4" fontWeight={700}>Cau hinh menu dong tren Sidebar</Typography>
-
-                <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
-                    <Typography variant="caption" color="text.disabled">Quy trinh:</Typography>
-                    {([
-                        { label: '1 Tao template', color: 'text.secondary', tooltip: 'Vao CauHinhTemplate de tao template va dat key.' },
-                        { label: '2 Chon datasource', color: 'text.secondary', tooltip: 'Menu dong runtime se doc du lieu tu datasource dang active.' },
-                        { label: '3 Chon columns + preview', color: 'primary.main', tooltip: 'Kiem tra mapping columns va sample rows truoc khi dua vao runtime.' },
-                    ] as const).map(({ label, color, tooltip }, i) => (
-                        <Stack key={label} direction="row" alignItems="center" spacing={0.5}>
-                            {i > 0 && <Typography variant="caption" color="text.disabled">→</Typography>}
-                            <Tooltip title={tooltip} arrow>
-                                <Typography variant="caption" sx={{ color, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>
-                                    {label}
-                                </Typography>
-                            </Tooltip>
-                        </Stack>
-                    ))}
-                </Stack>
-
-                {loadError && <Alert severity="error">{loadError}</Alert>}
-                {error && <Alert severity="warning">{error}</Alert>}
-                {!selectedDataSource && (
-                    <Alert severity="warning">
-                        Datasource hien tai khong ton tai hoac da bi tat. Ban can chon lai datasource hop le truoc khi luu.
-                    </Alert>
-                )}
-                {mismatchColumns.length > 0 && (
-                    <Alert severity="warning">
-                        Phat hien {mismatchColumns.length} cot dang map toi field khong con ton tai trong datasource: {mismatchColumns.map((item) => item.key).join(', ')}.
-                    </Alert>
-                )}
-
-                <Card>
-                    <CardContent>
-                        <Stack spacing={2}>
-                            <Stack spacing={2} direction={{ xs: 'column', md: 'row' }}>
-                                <TextField
-                                    label="Ten menu"
-                                    value={form.title}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="Ma menu"
-                                    value={form.id}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, id: e.target.value }))}
-                                    helperText={editingId ? 'Khong cho doi ma menu khi dang sua' : 'De trong se tu sinh tu ten'}
-                                    disabled={Boolean(editingId)}
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="Duong dan menu"
-                                    value={form.path}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, path: e.target.value }))}
-                                    helperText="Vi du: /menu-dong/bao-cao-1"
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="Ma quyen"
-                                    value={form.permissionCode}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, permissionCode: e.target.value }))}
-                                    helperText="De trong se tu sinh theo ma menu"
-                                    fullWidth
-                                />
-                            </Stack>
-
-                            <Stack spacing={2} direction={{ xs: 'column', md: 'row' }} alignItems="flex-start">
-                                <Box sx={{ minWidth: 260 }}>
-                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Template</Typography>
-                                    <Select
-                                        value={form.templateKey}
-                                        onChange={(e) => setForm((prev) => ({ ...prev, templateKey: e.target.value }))}
-                                        displayEmpty
-                                        size="small"
-                                        sx={{ minWidth: 260 }}
-                                    >
-                                        <MenuItem value="">
-                                            <em>— Chua chon template —</em>
-                                        </MenuItem>
-                                        {templates.map((t) => (
-                                            <MenuItem key={t.key} value={t.key}>
-                                                {t.published ? '' : '[Draft] '}{t.name} ({t.key})
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </Box>
-
-                                <Box sx={{ minWidth: 260 }}>
-                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Datasource</Typography>
-                                    <Select
-                                        value={normalizedDataSource}
-                                        onChange={(e) => handleColumnsSync(e.target.value, normalizedColumnCount)}
-                                        size="small"
-                                        sx={{ minWidth: 260 }}
-                                    >
-                                        {sourceOptions.map((option) => (
-                                            <MenuItem key={option.value} value={option.value}>
-                                                {option.label} ({option.value})
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                        Xoa datasource se soft delete cac menu dang tham chieu source nay.
-                                    </Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Icon menu</Typography>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={(e) => setIconPickerAnchorEl(e.currentTarget)}
-                                        sx={{ justifyContent: 'space-between', minWidth: 260, textTransform: 'none' }}
-                                    >
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            {nameToIcon(form.icon || 'Assignment')}
-                                            <Typography variant="body2">{form.icon || 'Assignment'}</Typography>
-                                        </Stack>
-                                        <Typography variant="caption" color="text.secondary">Chon icon</Typography>
-                                    </Button>
-                                    <IconPickerPopover
-                                        anchorEl={iconPickerAnchorEl}
-                                        open={Boolean(iconPickerAnchorEl)}
-                                        selectedIconName={form.icon || 'Assignment'}
-                                        selectedColor="#2e7d32"
-                                        onSelect={handleSelectIcon}
-                                        onClose={() => setIconPickerAnchorEl(null)}
-                                    />
-                                </Box>
-                            </Stack>
-
-                            <Stack spacing={2} direction={{ xs: 'column', md: 'row' }}>
-                                <TextField
-                                    label="So DataGrid"
-                                    type="number"
-                                    value={normalizedGridCount}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, gridCount: Number(e.target.value) || 1 }))}
-                                    inputProps={{ min: 1, max: 6 }}
-                                    sx={{ maxWidth: 180 }}
-                                />
-                                <TextField
-                                    label="So cot"
-                                    type="number"
-                                    value={normalizedColumnCount}
-                                    onChange={(e) => handleColumnsSync(normalizedDataSource, Number(e.target.value) || 1)}
-                                    inputProps={{ min: 1, max: 12 }}
-                                    sx={{ maxWidth: 180 }}
-                                />
-                            </Stack>
-
-                            <Divider />
-
-                            <Stack spacing={1}>
-                                <Typography variant="subtitle1" fontWeight={600}>Mapping cot runtime</Typography>
-                                {normalizedFormColumns.map((column, index) => {
-                                    const isMismatch = mismatchColumns.some((item) => item.key === column.key);
-
-                                    return (
-                                        <Stack key={`column-${index}`} direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                                            <TextField
-                                                label={`Ten cot ${index + 1}`}
-                                                value={column.name}
-                                                onChange={(e) => handleColumnChange(index, 'name', e.target.value)}
-                                                fullWidth
-                                            />
-                                            <Select
-                                                value={column.key}
-                                                onChange={(e) => handleColumnChange(index, 'key', e.target.value)}
-                                                size="small"
-                                                sx={{ minWidth: 260, borderColor: isMismatch ? 'warning.main' : undefined }}
-                                            >
-                                                {fieldOptions.map((option) => (
-                                                    <MenuItem key={`${index}-${option.key}`} value={option.key}>
-                                                        {option.label} ({option.key})
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                            <Chip
-                                                color={isMismatch ? 'warning' : 'success'}
-                                                variant="outlined"
-                                                label={isMismatch ? 'Mismatch' : 'Hop le'}
-                                                sx={{ alignSelf: { xs: 'flex-start', md: 'center' } }}
-                                            />
-                                        </Stack>
-                                    );
-                                })}
-                            </Stack>
-
-                            <Stack direction="row" spacing={1.5}>
-                                <Button variant="contained" onClick={() => void handleCreateOrUpdate()} disabled={loading}>
-                                    {editingId ? 'Cap nhat menu' : 'Them menu'}
-                                </Button>
-                                {editingId && (
-                                    <Button variant="outlined" onClick={resetForm}>Huy sua</Button>
-                                )}
-                            </Stack>
-                        </Stack>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent>
-                        <Stack spacing={1.5}>
-                            <Box>
-                                <Typography variant="h6" fontWeight={600}>Preview runtime</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Xem truoc 10 ban ghi dau tien tu datasource va cach columns hien thi o runtime.
-                                </Typography>
-                            </Box>
-
-                            {previewError && <Alert severity="warning">{previewError}</Alert>}
-                            {!previewError && previewRows.length === 0 && !previewLoading && (
-                                <Alert severity="info">Datasource hien tai chua co ban ghi mau de preview.</Alert>
-                            )}
-
-                            <Box sx={{ height: 320 }}>
-                                <LazyDataGrid
-                                    rows={previewGridRows}
-                                    columns={previewGridColumns}
-                                    loading={previewLoading}
-                                    disableRowSelectionOnClick
-                                    pageSizeOptions={[5, 10]}
-                                    fallbackRows={5}
-                                    fallbackCols={Math.max(previewGridColumns.length, 3)}
-                                />
-                            </Box>
-                        </Stack>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent>
-                        <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5 }}>Danh sach menu dong</Typography>
-                        <Box sx={{ height: 360 }}>
-                            <LazyDataGrid
-                                rows={rows}
-                                columns={columns}
-                                loading={loading}
-                                disableRowSelectionOnClick
-                                onRowClick={(params) => handleEdit(params.row as DynamicMenuConfigItem)}
-                                pageSizeOptions={[5, 10, 20]}
-                                fallbackRows={6}
-                                fallbackCols={6}
-                            />
-                        </Box>
-                        <Divider sx={{ my: 2 }} />
-                        <Stack spacing={1.5}>
-                            {items.map((item) => {
-                                const ds = dataSources.find((source) => source.sourceKey === item.dataSource);
-                                const fieldKeySet = new Set((ds?.fields ?? []).map((field) => field.key));
-                                const mismatchCount = (item.columns ?? []).filter((column) => !fieldKeySet.has(column.key)).length;
-
-                                return (
-                                    <Stack
-                                        key={item.id}
-                                        direction={{ xs: 'column', md: 'row' }}
-                                        spacing={1.5}
-                                        justifyContent="space-between"
-                                        alignItems={{ xs: 'flex-start', md: 'center' }}
-                                        sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
-                                    >
-                                        <Box>
-                                            <Typography fontWeight={600}>{item.title}</Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {item.path} • quyen: {item.permissionCode || '(chua gan)'} • datasource: {ds?.sourceName || item.dataSource}
-                                            </Typography>
-                                            <Stack direction="row" spacing={1} sx={{ mt: 1 }} useFlexGap flexWrap="wrap">
-                                                <Chip size="small" variant="outlined" label={`${item.gridCount} grid`} />
-                                                <Chip size="small" variant="outlined" label={`${item.columnCount} cot`} />
-                                                <Chip
-                                                    size="small"
-                                                    color={mismatchCount > 0 ? 'warning' : 'success'}
-                                                    variant="outlined"
-                                                    label={mismatchCount > 0 ? `${mismatchCount} cot loi` : 'Mapping hop le'}
-                                                />
-                                            </Stack>
-                                            <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                                                {buildAuditSummary(item.audit)}
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ display: 'inline-flex', alignItems: 'center', mr: 1 }}>
-                                            {nameToIcon(item.icon || 'Assignment')}
-                                        </Box>
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <FormControlLabel
-                                                control={<Switch checked={item.enabled} onChange={() => void handleToggle(item.id)} />}
-                                                label={item.enabled ? 'Bat' : 'Tat'}
-                                            />
-                                            <Button variant="outlined" onClick={() => handleEdit(item)}>Sua</Button>
-                                            <Button color="error" variant="outlined" onClick={() => void handleDelete(item.id)}>Xoa</Button>
-                                        </Stack>
-                                    </Stack>
-                                );
-                            })}
-                        </Stack>
-                    </CardContent>
-                </Card>
-
-                {deletedItems.length > 0 && (
-                    <Card>
-                        <CardContent>
-                            <Stack spacing={1.5}>
-                                <Box>
-                                    <Typography variant="h6" fontWeight={600}>Khoi phuc menu da xoa</Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Danh sach nay chi giu cac menu da xoa trong phien lam viec hien tai.
-                                    </Typography>
-                                </Box>
-                                <Stack spacing={1}>
-                                    {deletedItems.map((item) => (
-                                        <Stack
-                                            key={`restore-${item.id}`}
-                                            direction={{ xs: 'column', md: 'row' }}
-                                            spacing={1.5}
-                                            justifyContent="space-between"
-                                            alignItems={{ xs: 'flex-start', md: 'center' }}
-                                            sx={{ p: 1.5, border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}
-                                        >
-                                            <Box>
-                                                <Typography fontWeight={600}>{item.title}</Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {item.path} - quyen: {item.permissionCode || '(chua gan)'}
-                                                </Typography>
-                                                <Typography variant="caption" display="block" color="text.secondary">
-                                                    {buildAuditSummary(item.audit)}
-                                                </Typography>
-                                            </Box>
-                                            <Button variant="outlined" onClick={() => void handleRestore(item.id)}>
-                                                Khoi phuc
-                                            </Button>
-                                        </Stack>
-                                    ))}
-                                </Stack>
-                            </Stack>
-                        </CardContent>
-                    </Card>
-                )}
-            </Stack>
+  return (
+    <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
+      <Stack
+        direction="row"
+        alignItems="flex-start"
+        justifyContent="space-between"
+        sx={{ mb: 2 }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={700}>
+            Cau hinh menu dong
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+            Them, sua, bat/tat cac muc menu sinh tu datasource
+          </Typography>
         </Box>
-    );
+        <Button
+          variant="contained"
+          disableElevation
+          startIcon={<AddIcon />}
+          onClick={onCancel}
+        >
+          Them menu
+        </Button>
+      </Stack>
+      <WorkflowStepper />
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {loadError}
+        </Alert>
+      )}
+      {listError && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          onClose={() => setListError("")}
+        >
+          {listError}
+        </Alert>
+      )}
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "400px 1fr" },
+          gap: 2.5,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ position: { lg: "sticky" }, top: { lg: 16 } }}>
+          <MenuForm
+            editingId={editingId}
+            initialValues={initialValues}
+            dataSources={dataSources}
+            templates={templates}
+            existingIds={existingIds}
+            loading={loading}
+            onSave={onSave}
+            onCancel={onCancel}
+            getTemplateColumnCount={getTemplateColumnCount}
+          />
+        </Box>
+        <Stack spacing={2}>
+          <Paper
+            variant="outlined"
+            sx={{ borderRadius: 2, overflow: "hidden" }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="subtitle2" fontWeight={600}>
+                Danh sach menu{" "}
+                <Chip size="small" label={items.length} sx={{ fontSize: 11 }} />
+              </Typography>
+            </Box>
+            <Box sx={{ height: 300 }}>
+              <LazyDataGrid
+                rows={gridRows}
+                columns={gridColumns}
+                loading={loading}
+                disableRowSelectionOnClick
+                onRowClick={(params) =>
+                  onEdit(params.row as DynamicMenuConfigItem)
+                }
+                pageSizeOptions={[5, 10, 20]}
+                fallbackRows={5}
+                fallbackCols={6}
+              />
+            </Box>
+          </Paper>
+          <Box sx={{ maxHeight: 420, overflow: "auto", pr: 0.5 }}>
+            {deferredItems.map((item) => (
+              <Paper
+                key={item.id}
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  borderColor:
+                    editingId === item.id ? "primary.main" : "divider",
+                  cursor: "pointer",
+                }}
+                onClick={() => onEdit(item)}
+              >
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  {nameToIcon(item.icon || "Assignment")}
+                  <Typography variant="body2" fontWeight={600}>
+                    {item.title}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={item.enabled ? "Bat" : "Tat"}
+                    color={item.enabled ? "success" : "default"}
+                    sx={{ ml: "auto" }}
+                  />
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  {item.path}
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <FormControlLabel
+                    sx={{ mr: "auto", ml: 0 }}
+                    label=""
+                    control={
+                      <Switch
+                        size="small"
+                        checked={item.enabled}
+                        onChange={() => void onToggle(item.id)}
+                      />
+                    }
+                  />
+                  <Typography variant="caption" color="text.disabled">
+                    {buildAuditSummary(item.audit)}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => onEdit(item)}
+                  >
+                    Sua
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    onClick={() => void onDelete(item.id)}
+                  >
+                    Xoa
+                  </Button>
+                </Stack>
+              </Paper>
+            ))}
+          </Box>
+          {deferredDeleted.length > 0 && (
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
+                Khoi phuc menu da xoa
+              </Typography>
+              <Stack spacing={1}>
+                {deferredDeleted.map((item) => (
+                  <Stack
+                    key={`restore-${item.id}`}
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{
+                      p: 1.5,
+                      border: "1px dashed",
+                      borderColor: "divider",
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>
+                        {item.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.path}
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => void onRestore(item.id)}
+                    >
+                      Khoi phuc
+                    </Button>
+                  </Stack>
+                ))}
+              </Stack>
+            </Paper>
+          )}
+        </Stack>
+      </Box>
+    </Box>
+  );
 };
 
 export default CauHinhMenuDong;

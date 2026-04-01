@@ -437,9 +437,9 @@ export const themeSetting = (mode: PaletteMode) => {
     palette: {
       mode,
       primary: {
-        main: armyOlive[800],
-        light: armyOlive[600],
-        dark: armyOlive[900],
+        main: tacticalGreen[700],
+        light: tacticalGreen[500],
+        dark: tacticalGreen[900],
         contrastText: '#FFFFFF',
       },
       secondary: {

@@ -21,7 +21,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CategoryIcon from '@mui/icons-material/Category';
 import SortIcon from '@mui/icons-material/Sort';
 
-import type { Role, PermissionUserRow, ScopeType } from '../../../types/permission';
+import type { Role, PermissionUserRow, ScopeType, GroupScopeConfig, PhamViChuyenNganhConfig } from '../../../types/permission';
 import { scopeLookup } from '../data/permissionData';
 import AssignUserDialog, { type AssignUserDialogValue } from './AssignUserDialog';
 
@@ -37,12 +37,13 @@ interface EditState {
     anchorNodeId?: string;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
-    idDanhMucChuyenNganh?: string;
+    phamViChuyenNganh?: PhamViChuyenNganhConfig;
 }
 
 interface UserAssignmentPanelProps {
     selectedRole: Role | undefined;
     users: PermissionUserRow[];
+    defaultScopeConfig: GroupScopeConfig;
     onAssignUser: (payload: AssignUserDialogValue) => Promise<void>;
     onEditUser: (idAssignment: string, payload: AssignUserDialogValue) => Promise<void>;
     onRemoveUser: (idAssignment: string) => void;
@@ -58,9 +59,17 @@ const formatDate = (value?: string): string => {
 const getAvatar = (name: string): string =>
     name.split(' ').map((part) => part[0] || '').join('').slice(0, 2).toUpperCase() || '?';
 
+const getPhamViSummary = (phamVi?: PhamViChuyenNganhConfig) => ({
+    hasCn: Boolean(phamVi?.idChuyenNganh),
+    primary: phamVi?.idChuyenNganh ?? '',
+    extraCount: Math.max(0, (phamVi?.idChuyenNganhDoc.length ?? 0) - 1),
+    actionCount: phamVi?.idChuyenNganhDoc.reduce((sum, entry) => sum + entry.actions.length, 0) ?? 0,
+});
+
 const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
     selectedRole,
     users,
+    defaultScopeConfig,
     onAssignUser,
     onEditUser,
     onRemoveUser,
@@ -80,7 +89,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
         const now = Date.now();
         return {
             total: users.length,
-            withCn: users.filter((user) => !!user.idDanhMucChuyenNganh).length,
+            withCn: users.filter((user) => !!user.phamViChuyenNganh?.idChuyenNganhDoc?.length).length,
             delegated: users.filter((user) => user.scopeType === 'DELEGATED').length,
             expired: users.filter((user) => user.ngayHetHan && new Date(user.ngayHetHan).getTime() < now).length,
         };
@@ -99,8 +108,8 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
 
         const result = users.filter((user) => {
             if (scopeFilter !== 'ALL' && user.scopeType !== scopeFilter) return false;
-            if (cnFilter === 'WITH_CN' && !user.idDanhMucChuyenNganh) return false;
-            if (cnFilter === 'NO_CN' && user.idDanhMucChuyenNganh) return false;
+            if (cnFilter === 'WITH_CN' && !user.phamViChuyenNganh?.idChuyenNganhDoc?.length) return false;
+            if (cnFilter === 'NO_CN' && user.phamViChuyenNganh?.idChuyenNganhDoc?.length) return false;
 
             if (!normalizedSearch) return true;
 
@@ -111,7 +120,8 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                 user.currentOfficePath,
                 user.anchorNodeId,
                 user.anchorNodeName,
-                user.idDanhMucChuyenNganh,
+                user.phamViChuyenNganh?.idChuyenNganh,
+                ...(user.phamViChuyenNganh?.idChuyenNganhDoc.map((entry) => entry.id) ?? []),
             ]
                 .filter(Boolean)
                 .join(' ')
@@ -151,7 +161,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
             anchorNodeId: user.anchorNodeId,
             ngayHetHan: user.ngayHetHan,
             idNguoiUyQuyen: user.idNguoiUyQuyen,
-            idDanhMucChuyenNganh: user.idDanhMucChuyenNganh,
+            phamViChuyenNganh: user.phamViChuyenNganh,
         });
     }, []);
 
@@ -319,6 +329,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                 {filteredUsers.map((user) => {
                     const scopeInfo = user.scopeType ? scopeMap.get(user.scopeType as ScopeType) : null;
                     const isExpired = Boolean(user.ngayHetHan && new Date(user.ngayHetHan).getTime() < Date.now());
+                    const cnSummary = getPhamViSummary(user.phamViChuyenNganh);
 
                     return (
                         <Box
@@ -401,6 +412,12 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                             </Typography>
                                         </Box>
                                     )}
+                                    {cnSummary.hasCn && (
+                                        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 0.5 }}>
+                                            Chuyen nganh: {user.phamViChuyenNganh?.idChuyenNganhDoc.map((entry) => entry.id).join(', ')}
+                                            {cnSummary.actionCount > 0 ? ` Â· ${cnSummary.actionCount} action grants` : ''}
+                                        </Typography>
+                                    )}
                                 </Box>
 
                                 <Box sx={{ minWidth: 0 }}>
@@ -419,10 +436,10 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                                 }}
                                             />
                                         )}
-                                        {user.idDanhMucChuyenNganh && (
+                                        {cnSummary.hasCn && (
                                             <Chip
                                                 icon={<CategoryIcon sx={{ fontSize: '14px !important' }} />}
-                                                label={`CN ${user.idDanhMucChuyenNganh}`}
+                                                label={`CN ${cnSummary.primary}${cnSummary.extraCount > 0 ? ` +${cnSummary.extraCount}` : ''}`}
                                                 size="small"
                                                 sx={{ height: 22, fontSize: 10.5, fontWeight: 600 }}
                                             />
@@ -515,6 +532,9 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                 onClose={() => setAssignOpen(false)}
                 roleName={selectedRole?.name ?? ''}
                 roleColor={roleColor}
+                initialScope={defaultScopeConfig.scopeType}
+                initialAnchorNodeId={defaultScopeConfig.anchorNodeId}
+                initialPhamViChuyenNganh={defaultScopeConfig.phamViChuyenNganh}
                 onConfirm={onAssignUser}
             />
 
@@ -531,7 +551,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                     initialAnchorNodeId={editState.anchorNodeId}
                     initialNgayHetHan={editState.ngayHetHan}
                     initialIdNguoiUyQuyen={editState.idNguoiUyQuyen}
-                    initialIdDanhMucChuyenNganh={editState.idDanhMucChuyenNganh}
+                    initialPhamViChuyenNganh={editState.phamViChuyenNganh}
                     onConfirm={handleConfirmEdit}
                 />
             )}

@@ -33,6 +33,7 @@ const CauHinhDataSource = React.lazy(() => import('../pages/CauHinhDataSource'))
 const CauHinhTemplate = React.lazy(() => import('../pages/CauHinhTemplate'));
 const MenuDong = React.lazy(() => import('../pages/MenuDong'));
 const PhanQuyen = React.lazy(() => import('../pages/PhanQuyen'));
+const DanhMucTrangBi = React.lazy(() => import('../pages/DanhMucTrangBi'));
 
 const loadingSpinner = (
     <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
@@ -184,6 +185,7 @@ const MainRoute: RouteObject = {
         { path: '/cau-hinh-data-source', element: routeElement(CauHinhDataSource, { staticCodes: staticRoutePermissionMap.get('/cau-hinh-data-source') }) },
         { path: '/cau-hinh-template', element: routeElement(CauHinhTemplate, { staticCodes: staticRoutePermissionMap.get('/cau-hinh-template') }) },
         { path: '/menu-dong/:menuId', element: routeElement(MenuDong, { dynamicMenu: true }) },
+        { path: '/danh-muc-trang-bi', element: routeElement(DanhMucTrangBi) },
         { path: '/phan-quyen', element: routeElement(PhanQuyen, { staticCodes: staticRoutePermissionMap.get('/phan-quyen') }) },
         { path: '/employee', element: routeElement(Employee, { staticCodes: ['employee.view'] }) },
         { path: '/office', element: routeElement(Office, { staticCodes: ['office.view'] }) },

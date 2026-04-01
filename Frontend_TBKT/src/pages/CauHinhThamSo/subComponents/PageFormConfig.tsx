@@ -40,6 +40,7 @@ interface PageFormConfigProps {
     deletedForms: FormConfig[];
     onRestoreForm: (id: string) => void | Promise<void>;
     setForms: React.Dispatch<React.SetStateAction<FormConfig[]>>;
+    persistFormNow?: (form: FormConfig) => void | Promise<void>;
     activeFormId: string | null;
     setActiveFormId: (id: string | null) => void;
 }
@@ -51,16 +52,26 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({
     deletedForms,
     onRestoreForm,
     setForms,
+    persistFormNow,
     activeFormId,
     setActiveFormId,
 }) => {
     const [editingTab, setEditingTab] = useState<FormTabConfig | null>(null);
     const [previewRootTabId, setPreviewRootTabId] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState('');
 
     const activeForm = forms.find((f) => f.id === activeFormId) ?? null;
 
-    const updateActiveForm = (next: FormConfig) =>
+    const updateActiveForm = (next: FormConfig, options?: { immediate?: boolean }) => {
         setForms((prev) => prev.map((f) => (f.id === next.id ? next : f)));
+        if (options?.immediate && persistFormNow) {
+            void Promise.resolve(persistFormNow(next))
+                .then(() => setSaveError(''))
+                .catch((error) => {
+                    setSaveError((error as Error)?.message || 'Khong the luu cau hinh form');
+                });
+        }
+    };
 
     const createForm = () => {
         const id = `form_${Math.random().toString(36).slice(2, 9)}`;
@@ -122,7 +133,10 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({
 
     const saveTab = (next: FormTabConfig) => {
         if (!activeForm) return;
-        updateActiveForm({ ...activeForm, tabs: activeForm.tabs.map((t) => (t.id === next.id ? next : t)) });
+        updateActiveForm(
+            { ...activeForm, tabs: activeForm.tabs.map((t) => (t.id === next.id ? next : t)) },
+            { immediate: true },
+        );
         setEditingTab(null);
     };
 
@@ -255,6 +269,7 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({
                 <Card sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                     {/* Form header */}
                     <CardContent sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                        {saveError && <Alert severity="warning" sx={{ mb: 1.5 }}>{saveError}</Alert>}
                         <Alert severity="info" sx={{ mb: 1.5 }}>
                             `FormConfig` dùng cho form nhập động. `TemplateLayout.schemaJson` là layout runtime riêng và không thay thế FormConfig.
                         </Alert>

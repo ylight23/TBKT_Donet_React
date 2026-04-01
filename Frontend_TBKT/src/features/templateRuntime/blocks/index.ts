@@ -5,6 +5,7 @@ export { BannerBlockConfig } from './BannerBlock';
 export { ButtonBlockConfig } from './ButtonBlock';
 export { ImageBlockConfig } from './ImageBlock';
 export { SpacerBlockConfig } from './SpacerBlock';
+export { SectionBlockConfig } from './SectionBlock';
 export { DividerBlockConfig } from './DividerBlock';
 export { ListBlockConfig } from './ListBlock';
 export { ChipListBlockConfig } from './ChipListBlock';

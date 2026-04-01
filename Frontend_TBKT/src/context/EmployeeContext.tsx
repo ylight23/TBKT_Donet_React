@@ -161,9 +161,7 @@ export const EmployeeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, [dispatch]);
 
     const updateEmployee = useCallback(async (data: Partial<EmployeeItem> & { id: string }) => {
-        const updateData: any = { ...data };
-        if (!updateData.matKhau) delete updateData.matKhau;
-        await dispatch(update(updateData));
+        await dispatch(update({ ...data } as any));
         await dispatch(fetchEmployee());
         filterCache.clear();
     }, [dispatch]);

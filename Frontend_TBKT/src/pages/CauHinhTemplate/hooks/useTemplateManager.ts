@@ -1,12 +1,12 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Data } from '@puckeditor/core';
-import thamSoApi, { type LocalTemplateLayout } from '../../../apis/thamSoApi';
+import thamSoApi, { type LocalTemplateLayout, type LocalTemplateLayoutSummary } from '../../../apis/thamSoApi';
 import { DEFAULT_PUCK_DATA, INITIAL_FORM, toEditorData, toSchemaJson, toSlug } from '../constants';
 import type { FormState } from '../types';
 
 export interface UseTemplateManagerReturn {
-  items: LocalTemplateLayout[];
-  deletedItems: LocalTemplateLayout[];
+  items: LocalTemplateLayoutSummary[];
+  deletedItems: LocalTemplateLayoutSummary[];
   loading: boolean;
   saving: boolean;
   error: string;
@@ -15,17 +15,17 @@ export interface UseTemplateManagerReturn {
   editingId: string;
   setForm: Dispatch<SetStateAction<FormState>>;
   setEditorData: Dispatch<SetStateAction<Data>>;
-  handleEdit: (item: LocalTemplateLayout) => void;
+  handleEdit: (item: LocalTemplateLayoutSummary) => Promise<void>;
   handleReset: () => void;
   handleSave: (dataToSave?: Data) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
   handleRestore: (id: string) => Promise<void>;
-  handleTogglePublish: (item: LocalTemplateLayout) => Promise<void>;
+  handleTogglePublish: (item: LocalTemplateLayoutSummary) => Promise<void>;
 }
 
 export const useTemplateManager = (): UseTemplateManagerReturn => {
-  const [items, setItems] = useState<LocalTemplateLayout[]>([]);
-  const [deletedItems, setDeletedItems] = useState<LocalTemplateLayout[]>([]);
+  const [items, setItems] = useState<LocalTemplateLayoutSummary[]>([]);
+  const [deletedItems, setDeletedItems] = useState<LocalTemplateLayoutSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +37,7 @@ export const useTemplateManager = (): UseTemplateManagerReturn => {
     try {
       setLoading(true);
       setError('');
-      const result = await thamSoApi.getListTemplateLayouts();
+      const result = await thamSoApi.getListTemplateLayoutSummaries();
       setItems(result);
     } catch (err) {
       setError((err as Error)?.message || 'Không thể tải danh sách template');
@@ -51,8 +51,9 @@ export const useTemplateManager = (): UseTemplateManagerReturn => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleEdit = (item: LocalTemplateLayout): void => {
-    const nextData = toEditorData(item.schemaJson || '{}');
+  const handleEdit = async (item: LocalTemplateLayoutSummary): Promise<void> => {
+    const detail = await thamSoApi.getTemplateLayoutDetail({ key: item.key });
+    const nextData = toEditorData(detail.schemaJson || '{}');
     setEditingId(item.id);
     setForm({
       id: item.id,
@@ -102,10 +103,11 @@ export const useTemplateManager = (): UseTemplateManagerReturn => {
     }
   };
 
-  const handleTogglePublish = async (item: LocalTemplateLayout): Promise<void> => {
+  const handleTogglePublish = async (item: LocalTemplateLayoutSummary): Promise<void> => {
     try {
       setError('');
-      await thamSoApi.saveTemplateLayout({ ...item, published: !item.published }, false);
+      const detail = await thamSoApi.getTemplateLayoutDetail({ key: item.key });
+      await thamSoApi.saveTemplateLayout({ ...detail, published: !item.published }, false);
       await loadItems();
     } catch (err) {
       setError((err as Error)?.message || 'Không thể cập nhật trạng thái template');

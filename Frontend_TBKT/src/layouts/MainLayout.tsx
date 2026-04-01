@@ -46,13 +46,15 @@ function InnerLayout(): React.ReactElement {
                             }}
                         />
 
-                        <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ position: 'relative', zIndex: 1, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                                 <Suspense fallback={topbarFallback}>
                                     <Topbar />
                                 </Suspense>
                             </div>
-                            <Outlet />
+                            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                                <Outlet />
+                            </div>
                         </div>
                     </main>
                 </div>

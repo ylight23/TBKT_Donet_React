@@ -8,6 +8,8 @@ export interface DynamicMenuFieldOption {
     label: string;
 }
 
+const normalizeKey = (value: string): string => (value || '').trim().toLowerCase();
+
 // Fallback tĩnh chỉ dùng khi chưa load được datasources từ API
 export const DYNAMIC_MENU_SOURCE_OPTIONS_FALLBACK: Array<{ value: string; label: string }> = [
     { value: 'employee', label: 'Employee' },
@@ -34,7 +36,8 @@ export const buildFieldOptions = (
     sourceKey: string,
     dataSources: Array<{ sourceKey: string; fields: Array<{ key: string; label: string }> }>,
 ): DynamicMenuFieldOption[] => {
-    const ds = dataSources.find((d) => d.sourceKey === sourceKey);
+    const source = normalizeKey(sourceKey);
+    const ds = dataSources.find((d) => normalizeKey(d.sourceKey) === source);
     if (ds && ds.fields.length > 0) {
         return ds.fields.map((f) => ({ key: f.key, label: f.label || f.key }));
     }
@@ -50,7 +53,8 @@ export const getDefaultColumnKeysBySource = (
     count: number,
     dataSources: Array<{ sourceKey: string; fields: Array<{ key: string }> }> = [],
 ): string[] => {
-    const ds = dataSources.find((d) => d.sourceKey === sourceKey);
+    const source = normalizeKey(sourceKey);
+    const ds = dataSources.find((d) => normalizeKey(d.sourceKey) === source);
     const available = ds?.fields ?? [];
     const keys = available.slice(0, count).map((f) => f.key);
     while (keys.length < count) {

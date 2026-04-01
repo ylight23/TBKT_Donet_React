@@ -25,7 +25,8 @@ export const thamSoApi = {
   async saveDynamicField(field: LocalDynamicField, isNew: boolean): Promise<LocalDynamicField> {
     const result = await grpcThamSoApi.saveDynamicField(field, isNew);
     schemaCache.clear(KEYS.DYNAMIC_FIELDS);
-    console.log('[cache] DynamicFields cache invalidated after save');
+    schemaCache.clear(KEYS.FORM_CONFIGS);
+    console.log('[cache] DynamicFields/FormConfigs cache invalidated after save');
     return result;
   },
 
@@ -33,7 +34,8 @@ export const thamSoApi = {
     const result = await grpcThamSoApi.deleteDynamicField(id);
     if (result) {
       schemaCache.clear(KEYS.DYNAMIC_FIELDS);
-      console.log('[cache] DynamicFields cache invalidated after delete');
+      schemaCache.clear(KEYS.FORM_CONFIGS);
+      console.log('[cache] DynamicFields/FormConfigs cache invalidated after delete');
     }
     return result;
   },
@@ -43,7 +45,8 @@ export const thamSoApi = {
     if (result) {
       schemaCache.clear(KEYS.DYNAMIC_FIELDS);
       schemaCache.clear(KEYS.FIELD_SETS);
-      console.log('[cache] DynamicFields/FieldSets cache invalidated after restore');
+      schemaCache.clear(KEYS.FORM_CONFIGS);
+      console.log('[cache] DynamicFields/FieldSets/FormConfigs cache invalidated after restore');
     }
     return result;
   },
@@ -64,7 +67,8 @@ export const thamSoApi = {
   async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean): Promise<LocalFieldSet> {
     const result = await grpcThamSoApi.saveFieldSet(fieldSet, isNew);
     schemaCache.clear(KEYS.FIELD_SETS);
-    console.log('[cache] FieldSets cache invalidated after save');
+    schemaCache.clear(KEYS.FORM_CONFIGS);
+    console.log('[cache] FieldSets/FormConfigs cache invalidated after save');
     return result;
   },
 
@@ -72,7 +76,8 @@ export const thamSoApi = {
     const result = await grpcThamSoApi.deleteFieldSet(id);
     if (result) {
       schemaCache.clear(KEYS.FIELD_SETS);
-      console.log('[cache] FieldSets cache invalidated after delete');
+      schemaCache.clear(KEYS.FORM_CONFIGS);
+      console.log('[cache] FieldSets/FormConfigs cache invalidated after delete');
     }
     return result;
   },

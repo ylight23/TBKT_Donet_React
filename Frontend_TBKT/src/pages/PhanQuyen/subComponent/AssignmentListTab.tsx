@@ -376,7 +376,17 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
                 fullWidth
                 PaperProps={{ sx: { borderRadius: 3 } }}
             >
-                <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <DialogTitle
+                    sx={{
+                        pb: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)} 0%, ${alpha(theme.palette.primary.main, 0.06)} 100%)`,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                    }}
+                >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <AccountTreeIcon sx={{ fontSize: 20, color: 'primary.main' }} />
                         <Typography fontWeight={700} fontSize={15}>Chi tiết phân quyền</Typography>

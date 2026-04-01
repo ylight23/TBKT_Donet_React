@@ -84,7 +84,7 @@ export interface GroupScopeConfig {
     scopeType: ScopeType;
     anchorNodeId?: string;
     multiNodeIds: string[];
-    idDanhMucChuyenNganh?: string;
+    duocTruyCap?: boolean;
     phamViChuyenNganh?: PhamViChuyenNganhConfig;
 }
 
@@ -107,7 +107,7 @@ export interface PermissionUserRow {
     anchorNodeId?: string;
     anchorNodeName?: string;
     scopeType?: string;
-    idDanhMucChuyenNganh?: string;
+    phamViChuyenNganh?: PhamViChuyenNganhConfig;
     ngayHetHan?: string;
     idNguoiUyQuyen?: string;
     idAssignment?: string;
@@ -127,7 +127,7 @@ export interface PermissionAssignmentRow {
     anchorNodeName: string;
     anchorNodePath: string;
     scopeType: ScopeType | '';
-    idDanhMucChuyenNganh?: string;
+    phamViChuyenNganh?: PhamViChuyenNganhConfig;
     idNguoiUyQuyen?: string;
     multiNodeIds?: string[];
     multiNodeNames?: string[];

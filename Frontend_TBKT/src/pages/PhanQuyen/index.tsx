@@ -17,9 +17,9 @@ import { useTheme, alpha } from '@mui/material/styles';
 import SaveIcon from '@mui/icons-material/Save';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import Alert from '@mui/material/Alert';
 
-import type { Role, ScopeType, PermissionTabKey, PermissionAssignmentRow, PermissionUserRow, GroupScopeConfig } from '../../types/permission';
-import { FALLBACK_PERMISSION_GROUPS } from './data/permissionData';
+import type { Role, ScopeType, PermissionTabKey, PermissionAssignmentRow, PermissionUserRow, GroupScopeConfig, PermissionGroup } from '../../types/permission';
 import {
     getPermissionCatalog,
     listNhomNguoiDung,
@@ -89,7 +89,7 @@ function usersInGroupToRows(users: UserInGroupInfo[]): PermissionUserRow[] {
         anchorNodeId: u.anchorNodeId,
         anchorNodeName: u.anchorNodeName || u.anchorNodeId,
         scopeType: u.scopeType || undefined,
-        idDanhMucChuyenNganh: u.idDanhMucChuyenNganh,
+        phamViChuyenNganh: u.phamViChuyenNganh,
         ngayHetHan: u.ngayHetHan,
         idNguoiUyQuyen: u.idNguoiUyQuyen,
         idAssignment: u.idAssignment,
@@ -110,7 +110,7 @@ function assignmentDetailToRow(a: AssignmentDetailInfo): PermissionAssignmentRow
         anchorNodeName: a.anchorNodeName || '',
         anchorNodePath: a.anchorNodeName || a.anchorNodeId || '',
         scopeType: (a.scopeType as ScopeType) || '',
-        idDanhMucChuyenNganh: a.idDanhMucChuyenNganh,
+        phamViChuyenNganh: a.phamViChuyenNganh,
         idNguoiUyQuyen: a.idNguoiUyQuyen,
         delegatedBy: a.idNguoiUyQuyen,
         delegatedByName: a.idNguoiUyQuyen,
@@ -135,7 +135,7 @@ function getScopeSummary(scopeConfig: GroupScopeConfig): string {
     const unitText = (() => {
         switch (scopeConfig.scopeType) {
             case 'SUBTREE':
-                return scopeConfig.anchorNodeId ? `Subtree @ ${scopeConfig.anchorNodeId}` : 'Subtree @ IDQuanTriDonVi';
+                return scopeConfig.anchorNodeId ? `Trực thuộc @ ${scopeConfig.anchorNodeId}` : 'Trực thuộc @ IDQuanTriDonVi';
             case 'DELEGATED':
                 return scopeConfig.anchorNodeId ? `Delegated @ ${scopeConfig.anchorNodeId}` : 'Delegated';
             case 'ALL':
@@ -152,10 +152,8 @@ function getScopeSummary(scopeConfig: GroupScopeConfig): string {
         }
     })();
     const cnText = scopeConfig.phamViChuyenNganh?.idChuyenNganh
-        ? `CN ${scopeConfig.phamViChuyenNganh.idChuyenNganh}`
-        : scopeConfig.idDanhMucChuyenNganh
-            ? `Nhom CN ${scopeConfig.idDanhMucChuyenNganh}`
-            : 'Tat ca chuyen nganh';
+        ? `CN ${scopeConfig.phamViChuyenNganh.idChuyenNganh}${scopeConfig.phamViChuyenNganh.idChuyenNganhDoc.length > 1 ? ` +${scopeConfig.phamViChuyenNganh.idChuyenNganhDoc.length - 1}` : ''}`
+        : 'Tat ca chuyen nganh';
     return `${unitText} · ${cnText}`;
 }
 
@@ -165,7 +163,7 @@ function isDefaultViewPermission(code: string, name?: string): boolean {
     return code.endsWith('.view') || Boolean(name?.toLowerCase().startsWith('xem '));
 }
 
-function normalizeCheckedPermissions(codes: string[], permissionGroups: typeof FALLBACK_PERMISSION_GROUPS): string[] {
+function normalizeCheckedPermissions(codes: string[], permissionGroups: PermissionGroup[]): string[] {
     const normalized = new Set(codes);
     permissionGroups.forEach((group) => {
         group.permissions.forEach((permission) => {
@@ -189,13 +187,15 @@ const PhanQuyenPage: React.FC = () => {
         scopeType: 'SUBTREE',
         anchorNodeId: '',
         multiNodeIds: [],
-        idDanhMucChuyenNganh: '',
+        duocTruyCap: true,
         phamViChuyenNganh: undefined,
     });
     const [permLoading, setPermLoading] = useState(false);
     const [usersInGroup, setUsersInGroup] = useState<UserInGroupInfo[]>([]);
     const [assignments, setAssignments] = useState<AssignmentDetailInfo[]>([]);
-    const [permissionGroups, setPermissionGroups] = useState(FALLBACK_PERMISSION_GROUPS);
+    const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
+    const [permissionCatalogLoading, setPermissionCatalogLoading] = useState(true);
+    const [permissionCatalogError, setPermissionCatalogError] = useState('');
     const [activeTab, setActiveTab] = useState<PermissionTabKey>('scope');
     const [scopeReviewed, setScopeReviewed] = useState(false);
     const [unsaved, setUnsaved] = useState(false);
@@ -276,12 +276,19 @@ const PhanQuyenPage: React.FC = () => {
     useEffect(() => {
         let cancelled = false;
         (async () => {
+            setPermissionCatalogLoading(true);
+            setPermissionCatalogError('');
             try {
                 const groups = await getPermissionCatalog();
-                if (!cancelled && groups.length > 0)
-                    setPermissionGroups(groups);
+                if (cancelled) return;
+                setPermissionGroups(groups);
             } catch (e) {
-                console.warn('[PhanQuyen] getPermissionCatalog fallback to local data:', e);
+                if (cancelled) return;
+                console.error('[PhanQuyen] getPermissionCatalog error:', e);
+                setPermissionGroups([]);
+                setPermissionCatalogError('Khong tai duoc danh sach quyen tu database PermissionCatalog.');
+            } finally {
+                if (!cancelled) setPermissionCatalogLoading(false);
             }
         })();
         return () => { cancelled = true; };
@@ -304,7 +311,7 @@ const PhanQuyenPage: React.FC = () => {
                     scopeType: (perms.scopeType || 'SUBTREE') as ScopeType,
                     anchorNodeId: perms.anchorNodeId || '',
                     multiNodeIds: perms.multiNodeIds || [],
-                    idDanhMucChuyenNganh: perms.idDanhMucChuyenNganh || '',
+                    duocTruyCap: perms.duocTruyCap ?? false,
                     phamViChuyenNganh: perms.phamViChuyenNganh,
                 });
                 setUsersInGroup(users);
@@ -467,7 +474,7 @@ const PhanQuyenPage: React.FC = () => {
             anchorNodeId: payload.anchorNodeId,
             ngayHetHan: payload.ngayHetHan,
             idNguoiUyQuyen: payload.idNguoiUyQuyen,
-            idDanhMucChuyenNganh: payload.idDanhMucChuyenNganh,
+            phamViChuyenNganh: payload.phamViChuyenNganh,
             loai: payload.scopeType === 'DELEGATED' ? 'Delegated' : 'Direct',
         });
         const users = await listGroupUsers(selectedRoleId);
@@ -487,7 +494,7 @@ const PhanQuyenPage: React.FC = () => {
             anchorNodeId: payload.anchorNodeId,
             ngayHetHan: payload.ngayHetHan,
             idNguoiUyQuyen: payload.idNguoiUyQuyen,
-            idDanhMucChuyenNganh: payload.idDanhMucChuyenNganh,
+            phamViChuyenNganh: payload.phamViChuyenNganh,
             loai: payload.scopeType === 'DELEGATED' ? 'Delegated' : 'Direct',
         });
         const users = await listGroupUsers(selectedRoleId);
@@ -780,6 +787,21 @@ const PhanQuyenPage: React.FC = () => {
                                             alignItems: 'start',
                                         }}
                                     >
+                                        {permissionCatalogLoading && (
+                                            <Alert severity="info" sx={{ gridColumn: '1 / -1', borderRadius: 2 }}>
+                                                Dang tai danh sach quyen chuc nang tu database...
+                                            </Alert>
+                                        )}
+                                        {!permissionCatalogLoading && permissionCatalogError && (
+                                            <Alert severity="error" sx={{ gridColumn: '1 / -1', borderRadius: 2 }}>
+                                                {permissionCatalogError}
+                                            </Alert>
+                                        )}
+                                        {!permissionCatalogLoading && !permissionCatalogError && permissionGroups.length === 0 && (
+                                            <Alert severity="warning" sx={{ gridColumn: '1 / -1', borderRadius: 2 }}>
+                                                PermissionCatalog dang rong. Khong su dung fallback hardcode.
+                                            </Alert>
+                                        )}
                                         <Box
                                             sx={{
                                                 gridColumn: '1 / -1',
@@ -1008,13 +1030,14 @@ const PhanQuyenPage: React.FC = () => {
                                 )
                             )}
                             {activeTab === 'users' && (
-                                <UserAssignmentPanel
-                                    selectedRole={selectedRole}
-                                    users={userRows}
-                                    onAssignUser={handleAssignUser}
-                                    onEditUser={handleEditUserInGroup}
-                                    onRemoveUser={handleRemoveUserFromPanel}
-                                />
+                        <UserAssignmentPanel
+                            selectedRole={selectedRole}
+                            users={userRows}
+                            defaultScopeConfig={currentScopeConfig}
+                            onAssignUser={handleAssignUser}
+                            onEditUser={handleEditUserInGroup}
+                            onRemoveUser={handleRemoveUserFromPanel}
+                        />
                             )}
                             {activeTab === 'assignments' && (
                                 <AssignmentListTab

@@ -27,7 +27,10 @@ import {
     DeleteDynamicMenuRequestSchema,
     RestoreDynamicMenuRequestSchema,
     GetDynamicMenuRowsRequestSchema,
+    SaveDynamicMenuRowRequestSchema,
     DynamicMenuSchema,
+    GetListTemplateLayoutSummariesRequestSchema,
+    GetTemplateLayoutDetailRequestSchema,
     GetListTemplateLayoutsRequestSchema,
     SaveTemplateLayoutRequestSchema,
     DeleteTemplateLayoutRequestSchema,
@@ -42,6 +45,7 @@ import {
     DynamicMenuDataSourceFieldSchema,
     SyncDynamicMenuDataSourcesFromProtoRequestSchema,
     DiscoverCollectionFieldsRequestSchema,
+    PreviewCollectionDocumentsRequestSchema,
     ColumnConfigSchema,
 } from '../grpc/generated/ThamSo_pb';
 
@@ -55,6 +59,7 @@ import type {
     DynamicMenu as DynamicMenuProto,
     DynamicMenuDataSource as DynamicMenuDataSourceProto,
     TemplateLayout as TemplateLayoutProto,
+    TemplateLayoutSummary as TemplateLayoutSummaryProto,
 } from '../grpc/generated/ThamSo_pb';
 
 import { thamSoClient } from '../grpc/grpcClient';
@@ -140,6 +145,9 @@ export interface DataSourceField {
     key: string;
     label: string;
     dataType: string;
+    required?: boolean;
+    itemType?: string;
+    itemSchemaHint?: string;
 }
 
 /** @deprecated Use DataSourceField */
@@ -150,6 +158,7 @@ export interface DataSourceConfig {
     sourceKey: string;
     sourceName: string;
     collectionName: string;
+    templateKey: string;
     fields: DataSourceField[];
     enabled: boolean;
     managementMode: 'proto' | 'manual';
@@ -164,6 +173,14 @@ export interface LocalTemplateLayout {
     key: string;
     name: string;
     schemaJson: string;
+    published: boolean;
+    audit?: LocalAuditMetadata;
+}
+
+export interface LocalTemplateLayoutSummary {
+    id: string;
+    key: string;
+    name: string;
     published: boolean;
     audit?: LocalAuditMetadata;
 }
@@ -186,6 +203,13 @@ const timestampToIso = (ts?: Timestamp | null): string | undefined => {
     const ms = Number(ts.seconds.toString()) * 1000;
     return Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
 };
+
+const templateLayoutDetailCacheByKey = new Map<string, LocalTemplateLayout>();
+
+const perfNow = (): number =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
 
 function mapJobProgress(event: any): StreamJobProgress {
     return {
@@ -368,10 +392,14 @@ function protoDynamicMenuDataSourceToLocal(item: DynamicMenuDataSourceProto): Da
         sourceKey: item.sourceKey,
         sourceName: item.sourceName,
         collectionName: item.collectionName,
+        templateKey: item.templateKey || '',
         fields: item.fields.map((field) => ({
             key: field.key,
             label: field.label,
             dataType: field.dataType,
+            required: field.required ?? false,
+            itemType: field.itemType || undefined,
+            itemSchemaHint: field.itemSchemaHint || undefined,
         })),
         enabled: item.enabled,
         managementMode: item.managementMode === 'proto' ? 'proto' : 'manual',
@@ -385,6 +413,16 @@ function protoTemplateLayoutToLocal(item: TemplateLayoutProto): LocalTemplateLay
         key: item.key,
         name: item.name,
         schemaJson: item.schemaJson || '{}',
+        published: item.published,
+        audit: mapAuditMetadata(item),
+    };
+}
+
+function protoTemplateLayoutSummaryToLocal(item: TemplateLayoutSummaryProto): LocalTemplateLayoutSummary {
+    return {
+        id: item.id,
+        key: item.key,
+        name: item.name,
         published: item.published,
         audit: mapAuditMetadata(item),
     };
@@ -406,12 +444,16 @@ function localDynamicMenuDataSourceToProto(item: DataSourceConfig): any {
         sourceKey: item.sourceKey,
         sourceName: item.sourceName,
         collectionName: item.collectionName,
+        templateKey: item.templateKey || '',
         enabled: item.enabled,
         managementMode: item.managementMode,
         fields: item.fields.map((field) => create(DynamicMenuDataSourceFieldSchema, {
             key: field.key,
             label: field.label,
             dataType: field.dataType,
+            required: field.required ?? false,
+            itemType: field.itemType ?? '',
+            itemSchemaHint: field.itemSchemaHint ?? '',
         })),
     });
 }
@@ -637,6 +679,54 @@ const thamSoApi = {
     },
 
     // ── Puck Template Layout ─────────────────────────────────
+    async getListTemplateLayoutSummaries(): Promise<LocalTemplateLayoutSummary[]> {
+        const startedAt = perfNow();
+        try {
+            const request = create(GetListTemplateLayoutSummariesRequestSchema, {});
+            const res = await thamSoClient.getListTemplateLayoutSummaries(request);
+            const items = res.items.map(protoTemplateLayoutSummaryToLocal);
+            console.info('[PERF][TemplateLayout][summary]', {
+                count: items.length,
+                elapsedMs: Math.round(perfNow() - startedAt),
+            });
+            return items;
+        } catch (err) {
+            console.error('[thamSoApi] getListTemplateLayoutSummaries error:', err);
+            throw err;
+        }
+    },
+
+    async getTemplateLayoutDetail(params: { id?: string; key?: string }): Promise<LocalTemplateLayout> {
+        const startedAt = perfNow();
+        try {
+            const normalizedKey = (params.key || '').trim();
+            if (normalizedKey && templateLayoutDetailCacheByKey.has(normalizedKey)) {
+                console.info('[PERF][TemplateLayout][cache-hit]', {
+                    key: normalizedKey,
+                    elapsedMs: Math.round(perfNow() - startedAt),
+                });
+                return templateLayoutDetailCacheByKey.get(normalizedKey)!;
+            }
+            const request = create(GetTemplateLayoutDetailRequestSchema, {
+                id: params.id ?? '',
+                key: params.key ?? '',
+            });
+            const res = await thamSoClient.getTemplateLayoutDetail(request);
+            if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Khong the tai template detail');
+            const item = protoTemplateLayoutToLocal(res.item);
+            if (item.key) templateLayoutDetailCacheByKey.set(item.key, item);
+            console.info('[PERF][TemplateLayout][detail]', {
+                key: item.key || normalizedKey || params.id || '',
+                elapsedMs: Math.round(perfNow() - startedAt),
+                fromNetwork: true,
+            });
+            return item;
+        } catch (err) {
+            console.error('[thamSoApi] getTemplateLayoutDetail error:', err);
+            throw err;
+        }
+    },
+
     async getListTemplateLayouts(): Promise<LocalTemplateLayout[]> {
         try {
             const request = create(GetListTemplateLayoutsRequestSchema, {});
@@ -657,7 +747,9 @@ const thamSoApi = {
             });
             const res = await thamSoClient.saveTemplateLayout(request);
             if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu template thất bại');
-            return protoTemplateLayoutToLocal(res.item);
+            const saved = protoTemplateLayoutToLocal(res.item);
+            if (saved.key) templateLayoutDetailCacheByKey.set(saved.key, saved);
+            return saved;
         } catch (err) {
             console.error('[thamSoApi] saveTemplateLayout error:', err);
             throw err;
@@ -668,6 +760,7 @@ const thamSoApi = {
         try {
             const request = create(DeleteTemplateLayoutRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteTemplateLayout(request);
+            if (res.success) templateLayoutDetailCacheByKey.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteTemplateLayout error:', err);
@@ -680,6 +773,7 @@ const thamSoApi = {
             const request = create(RestoreTemplateLayoutRequestSchema, { ids: [id] });
             const res = await thamSoClient.restoreTemplateLayout(request);
             console.log('[thamSoApi] restoreTemplateLayout:', res.success);
+            if (res.success) templateLayoutDetailCacheByKey.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreTemplateLayout error:', err);
@@ -687,43 +781,37 @@ const thamSoApi = {
         }
     },
 
-    /** Gọi .NET backend ghi 1 file JSON vào public/templates/{key}.json */
+    /** Export 1 template qua gRPC stream */
     async exportTemplateToServer(item: LocalTemplateLayout): Promise<void> {
-        const res = await fetch('/api/export-template', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: item.key, name: item.name, schemaJson: item.schemaJson }),
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ message: res.statusText }));
-            throw new Error((err as any).message || 'Export thất bại');
+        const events = await this.streamExportTemplateLayouts([item], undefined, { onlyPublished: false });
+        const finalEvent = events.at(-1);
+        if (!finalEvent?.success) {
+            throw new Error(finalEvent?.message || 'Export that bai');
         }
     },
 
-    /** Gọi .NET backend ghi tất cả published templates cùng 1 request */
-    async exportAllTemplatesToServer(items: LocalTemplateLayout[]): Promise<{ saved: string[]; errors: string[] }> {
-        const published = items.filter((t) => t.published);
-        const res = await fetch('/api/export-template/all', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(published.map((t) => ({ key: t.key, name: t.name, schemaJson: t.schemaJson }))),
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ message: res.statusText }));
-            throw new Error((err as any).message || 'Export tất cả thất bại');
-        }
-        return res.json();
+    /** Export all templates qua gRPC stream */
+    async exportAllTemplatesToServer(items: Array<Pick<LocalTemplateLayout, 'id' | 'published'>>): Promise<{ saved: string[]; errors: string[] }> {
+        const events = await this.streamExportTemplateLayouts(items, undefined, { onlyPublished: true });
+        const saved = events
+            .filter((event) => event.success && event.currentKey)
+            .map((event) => event.currentKey);
+        const errors = events.flatMap((event) => event.warnings ?? []);
+        return { saved, errors };
     },
 
     /** Xoá file JSON tĩnh tại public/templates/{key}.json */
     async streamExportTemplateLayouts(
-        items: LocalTemplateLayout[],
+        items: Array<Pick<LocalTemplateLayout, 'id' | 'published'>>,
         onEvent?: (event: StreamJobProgress) => void,
+        options?: { onlyPublished?: boolean },
     ): Promise<StreamJobProgress[]> {
         try {
             const request = create(ExportTemplateLayoutsRequestSchema, {
-                ids: items.filter((item) => item.published).map((item) => item.id).filter(Boolean),
-                onlyPublished: true,
+                ids: (options?.onlyPublished ? items.filter((item) => item.published) : items)
+                    .map((item) => item.id)
+                    .filter(Boolean),
+                onlyPublished: options?.onlyPublished ?? true,
             });
             const events: StreamJobProgress[] = [];
             for await (const event of thamSoClient.exportTemplateLayoutsStream(request)) {
@@ -738,12 +826,8 @@ const thamSoApi = {
         }
     },
 
-    async deleteTemplateFile(key: string): Promise<void> {
-        const res = await fetch(`/api/export-template/${encodeURIComponent(key)}`, { method: 'DELETE' });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ message: res.statusText }));
-            throw new Error((err as any).message || 'Xoá file thất bại');
-        }
+    async deleteTemplateFile(_key: string): Promise<void> {
+        throw new Error('Delete template file qua REST da bi loai bo. Vui long dung luong gRPC/template management.');
     },
 
     async getDynamicMenuRows(sourceKey: string, limit = 500): Promise<Record<string, unknown>[]> {
@@ -753,6 +837,33 @@ const thamSoApi = {
             return res.rows as Record<string, unknown>[];
         } catch (err) {
             console.error('[thamSoApi] getDynamicMenuRows error:', err);
+            throw err;
+        }
+    },
+
+    async saveDynamicMenuRow(
+        sourceKey: string,
+        row: Record<string, unknown>,
+        upsertById = true,
+    ): Promise<{ id: string; row: Record<string, unknown> }> {
+        try {
+            const request = create(SaveDynamicMenuRowRequestSchema, {
+                sourceKey,
+                row,
+                upsertById,
+            });
+            const res = await thamSoClient.saveDynamicMenuRow(request);
+            if (!res.meta?.success) {
+                const detail = (res.meta?.messageException || '').trim();
+                const msg = (res.meta?.message || 'Luu du lieu dong that bai').trim();
+                throw new Error(detail ? `${msg}: ${detail}` : msg);
+            }
+            return {
+                id: res.id,
+                row: (res.row as Record<string, unknown>) ?? {},
+            };
+        } catch (err) {
+            console.error('[thamSoApi] saveDynamicMenuRow error:', err);
             throw err;
         }
     },
@@ -860,12 +971,41 @@ const thamSoApi = {
             const res = await thamSoClient.discoverCollectionFields(request);
             if (!res.meta?.success) throw new Error(res.meta?.message || 'Không thể khám phá collection');
             return {
-                fields: res.fields.map((f) => ({ key: f.key, label: f.label, dataType: f.dataType })),
+                fields: res.fields.map((f) => ({
+                    key: f.key,
+                    label: f.label,
+                    dataType: f.dataType,
+                    required: f.required ?? false,
+                    itemType: f.itemType || undefined,
+                    itemSchemaHint: f.itemSchemaHint || undefined,
+                })),
                 documentsScanned: res.documentsScanned,
                 message: res.meta.message,
             };
         } catch (err) {
             console.error('[thamSoApi] discoverCollectionFields error:', err);
+            throw err;
+        }
+    },
+
+    async previewCollectionDocuments(collectionName: string, limit = 10): Promise<{
+        collectionName: string;
+        documentsScanned: number;
+        rows: Record<string, unknown>[];
+        message: string;
+    }> {
+        try {
+            const request = create(PreviewCollectionDocumentsRequestSchema, { collectionName, limit });
+            const res = await thamSoClient.previewCollectionDocuments(request);
+            if (!res.meta?.success) throw new Error(res.meta?.message || 'Không thể preview collection');
+            return {
+                collectionName: res.collectionName,
+                documentsScanned: res.documentsScanned,
+                rows: (res.rows ?? []).map((r) => (r?.fields ? (r.toJson() as Record<string, unknown>) : {})),
+                message: res.meta.message,
+            };
+        } catch (err) {
+            console.error('[thamSoApi] previewCollectionDocuments error:', err);
             throw err;
         }
     },

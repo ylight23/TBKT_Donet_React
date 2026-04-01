@@ -85,8 +85,6 @@ message DeleteEmployeeResponse {
 
 message Employee {
 	string id = 1;
-	string ten_tai_khoan = 2;
-	string mat_khau = 3;
 	string ho_va_ten = 4;
 	string id_don_vi = 5;
 	string id_quan_tri_don_vi = 6;
@@ -97,13 +95,8 @@ message Employee {
   string email  = 11;
 	bool delete = 12;   
   google.protobuf.Timestamp ngay_sinh  = 13;  
-	google.protobuf.Timestamp ngay_thiet_lap_mat_khau = 16;
-	google.protobuf.Timestamp dang_nhap_cuoi = 17;
-	
-	google.protobuf.Timestamp truy_cap_cuoi = 19;
   bool kich_hoat  = 20;
     
-  google.protobuf.StringValue hash_key  = 23; 
 	google.protobuf.StringValue create_by = 30;
 	google.protobuf.Timestamp create_date = 31;
 	google.protobuf.StringValue modify_by = 32;
@@ -111,7 +104,8 @@ message Employee {
 	google.protobuf.Timestamp delete_date = 34;
 	google.protobuf.StringValue delete_by = 35;
 
-  google.protobuf.Int32Value access_level = 37;
+  reserved 2, 3, 16, 17, 19, 23, 37;
+  reserved "ten_tai_khoan", "mat_khau", "ngay_thiet_lap_mat_khau", "dang_nhap_cuoi", "truy_cap_cuoi", "hash_key", "access_level";
 }
 
 

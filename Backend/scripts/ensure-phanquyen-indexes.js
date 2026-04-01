@@ -23,7 +23,7 @@ function ensureIndex(collectionName, key, options) {
 }
 ensureIndex('NguoiDungNhomNguoiDung', { IdNguoiDung: 1 }, { name: 'idx_phanquyen_assignment_user' });
 ensureIndex('NguoiDungNhomNguoiDung', { IdNhomNguoiDung: 1 }, { name: 'idx_phanquyen_assignment_group' });
-ensureIndex('NguoiDungNhomNguoiDung', { IdDonViScope: 1 }, { name: 'idx_phanquyen_assignment_anchor', sparse: true });
+ensureIndex('NguoiDungNhomNguoiDung', { IdDonViUyQuyenQT: 1 }, { name: 'idx_phanquyen_assignment_anchor', sparse: true });
 ensureIndex('NguoiDungNhomNguoiDung', { NgayHetHan: 1 }, { name: 'idx_phanquyen_assignment_expire', sparse: true });
 ensureIndex('NguoiDungNhomNguoiDung', { IdNganhDoc: 1 }, { name: 'idx_phanquyen_assignment_multinode' });
 ensureIndex('PhanQuyenPhanHeNguoiDung', { IdNguoiDung: 1, MaPhanHe: 1 }, { name: 'idx_phanquyen_user_subsystem_user_module' });

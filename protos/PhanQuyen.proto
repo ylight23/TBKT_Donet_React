@@ -30,7 +30,7 @@ message GetPermissionCatalogRequest {}
 message PhanHeAccess {
   string ma_phan_he = 1;
   bool duoc_truy_cap = 2;
-  bool duoc_quan_tri = 3;
+  reserved 3;
 }
 
 message ActionsMap {
@@ -56,6 +56,16 @@ message ChuyenNganhAccess {
   repeated string actions = 2;
 }
 
+message ChuyenNganhDocScope {
+  string id = 1;
+  repeated string actions = 2;
+}
+
+message PhamViChuyenNganh {
+  string id_chuyen_nganh = 1;
+  repeated ChuyenNganhDocScope id_chuyen_nganh_doc = 2;
+}
+
 message GetMyPermissionsResponse {
   repeated PhanHeAccess phan_he = 1;
   repeated ChucNangAccess chuc_nang = 2;
@@ -65,8 +75,9 @@ message GetMyPermissionsResponse {
   google.protobuf.Timestamp ngay_het_han = 6;
   string id_nguoi_uy_quyen = 7;
   string anchor_parent_id = 8;
-  string id_danh_muc_chuyen_nganh = 10;
+  reserved 10;
   repeated ChuyenNganhAccess actions_per_cn = 11;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 12;
 }
 
 message PermissionCatalogItem {
@@ -84,6 +95,8 @@ message GetPermissionCatalogResponse {
   repeated PermissionCatalogGroup items = 1;
 }
 
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: Role.
 message NhomNguoiDung {
   string id = 1;
   string ma_phan_he = 2;
@@ -101,6 +114,8 @@ message NhomNguoiDung {
   string scope_type = 14;
 }
 
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: UserRoleAssignment.
 message NguoiDungNhomNguoiDung {
   string id = 1;
   string id_nguoi_dung = 2;
@@ -116,7 +131,8 @@ message NguoiDungNhomNguoiDung {
   string scope_type = 12;
   string id_don_vi_scope = 13;
   repeated string id_nganh_doc = 14;
-  string id_danh_muc_chuyen_nganh = 15;
+  reserved 15;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 16;
 }
 
 message PhanQuyenPhanHeNguoiDung {
@@ -125,7 +141,7 @@ message PhanQuyenPhanHeNguoiDung {
   string ma_phan_he = 3;
   string tieu_de_phan_he = 4;
   bool duoc_truy_cap = 5;
-  bool duoc_quan_tri = 6;
+  reserved 6;
   string id_nhom_nguoi_dung = 7;
   string nguoi_tao = 8;
   string nguoi_sua = 9;
@@ -141,13 +157,15 @@ message PhanQuyenPhanHeNhomNguoiDung {
   string ma_phan_he = 3;
   string tieu_de_phan_he = 4;
   bool duoc_truy_cap = 5;
-  bool duoc_quan_tri = 6;
+  reserved 6;
   string nguoi_tao = 7;
   google.protobuf.Timestamp ngay_tao = 8;
   string scope_type = 9;
   string id_don_vi_scope = 10;
 }
 
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: UserPermissionOverride.
 message PhanQuyenNguoiDung {
   string id = 1;
   string id_nguoi_dung = 2;
@@ -163,6 +181,8 @@ message PhanQuyenNguoiDung {
   google.protobuf.Timestamp ngay_sua = 12;
 }
 
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: RolePermission.
 message PhanQuyenNhomNguoiDung {
   string id = 1;
   string id_nhom_nguoi_dung = 2;
@@ -224,7 +244,10 @@ message GetGroupPermissionsResponse {
   string scope_type = 2;
   string anchor_node_id = 3;
   repeated string multi_node_ids = 4;
-  string id_danh_muc_chuyen_nganh = 5;
+  reserved 5;
+  bool duoc_truy_cap = 6;
+  reserved 7;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 8;
 }
 
 message SaveGroupPermissionsRequest {
@@ -233,7 +256,10 @@ message SaveGroupPermissionsRequest {
   string scope_type = 3;
   string anchor_node_id = 4;
   repeated string multi_node_ids = 5;
-  string id_danh_muc_chuyen_nganh = 6;
+  reserved 6;
+  bool duoc_truy_cap = 7;
+  reserved 8;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 9;
 }
 
 message ListGroupUsersRequest {
@@ -252,7 +278,8 @@ message UserInGroup {
   reserved 9;
   string anchor_node_name = 10;
   string id_nguoi_uy_quyen = 11;
-  string id_danh_muc_chuyen_nganh = 12;
+  reserved 12;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 13;
 }
 
 message ListGroupUsersResponse {
@@ -280,7 +307,8 @@ message AssignmentDetail {
   google.protobuf.Timestamp ngay_het_han = 13;
   reserved 14;
   string id_nguoi_uy_quyen = 15;
-  string id_danh_muc_chuyen_nganh = 16;
+  reserved 16;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 17;
 }
 
 message ListAllAssignmentsResponse {
@@ -297,7 +325,8 @@ message AssignUserRequest {
   google.protobuf.Timestamp ngay_het_han = 6;
   string id_nguoi_uy_quyen = 7;
   reserved 8;
-  string id_danh_muc_chuyen_nganh = 9;
+  reserved 9;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 10;
 }
 
 message RemoveUserRequest {

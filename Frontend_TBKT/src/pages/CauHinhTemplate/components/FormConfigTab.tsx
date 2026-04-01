@@ -15,6 +15,7 @@ const FormConfigTab: React.FC = () => {
                 deletedForms={formConfig.deletedForms}
                 onRestoreForm={formConfig.restoreForm}
                 setForms={formConfig.setForms}
+                persistFormNow={formConfig.persistFormNow}
                 activeFormId={formConfig.activeFormId}
                 setActiveFormId={formConfig.setActiveFormId}
             />

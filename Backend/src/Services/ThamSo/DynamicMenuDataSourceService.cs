@@ -105,6 +105,9 @@ public class DynamicMenuDataSourceService(
                     Key = field.Key.Trim(),
                     Label = string.IsNullOrWhiteSpace(field.Label) ? field.Key.Trim() : field.Label.Trim(),
                     DataType = string.IsNullOrWhiteSpace(field.DataType) ? "string" : field.DataType.Trim().ToLowerInvariant(),
+                    Required = field.Required,
+                    ItemType = string.IsNullOrWhiteSpace(field.ItemType) ? string.Empty : field.ItemType.Trim().ToLowerInvariant(),
+                    ItemSchemaHint = string.IsNullOrWhiteSpace(field.ItemSchemaHint) ? string.Empty : field.ItemSchemaHint.Trim(),
                 })
                 .GroupBy(field => field.Key)
                 .Select(group => group.First())
@@ -117,6 +120,9 @@ public class DynamicMenuDataSourceService(
                     Key = "id",
                     Label = "ID",
                     DataType = "string",
+                    Required = false,
+                    ItemType = string.Empty,
+                    ItemSchemaHint = string.Empty,
                 });
             }
 
