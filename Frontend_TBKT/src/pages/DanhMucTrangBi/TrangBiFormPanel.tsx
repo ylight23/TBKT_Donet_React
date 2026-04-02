@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
@@ -11,15 +12,36 @@ import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
+import BuildIcon from '@mui/icons-material/Build';
 import SaveIcon from '@mui/icons-material/Save';
-import catalogApi, { type CatalogTree } from '../../apis/catalogApi';
+import SettingsIcon from '@mui/icons-material/Settings';
+import catalogApi, { type CatalogTree, type TrangBiSpecializationOption } from '../../apis/catalogApi';
+import TrangBiFormConfigDialog from './TrangBiFormConfigDialog';
 import DynamicDataForm from '../CauHinhThamSo/subComponents/DynamicDataForm';
-import type { RootState } from '../../store';
+import type { AppDispatch, RootState } from '../../store';
 import type { LocalDynamicField, LocalFieldSet, LocalFormConfig } from '../../apis/thamSoApi';
+import { saveFormConfig } from '../../store/reducer/thamSo';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const STANDARD_KEYS = new Set(['ten', 'tenDayDu', 'vietTat', 'idCapTren', 'thuTu']);
+
+/**
+ * Extract the first-level category number from a DanhMucTrangBi node ID.
+ * e.g. 'B.1.01.00.00.00.001' → '1', 'T.3.02.01.00.00.000' → '3'
+ * Returns '' for root-level or unrecognised IDs.
+ */
+function extractCategoryL1(nodeId: string | undefined | null): string {
+    if (!nodeId) return '';
+    const parts = nodeId.split('.');
+    // parts[0]=CN, parts[1]=L1, parts[2..]=deeper levels
+    if (parts.length >= 2) {
+        const l1 = parts[1];
+        // root nodes have L1='0', skip those
+        if (l1 && l1 !== '0') return l1;
+    }
+    return '';
+}
 
 /** Extract form data from a CatalogTree node */
 function nodeToFormData(node: CatalogTree): Record<string, string> {
@@ -56,6 +78,8 @@ function resolveTabFields(
 
 interface TrangBiFormPanelProps {
     cn: string;
+    cnLabel: string;
+    cnOptions: TrangBiSpecializationOption[];
     node: CatalogTree | null;
     /** Called after a successful save with the updated/new node id */
     onSaved: (id: string, isNew: boolean) => void;
@@ -63,21 +87,34 @@ interface TrangBiFormPanelProps {
 
 const CATALOG_NAME = 'DanhMucTrangBi';
 
-const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, node, onSaved }) => {
+const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOptions, node, onSaved }) => {
+    const dispatch = useDispatch<AppDispatch>();
     const { formConfigs, fieldSets, dynamicFields, loaded } = useSelector(
         (s: RootState) => s.thamSoReducer,
     );
 
-    const formConfig: LocalFormConfig | undefined = useMemo(
-        () => formConfigs.find((fc) => fc.key === `trangbi-${cn}`),
-        [formConfigs, cn],
+    // Common config: trangbi-{cn} — backend normalizes to lowercase
+    const cnLower = cn.toLowerCase();
+    const commonConfig: LocalFormConfig | undefined = useMemo(
+        () => formConfigs.find((fc) => fc.key === `trangbi-${cnLower}`),
+        [formConfigs, cnLower],
     );
 
-    const tabGroups = useMemo(() => {
-        if (!formConfig) return [];
-        return formConfig.tabs
+    // Category-specific config: trangbi-{cn}-{L1}
+    const categoryL1 = useMemo(() => extractCategoryL1(node?.id), [node?.id]);
+    const categoryConfig: LocalFormConfig | undefined = useMemo(
+        () => categoryL1 ? formConfigs.find((fc) => fc.key === `trangbi-${cnLower}-${categoryL1}`) : undefined,
+        [formConfigs, cnLower, categoryL1],
+    );
+
+    // Either config existing means we can show something
+    const hasAnyConfig = !!commonConfig || !!categoryConfig;
+
+    // Build tab groups from common config
+    const commonTabGroups = useMemo(() => {
+        if (!commonConfig) return [];
+        return commonConfig.tabs
             .filter((tab) => {
-                // exclude pure meta/sync-group tabs (they have only __meta: entries)
                 const realIds = tab.setIds.filter((id) => !id.startsWith('__meta:'));
                 return realIds.length > 0;
             })
@@ -86,17 +123,46 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, node, onSaved }
                 label: tab.label,
                 fields: resolveTabFields(tab.setIds, fieldSets, dynamicFields),
             }));
-    }, [formConfig, fieldSets, dynamicFields]);
+    }, [commonConfig, fieldSets, dynamicFields]);
 
+    // Build tab groups from category config
+    const categoryTabGroups = useMemo(() => {
+        if (!categoryConfig) return [];
+        return categoryConfig.tabs
+            .filter((tab) => {
+                const realIds = tab.setIds.filter((id) => !id.startsWith('__meta:'));
+                return realIds.length > 0;
+            })
+            .map((tab) => ({
+                id: `cat_${tab.id}`,
+                label: tab.label,
+                fields: resolveTabFields(tab.setIds, fieldSets, dynamicFields),
+            }));
+    }, [categoryConfig, fieldSets, dynamicFields]);
+
+    // Merge all fields for validation
     const allFields = useMemo(
-        () => tabGroups.flatMap((g) => g.fields),
-        [tabGroups],
+        () => [
+            ...commonTabGroups.flatMap((g) => g.fields),
+            ...categoryTabGroups.flatMap((g) => g.fields),
+        ],
+        [commonTabGroups, categoryTabGroups],
     );
+
+    // Merge all tab groups for display
+    const mergedTabGroups = useMemo(() => {
+        const groups = [
+            ...commonTabGroups,
+            ...categoryTabGroups,
+        ];
+        return groups;
+    }, [commonTabGroups, categoryTabGroups]);
 
     const [isNew, setIsNew] = useState(false);
     const [formData, setFormData] = useState<Record<string, string>>({});
     const [errors, setErrors] = useState<Record<string, string | null>>({});
     const [saving, setSaving] = useState(false);
+    const [configDialogOpen, setConfigDialogOpen] = useState(false);
     const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
         open: false,
         message: '',
@@ -186,14 +252,39 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, node, onSaved }
         );
     }
 
-    if (!formConfig) {
+    if (!hasAnyConfig) {
         return (
             <Box sx={{ p: 3 }}>
-                <Alert severity="info">
-                    Chua co FormConfig cho chuyen nganh <strong>{cn}</strong>.
-                    <br />
-                    Vao <em>Cau hinh tham so</em> va tao FormConfig voi key <code>trangbi-{cn}</code>.
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Chưa có cấu hình tham số cho chuyên ngành <strong>{cnLabel}</strong> ({cn}).
                 </Alert>
+                <Stack direction="row" spacing={1.5}>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<BuildIcon />}
+                        onClick={() => setConfigDialogOpen(true)}
+                    >
+                        Tạo cấu hình nhanh
+                    </Button>
+                </Stack>
+                <TrangBiFormConfigDialog
+                    open={configDialogOpen}
+                    onClose={() => setConfigDialogOpen(false)}
+                    cn={cn}
+                    cnLabel={cnLabel}
+                    cnOptions={cnOptions}
+                    onCreated={() => setSnack({ open: true, message: 'Đã tạo cấu hình thành công!', severity: 'success' })}
+                />
+                <Snackbar
+                    open={snack.open}
+                    autoHideDuration={3500}
+                    onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+                >
+                    <Alert severity={snack.severity} onClose={() => setSnack((prev) => ({ ...prev, open: false }))}>
+                        {snack.message}
+                    </Alert>
+                </Snackbar>
             </Box>
         );
     }
@@ -256,15 +347,98 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, node, onSaved }
 
             {/* Form */}
             <Box sx={{ flex: 1, overflow: 'hidden auto', p: 2 }}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                    <DynamicDataForm
-                        fields={allFields}
-                        tabGroups={tabGroups.length > 1 ? tabGroups : undefined}
-                        data={formData}
-                        errors={errors}
-                        onChange={handleChange}
-                    />
-                </Paper>
+                {/* Common parameters section */}
+                {commonTabGroups.length > 0 && (
+                    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                            <SettingsIcon fontSize="small" color="primary" />
+                            <Typography variant="subtitle2" fontWeight={700} color="primary">
+                                Thông số chung
+                            </Typography>
+                            <Chip label={commonConfig?.name ?? ''} size="small" variant="outlined" />
+                        </Stack>
+                        <DynamicDataForm
+                            fields={commonTabGroups.flatMap((g) => g.fields)}
+                            tabGroups={commonTabGroups.length > 1 ? commonTabGroups : undefined}
+                            data={formData}
+                            errors={errors}
+                            onChange={handleChange}
+                        />
+                    </Paper>
+                )}
+
+                {/* Category-specific parameters section */}
+                {categoryTabGroups.length > 0 && (
+                    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                            <BuildIcon fontSize="small" color="secondary" />
+                            <Typography variant="subtitle2" fontWeight={700} color="secondary">
+                                Thông số kĩ thuật riêng
+                            </Typography>
+                            <Chip
+                                label={`${categoryConfig?.name ?? ''} (${cn}.${categoryL1})`}
+                                size="small"
+                                variant="outlined"
+                                color="secondary"
+                            />
+                        </Stack>
+                        <DynamicDataForm
+                            fields={categoryTabGroups.flatMap((g) => g.fields)}
+                            tabGroups={categoryTabGroups.length > 1 ? categoryTabGroups : undefined}
+                            data={formData}
+                            errors={errors}
+                            onChange={handleChange}
+                        />
+                    </Paper>
+                )}
+
+                {/* Hint when no category config exists but node is selected */}
+                {node && categoryL1 && !categoryConfig && (
+                    <Alert
+                        severity="info"
+                        variant="outlined"
+                        sx={{ mb: 2 }}
+                        action={
+                            <Button
+                                size="small"
+                                startIcon={<BuildIcon />}
+                                onClick={() => {
+                                    const catKey = `trangbi-${cnLower}-${categoryL1}`;
+                                    void dispatch(saveFormConfig({
+                                        formConfig: {
+                                            id: `form_${Math.random().toString(36).slice(2, 9)}`,
+                                            key: catKey,
+                                            name: `TSKT ${cnLabel} / ${cn}.${categoryL1}`,
+                                            desc: '',
+                                            tabs: [{ id: `tab_${Math.random().toString(36).slice(2, 9)}`, label: 'Thông số kĩ thuật', setIds: [] }],
+                                        },
+                                        isNew: true,
+                                    })).unwrap().then(() => {
+                                        setSnack({ open: true, message: `Đã tạo cấu hình ${catKey}`, severity: 'success' });
+                                    }).catch(() => {
+                                        setSnack({ open: true, message: 'Lỗi tạo cấu hình', severity: 'error' });
+                                    });
+                                }}
+                            >
+                                Tạo nhanh
+                            </Button>
+                        }
+                    >
+                        Chưa có thông số kĩ thuật riêng cho danh mục <strong>{cn}.{categoryL1}</strong>.
+                    </Alert>
+                )}
+
+                {/* Fallback: no fields at all from either config */}
+                {commonTabGroups.length === 0 && categoryTabGroups.length === 0 && (
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                        <DynamicDataForm
+                            fields={[]}
+                            data={formData}
+                            errors={errors}
+                            onChange={handleChange}
+                        />
+                    </Paper>
+                )}
             </Box>
 
             <Snackbar

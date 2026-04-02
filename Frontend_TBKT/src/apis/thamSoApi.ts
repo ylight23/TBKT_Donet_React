@@ -95,6 +95,7 @@ export interface LocalDynamicField {
     type: string;
     required: boolean;
     validation: LocalFieldValidation;
+    cnIds?: string[];
     audit?: LocalAuditMetadata;
 }
 
@@ -261,6 +262,7 @@ function protoFieldToLocal(f: DynamicFieldProto): LocalDynamicField {
             apiUrl: f.validation?.apiUrl || undefined,
             displayType: f.validation?.displayType || undefined,
         },
+        cnIds: f.cnIds?.length ? [...f.cnIds] : undefined,
         audit: mapAuditMetadata(f),
     };
 }
@@ -283,6 +285,7 @@ function localFieldToProto(f: LocalDynamicField): any {
             apiUrl: f.validation?.apiUrl ?? '',
             displayType: f.validation?.displayType ?? '',
         }),
+        cnIds: f.cnIds ?? [],
     });
 }
 

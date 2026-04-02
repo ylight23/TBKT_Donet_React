@@ -125,6 +125,8 @@ const DanhMucTrangBi: React.FC = () => {
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
                         <TrangBiFormPanel
                             cn={selectedCn}
+                            cnLabel={cnOptions.find((o) => o.id === selectedCn)?.label ?? selectedCn}
+                            cnOptions={cnOptions}
                             node={selectedNode}
                             onSaved={handleSaved}
                         />

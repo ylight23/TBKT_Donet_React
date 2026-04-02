@@ -14,7 +14,96 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file Employee.proto.
  */
 export const file_Employee: GenFile = /*@__PURE__*/
-  fileDesc("Cg5FbXBsb3llZS5wcm90bxIIRW1wbG95ZWUiSAoXR2V0TGlzdEVtcGxveWVlc1JlcXVlc3QSLQoLc2VhcmNoX2l0ZW0YASABKAsyGC5FbXBsb3llZS5FbXBsb3llZVNlYXJjaCKoAQoYR2V0TGlzdEVtcGxveWVlc1Jlc3BvbnNlEiEKBWl0ZW1zGAEgAygLMhIuRW1wbG95ZWUuRW1wbG95ZWUSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJEiwKDnBhZ2VyX3NldHRpbmdzGAUgASgLMhQuUGFnZXIuUGFnZXJTZXR0aW5ncyIgChJHZXRFbXBsb3llZVJlcXVlc3QSCgoCaWQYASABKAkidAoTR2V0RW1wbG95ZWVSZXNwb25zZRIgCgRpdGVtGAEgASgLMhIuRW1wbG95ZWUuRW1wbG95ZWUSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJIlcKE1NhdmVFbXBsb3llZVJlcXVlc3QSIAoEaXRlbRgBIAEoCzISLkVtcGxveWVlLkVtcGxveWVlEg4KBmlzX25ldxgCIAEoCBIOCgZvbGRfaWQYAyABKAkidQoUU2F2ZUVtcGxveWVlUmVzcG9uc2USIAoEaXRlbRgBIAEoCzISLkVtcGxveWVlLkVtcGxveWVlEg8KB3N1Y2Nlc3MYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIZChFtZXNzYWdlX2V4Y2VwdGlvbhgEIAEoCSIwChVEZWxldGVFbXBsb3llZVJlcXVlc3QSCwoDaWRzGAEgAygJEgoKAmlkGAIgASgJIlUKFkRlbGV0ZUVtcGxveWVlUmVzcG9uc2USDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJItoGCghFbXBsb3llZRIKCgJpZBgBIAEoCRIVCg10ZW5fdGFpX2tob2FuGAIgASgJEhAKCG1hdF9raGF1GAMgASgJEhEKCWhvX3ZhX3RlbhgEIAEoCRIRCglpZF9kb25fdmkYBSABKAkSGgoSaWRfcXVhbl90cmlfZG9uX3ZpGAYgASgJEhIKCmlkX2NhcF9iYWMYByABKAkSDwoHY2h1Y192dRgIIAEoCRISCgpkaWVuX3Rob2FpGAkgASgJEhAKCGhpbmhfYW5oGAogASgJEg0KBWVtYWlsGAsgASgJEg4KBmRlbGV0ZRgMIAEoCBItCgluZ2F5X3NpbmgYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjsKF25nYXlfdGhpZXRfbGFwX21hdF9raGF1GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCg5kYW5nX25oYXBfY3VvaRgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoNdHJ1eV9jYXBfY3VvaRgTIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJa2ljaF9ob2F0GBQgASgIEi4KCGhhc2hfa2V5GBcgASgLMhwuZ29vZ2xlLnByb3RvYnVmLlN0cmluZ1ZhbHVlEi8KCWNyZWF0ZV9ieRgeIAEoCzIcLmdvb2dsZS5wcm90b2J1Zi5TdHJpbmdWYWx1ZRIvCgtjcmVhdGVfZGF0ZRgfIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoJbW9kaWZ5X2J5GCAgASgLMhwuZ29vZ2xlLnByb3RvYnVmLlN0cmluZ1ZhbHVlEi8KC21vZGlmeV9kYXRlGCEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtkZWxldGVfZGF0ZRgiIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoJZGVsZXRlX2J5GCMgASgLMhwuZ29vZ2xlLnByb3RvYnVmLlN0cmluZ1ZhbHVlEjEKDGFjY2Vzc19sZXZlbBglIAEoCzIbLmdvb2dsZS5wcm90b2J1Zi5JbnQzMlZhbHVlInkKDkVtcGxveWVlU2VhcmNoEiQKCGVtcGxveWVlGAEgASgLMhIuRW1wbG95ZWUuRW1wbG95ZWUSLAoOcGFnZXJfc2V0dGluZ3MYAiABKAsyFC5QYWdlci5QYWdlclNldHRpbmdzEhMKC3NlYXJjaF90ZXh0GAYgASgJMtwCCg9FbXBsb3llZVNlcnZpY2USWQoQR2V0TGlzdEVtcGxveWVlcxIhLkVtcGxveWVlLkdldExpc3RFbXBsb3llZXNSZXF1ZXN0GiIuRW1wbG95ZWUuR2V0TGlzdEVtcGxveWVlc1Jlc3BvbnNlEkoKC0dldEVtcGxveWVlEhwuRW1wbG95ZWUuR2V0RW1wbG95ZWVSZXF1ZXN0Gh0uRW1wbG95ZWUuR2V0RW1wbG95ZWVSZXNwb25zZRJNCgxTYXZlRW1wbG95ZWUSHS5FbXBsb3llZS5TYXZlRW1wbG95ZWVSZXF1ZXN0Gh4uRW1wbG95ZWUuU2F2ZUVtcGxveWVlUmVzcG9uc2USUwoORGVsZXRlRW1wbG95ZWUSHy5FbXBsb3llZS5EZWxldGVFbXBsb3llZVJlcXVlc3QaIC5FbXBsb3llZS5EZWxldGVFbXBsb3llZVJlc3BvbnNlQgmqAgZwcm90b3NiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_wrappers, file_Pager]);
+  fileDesc("Cg5FbXBsb3llZS5wcm90bxIIRW1wbG95ZWUiQQocSW1wb3J0RW1wbG95ZWVzU3RyZWFtUmVxdWVzdBIhCgVpdGVtcxgBIAMoCzISLkVtcGxveWVlLkVtcGxveWVlIoYCChpJbXBvcnRFbXBsb3llZXNTdHJlYW1FdmVudBIOCgZqb2JfaWQYASABKAkSDQoFc3RhZ2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIRCglwcm9jZXNzZWQYBCABKAUSDQoFdG90YWwYBSABKAUSEQoJc3VjY2VlZGVkGAYgASgFEg4KBmZhaWxlZBgHIAEoBRITCgtjdXJyZW50X2tleRgIIAEoCRIQCgh3YXJuaW5ncxgJIAMoCRIMCgRkb25lGAogASgIEg8KB3N1Y2Nlc3MYCyABKAgSLQoJdGltZXN0YW1wGAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJIChdHZXRMaXN0RW1wbG95ZWVzUmVxdWVzdBItCgtzZWFyY2hfaXRlbRgBIAEoCzIYLkVtcGxveWVlLkVtcGxveWVlU2VhcmNoIqgBChhHZXRMaXN0RW1wbG95ZWVzUmVzcG9uc2USIQoFaXRlbXMYASADKAsyEi5FbXBsb3llZS5FbXBsb3llZRIPCgdzdWNjZXNzGAIgASgIEg8KB21lc3NhZ2UYAyABKAkSGQoRbWVzc2FnZV9leGNlcHRpb24YBCABKAkSLAoOcGFnZXJfc2V0dGluZ3MYBSABKAsyFC5QYWdlci5QYWdlclNldHRpbmdzIiAKEkdldEVtcGxveWVlUmVxdWVzdBIKCgJpZBgBIAEoCSJ0ChNHZXRFbXBsb3llZVJlc3BvbnNlEiAKBGl0ZW0YASABKAsyEi5FbXBsb3llZS5FbXBsb3llZRIPCgdzdWNjZXNzGAIgASgIEg8KB21lc3NhZ2UYAyABKAkSGQoRbWVzc2FnZV9leGNlcHRpb24YBCABKAkiVwoTU2F2ZUVtcGxveWVlUmVxdWVzdBIgCgRpdGVtGAEgASgLMhIuRW1wbG95ZWUuRW1wbG95ZWUSDgoGaXNfbmV3GAIgASgIEg4KBm9sZF9pZBgDIAEoCSJ1ChRTYXZlRW1wbG95ZWVSZXNwb25zZRIgCgRpdGVtGAEgASgLMhIuRW1wbG95ZWUuRW1wbG95ZWUSDwoHc3VjY2VzcxgCIAEoCBIPCgdtZXNzYWdlGAMgASgJEhkKEW1lc3NhZ2VfZXhjZXB0aW9uGAQgASgJIjAKFURlbGV0ZUVtcGxveWVlUmVxdWVzdBILCgNpZHMYASADKAkSCgoCaWQYAiABKAkiVQoWRGVsZXRlRW1wbG95ZWVSZXNwb25zZRIPCgdzdWNjZXNzGAIgASgIEg8KB21lc3NhZ2UYAyABKAkSGQoRbWVzc2FnZV9leGNlcHRpb24YBCABKAkivQUKCEVtcGxveWVlEgoKAmlkGAEgASgJEhEKCWhvX3ZhX3RlbhgEIAEoCRIRCglpZF9kb25fdmkYBSABKAkSGgoSaWRfcXVhbl90cmlfZG9uX3ZpGAYgASgJEhIKCmlkX2NhcF9iYWMYByABKAkSDwoHY2h1Y192dRgIIAEoCRISCgpkaWVuX3Rob2FpGAkgASgJEhAKCGhpbmhfYW5oGAogASgJEg0KBWVtYWlsGAsgASgJEg4KBmRlbGV0ZRgMIAEoCBItCgluZ2F5X3NpbmgYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWtpY2hfaG9hdBgUIAEoCBIvCgljcmVhdGVfYnkYHiABKAsyHC5nb29nbGUucHJvdG9idWYuU3RyaW5nVmFsdWUSLwoLY3JlYXRlX2RhdGUYHyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KCW1vZGlmeV9ieRggIAEoCzIcLmdvb2dsZS5wcm90b2J1Zi5TdHJpbmdWYWx1ZRIvCgttb2RpZnlfZGF0ZRghIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZGVsZXRlX2RhdGUYIiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KCWRlbGV0ZV9ieRgjIAEoCzIcLmdvb2dsZS5wcm90b2J1Zi5TdHJpbmdWYWx1ZUoECAIQA0oECAMQBEoECBAQEUoECBEQEkoECBMQFEoECBcQGEoECCUQJlINdGVuX3RhaV9raG9hblIIbWF0X2toYXVSF25nYXlfdGhpZXRfbGFwX21hdF9raGF1Ug5kYW5nX25oYXBfY3VvaVINdHJ1eV9jYXBfY3VvaVIIaGFzaF9rZXlSDGFjY2Vzc19sZXZlbCJ5Cg5FbXBsb3llZVNlYXJjaBIkCghlbXBsb3llZRgBIAEoCzISLkVtcGxveWVlLkVtcGxveWVlEiwKDnBhZ2VyX3NldHRpbmdzGAIgASgLMhQuUGFnZXIuUGFnZXJTZXR0aW5ncxITCgtzZWFyY2hfdGV4dBgGIAEoCTLFAwoPRW1wbG95ZWVTZXJ2aWNlElkKEEdldExpc3RFbXBsb3llZXMSIS5FbXBsb3llZS5HZXRMaXN0RW1wbG95ZWVzUmVxdWVzdBoiLkVtcGxveWVlLkdldExpc3RFbXBsb3llZXNSZXNwb25zZRJKCgtHZXRFbXBsb3llZRIcLkVtcGxveWVlLkdldEVtcGxveWVlUmVxdWVzdBodLkVtcGxveWVlLkdldEVtcGxveWVlUmVzcG9uc2USTQoMU2F2ZUVtcGxveWVlEh0uRW1wbG95ZWUuU2F2ZUVtcGxveWVlUmVxdWVzdBoeLkVtcGxveWVlLlNhdmVFbXBsb3llZVJlc3BvbnNlEmcKFUltcG9ydEVtcGxveWVlc1N0cmVhbRImLkVtcGxveWVlLkltcG9ydEVtcGxveWVlc1N0cmVhbVJlcXVlc3QaJC5FbXBsb3llZS5JbXBvcnRFbXBsb3llZXNTdHJlYW1FdmVudDABElMKDkRlbGV0ZUVtcGxveWVlEh8uRW1wbG95ZWUuRGVsZXRlRW1wbG95ZWVSZXF1ZXN0GiAuRW1wbG95ZWUuRGVsZXRlRW1wbG95ZWVSZXNwb25zZUIJqgIGcHJvdG9zYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_wrappers, file_Pager]);
+
+/**
+ * @generated from message Employee.ImportEmployeesStreamRequest
+ */
+export type ImportEmployeesStreamRequest = Message<"Employee.ImportEmployeesStreamRequest"> & {
+  /**
+   * @generated from field: repeated Employee.Employee items = 1;
+   */
+  items: Employee[];
+};
+
+/**
+ * Describes the message Employee.ImportEmployeesStreamRequest.
+ * Use `create(ImportEmployeesStreamRequestSchema)` to create a new message.
+ */
+export const ImportEmployeesStreamRequestSchema: GenMessage<ImportEmployeesStreamRequest> = /*@__PURE__*/
+  messageDesc(file_Employee, 0);
+
+/**
+ * @generated from message Employee.ImportEmployeesStreamEvent
+ */
+export type ImportEmployeesStreamEvent = Message<"Employee.ImportEmployeesStreamEvent"> & {
+  /**
+   * @generated from field: string job_id = 1;
+   */
+  jobId: string;
+
+  /**
+   * @generated from field: string stage = 2;
+   */
+  stage: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * @generated from field: int32 processed = 4;
+   */
+  processed: number;
+
+  /**
+   * @generated from field: int32 total = 5;
+   */
+  total: number;
+
+  /**
+   * @generated from field: int32 succeeded = 6;
+   */
+  succeeded: number;
+
+  /**
+   * @generated from field: int32 failed = 7;
+   */
+  failed: number;
+
+  /**
+   * @generated from field: string current_key = 8;
+   */
+  currentKey: string;
+
+  /**
+   * @generated from field: repeated string warnings = 9;
+   */
+  warnings: string[];
+
+  /**
+   * @generated from field: bool done = 10;
+   */
+  done: boolean;
+
+  /**
+   * @generated from field: bool success = 11;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 12;
+   */
+  timestamp?: Timestamp;
+};
+
+/**
+ * Describes the message Employee.ImportEmployeesStreamEvent.
+ * Use `create(ImportEmployeesStreamEventSchema)` to create a new message.
+ */
+export const ImportEmployeesStreamEventSchema: GenMessage<ImportEmployeesStreamEvent> = /*@__PURE__*/
+  messageDesc(file_Employee, 1);
 
 /**
  * @generated from message Employee.GetListEmployeesRequest
@@ -31,7 +120,7 @@ export type GetListEmployeesRequest = Message<"Employee.GetListEmployeesRequest"
  * Use `create(GetListEmployeesRequestSchema)` to create a new message.
  */
 export const GetListEmployeesRequestSchema: GenMessage<GetListEmployeesRequest> = /*@__PURE__*/
-  messageDesc(file_Employee, 0);
+  messageDesc(file_Employee, 2);
 
 /**
  * @generated from message Employee.GetListEmployeesResponse
@@ -68,7 +157,7 @@ export type GetListEmployeesResponse = Message<"Employee.GetListEmployeesRespons
  * Use `create(GetListEmployeesResponseSchema)` to create a new message.
  */
 export const GetListEmployeesResponseSchema: GenMessage<GetListEmployeesResponse> = /*@__PURE__*/
-  messageDesc(file_Employee, 1);
+  messageDesc(file_Employee, 3);
 
 /**
  * @generated from message Employee.GetEmployeeRequest
@@ -85,7 +174,7 @@ export type GetEmployeeRequest = Message<"Employee.GetEmployeeRequest"> & {
  * Use `create(GetEmployeeRequestSchema)` to create a new message.
  */
 export const GetEmployeeRequestSchema: GenMessage<GetEmployeeRequest> = /*@__PURE__*/
-  messageDesc(file_Employee, 2);
+  messageDesc(file_Employee, 4);
 
 /**
  * @generated from message Employee.GetEmployeeResponse
@@ -117,7 +206,7 @@ export type GetEmployeeResponse = Message<"Employee.GetEmployeeResponse"> & {
  * Use `create(GetEmployeeResponseSchema)` to create a new message.
  */
 export const GetEmployeeResponseSchema: GenMessage<GetEmployeeResponse> = /*@__PURE__*/
-  messageDesc(file_Employee, 3);
+  messageDesc(file_Employee, 5);
 
 /**
  * @generated from message Employee.SaveEmployeeRequest
@@ -144,7 +233,7 @@ export type SaveEmployeeRequest = Message<"Employee.SaveEmployeeRequest"> & {
  * Use `create(SaveEmployeeRequestSchema)` to create a new message.
  */
 export const SaveEmployeeRequestSchema: GenMessage<SaveEmployeeRequest> = /*@__PURE__*/
-  messageDesc(file_Employee, 4);
+  messageDesc(file_Employee, 6);
 
 /**
  * @generated from message Employee.SaveEmployeeResponse
@@ -176,7 +265,7 @@ export type SaveEmployeeResponse = Message<"Employee.SaveEmployeeResponse"> & {
  * Use `create(SaveEmployeeResponseSchema)` to create a new message.
  */
 export const SaveEmployeeResponseSchema: GenMessage<SaveEmployeeResponse> = /*@__PURE__*/
-  messageDesc(file_Employee, 5);
+  messageDesc(file_Employee, 7);
 
 /**
  * @generated from message Employee.DeleteEmployeeRequest
@@ -198,7 +287,7 @@ export type DeleteEmployeeRequest = Message<"Employee.DeleteEmployeeRequest"> & 
  * Use `create(DeleteEmployeeRequestSchema)` to create a new message.
  */
 export const DeleteEmployeeRequestSchema: GenMessage<DeleteEmployeeRequest> = /*@__PURE__*/
-  messageDesc(file_Employee, 6);
+  messageDesc(file_Employee, 8);
 
 /**
  * @generated from message Employee.DeleteEmployeeResponse
@@ -225,7 +314,7 @@ export type DeleteEmployeeResponse = Message<"Employee.DeleteEmployeeResponse"> 
  * Use `create(DeleteEmployeeResponseSchema)` to create a new message.
  */
 export const DeleteEmployeeResponseSchema: GenMessage<DeleteEmployeeResponse> = /*@__PURE__*/
-  messageDesc(file_Employee, 7);
+  messageDesc(file_Employee, 9);
 
 /**
  * @generated from message Employee.Employee
@@ -235,16 +324,6 @@ export type Employee = Message<"Employee.Employee"> & {
    * @generated from field: string id = 1;
    */
   id: string;
-
-  /**
-   * @generated from field: string ten_tai_khoan = 2;
-   */
-  tenTaiKhoan: string;
-
-  /**
-   * @generated from field: string mat_khau = 3;
-   */
-  matKhau: string;
 
   /**
    * @generated from field: string ho_va_ten = 4;
@@ -297,29 +376,9 @@ export type Employee = Message<"Employee.Employee"> & {
   ngaySinh?: Timestamp;
 
   /**
-   * @generated from field: google.protobuf.Timestamp ngay_thiet_lap_mat_khau = 16;
-   */
-  ngayThietLapMatKhau?: Timestamp;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp dang_nhap_cuoi = 17;
-   */
-  dangNhapCuoi?: Timestamp;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp truy_cap_cuoi = 19;
-   */
-  truyCapCuoi?: Timestamp;
-
-  /**
    * @generated from field: bool kich_hoat = 20;
    */
   kichHoat: boolean;
-
-  /**
-   * @generated from field: google.protobuf.StringValue hash_key = 23;
-   */
-  hashKey?: string;
 
   /**
    * @generated from field: google.protobuf.StringValue create_by = 30;
@@ -350,11 +409,6 @@ export type Employee = Message<"Employee.Employee"> & {
    * @generated from field: google.protobuf.StringValue delete_by = 35;
    */
   deleteBy?: string;
-
-  /**
-   * @generated from field: google.protobuf.Int32Value access_level = 37;
-   */
-  accessLevel?: number;
 };
 
 /**
@@ -362,7 +416,7 @@ export type Employee = Message<"Employee.Employee"> & {
  * Use `create(EmployeeSchema)` to create a new message.
  */
 export const EmployeeSchema: GenMessage<Employee> = /*@__PURE__*/
-  messageDesc(file_Employee, 8);
+  messageDesc(file_Employee, 10);
 
 /**
  * @generated from message Employee.EmployeeSearch
@@ -389,7 +443,7 @@ export type EmployeeSearch = Message<"Employee.EmployeeSearch"> & {
  * Use `create(EmployeeSearchSchema)` to create a new message.
  */
 export const EmployeeSearchSchema: GenMessage<EmployeeSearch> = /*@__PURE__*/
-  messageDesc(file_Employee, 9);
+  messageDesc(file_Employee, 11);
 
 /**
  * @generated from service Employee.EmployeeService
@@ -418,6 +472,14 @@ export const EmployeeService: GenService<{
     methodKind: "unary";
     input: typeof SaveEmployeeRequestSchema;
     output: typeof SaveEmployeeResponseSchema;
+  },
+  /**
+   * @generated from rpc Employee.EmployeeService.ImportEmployeesStream
+   */
+  importEmployeesStream: {
+    methodKind: "server_streaming";
+    input: typeof ImportEmployeesStreamRequestSchema;
+    output: typeof ImportEmployeesStreamEventSchema;
   },
   /**
    * @generated from rpc Employee.EmployeeService.DeleteEmployee

@@ -4,6 +4,7 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
@@ -25,14 +26,16 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import { FIELD_TYPES } from '../constants';
 import { FieldType, FieldValidation } from '../types';
+import type { DanhMucChuyenNganhOption } from '../../../apis/danhmucChuyenNganhApi';
 
 interface FieldConfigPanelProps {
     field: DynamicField;
     onSave: (field: DynamicField) => void;
     onClose: () => void;
+    cnOptions?: DanhMucChuyenNganhOption[];
 }
 
-const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onClose }) => {
+const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onClose, cnOptions = [] }) => {
     const [draft, setDraft] = useState<DynamicField>(field);
     const [activePanel, setActivePanel] = useState(0);
     const supportsOptionSource = draft.type === 'select' || draft.type === 'radio' || draft.type === 'checkboxGroup';
@@ -146,6 +149,45 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                             }
                             label="Trường bắt buộc"
                         />
+
+                        {/* CN tags */}
+                        {cnOptions.length > 0 && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
+                                    Chuyên ngành
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {cnOptions.map((cn) => {
+                                        const selected = draft.cnIds?.includes(cn.id) ?? false;
+                                        return (
+                                            <Chip
+                                                key={cn.id}
+                                                size="small"
+                                                label={cn.vietTat || cn.ten}
+                                                onClick={() => {
+                                                    setDraft((prev) => {
+                                                        const current = prev.cnIds ?? [];
+                                                        const next = selected
+                                                            ? current.filter((id) => id !== cn.id)
+                                                            : [...current, cn.id];
+                                                        return { ...prev, cnIds: next.length > 0 ? next : undefined };
+                                                    });
+                                                }}
+                                                sx={{
+                                                    cursor: 'pointer',
+                                                    fontSize: 11,
+                                                    fontWeight: selected ? 700 : 400,
+                                                    bgcolor: selected ? 'info.main' : undefined,
+                                                    color: selected ? 'info.contrastText' : undefined,
+                                                    '&:hover': { bgcolor: selected ? 'info.dark' : 'action.hover' },
+                                                }}
+                                                variant={selected ? 'filled' : 'outlined'}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+                            </Box>
+                        )}
 
                         {draft.type === 'select' && (
                             <TextField

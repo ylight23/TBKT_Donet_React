@@ -1,17 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
+import ClearIcon from '@mui/icons-material/Clear';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
 
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
@@ -19,6 +25,14 @@ import { nameToIcon } from '../../../utils/thamSoUtils';
 import { FieldSet } from '../types';
 import { typeOf } from '../utils';
 import FieldSetEditorDialog from './FieldSetEditorDialog';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SET_ROW_HEIGHT = 60;
+const FIELD_ROW_HEIGHT = 44;
+const OVERSCAN = 12;
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface PageDatasetsProps {
     fields: DynamicField[];
@@ -28,22 +42,57 @@ interface PageDatasetsProps {
     setActiveSetId: (id: string | null) => void;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setFieldSets, activeSetId, setActiveSetId }) => {
     const [search, setSearch] = useState('');
+    const [fieldSearch, setFieldSearch] = useState('');
     const [editingSet, setEditingSet] = useState<FieldSet | null>(null);
     const [isNewMode, setIsNewMode] = useState(false);
+
+    const setListScrollRef = useRef<HTMLDivElement>(null);
+    const fieldListScrollRef = useRef<HTMLDivElement>(null);
 
     const activeSet = fieldSets.find((s) => s.id === activeSetId) ?? null;
 
     const filteredSets = useMemo(
-        () => fieldSets.filter((s) => s.name.toLowerCase().includes(search.toLowerCase())),
+        () => {
+            const lower = search.toLowerCase().trim();
+            if (!lower) return fieldSets;
+            return fieldSets.filter((s) => s.name.toLowerCase().includes(lower) || (s.desc ?? '').toLowerCase().includes(lower));
+        },
         [fieldSets, search],
     );
 
-    const activeFields = useMemo(
-        () => activeSet?.fields ?? [],
-        [activeSet],
-    );
+    // Resolve fields for active set
+    const activeFields = useMemo(() => {
+        if (!activeSet) return [];
+        const resolved = activeSet.fieldIds
+            .map((fid) => fields.find((f) => f.id === fid))
+            .filter((f): f is DynamicField => Boolean(f));
+
+        const lower = fieldSearch.toLowerCase().trim();
+        if (!lower) return resolved;
+        return resolved.filter((f) => f.label.toLowerCase().includes(lower) || f.key.toLowerCase().includes(lower));
+    }, [activeSet, fields, fieldSearch]);
+
+    // ── Virtualizers ──
+
+    const setVirtualizer = useVirtualizer({
+        count: filteredSets.length,
+        getScrollElement: () => setListScrollRef.current,
+        estimateSize: () => SET_ROW_HEIGHT,
+        overscan: OVERSCAN,
+    });
+
+    const fieldVirtualizer = useVirtualizer({
+        count: activeFields.length,
+        getScrollElement: () => fieldListScrollRef.current,
+        estimateSize: () => FIELD_ROW_HEIGHT,
+        overscan: OVERSCAN,
+    });
+
+    // ── Helpers ──
 
     const attachFields = (fieldSet: FieldSet): FieldSet => ({
         ...fieldSet,
@@ -51,6 +100,8 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
             .map((fieldId) => fields.find((field) => field.id === fieldId))
             .filter((field): field is DynamicField => Boolean(field)),
     });
+
+    // ── Handlers ──
 
     const handleCreate = () => {
         setIsNewMode(true);
@@ -82,52 +133,35 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
         setActiveSetId(next[0]?.id ?? null);
     };
 
-    const generateUniqueSetId = (existingSets: FieldSet[]): string => {
-        let nextId = '';
-        do {
-            nextId = `set_${Math.random().toString(36).slice(2, 9)}`;
-        } while (existingSets.some((set) => set.id === nextId));
-        return nextId;
-    };
-
-    const generateDuplicateName = (sourceName: string, existingSets: FieldSet[]): string => {
-        const baseName = `${sourceName} (Bản sao)`;
-        if (!existingSets.some((set) => set.name === baseName)) {
-            return baseName;
-        }
-
-        let index = 2;
-        while (existingSets.some((set) => set.name === `${baseName} ${index}`)) {
-            index += 1;
-        }
-        return `${baseName} ${index}`;
-    };
-
     const handleDuplicate = (setToDuplicate: FieldSet) => {
-        const duplicatedSet: FieldSet = {
+        let nextId = '';
+        do { nextId = `set_${Math.random().toString(36).slice(2, 9)}`; }
+        while (fieldSets.some((s) => s.id === nextId));
+
+        const baseName = `${setToDuplicate.name} (Bản sao)`;
+        let dupName = baseName;
+        if (fieldSets.some((s) => s.name === baseName)) {
+            let i = 2;
+            while (fieldSets.some((s) => s.name === `${baseName} ${i}`)) i++;
+            dupName = `${baseName} ${i}`;
+        }
+
+        const dup: FieldSet = {
             ...setToDuplicate,
-            id: generateUniqueSetId(fieldSets),
-            name: generateDuplicateName(setToDuplicate.name, fieldSets),
+            id: nextId,
+            name: dupName,
             fieldIds: [...setToDuplicate.fieldIds],
             fields: [...(setToDuplicate.fields ?? [])],
         };
-
-        setFieldSets((prev) => [...prev, duplicatedSet]);
-        setActiveSetId(duplicatedSet.id);
+        setFieldSets((prev) => [...prev, dup]);
+        setActiveSetId(dup.id);
     };
 
+    // ── Render ──
     return (
-        <Box
-            sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', lg: '320px 1fr' },
-                gap: 2,
-                height: '100%',
-                overflow: 'hidden',
-            }}
-        >
-            {/* Left: set list */}
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ display: 'flex', height: '100%', overflow: 'hidden', gap: 1.5 }}>
+            {/* ── Left: FieldSet list (virtualized) ── */}
+            <Card sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <CardContent sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <TextField
                         fullWidth size="small"
@@ -135,143 +169,222 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         sx={{ mb: 1 }}
+                        slotProps={{
+                            input: {
+                                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                                endAdornment: search ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setSearch('')}><ClearIcon fontSize="small" /></IconButton>
+                                    </InputAdornment>
+                                ) : undefined,
+                            },
+                        }}
                     />
-                    <Button fullWidth variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
-                        Tạo bộ dữ liệu mới
-                    </Button>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Typography variant="caption" color="text.secondary">
+                            {filteredSets.length.toLocaleString('vi')} / {fieldSets.length.toLocaleString('vi')} bộ
+                        </Typography>
+                        <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={handleCreate}
+                            sx={{ textTransform: 'none', fontSize: 12 }}>
+                            Tạo mới
+                        </Button>
+                    </Stack>
                 </CardContent>
 
-                <Box sx={{ p: 1, overflowY: 'auto', flex: 1 }}>
-                    <Stack spacing={0.75}>
-                        {filteredSets.map((set) => {
-                            const isActive = set.id === activeSetId;
+                <Box ref={setListScrollRef} sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                    <Box sx={{ height: setVirtualizer.getTotalSize(), position: 'relative' }}>
+                        {setVirtualizer.getVirtualItems().map((vRow) => {
+                            const s = filteredSets[vRow.index];
+                            const isActive = s.id === activeSetId;
                             return (
                                 <Box
-                                    key={set.id}
-                                    onClick={() => setActiveSetId(set.id)}
-                                    sx={{
-                                        p: 1.25, borderRadius: 2.5, cursor: 'pointer',
-                                        border: '1px solid',
-                                        borderColor: isActive ? 'primary.main' : 'divider',
-                                        bgcolor: isActive ? 'action.selected' : 'background.paper',
-                                        '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+                                    key={vRow.key}
+                                    data-index={vRow.index}
+                                    ref={setVirtualizer.measureElement}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        transform: `translateY(${vRow.start}px)`,
                                     }}
                                 >
-                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                        <Box sx={{ color: set.color, display: 'flex', alignItems: 'center' }}>{set.icon}</Box>
+                                    <Box
+                                        onClick={() => { setActiveSetId(s.id); setFieldSearch(''); }}
+                                        sx={{
+                                            display: 'flex', alignItems: 'center', gap: 1,
+                                            px: 1.25, py: 0.75, mx: 0.5,
+                                            height: SET_ROW_HEIGHT - 1,
+                                            borderRadius: 2, cursor: 'pointer',
+                                            border: '1px solid',
+                                            borderColor: isActive ? 'primary.main' : 'transparent',
+                                            bgcolor: isActive ? 'action.selected' : 'transparent',
+                                            '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+                                            transition: 'background-color 0.1s',
+                                        }}
+                                    >
+                                        <Box sx={{ color: s.color, display: 'flex', alignItems: 'center', fontSize: 20 }}>{s.icon}</Box>
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography variant="body2" fontWeight={700} noWrap>{set.name}</Typography>
-                                            <Typography variant="caption" color="text.secondary" noWrap>{set.desc}</Typography>
+                                            <Typography variant="body2" fontWeight={700} noWrap>{s.name || '(chưa đặt tên)'}</Typography>
+                                            <Typography variant="caption" color="text.secondary" noWrap>{s.desc}</Typography>
                                         </Box>
-                                        <Chip size="small" label={`${set.fieldIds.length}`} sx={{ bgcolor: `${set.color}22`, color: set.color, fontWeight: 700 }} />
-                                    </Stack>
+                                        <Chip size="small" label={s.fieldIds.length}
+                                            sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: `${s.color}22`, color: s.color }} />
+                                    </Box>
                                 </Box>
                             );
                         })}
-                        {filteredSets.length === 0 && (
-                            <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>Không tìm thấy bộ nào.</Typography>
-                        )}
-                    </Stack>
+                    </Box>
+
+                    {filteredSets.length === 0 && (
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">
+                                {search ? 'Không tìm thấy bộ nào.' : 'Chưa có bộ dữ liệu.'}
+                            </Typography>
+                        </Box>
+                    )}
                 </Box>
             </Card>
 
-            {/* Right: preview + actions */}
+            {/* ── Right: Detail + virtualized field list ── */}
             {activeSet ? (
-                <Card sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <CardContent sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-                        <Stack direction="row" alignItems="center" spacing={1.5} mb={0.5}>
+                <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                    {/* Header */}
+                    <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
                             <Box sx={{ color: activeSet.color, display: 'flex', alignItems: 'center', fontSize: 28 }}>{activeSet.icon}</Box>
-                            <Box sx={{ flex: 1 }}>
-                                <Typography variant="h6" fontWeight={800} color={activeSet.color}>{activeSet.name}</Typography>
-                                <Typography variant="body2" color="text.secondary">{activeSet.desc}</Typography>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography variant="h6" fontWeight={800} noWrap color={activeSet.color}>{activeSet.name}</Typography>
+                                <Typography variant="body2" color="text.secondary" noWrap>{activeSet.desc}</Typography>
                             </Box>
-                            <Stack direction="row" spacing={1}>
-                                <Button
-                                    variant="outlined" size="small"
-                                    startIcon={<ContentCopyIcon />}
-                                    onClick={() => handleDuplicate(activeSet)}
-                                >
-                                    Nhân bản
-                                </Button>
-                                <Button
-                                    variant="outlined" size="small"
-                                    startIcon={<EditIcon />}
-                                    onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}
-                                >
-                                    Chỉnh sửa
-                                </Button>
-                                <Button
-                                    variant="outlined" size="small" color="error"
-                                    startIcon={<DeleteIcon />}
-                                    onClick={() => handleDelete(activeSet.id)}
-                                >
-                                    Xoá
-                                </Button>
+                            <Stack direction="row" spacing={0.75}>
+                                <Tooltip title="Nhân bản">
+                                    <IconButton size="small" onClick={() => handleDuplicate(activeSet)}>
+                                        <ContentCopyIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Chỉnh sửa">
+                                    <IconButton size="small" onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}>
+                                        <EditIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Xoá">
+                                    <IconButton size="small" color="error" onClick={() => handleDelete(activeSet.id)}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
                             </Stack>
                         </Stack>
-                        <Stack direction="row" spacing={1} mt={1}>
-                            <Chip size="small" icon={<LibraryBooksIcon sx={{ fontSize: 14 }} />} label={`${activeFields.length} trường`} color="primary" variant="outlined" />
-                            <Box
-                                sx={{
-                                    width: 16, height: 16, borderRadius: 2.5,
-                                    bgcolor: activeSet.color, border: '2px solid',
-                                    borderColor: 'background.paper',
-                                    boxShadow: `0 0 0 1px ${activeSet.color}`,
-                                }}
-                            />
+
+                        <Stack direction="row" spacing={1} mt={1} alignItems="center">
+                            <Chip size="small" icon={<LibraryBooksIcon sx={{ fontSize: 14 }} />}
+                                label={`${activeSet.fieldIds.length} trường`} color="primary" variant="outlined" />
+                            <Box sx={{ width: 14, height: 14, borderRadius: 1.5, bgcolor: activeSet.color, border: '2px solid', borderColor: 'background.paper', boxShadow: `0 0 0 1px ${activeSet.color}` }} />
                         </Stack>
-                    </CardContent>
+                    </Box>
 
-                    <Box sx={{ p: 2, overflowY: 'auto', flex: 1 }}>
-                        <Typography
-                            variant="subtitle2" fontWeight={700} mb={1.5} color="text.secondary"
-                            sx={{ textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}
-                        >
-                            Danh sách trường trong bộ ({activeFields.length})
+                    {/* Field list toolbar */}
+                    <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                            size="small"
+                            placeholder="Tìm trường trong bộ..."
+                            value={fieldSearch}
+                            onChange={(e) => setFieldSearch(e.target.value)}
+                            sx={{ flex: 1, maxWidth: 320, '& .MuiInputBase-input': { fontSize: 13 } }}
+                            slotProps={{
+                                input: {
+                                    startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                                    endAdornment: fieldSearch ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setFieldSearch('')}><ClearIcon fontSize="small" /></IconButton>
+                                        </InputAdornment>
+                                    ) : undefined,
+                                },
+                            }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                            {activeFields.length} trường
                         </Typography>
+                        <Box sx={{ flex: 1 }} />
+                        <Button size="small" variant="outlined" startIcon={<EditIcon fontSize="small" />}
+                            onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}
+                            sx={{ textTransform: 'none', fontSize: 12 }}>
+                            Thêm / xoá trường
+                        </Button>
+                    </Box>
 
-                        {activeFields.length === 0 && (
-                            <Box sx={{ p: 3, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2.5}}>
-                                <Typography color="text.secondary">Bộ dữ liệu này chưa có trường nào.</Typography>
-                                <Button variant="outlined" sx={{ mt: 1 }} onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}>
-                                    Thêm trường ngay
-                                </Button>
+                    {/* Virtualized field list */}
+                    <Box ref={fieldListScrollRef} sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                        {activeFields.length === 0 ? (
+                            <Box sx={{ p: 4, textAlign: 'center' }}>
+                                <Typography color="text.secondary" mb={1}>
+                                    {fieldSearch ? 'Không tìm thấy trường nào.' : 'Bộ dữ liệu này chưa có trường nào.'}
+                                </Typography>
+                                {!fieldSearch && (
+                                    <Button variant="outlined" onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}>
+                                        Thêm trường ngay
+                                    </Button>
+                                )}
+                            </Box>
+                        ) : (
+                            <Box sx={{ height: fieldVirtualizer.getTotalSize(), position: 'relative' }}>
+                                {fieldVirtualizer.getVirtualItems().map((vRow) => {
+                                    const field = activeFields[vRow.index];
+                                    const meta = typeOf(field.type);
+                                    return (
+                                        <Box
+                                            key={vRow.key}
+                                            data-index={vRow.index}
+                                            ref={fieldVirtualizer.measureElement}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                transform: `translateY(${vRow.start}px)`,
+                                            }}
+                                        >
+                                            <Box sx={{
+                                                display: 'flex', alignItems: 'center', gap: 1,
+                                                px: 2, height: FIELD_ROW_HEIGHT - 1,
+                                                borderBottom: '1px solid', borderColor: 'divider',
+                                                '&:hover': { bgcolor: 'action.hover' },
+                                            }}>
+                                                <Typography variant="caption" color="text.disabled"
+                                                    sx={{ width: 32, textAlign: 'right', fontFamily: 'monospace' }}>
+                                                    {vRow.index + 1}
+                                                </Typography>
+
+                                                <Box sx={{ p: 0.5, borderRadius: 1.5, bgcolor: `${meta.color}15`, color: meta.color, display: 'flex' }}>
+                                                    {meta.icon}
+                                                </Box>
+
+                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                    <Typography variant="body2" fontWeight={600} noWrap>{field.label}</Typography>
+                                                </Box>
+
+                                                <Typography variant="caption" color="text.secondary"
+                                                    sx={{ fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }} noWrap>
+                                                    {field.key}
+                                                </Typography>
+
+                                                <Chip size="small" label={meta.label}
+                                                    sx={{ height: 18, fontSize: 10, bgcolor: `${meta.color}15`, color: meta.color, border: `1px solid ${meta.color}44` }} />
+
+                                                {field.required && (
+                                                    <Chip size="small" label="Bắt buộc" color="error" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                                                )}
+                                            </Box>
+                                        </Box>
+                                    );
+                                })}
                             </Box>
                         )}
-
-                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', xl: '1fr 1fr 1fr' }, gap: 1.5 }}>
-                            {activeFields.map((field, idx) => {
-                                const meta = typeOf(field.type);
-                                return (
-                                    <Card key={field.id} variant="outlined" sx={{ border: `1px solid ${meta.color}44`, borderRadius: 2.5}}>
-                                        <CardContent sx={{ p: 1.5 }}>
-                                            <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                                <Box sx={{ p: 0.75, borderRadius: 2.5, bgcolor: `${meta.color}18`, color: meta.color, display: 'flex', mt: 0.25 }}>{meta.icon}</Box>
-                                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                    <Stack direction="row" alignItems="center" spacing={0.75} mb={0.25}>
-                                                        <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>{idx + 1}</Typography>
-                                                        <Typography variant="body2" fontWeight={700} noWrap>{field.label}</Typography>
-                                                        {field.required && <Chip size="small" label="*" color="error" sx={{ height: 16, fontSize: 10 }} />}
-                                                    </Stack>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', display: 'block' }} noWrap>
-                                                        key: {field.key}
-                                                    </Typography>
-                                                    <Chip
-                                                        size="small" label={meta.label}
-                                                        sx={{ mt: 0.5, height: 18, fontSize: 10, bgcolor: `${meta.color}15`, color: meta.color, border: `1px solid ${meta.color}44` }}
-                                                    />
-                                                </Box>
-                                            </Stack>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
-                        </Box>
                     </Box>
                 </Card>
             ) : (
-                <Card sx={{ height: '100%' }}>
-                    <CardContent sx={{ minHeight: 260, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <Card sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CardContent sx={{ textAlign: 'center' }}>
                         <SettingsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1.5 }} />
                         <Typography color="text.secondary" mb={1}>Chọn một bộ dữ liệu hoặc tạo mới</Typography>
                         <Button variant="outlined" startIcon={<AddIcon />} onClick={handleCreate}>Tạo bộ dữ liệu mới</Button>
