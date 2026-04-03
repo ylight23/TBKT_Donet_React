@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package LichSuPhanQuyenScope;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// LichSuPhanQuyenScope - Audit log cho việc thay đổi scope
+// Bắt buộc khi ScopeType = All hoặc Delegated
+// ============================================================
+
+message LichSuPhanQuyenScope {
+  string id = 1;
+
+  // Người được phân quyền
+  string id_nguoi_duoc_phan_quyen = 2;  // → Employee._id
+
+  // Nhóm người dùng (nếu có)
+  string id_nhom_nguoi_dung = 3;        // → NhomNguoiDung._id
+
+  // Người thực hiện thay đổi
+  string id_nguoi_thuc_hien = 4;        // → Employee._id
+
+  // Phân hệ
+  string ma_phan_he = 5;
+
+  // Hành động
+  string hanh_dong = 6;                 // ADD | UPDATE | REMOVE
+
+  // Ghi chú
+  google.protobuf.StringValue ghi_chu = 7;
+
+  // --- Scope cũ ---
+  string scope_type_cu = 8;             // trước khi thay đổi
+  string id_don_vi_scope_cu = 9;
+  repeated string id_nganh_doc_cu = 10;
+  google.protobuf.Timestamp ngay_het_han_cu = 11;
+  string id_nguoi_uy_quyen_cu = 12;
+  string id_danh_muc_chuyen_nganh_cu = 13;
+
+  // --- Scope mới ---
+  string scope_type_moi = 14;           // sau khi thay đổi
+  string id_don_vi_scope_moi = 15;
+  repeated string id_nganh_doc_moi = 16;
+  google.protobuf.Timestamp ngay_het_han_moi = 17;
+  string id_nguoi_uy_quyen_moi = 18;
+  string id_danh_muc_chuyen_nganh_moi = 19;
+
+  // Thời gian thực hiện
+  google.protobuf.Timestamp ngay_thuc_hien = 20;
+}
+
+// ============================================================
+// Service
+// ============================================================
+
+service LichSuPhanQuyenScopeService {
+  rpc GetList (LichSuPhanQuyenScopeListRequest) returns (LichSuPhanQuyenScopeListResponse);
+  rpc Get (LichSuPhanQuyenScopeGetRequest) returns (LichSuPhanQuyenScopeGetResponse);
+  rpc Save (LichSuPhanQuyenScopeSaveRequest) returns (LichSuPhanQuyenScopeSaveResponse);
+}
+
+message LichSuPhanQuyenScopeListRequest {
+  google.protobuf.StringValue id_nguoi_duoc_phan_quyen = 1;
+  google.protobuf.StringValue id_nhom_nguoi_dung = 2;
+  google.protobuf.StringValue id_nguoi_thuc_hien = 3;
+  google.protobuf.StringValue ma_phan_he = 4;
+  google.protobuf.StringValue hanh_dong = 5;
+}
+
+message LichSuPhanQuyenScopeListResponse {
+  repeated LichSuPhanQuyenScope items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message LichSuPhanQuyenScopeGetRequest {
+  string id = 1;
+}
+
+message LichSuPhanQuyenScopeGetResponse {
+  LichSuPhanQuyenScope item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message LichSuPhanQuyenScopeSaveRequest {
+  LichSuPhanQuyenScope item = 1;
+}
+
+message LichSuPhanQuyenScopeSaveResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}

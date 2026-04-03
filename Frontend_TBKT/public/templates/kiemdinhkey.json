@@ -1,0 +1,5 @@
+{
+  "key": "kiemdinhkey",
+  "name": "Kiem_Dinh_Template",
+  "schemaJson": "{\n  \u0022root\u0022: {\n    \u0022props\u0022: {}\n  },\n  \u0022content\u0022: [\n    {\n      \u0022type\u0022: \u0022HeadingBlock\u0022,\n      \u0022props\u0022: {\n        \u0022id\u0022: \u0022HeadingBlock-501ac965-9e01-4aaf-835a-4298a09711f9\u0022,\n        \u0022title\u0022: \u0022Ch\u1EE9c n\u0103ng Ki\u1EC3m \u0111\u1ECBnh\u0022,\n        \u0022subtitle\u0022: \u0022Ki\u1EC3m \u0111\u1ECBnh trang thi\u1EBFt b\u1ECB\u0022\n      }\n    },\n    {\n      \u0022type\u0022: \u0022DataTable\u0022,\n      \u0022props\u0022: {\n        \u0022id\u0022: \u0022DataTable-e1d49f53-daa7-4ecd-afd0-d8255ded164c\u0022,\n        \u0022columns\u0022: [\n          {\n            \u0022label\u0022: \u0022M\u00E3\u0022,\n            \u0022key\u0022: \u0022Id\u0022\n          },\n          {\n            \u0022label\u0022: \u0022T\u00EAn \u0022\n          },\n          {\n            \u0022label\u0022: \u0022Ng\u00E0nh\u0022\n          }\n        ],\n        \u0022sourceKey\u0022: \u0022employee\u0022\n      }\n    }\n  ],\n  \u0022zones\u0022: {}\n}"
+}

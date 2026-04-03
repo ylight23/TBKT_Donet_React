@@ -1,0 +1,332 @@
+/**
+ * ══════════════════════════════════════════════════════════════════
+ *  MILITARY DESIGN SYSTEM — CSS Custom Properties
+ *  Hệ thống biến CSS cho giao diện Quân sự – Hậu cần Kỹ thuật
+ *  Quy tắc 60-30-10 | WCAG AA compliant
+ * ══════════════════════════════════════════════════════════════════
+ *
+ *  Cách dùng:
+ *    @import './styles/military-variables.css';
+ *    .sidebar { background: var(--mil-sidebar-bg); }
+ * ══════════════════════════════════════════════════════════════════
+ */
+
+/* ──────────────────────────────────────────────────────────────────
+   PRIMARY — Vietnam Army Olive Scale (OD Green)
+   Ý nghĩa: Quân phục QĐNDVN, kiên định, tổ quốc, rừng núi
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-olive-50:  #EEF2E6;
+  --mil-olive-100: #D1DCBA;
+  --mil-olive-200: #B3C68B;
+  --mil-olive-300: #94AF5C;
+  --mil-olive-400: #799D38;
+  --mil-olive-500: #5A7A28;
+  --mil-olive-600: #46601E;
+  --mil-olive-700: #334815;
+  --mil-olive-800: #21300D;
+  --mil-olive-900: #131C07; /* ← Brand core */
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   PRIMARY — Deep Army Green Scale
+   Ý nghĩa: Sẵn sàng chiến đấu, hoạt động tốt, ổn định
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-green-50:  #EBF5EE;
+  --mil-green-100: #C6E5CE;
+  --mil-green-200: #9ED3AA;
+  --mil-green-300: #75C186;
+  --mil-green-400: #56A865;
+  --mil-green-500: #3D8F4E; /* ← Base */
+  --mil-green-600: #2E7040;
+  --mil-green-700: #1F5230;
+  --mil-green-800: #163924;
+  --mil-green-900: #0C2217;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   PRIMARY — Tactical Navy Scale
+   Ý nghĩa: Chiến lược, chính xác, khoa học
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-navy-50:  #ECF0F5;
+  --mil-navy-100: #C8D3E3;
+  --mil-navy-200: #A1B3CE;
+  --mil-navy-300: #7A93B9;
+  --mil-navy-400: #5A77A7;
+  --mil-navy-500: #415A77; /* ← Base */
+  --mil-navy-600: #344A63;
+  --mil-navy-700: #263950;
+  --mil-navy-800: #19293C;
+  --mil-navy-900: #0D1928;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SECONDARY — Steel Gray Scale
+   Ý nghĩa: Kỷ luật, bền bỉ, trung tính
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-steel-50:  #F5F6F7;
+  --mil-steel-100: #E4E7EB;
+  --mil-steel-200: #CBD1D9;
+  --mil-steel-300: #A8B2BE;
+  --mil-steel-400: #7B8898;
+  --mil-steel-500: #556070; /* ← Base */
+  --mil-steel-600: #424D5C;
+  --mil-steel-700: #313A47;
+  --mil-steel-800: #202830;
+  --mil-steel-900: #131920;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SECONDARY — Gunmetal Scale
+   Ý nghĩa: Công nghiệp, mạnh mẽ, bí ẩn
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-gunmetal-50:  #F2F4F5;
+  --mil-gunmetal-100: #DADEE1;
+  --mil-gunmetal-200: #B8BFC5;
+  --mil-gunmetal-300: #8F9BA5;
+  --mil-gunmetal-400: #637180;
+  --mil-gunmetal-500: #3E4E5C; /* ← Base */
+  --mil-gunmetal-600: #303D49;
+  --mil-gunmetal-700: #232C36;
+  --mil-gunmetal-800: #171C23;
+  --mil-gunmetal-900: #0C1014;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SECONDARY — Military Silver Scale
+   Ý nghĩa: Danh dự, thành tích, huy hiệu
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-silver-50:  #FAFAFA;
+  --mil-silver-100: #F0F0F2;
+  --mil-silver-200: #DCDDE2;
+  --mil-silver-300: #C1C3CC;
+  --mil-silver-400: #A2A5B0;
+  --mil-silver-500: #778DA9; /* ← Base */
+  --mil-silver-600: #5F7391;
+  --mil-silver-700: #495A78;
+  --mil-silver-800: #33415F;
+  --mil-silver-900: #1E2946;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   ACCENT (10%) — Military Gold Scale
+   Ý nghĩa: Thành tích, uy danh, điểm nhấn hành động
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --mil-gold-50:  #FDF8EE;
+  --mil-gold-100: #F9EDCC;
+  --mil-gold-200: #F2D98A;
+  --mil-gold-300: #E8C257;
+  --mil-gold-400: #D9A832;
+  --mil-gold-500: #C9A84C; /* ← Base (10% accent) */
+  --mil-gold-600: #A88638;
+  --mil-gold-700: #82642A;
+  --mil-gold-800: #5C441C;
+  --mil-gold-900: #35270F;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   STATUS COLORS — Chuẩn màu trạng thái tác chiến
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  /* Operational – Hoạt động tốt (Xanh rừng trầm) */
+  --status-operational:        #2E7D32;
+  --status-operational-light:  #4CAF50;
+  --status-operational-dark:   #1B5E20;
+  --status-operational-bg:     #E8F5E9;
+  --status-operational-bg-dark:#0F2D10;
+
+  /* Maintenance – Đang bảo trì (Vàng cam trầm) */
+  --status-maintenance:        #E65100;
+  --status-maintenance-light:  #FF8C42;
+  --status-maintenance-dark:   #BF360C;
+  --status-maintenance-bg:     #FBE9E7;
+  --status-maintenance-bg-dark:#2D1300;
+
+  /* Critical – Hỏng / Nguy cấp (Đỏ đậm) */
+  --status-critical:           #B71C1C;
+  --status-critical-light:     #EF5350;
+  --status-critical-dark:      #7F0000;
+  --status-critical-bg:        #FFEBEE;
+  --status-critical-bg-dark:   #2D0000;
+
+  /* Standby – Dự phòng / Niêm cất (Xám xanh lạnh) */
+  --status-standby:            #37474F;
+  --status-standby-light:      #607D8B;
+  --status-standby-dark:       #263238;
+  --status-standby-bg:         #ECEFF1;
+  --status-standby-bg-dark:    #0E1517;
+
+  /* Repairing – Đang sửa chữa (Cam vừa) */
+  --status-repairing:          #ED6C02;
+  --status-repairing-light:    #FF9800;
+  --status-repairing-dark:     #C43E00;
+  --status-repairing-bg:       #FFF3E0;
+  --status-repairing-bg-dark:  #2A1500;
+
+  /* Decommissioned – Loại biên (Xám trắng) */
+  --status-decommissioned:     #757575;
+  --status-decommissioned-bg:  #FAFAFA;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SEMANTIC SHORTHAND TOKENS
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --color-primary:   #131C07;  /* armyOlive[900] */
+  --color-secondary: #415A77;
+  --color-accent:    #C9A84C; /* 10% gold */
+  --color-success:   #2E7D32;
+  --color-warning:   #ED6C02;
+  --color-error:     #B71C1C;
+  --color-info:      #5A77A7;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   LIGHT MODE — Dashboard Component Tokens  (60-30-10 applied)
+   ────────────────────────────────────────────────────────────────── */
+[data-theme="light"],
+.light-mode {
+  /* 60% Dominant — Vietnam Army Olive family */
+  --page-bg:           #F0F2F5;
+  --content-bg:        #FFFFFF;
+  --card-bg:           #FFFFFF;
+  --card-border:       #E0E4EB;
+
+  /* 30% Secondary */
+  --sidebar-bg:        #3C754C; /* Vietnam Army Green */
+  --sidebar-border:    #2D5A3A;
+  --topbar-bg:         #FFFFFF;
+  --topbar-border:     #CBD1D9;
+  --table-header-bg:   #3C754C;
+  --table-header-text: #FFFFFF;
+  --table-row-alt:     #F7F9FC;
+  --table-row-hover:   rgba(60, 117, 76, 0.09);
+  --divider:           #CBD1D9;
+
+  /* 10% Accent */
+  --active-menu:       #C9A84C;
+  --active-menu-bg:    rgba(201, 168, 76, 0.10);
+  --btn-primary:       #3C754C;
+  --btn-primary-hover: #2D5A3A;
+  --focus-ring:        rgba(201, 168, 76, 0.50);
+
+  /* Text hierarchy */
+  --text-primary:      #131C07;
+  --text-secondary:    #556070;
+  --text-muted:        #7B8898;
+  --text-on-dark:      #FFFFFF;
+  --text-on-dark-muted:rgba(255, 255, 255, 0.72);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   DARK MODE  — Dashboard Component Tokens  (60-30-10 applied)
+   ────────────────────────────────────────────────────────────────── */
+[data-theme="dark"],
+.dark-mode,
+:root {
+  /* 60% Dominant — Vietnam Army Olive family */
+  --page-bg:           #0C1203;   /* olive-black night */
+  --content-bg:        #152008;   /* very dark olive */
+  --card-bg:           #1A280A;   /* dark olive card */
+  --card-border:       #253B10;
+
+  /* 30% Secondary */
+  --sidebar-bg:        #2D5A3A;   /* darker Vietnam Army Green */
+  --sidebar-border:    #1E3D28;
+  --topbar-bg:         #152008;
+  --topbar-border:     #253B10;
+  --table-header-bg:   #2D5A3A;
+  --table-header-text: #D8E8C0;
+  --table-row-alt:     #111B05;
+  --table-row-hover:   rgba(90, 122, 40, 0.13);
+  --divider:           #253B10;
+
+  /* 10% Accent — gold ớng nền tối = high contrast */
+  --active-menu:       #D9A832;
+  --active-menu-bg:    rgba(201, 168, 76, 0.12);
+  --btn-primary:       #C9A84C;
+  --btn-primary-hover: #D9A832;
+  --focus-ring:        rgba(201, 168, 76, 0.50);
+
+  /* Text hierarchy — warm olive-cream (không trắng tinh) */
+  --text-primary:      #D8E8C0;
+  --text-secondary:    #9DB87A;
+  --text-muted:        #5A7040;
+  --text-on-dark:      #D8E8C0;
+  --text-on-dark-muted:rgba(216, 232, 192, 0.60);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   TYPOGRAPHY — Quân sự không dùng font quá mềm
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --font-primary:  'Inter', 'Roboto', sans-serif;
+  --font-mono:     'JetBrains Mono', 'Consolas', monospace;
+
+  --text-xs:   11.5px;
+  --text-sm:   12.5px;
+  --text-base: 13px;
+  --text-md:   14px;
+  --text-lg:   15px;
+  --text-xl:   18px;
+  --text-2xl:  22px;
+  --text-3xl:  28px;
+  --text-4xl:  36px;
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+
+  --leading-tight:  1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.7;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SPACING & SHAPE
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl:  10px;
+  --radius-pill:9999px;
+
+  --shadow-card-light: 0 1px 4px rgba(13, 27, 42, 0.08);
+  --shadow-card-dark:  0 2px 8px rgba(0, 0, 0, 0.40);
+  --shadow-topbar:     0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   TRANSITION
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --transition-fast:   all 0.15s ease;
+  --transition-normal: all 0.2s ease;
+  --transition-slow:   all 0.35s ease;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SCROLLBAR — Quân sự, tối giản
+   ────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--page-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #313A47;
+  border-radius: 2.5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #415A77;
+}

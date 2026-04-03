@@ -1,0 +1,343 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package PhanQuyen;
+
+import "google/protobuf/timestamp.proto";
+
+service PhanQuyenService {
+  rpc GetMyPermissions(GetMyPermissionsRequest) returns (GetMyPermissionsResponse);
+  rpc GetPermissionCatalog(GetPermissionCatalogRequest) returns (GetPermissionCatalogResponse);
+
+  rpc ListNhomNguoiDung(ListNhomNguoiDungRequest) returns (ListNhomNguoiDungResponse);
+  rpc SaveNhomNguoiDung(SaveNhomNguoiDungRequest) returns (NhomNguoiDung);
+  rpc DeleteNhomNguoiDung(DeleteRequest) returns (DeleteResponse);
+
+  rpc GetGroupPermissions(GetGroupPermissionsRequest) returns (GetGroupPermissionsResponse);
+  rpc SaveGroupPermissions(SaveGroupPermissionsRequest) returns (DeleteResponse);
+
+  rpc ListGroupUsers(ListGroupUsersRequest) returns (ListGroupUsersResponse);
+  rpc ListAllAssignments(ListAllAssignmentsRequest) returns (ListAllAssignmentsResponse);
+  rpc AssignUserToGroup(AssignUserRequest) returns (NguoiDungNhomNguoiDung);
+  rpc RemoveUserFromGroup(RemoveUserRequest) returns (DeleteResponse);
+  rpc RebuildPermissionsStream(RebuildPermissionsStreamRequest) returns (stream RebuildPermissionsStreamEvent);
+}
+
+message GetMyPermissionsRequest {}
+message GetPermissionCatalogRequest {}
+
+message PhanHeAccess {
+  string ma_phan_he = 1;
+  bool duoc_truy_cap = 2;
+  reserved 3;
+}
+
+message ActionsMap {
+  bool view = 1;
+  bool add = 2;
+  bool edit = 3;
+  bool delete = 4;
+  bool approve = 5;
+  bool download = 6;
+  bool print = 7;
+}
+
+message ChucNangAccess {
+  string ma_chuc_nang = 1;
+  string ma_phan_he = 2;
+  ActionsMap actions = 3;
+}
+
+// ── AccessGate: action-per-CN response ──────────────────────────────
+// Cho client biết: trên CN này, user được thực hiện actions nào.
+message ChuyenNganhAccess {
+  string id_chuyen_nganh = 1;
+  repeated string actions = 2;
+}
+
+message ChuyenNganhDocScope {
+  string id = 1;
+  repeated string actions = 2;
+}
+
+message PhamViChuyenNganh {
+  string id_chuyen_nganh = 1;
+  repeated ChuyenNganhDocScope id_chuyen_nganh_doc = 2;
+}
+
+message GetMyPermissionsResponse {
+  repeated PhanHeAccess phan_he = 1;
+  repeated ChucNangAccess chuc_nang = 2;
+  string scope_type = 3;
+  string anchor_node_id = 4;
+  reserved 5;
+  google.protobuf.Timestamp ngay_het_han = 6;
+  string id_nguoi_uy_quyen = 7;
+  string anchor_parent_id = 8;
+  // Canonical flat visibility list for CN scope on read-model/API.
+  repeated string visible_cns = 9;
+  reserved 10;
+  repeated ChuyenNganhAccess actions_per_cn = 11;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 12;
+}
+
+message PermissionCatalogItem {
+  string code = 1;
+  string name = 2;
+}
+
+message PermissionCatalogGroup {
+  string group = 1;
+  string icon = 2;
+  repeated PermissionCatalogItem permissions = 3;
+}
+
+message GetPermissionCatalogResponse {
+  repeated PermissionCatalogGroup items = 1;
+}
+
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: Role.
+message NhomNguoiDung {
+  string id = 1;
+  string ma_phan_he = 2;
+  string ten = 3;
+  string mo_ta = 4;
+  bool is_default = 5;
+  string nguoi_tao = 6;
+  google.protobuf.Timestamp ngay_tao = 7;
+  string nguoi_sua = 8;
+  google.protobuf.Timestamp ngay_sua = 9;
+  string color = 10;
+  string loai = 11;
+  string cloned_from_id = 12;
+  int32 user_count = 13;
+  string scope_type = 14;
+}
+
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: UserRoleAssignment.
+message NguoiDungNhomNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string id_nhom_nguoi_dung = 3;
+  string loai = 4;
+  google.protobuf.Timestamp ngay_het_han = 5;
+  string nguoi_tao = 6;
+  google.protobuf.Timestamp ngay_tao = 7;
+  string nguoi_sua = 8;
+  google.protobuf.Timestamp ngay_sua = 9;
+  string id_nguoi_uy_quyen = 10;
+  reserved 11;
+  string scope_type = 12;
+  string id_don_vi_scope = 13;
+  repeated string id_nganh_doc = 14;
+  reserved 15;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 16;
+}
+
+message PhanQuyenPhanHeNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ma_phan_he = 3;
+  string tieu_de_phan_he = 4;
+  bool duoc_truy_cap = 5;
+  reserved 6;
+  string id_nhom_nguoi_dung = 7;
+  string nguoi_tao = 8;
+  string nguoi_sua = 9;
+  google.protobuf.Timestamp ngay_tao = 10;
+  google.protobuf.Timestamp ngay_sua = 11;
+  string scope_type = 12;
+  string id_don_vi_scope = 13;
+}
+
+message PhanQuyenPhanHeNhomNguoiDung {
+  string id = 1;
+  string id_nhom_nguoi_dung = 2;
+  string ma_phan_he = 3;
+  string tieu_de_phan_he = 4;
+  bool duoc_truy_cap = 5;
+  reserved 6;
+  string nguoi_tao = 7;
+  google.protobuf.Timestamp ngay_tao = 8;
+  string scope_type = 9;
+  string id_don_vi_scope = 10;
+}
+
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: UserPermissionOverride.
+message PhanQuyenNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ma_chuc_nang = 3;
+  string tieu_de_chuc_nang = 4;
+  string ma_phan_he = 5;
+  string tieu_de_nhom = 6;
+  string id_nhom_nguoi_dung = 7;
+  map<string, bool> actions = 8;
+  string nguoi_tao = 9;
+  string nguoi_sua = 10;
+  google.protobuf.Timestamp ngay_tao = 11;
+  google.protobuf.Timestamp ngay_sua = 12;
+}
+
+// Legacy wire message name kept for compatibility.
+// Semantic name in convention: RolePermission.
+message PhanQuyenNhomNguoiDung {
+  string id = 1;
+  string id_nhom_nguoi_dung = 2;
+  string ma_chuc_nang = 3;
+  string tieu_de_chuc_nang = 4;
+  string ma_phan_he = 5;
+  string tieu_de_nhom_quyen = 6;
+  map<string, bool> actions = 7;
+}
+
+message ListNhomNguoiDungRequest {}
+
+message ListNhomNguoiDungResponse {
+  repeated NhomNguoiDung items = 1;
+}
+
+message SaveNhomNguoiDungRequest {
+  string id = 1;
+  string ten = 2;
+  string mo_ta = 3;
+  string color = 4;
+  string cloned_from_id = 5;
+  string loai = 6;
+}
+
+message DeleteRequest {
+  string id = 1;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RebuildPermissionsStreamRequest {
+  string id_nhom = 1;
+  repeated string user_ids = 2;
+}
+
+message RebuildPermissionsStreamEvent {
+  string job_id = 1;
+  string stage = 2;
+  string message = 3;
+  int32 processed = 4;
+  int32 total = 5;
+  string current_user_id = 6;
+  repeated string warnings = 7;
+  bool done = 8;
+  bool success = 9;
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+message GetGroupPermissionsRequest {
+  string id_nhom = 1;
+}
+
+message GetGroupPermissionsResponse {
+  repeated string checked_codes = 1;
+  string scope_type = 2;
+  string anchor_node_id = 3;
+  repeated string multi_node_ids = 4;
+  reserved 5;
+  bool duoc_truy_cap = 6;
+  reserved 7;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 8;
+}
+
+message SaveGroupPermissionsRequest {
+  string id_nhom = 1;
+  repeated string checked_codes = 2;
+  string scope_type = 3;
+  string anchor_node_id = 4;
+  repeated string multi_node_ids = 5;
+  reserved 6;
+  bool duoc_truy_cap = 7;
+  reserved 8;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 9;
+}
+
+message ListGroupUsersRequest {
+  string id_nhom = 1;
+}
+
+message UserInGroup {
+  string id_assignment = 1;
+  string id_nguoi_dung = 2;
+  string ho_ten = 3;
+  string don_vi = 4;
+  string scope_type = 5;
+  string anchor_node_id = 6;
+  bool is_expired = 7;
+  google.protobuf.Timestamp ngay_het_han = 8;
+  reserved 9;
+  string anchor_node_name = 10;
+  string id_nguoi_uy_quyen = 11;
+  reserved 12;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 13;
+}
+
+message ListGroupUsersResponse {
+  repeated UserInGroup users = 1;
+}
+
+message ListAllAssignmentsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message AssignmentDetail {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ho_ten = 3;
+  string don_vi = 4;
+  string id_nhom = 5;
+  string ten_nhom = 6;
+  string color_nhom = 7;
+  string scope_type = 8;
+  string anchor_node_id = 9;
+  string anchor_node_name = 10;
+  string loai = 11;
+  google.protobuf.Timestamp ngay_tao = 12;
+  google.protobuf.Timestamp ngay_het_han = 13;
+  reserved 14;
+  string id_nguoi_uy_quyen = 15;
+  reserved 16;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 17;
+}
+
+message ListAllAssignmentsResponse {
+  repeated AssignmentDetail items = 1;
+  int32 total_count = 2;
+}
+
+message AssignUserRequest {
+  string id_nguoi_dung = 1;
+  string id_nhom = 2;
+  string scope_type = 3;
+  string anchor_node_id = 4;
+  string loai = 5;
+  google.protobuf.Timestamp ngay_het_han = 6;
+  string id_nguoi_uy_quyen = 7;
+  reserved 8;
+  reserved 9;
+  PhamViChuyenNganh pham_vi_chuyen_nganh = 10;
+}
+
+message RemoveUserRequest {
+  string id_assignment = 1;
+}
+
+message ThamSoNguoiDung {
+  string id = 1;
+  string id_nguoi_dung = 2;
+  string ten_tham_so = 3;
+  string gia_tri = 4;
+}

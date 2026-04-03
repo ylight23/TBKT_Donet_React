@@ -1,0 +1,81 @@
+# ------------------------------------------------------------
+# Root ignore for TBKT_Donet_React workspace
+# Covers Backend (.NET), Frontend_TBKT (Vite/TS), IDE, temp files
+# ------------------------------------------------------------
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage / reports
+coverage/
+*.coverage
+TestResults/
+
+# Temp / recovery / ad-hoc scripts
+recovery-scan.txt
+_tmp_backend_build/
+tmp_*.js
+tmp_*.ps1
+tmp_*.ts
+tmp_*.tsx
+*.tmp
+*.bak
+*.orig
+
+# Archives / dumps
+*.zip
+*.7z
+*.rar
+
+# ------------------------------------------------------------
+# Backend (.NET)
+# ------------------------------------------------------------
+Backend/**/bin/
+Backend/**/obj/
+Backend/**/publish/
+Backend/**/app.publish/
+Backend/**/bin_verify*/
+Backend/**/bin_tmp/
+
+# ------------------------------------------------------------
+# Frontend (Vite / Node)
+# ------------------------------------------------------------
+Frontend_TBKT/node_modules/
+Frontend_TBKT/build/
+Frontend_TBKT/dist/
+Frontend_TBKT/.vite/
+Frontend_TBKT/vite.svg
+Frontend_TBKT/*.tsbuildinfo
+
+# Legacy nested frontend copies if still present
+TBKT_Donet_React/Frontend/node_modules/
+TBKT_Donet_React/Frontend/build/
+TBKT_Donet_React/Frontend/dist/
+TBKT_Donet_React/Frontend_TBKT/node_modules/
+TBKT_Donet_React/Frontend_TBKT/build/
+TBKT_Donet_React/Frontend_TBKT/dist/
+

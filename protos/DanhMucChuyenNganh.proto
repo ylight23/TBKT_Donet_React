@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package DanhMucChuyenNganh;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// DanhMucChuyenNganh - Danh mục chuyên ngành dùng chung
+// ============================================================
+
+message DanhMucChuyenNganh {
+  string id = 1;                           // "T", "O", ...
+  google.protobuf.StringValue ten = 2;    // "Xe Máy", "Ô tô", ...
+  google.protobuf.StringValue viet_tat = 3;
+  int32 thu_tu = 4;
+  google.protobuf.StringValue nguoi_tao = 5;
+  google.protobuf.StringValue nguoi_sua = 6;
+  google.protobuf.Timestamp ngay_tao = 7;
+  google.protobuf.Timestamp ngay_sua = 8;
+}
+
+// ============================================================
+// Service
+// ============================================================
+
+service DanhMucChuyenNganhService {
+  rpc GetList (DanhMucChuyenNganhListRequest) returns (DanhMucChuyenNganhListResponse);
+  rpc Get (DanhMucChuyenNganhGetRequest) returns (DanhMucChuyenNganhGetResponse);
+  rpc Save (DanhMucChuyenNganhSaveRequest) returns (DanhMucChuyenNganhSaveResponse);
+  rpc Delete (DanhMucChuyenNganhDeleteRequest) returns (DanhMucChuyenNganhDeleteResponse);
+}
+
+message DanhMucChuyenNganhListRequest {
+  google.protobuf.StringValue search_text = 1;
+}
+
+message DanhMucChuyenNganhListResponse {
+  repeated DanhMucChuyenNganh items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DanhMucChuyenNganhGetRequest {
+  string id = 1;
+}
+
+message DanhMucChuyenNganhGetResponse {
+  DanhMucChuyenNganh item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DanhMucChuyenNganhSaveRequest {
+  DanhMucChuyenNganh item = 1;
+  bool is_new = 2;
+}
+
+message DanhMucChuyenNganhSaveResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DanhMucChuyenNganhDeleteRequest {
+  string id = 1;
+}
+
+message DanhMucChuyenNganhDeleteResponse {
+  bool success = 1;
+  string message = 2;
+  string ids_deleted = 3;
+}

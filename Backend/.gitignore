@@ -1,0 +1,24 @@
+# .NET backend
+bin/
+obj/
+publish/
+app.publish/
+bin_verify*/
+bin_tmp/
+
+# IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test / coverage
+TestResults/
+*.coverage
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+

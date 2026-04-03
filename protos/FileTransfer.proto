@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+package FileTransfer;
+
+import "Base.proto";
+import "google/protobuf/timestamp.proto";
+
+service FileTransferService {
+  rpc CreateUploadSession(CreateUploadSessionRequest) returns (CreateUploadSessionResponse);
+  rpc UploadChunk(UploadChunkRequest) returns (UploadChunkResponse);
+  rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+  rpc GetFileMetadata(GetFileMetadataRequest) returns (GetFileMetadataResponse);
+  rpc DownloadFileStream(DownloadFileRequest) returns (stream DownloadFileChunkResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (Base.DeleteBaseResponse);
+}
+
+enum FileKind {
+  FILE_KIND_UNSPECIFIED = 0;
+  FILE_KIND_BINARY = 1;
+  FILE_KIND_JSON = 2;
+  FILE_KIND_IMAGE = 3;
+  FILE_KIND_VIDEO = 4;
+  FILE_KIND_PDF = 5;
+  FILE_KIND_DOCX = 6;
+  FILE_KIND_XLSX = 7;
+}
+
+message StoredFileMetadata {
+  string id = 1;
+  string upload_id = 2;
+  string file_name = 3;
+  string original_file_name = 4;
+  string extension = 5;
+  string content_type = 6;
+  int64 size_bytes = 7;
+  int32 chunk_size = 8;
+  int32 total_chunks = 9;
+  int32 uploaded_chunks = 10;
+  int64 uploaded_bytes = 11;
+  string category = 12;
+  FileKind file_kind = 13;
+  string sha256 = 14;
+  string storage_key = 15;
+  string relative_path = 16;
+  bool completed = 17;
+  map<string, string> metadata = 18;
+  google.protobuf.Timestamp created_at = 19;
+  google.protobuf.Timestamp updated_at = 20;
+  string created_by = 21;
+  string updated_by = 22;
+}
+
+message CreateUploadSessionRequest {
+  string file_name = 1;
+  string original_file_name = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+  int32 chunk_size = 5;
+  int32 total_chunks = 6;
+  string category = 7;
+  FileKind file_kind = 8;
+  map<string, string> metadata = 9;
+}
+
+message CreateUploadSessionResponse {
+  Base.ResponseMeta meta = 1;
+  string upload_id = 2;
+  string file_id = 3;
+  StoredFileMetadata file = 4;
+}
+
+message UploadChunkRequest {
+  string upload_id = 1;
+  int32 chunk_index = 2;
+  bytes data = 3;
+}
+
+message UploadChunkResponse {
+  Base.ResponseMeta meta = 1;
+  string upload_id = 2;
+  string file_id = 3;
+  int32 uploaded_chunks = 4;
+  int64 uploaded_bytes = 5;
+  bool completed = 6;
+}
+
+message CompleteUploadRequest {
+  string upload_id = 1;
+}
+
+message CompleteUploadResponse {
+  Base.ResponseMeta meta = 1;
+  StoredFileMetadata file = 2;
+}
+
+message GetFileMetadataRequest {
+  string id = 1;
+}
+
+message GetFileMetadataResponse {
+  Base.ResponseMeta meta = 1;
+  StoredFileMetadata file = 2;
+}
+
+message DownloadFileRequest {
+  string id = 1;
+}
+
+message DownloadFileChunkResponse {
+  StoredFileMetadata file = 1;
+  int32 chunk_index = 2;
+  bytes data = 3;
+  bool done = 4;
+}
+
+message DeleteFileRequest {
+  string id = 1;
+}

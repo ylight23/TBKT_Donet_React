@@ -1,0 +1,121 @@
+
+syntax = "proto3";
+
+
+option csharp_namespace = "protos";
+
+package Office;
+import "google/protobuf/wrappers.proto";
+import "ExtendedField.proto";
+import "google/protobuf/timestamp.proto";
+
+message Office {
+  google.protobuf.StringValue id = 1;
+  google.protobuf.StringValue id_cap_tren = 2;
+  google.protobuf.StringValue ten = 3;
+  google.protobuf.StringValue ten_in = 4;
+  google.protobuf.StringValue viet_tat = 5;
+  google.protobuf.StringValue phien_hieu = 6;
+  google.protobuf.StringValue ten_day_du = 7;
+  google.protobuf.StringValue ten_viet_tat_day_du = 8;
+  bool co_cap_duoi = 9;
+  int32 thu_tu = 10;
+  google.protobuf.StringValue thu_tu_sap_xep = 11;
+
+  repeated Office danh_sach_cap_duoi = 13;
+  repeated ExtendedField.ExtendedField parameters = 12;
+  google.protobuf.StringValue ten_tai_khoan_chia_se_du_lieu = 16;
+  google.protobuf.StringValue mat_khau_chia_se_du_lieu = 17;
+
+  // NEW: for Siblings query
+  google.protobuf.StringValue path = 18;  // slash format: "/000/050/017/"
+  google.protobuf.Int32Value depth = 19; // number of segments in id
+
+  google.protobuf.StringValue nguoi_tao = 30;
+  google.protobuf.StringValue nguoi_sua = 31;
+  google.protobuf.Timestamp ngay_tao = 32;
+  google.protobuf.Timestamp ngay_sua = 33;
+}
+
+service OfficeService {
+  
+  rpc GetListOffice (OfficeListRequest) returns (OfficeListResponse); 
+  rpc GetOffice (OfficeRequest) returns (OfficeResponse);
+  rpc DeleteOffice (OfficeRequest) returns (OfficeDeleteResponse);
+  rpc SaveOffice (SaveOfficeRequest) returns (SaveOfficeResponse);
+  
+  rpc ReorderOffice(ReorderOfficeRequest) returns (SaveOfficeResponse);
+  rpc SaveOrderOffice (SaveOrderOfficeRequest) returns (SaveOrderOfficeResponse);
+}
+
+
+message SaveOrderOfficeRequest{
+  string id = 1;   
+  int32 ordering = 4;
+}
+
+message SaveOrderOfficeResponse{
+  bool success = 1;
+  string message = 2;
+  string message_exception = 3;
+  repeated Office reordered_items = 4;
+}
+
+
+message ReorderOfficeRequest{
+  string id = 1;
+  bool is_up = 2;
+  string target_id = 3;
+}
+ 
+message OfficeListRequest {
+	google.protobuf.StringValue parent_id = 1;
+	bool load_all = 2;
+	repeated string in_ids = 4;
+  repeated ExtendedField.ExtendedField parameters = 3;
+  google.protobuf.StringValue search_text = 5;
+  bool search_in_ids = 6;
+  google.protobuf.StringValue group_by_parameter_field_name = 7;
+  google.protobuf.StringValue group_by_parameter_field_name_with_catalog_name = 8;
+  int32 show_to_level = 9;
+  bool include_parameters = 10;
+}
+ 
+message OfficeListResponse {
+  repeated Office items = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+  google.protobuf.Timestamp valid_to = 5;
+}
+
+message OfficeRequest {
+  google.protobuf.StringValue id = 1;
+}
+ 
+message OfficeResponse {
+  Office item = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+}
+
+message OfficeDeleteResponse {
+  bool success = 1;
+  string message = 2;
+  string message_exception = 3;
+  repeated string ids_deleted = 4;
+}
+
+message SaveOfficeRequest {
+  Office item = 1;
+  bool is_new = 2;
+  google.protobuf.StringValue old_id = 3;
+}
+message SaveOfficeResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+  string message_exception = 4;
+  map<string, string> virtual_orderings = 5;
+}
