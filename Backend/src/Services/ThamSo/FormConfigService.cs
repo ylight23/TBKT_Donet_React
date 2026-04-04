@@ -4,7 +4,6 @@ using Backend.Common.Mongo;
 using Backend.Common.Protobuf;
 using Grpc.Core;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using protos;
 using System.Globalization;
@@ -17,6 +16,7 @@ public class FormConfigService(ILogger<FormConfigService> logger)
 {
     private const string PermissionCode = "thamso_formconfig";
     private static readonly Regex MultiDashRegex = new("-{2,}", RegexOptions.Compiled);
+    private const string MetaSetPrefix = "__meta:";
 
     private static void ApplyAuditMetadata(FormConfig item, BsonDocument itemBson)
     {
@@ -50,98 +50,81 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             .SelectMany(tab => tab.FieldSetIds)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id.Trim())
+            .Where(id => !id.StartsWith(MetaSetPrefix, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-    private static string? ReadString(BsonDocument doc, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (!doc.TryGetValue(key, out var value) || value.IsBsonNull)
-            {
-                continue;
-            }
+    private static bool IsMetaSetId(string id) =>
+        !string.IsNullOrWhiteSpace(id) &&
+        id.Trim().StartsWith(MetaSetPrefix, StringComparison.OrdinalIgnoreCase);
 
-            var text = value.ToString();
+    private static string ReadRequiredString(BsonDocument doc, string key)
+    {
+        if (!doc.TryGetValue(key, out var value) || value.IsBsonNull)
+            throw new FormatException($"Thieu field bat buoc '{key}'.");
+        if (!value.IsString)
+            throw new FormatException($"Field '{key}' phai la string.");
+
+        var text = value.AsString.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new FormatException($"Field '{key}' khong duoc de trong.");
+        return text;
+    }
+
+    private static string ReadOptionalStringStrict(BsonDocument doc, string key)
+    {
+        if (!doc.TryGetValue(key, out var value) || value.IsBsonNull) return string.Empty;
+        if (!value.IsString)
+            throw new FormatException($"Field '{key}' phai la string.");
+        return value.AsString.Trim();
+    }
+
+    private static List<string> ReadStringArrayStrict(BsonDocument doc, string key)
+    {
+        if (!doc.TryGetValue(key, out var value) || value.IsBsonNull)
+            return [];
+        if (!value.IsBsonArray)
+            throw new FormatException($"Field '{key}' phai la mang.");
+
+        var items = new List<string>();
+        foreach (var item in value.AsBsonArray)
+        {
+            if (item.IsBsonNull) continue;
+            if (!item.IsString)
+                throw new FormatException($"Field '{key}' phai la mang string.");
+            var text = item.AsString.Trim();
             if (!string.IsNullOrWhiteSpace(text))
-            {
-                return text.Trim();
-            }
+                items.Add(text);
         }
 
-        return null;
+        return items.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    private static List<string> ReadStringArray(BsonDocument doc, params string[] keys)
+    private static List<FormTabConfig> ParseTabsStrict(BsonDocument formConfigDoc)
     {
-        foreach (var key in keys)
+        if (!formConfigDoc.TryGetValue("Tabs", out var tabsValue) || tabsValue.IsBsonNull)
+            return [];
+        if (!tabsValue.IsBsonArray)
+            throw new FormatException("Field 'Tabs' phai la mang.");
+
+        var tabs = new List<FormTabConfig>();
+        foreach (var tabValue in tabsValue.AsBsonArray)
         {
-            if (!doc.TryGetValue(key, out var value) || !value.IsBsonArray)
-            {
-                continue;
-            }
+            if (tabValue.IsBsonNull) continue;
+            if (!tabValue.IsBsonDocument)
+                throw new FormatException("Moi phan tu trong 'Tabs' phai la document.");
 
-            var items = value.AsBsonArray
-                .Where(item => !item.IsBsonNull)
-                .Select(item => item.ToString()?.Trim())
-                .Where(item => !string.IsNullOrWhiteSpace(item))
-                .Distinct(StringComparer.Ordinal)
-                .ToList()!;
-
-            if (items.Count > 0)
+            var tabDoc = tabValue.AsBsonDocument;
+            var tab = new FormTabConfig
             {
-                return items;
-            }
+                Id = ReadRequiredString(tabDoc, "_id"),
+                Label = ReadRequiredString(tabDoc, "Label"),
+            };
+            tab.FieldSetIds.AddRange(ReadStringArrayStrict(tabDoc, "FieldSetIds"));
+            tabs.Add(tab);
         }
 
-        return [];
-    }
-
-    private static void HydrateTabsFromRawBson(BsonDocument formConfigDoc, FormConfig item)
-    {
-        if (!formConfigDoc.TryGetValue("Tabs", out var tabsValue) || !tabsValue.IsBsonArray)
-        {
-            return;
-        }
-
-        var tabDocs = tabsValue.AsBsonArray.OfType<BsonDocument>().ToList();
-        if (tabDocs.Count == 0)
-        {
-            return;
-        }
-
-        // Case 1: deserializer khong ra Tabs => dung raw Tabs de dung du lieu.
-        if (item.Tabs.Count == 0)
-        {
-            foreach (var tabDoc in tabDocs)
-            {
-                var tab = new FormTabConfig
-                {
-                    Id = ReadString(tabDoc, "Id", "_id", "id") ?? string.Empty,
-                    Label = ReadString(tabDoc, "Label", "label") ?? string.Empty,
-                };
-
-                tab.FieldSetIds.AddRange(ReadStringArray(tabDoc, "FieldSetIds", "field_set_ids", "setIds"));
-                item.Tabs.Add(tab);
-            }
-
-            return;
-        }
-
-        // Case 2: Tabs co roi nhung FieldSetIds bi rong do schema cu => bo sung theo index.
-        for (var i = 0; i < item.Tabs.Count && i < tabDocs.Count; i++)
-        {
-            if (item.Tabs[i].FieldSetIds.Count > 0)
-            {
-                continue;
-            }
-
-            var fallbackSetIds = ReadStringArray(tabDocs[i], "FieldSetIds", "field_set_ids", "setIds");
-            if (fallbackSetIds.Count > 0)
-            {
-                item.Tabs[i].FieldSetIds.AddRange(fallbackSetIds);
-            }
-        }
+        return tabs;
     }
 
     private static async Task<List<string>> GetMissingActiveFieldSetIdsAsync(IEnumerable<string> fieldSetIds)
@@ -195,6 +178,18 @@ public class FormConfigService(ILogger<FormConfigService> logger)
         return ascii.Trim('-');
     }
 
+    private static double DoubleOr(BsonDocument? doc, string key, double fallback = 0)
+    {
+        if (doc == null) return fallback;
+        var value = doc.GetValue(key, BsonNull.Value);
+        if (value == BsonNull.Value || value.IsBsonNull) return fallback;
+        if (value.IsDouble) return value.AsDouble;
+        if (value.IsInt32) return value.AsInt32;
+        if (value.IsInt64) return value.AsInt64;
+        if (value.IsDecimal128) return (double)value.AsDecimal128;
+        throw new FormatException($"Field '{key}' khong phai so hop le.");
+    }
+
     private static async Task<bool> HasActiveFormKeyConflictAsync(string formId, string formKey)
     {
         if (string.IsNullOrWhiteSpace(formKey))
@@ -217,28 +212,27 @@ public class FormConfigService(ILogger<FormConfigService> logger)
     {
         var item = new DynamicField
         {
-            Id = ReadString(itemBson, "_id", "Id", "id") ?? string.Empty,
-            Key = ReadString(itemBson, "Key", "key") ?? string.Empty,
-            Label = ReadString(itemBson, "Label", "label") ?? string.Empty,
-            Type = ReadString(itemBson, "Type", "type") ?? string.Empty,
+            Id = itemBson.IdString(),
+            Key = ReadRequiredString(itemBson, "Key"),
+            Label = ReadRequiredString(itemBson, "Label"),
+            Type = ReadRequiredString(itemBson, "Type"),
             Required = itemBson.BoolOr("Required"),
+            Validation = new FieldValidation(),
         };
 
-        item.CnIds.AddRange(ReadStringArray(itemBson, "CnIds", "cn_ids"));
-        var validationBson = itemBson.GetValue("Validation", BsonNull.Value);
-        if (validationBson.IsBsonDocument)
+        item.CnIds.AddRange(ReadStringArrayStrict(itemBson, "CnIds"));
+        var validationBson = itemBson.DocOr("Validation");
+        if (validationBson != null)
         {
-            item.Validation = BsonSerializer.Deserialize<FieldValidation>(validationBson.AsBsonDocument);
-            item.Validation.Options.Clear();
-
-            var optionsBson = validationBson.AsBsonDocument.GetValue("Options", BsonNull.Value);
-            if (optionsBson.IsBsonArray)
-            {
-                item.Validation.Options.AddRange(
-                    optionsBson.AsBsonArray
-                        .Where(value => !value.IsBsonNull)
-                        .Select(value => value.ToString()));
-            }
+            item.Validation.MinLength = validationBson.IntOr("MinLength");
+            item.Validation.MaxLength = validationBson.IntOr("MaxLength");
+            item.Validation.Pattern = ReadOptionalStringStrict(validationBson, "Pattern");
+            item.Validation.Min = DoubleOr(validationBson, "Min");
+            item.Validation.Max = DoubleOr(validationBson, "Max");
+            item.Validation.DataSource = ReadOptionalStringStrict(validationBson, "DataSource");
+            item.Validation.ApiUrl = ReadOptionalStringStrict(validationBson, "ApiUrl");
+            item.Validation.DisplayType = ReadOptionalStringStrict(validationBson, "DisplayType");
+            item.Validation.Options.AddRange(ReadStringArrayStrict(validationBson, "Options"));
         }
 
         ApplyAuditMetadata(item, itemBson);
@@ -255,19 +249,37 @@ public class FormConfigService(ILogger<FormConfigService> logger)
         {
             FieldSet = new FieldSet
             {
-                Id = ReadString(cleanFieldSetDoc, "_id", "Id", "id") ?? string.Empty,
-                Name = ReadString(cleanFieldSetDoc, "Name", "name") ?? string.Empty,
-                Icon = ReadString(cleanFieldSetDoc, "Icon", "icon") ?? string.Empty,
-                Color = ReadString(cleanFieldSetDoc, "Color", "color") ?? string.Empty,
-                Desc = ReadString(cleanFieldSetDoc, "Desc", "desc", "Description", "description") ?? string.Empty,
+                Id = cleanFieldSetDoc.IdString(),
+                Name = ReadRequiredString(cleanFieldSetDoc, "Name"),
+                Icon = ReadOptionalStringStrict(cleanFieldSetDoc, "Icon"),
+                Color = ReadOptionalStringStrict(cleanFieldSetDoc, "Color"),
+                Desc = ReadOptionalStringStrict(cleanFieldSetDoc, "Desc"),
             }
         };
-        item.FieldSet.FieldIds.AddRange(ReadStringArray(cleanFieldSetDoc, "FieldIds", "field_ids"));
+        item.FieldSet.FieldIds.AddRange(ReadStringArrayStrict(cleanFieldSetDoc, "FieldIds"));
         ApplyAuditMetadata(item.FieldSet, cleanFieldSetDoc);
 
         foreach (var fieldDoc in fieldDocs.OfType<BsonDocument>())
         {
             item.Fields.Add(ToDynamicField(fieldDoc));
+        }
+
+        var hydratedFieldIdSet = item.Fields
+            .Select(field => field.Id?.Trim())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missingFieldIds = item.FieldSet.FieldIds
+            .Where(fieldId => !string.IsNullOrWhiteSpace(fieldId))
+            .Select(fieldId => fieldId.Trim())
+            .Where(fieldId => !hydratedFieldIdSet.Contains(fieldId))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (missingFieldIds.Count > 0)
+        {
+            throw new FormatException(
+                $"FieldSet '{item.FieldSet.Id}' co FieldIds khong map duoc _id DynamicField: {string.Join(", ", missingFieldIds.Take(10))}");
         }
 
         return item;
@@ -277,13 +289,13 @@ public class FormConfigService(ILogger<FormConfigService> logger)
     {
         var item = new FormConfig
         {
-            Id = ReadString(formConfigDoc, "_id", "Id", "id") ?? string.Empty,
-            Key = ReadString(formConfigDoc, "Key", "key") ?? string.Empty,
-            Name = ReadString(formConfigDoc, "Name", "name") ?? string.Empty,
-            Desc = ReadString(formConfigDoc, "Desc", "desc", "Description", "description") ?? string.Empty,
+            Id = formConfigDoc.IdString(),
+            Key = ReadRequiredString(formConfigDoc, "Key"),
+            Name = ReadRequiredString(formConfigDoc, "Name"),
+            Desc = ReadOptionalStringStrict(formConfigDoc, "Desc"),
         };
 
-        HydrateTabsFromRawBson(formConfigDoc, item);
+        item.Tabs.AddRange(ParseTabsStrict(formConfigDoc));
         ApplyAuditMetadata(item, formConfigDoc);
         return item;
     }
@@ -361,6 +373,8 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             var referencedFieldSetIds = formConfig.Tabs
                 .SelectMany(tab => tab.FieldSetIds)
                 .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Where(id => !IsMetaSetId(id))
+                .Select(id => id.Trim())
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
@@ -371,6 +385,22 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                         Builders<BsonDocument>.Filter.In("_id", referencedFieldSetIds),
                         MongoDocumentHelpers.NotDeleted))
                     .ToListAsync();
+
+            var hydratedFieldSetIdSet = fieldSetDocs
+                .Select(doc => doc.IdString())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.Ordinal);
+
+            var missingFieldSetIds = referencedFieldSetIds
+                .Where(id => !hydratedFieldSetIdSet.Contains(id))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (missingFieldSetIds.Count > 0)
+            {
+                throw new FormatException(
+                    $"FormConfig '{formConfig.Id}' tham chieu FieldSet _id khong ton tai: {string.Join(", ", missingFieldSetIds.Take(10))}");
+            }
 
             var visibleCnIds = context.GetAccessGate()
                 .GetVisibleCNs()
@@ -434,6 +464,11 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 tab.FieldSets.Clear();
                 foreach (var fieldSetId in tab.FieldSetIds)
                 {
+                    if (IsMetaSetId(fieldSetId))
+                    {
+                        continue;
+                    }
+
                     if (fieldSetLookup.TryGetValue(fieldSetId, out var detail))
                     {
                         tab.FieldSets.Add(detail);
@@ -554,9 +589,15 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 {
                     foreach (var fieldSetId in tab.FieldSetIds)
                     {
-                        if (!joinedFieldSetDocs.TryGetValue(fieldSetId, out var fieldSetDoc))
+                        if (IsMetaSetId(fieldSetId))
                         {
                             continue;
+                        }
+
+                        if (!joinedFieldSetDocs.TryGetValue(fieldSetId, out var fieldSetDoc))
+                        {
+                            throw new FormatException(
+                                $"FormConfig '{item.Id}' tham chieu FieldSet _id khong ton tai: {fieldSetId}");
                         }
 
                         tab.FieldSets.Add(ToFieldSetDetail(fieldSetDoc));
@@ -623,6 +664,14 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();
+                bsonDoc.Remove("Id");
+                if (bsonDoc.TryGetValue("Tabs", out var tabsValue) && tabsValue is BsonArray tabsArray)
+                {
+                    foreach (var tab in tabsArray.OfType<BsonDocument>())
+                    {
+                        tab.Remove("Id");
+                    }
+                }
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
                 ApplyAuditMetadata(item, bsonDoc);
@@ -649,6 +698,14 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 item.CreateDate = existingDoc.TimestampOr("CreateDate") ?? item.CreateDate;
 
                 var bsonDoc = item.ToBsonDocument();
+                bsonDoc.Remove("Id");
+                if (bsonDoc.TryGetValue("Tabs", out var tabsValue) && tabsValue is BsonArray tabsArray)
+                {
+                    foreach (var tab in tabsArray.OfType<BsonDocument>())
+                    {
+                        tab.Remove("Id");
+                    }
+                }
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
                 ApplyAuditMetadata(item, bsonDoc);

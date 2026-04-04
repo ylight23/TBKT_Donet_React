@@ -204,7 +204,7 @@ const TrangBiFormConfigDialog: React.FC<TrangBiFormConfigDialogProps> = ({
                                                 </ListItemIcon>
                                                 <ListItemText
                                                     primary={fs.name}
-                                                    secondary={`${fs.fieldIds.length} trường`}
+                                                    secondary={`${Math.max(fs.fields?.length ?? 0, fs.fieldIds?.length ?? 0)} trường`}
                                                 />
                                             </ListItemButton>
                                         </ListItem>

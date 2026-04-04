@@ -61,6 +61,16 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({
     const [saveError, setSaveError] = useState('');
 
     const activeForm = forms.find((f) => f.id === activeFormId) ?? null;
+    const fieldMap = useMemo(() => new Map(fields.map((field) => [field.id, field])), [fields]);
+
+    const resolveSetFields = (set: FieldSet): DynamicField[] => {
+        if (set.fields && set.fields.length > 0) {
+            return set.fields;
+        }
+        return (set.fieldIds ?? [])
+            .map((fieldId) => fieldMap.get(fieldId))
+            .filter((field): field is DynamicField => Boolean(field));
+    };
 
     const updateActiveForm = (next: FormConfig, options?: { immediate?: boolean }) => {
         setForms((prev) => prev.map((f) => (f.id === next.id ? next : f)));
@@ -394,14 +404,37 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({
                                                         selectedSets.length === 0 ? (
                                                             <Typography variant="caption" color="text.disabled">Chưa chọn bộ dữ liệu nào.</Typography>
                                                         ) : (
-                                                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                                                                {selectedSets.map((set: FieldSet, setIndex: number) => (
-                                                                    <Chip key={`${set.id}-${setIndex}`} size="small"
-                                                                        icon={<Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5, color: set.color }}>{set.icon}</Box> as any}
-                                                                        label={set.name}
-                                                                        sx={{ border: `1px solid ${set.color}55`, bgcolor: `${set.color}11`, color: set.color }}
-                                                                    />
-                                                                ))}
+                                                            <Stack spacing={0.75}>
+                                                                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                                                    {selectedSets.map((set: FieldSet, setIndex: number) => (
+                                                                        <Chip key={`${set.id}-${setIndex}`} size="small"
+                                                                            icon={<Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5, color: set.color }}>{set.icon}</Box> as any}
+                                                                            label={set.name}
+                                                                            sx={{ border: `1px solid ${set.color}55`, bgcolor: `${set.color}11`, color: set.color }}
+                                                                        />
+                                                                    ))}
+                                                                </Stack>
+                                                                {selectedSets.map((set: FieldSet, setIndex: number) => {
+                                                                    const setFields = resolveSetFields(set);
+                                                                    return (
+                                                                        <Box key={`preview-${set.id}-${setIndex}`} sx={{ pl: 0.25 }}>
+                                                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                                                                {set.name}: {setFields.length} trường
+                                                                            </Typography>
+                                                                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                                                                {setFields.map((field) => (
+                                                                                    <Chip
+                                                                                        key={`${set.id}-${field.id}`}
+                                                                                        size="small"
+                                                                                        label={field.label}
+                                                                                        variant="outlined"
+                                                                                        sx={{ fontSize: 10, height: 18 }}
+                                                                                    />
+                                                                                ))}
+                                                                            </Stack>
+                                                                        </Box>
+                                                                    );
+                                                                })}
                                                             </Stack>
                                                         )
                                                     )}
@@ -493,6 +526,31 @@ const PageFormConfig: React.FC<PageFormConfigProps> = ({
                                                                                 Xóa
                                                                             </Button>
                                                                         </Stack>
+                                                                        {childSets.length > 0 && (
+                                                                            <Stack spacing={0.75} sx={{ mt: 1, pl: 7 }}>
+                                                                                {childSets.map((set: FieldSet, setIndex: number) => {
+                                                                                    const setFields = resolveSetFields(set);
+                                                                                    return (
+                                                                                        <Box key={`child-preview-${child.id}-${set.id}-${setIndex}`}>
+                                                                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                                                                                {set.name}: {setFields.length} trường
+                                                                                            </Typography>
+                                                                                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                                                                                {setFields.map((field) => (
+                                                                                                    <Chip
+                                                                                                        key={`${child.id}-${set.id}-${field.id}`}
+                                                                                                        size="small"
+                                                                                                        label={field.label}
+                                                                                                        variant="outlined"
+                                                                                                        sx={{ fontSize: 10, height: 18 }}
+                                                                                                    />
+                                                                                                ))}
+                                                                                            </Stack>
+                                                                                        </Box>
+                                                                                    );
+                                                                                })}
+                                                                            </Stack>
+                                                                        )}
                                                                     </CardContent>
                                                                 </Card>
                                                             );

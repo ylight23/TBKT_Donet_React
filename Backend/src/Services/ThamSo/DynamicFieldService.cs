@@ -54,6 +54,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
 
     private static void ApplyAuditMetadata(DynamicField item, BsonDocument itemBson)
     {
+        item.Id = itemBson.IdString();
         item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
         item.ModifyDate = itemBson.TimestampOr("ModifyDate") ?? item.ModifyDate;
         item.CreateBy = itemBson.StringOr("NguoiTao");
@@ -93,24 +94,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
             var bsonItems = await Global.CollectionBsonDynamicField!.Find(MongoDocumentHelpers.NotDeleted).ToListAsync();
 
             response.Items.AddRange(bsonItems
-                .Select(itemBson =>
-                {
-                    var item = BsonSerializer.Deserialize<DynamicField>(itemBson);
-                    var validationBson = itemBson.DocOr("Validation");
-                    if (validationBson != null)
-                    {
-                        item.Validation = BsonSerializer.Deserialize<FieldValidation>(validationBson);
-                        item.Validation.Options.Clear();
-                        var optionsBson = validationBson.ArrayOr("Options");
-                        if (optionsBson != null)
-                            item.Validation.Options.AddRange(optionsBson.Strings());
-                    }
-
-                    NormalizeCnIds(item);
-                    ApplyAuditMetadata(item, itemBson);
-
-                    return item;
-                })
+                .Select(MapDynamicFieldStrict)
                 .Where(item => CanReadFieldByCnScope(item, visibleCnIds, isAdmin)));
 
             response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} items");
@@ -168,6 +152,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();
+                bsonDoc.Remove("Id");
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
                 ApplyAuditMetadata(item, bsonDoc);
@@ -202,6 +187,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
                 item.CreateDate = existingDoc.TimestampOr("CreateDate") ?? item.CreateDate;
 
                 var bsonDoc = item.ToBsonDocument();
+                bsonDoc.Remove("Id");
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
                 ApplyAuditMetadata(item, bsonDoc);
@@ -350,5 +336,62 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
         }
 
         return response;
+    }
+    private static double DoubleOr(BsonDocument? doc, string key, double fallback = 0)
+    {
+        if (doc == null) return fallback;
+        var value = doc.GetValue(key, BsonNull.Value);
+        if (value == BsonNull.Value || value.IsBsonNull) return fallback;
+        if (value.IsDouble) return value.AsDouble;
+        if (value.IsInt32) return value.AsInt32;
+        if (value.IsInt64) return value.AsInt64;
+        if (value.IsDecimal128) return (double)value.AsDecimal128;
+        throw new FormatException($"Field '{key}' khong phai so hop le.");
+    }
+
+    private static DynamicField MapDynamicFieldStrict(BsonDocument itemBson)
+    {
+        var item = new DynamicField
+        {
+            Id = itemBson.IdString(),
+            Key = itemBson.StringOr("Key"),
+            Label = itemBson.StringOr("Label"),
+            Type = itemBson.StringOr("Type"),
+            Required = itemBson.BoolOr("Required"),
+            Validation = new FieldValidation(),
+        };
+
+        var cnIds = itemBson.ArrayOr("CnIds");
+        if (cnIds != null)
+        {
+            item.CnIds.AddRange(cnIds
+                .Where(value => !value.IsBsonNull)
+                .Select(value => value.AsString));
+        }
+
+        var validationBson = itemBson.DocOr("Validation");
+        if (validationBson != null)
+        {
+            item.Validation.MinLength = validationBson.IntOr("MinLength");
+            item.Validation.MaxLength = validationBson.IntOr("MaxLength");
+            item.Validation.Pattern = validationBson.StringOr("Pattern");
+            item.Validation.Min = DoubleOr(validationBson, "Min");
+            item.Validation.Max = DoubleOr(validationBson, "Max");
+            item.Validation.DataSource = validationBson.StringOr("DataSource");
+            item.Validation.ApiUrl = validationBson.StringOr("ApiUrl");
+            item.Validation.DisplayType = validationBson.StringOr("DisplayType");
+
+            var options = validationBson.ArrayOr("Options");
+            if (options != null)
+            {
+                item.Validation.Options.AddRange(options
+                    .Where(value => !value.IsBsonNull)
+                    .Select(value => value.AsString));
+            }
+        }
+
+        NormalizeCnIds(item);
+        ApplyAuditMetadata(item, itemBson);
+        return item;
     }
 }

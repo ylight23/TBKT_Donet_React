@@ -22,6 +22,8 @@ import type { AppDispatch, RootState } from '../../store';
 import type { LocalDynamicField, LocalFieldSet, LocalFormConfig } from '../../apis/thamSoApi';
 import { saveFormConfig } from '../../store/reducer/thamSo';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
+import { getRealSetIds } from '../CauHinhThamSo/subComponents/formTabMeta';
+import { buildByNormalizedId, normalizeId } from '../../utils/idUtils';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,20 +61,32 @@ function nodeToFormData(node: CatalogTree): Record<string, string> {
     return data;
 }
 
-/** Resolve fields for one FormConfig tab from Redux fieldSets + dynamicFields */
+/** Resolve fields for one FormConfig tab from Redux FieldSets (hydrated by backend). */
 function resolveTabFields(
     setIds: string[],
     allFieldSets: LocalFieldSet[],
-    allFields: LocalDynamicField[],
 ): LocalDynamicField[] {
-    const realIds = setIds.filter((id) => !id.startsWith('__meta:'));
-    return realIds.flatMap((setId) => {
-        const fieldSet =
-            allFieldSets.find((fs) => fs.id === setId);
-        if (!fieldSet) return [];
-        const ids = fieldSet.fieldIds ?? [];
-        return ids.map((fid) => allFields.find((f) => f.id === fid)).filter(Boolean) as LocalDynamicField[];
+    const fieldSetById = buildByNormalizedId(allFieldSets);
+    const seenFieldIds = new Set<string>();
+    const resolved: LocalDynamicField[] = [];
+
+    getRealSetIds({ id: '', label: '', setIds }).forEach((setId) => {
+        const fieldSet = fieldSetById.get(normalizeId(setId));
+        if (!fieldSet) return;
+
+        const hydratedFields = (fieldSet.fields ?? [])
+            .filter(Boolean)
+            .filter((field) => {
+                const key = normalizeId(field.id);
+                if (!key || seenFieldIds.has(key)) return false;
+                seenFieldIds.add(key);
+                return true;
+            });
+
+        resolved.push(...hydratedFields);
     });
+
+    return resolved;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -91,7 +105,7 @@ const CATALOG_NAME = 'DanhMucTrangBi';
 const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOptions, node, onSaved }) => {
     const dispatch = useDispatch<AppDispatch>();
     const { canCnAction, loaded: permissionLoaded } = useMyPermissions();
-    const { formConfigs, fieldSets, dynamicFields, loaded } = useSelector(
+    const { formConfigs, fieldSets, loaded } = useSelector(
         (s: RootState) => s.thamSoReducer,
     );
 
@@ -123,9 +137,9 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
             .map((tab) => ({
                 id: tab.id,
                 label: tab.label,
-                fields: resolveTabFields(tab.setIds, fieldSets, dynamicFields),
+                fields: resolveTabFields(tab.setIds, fieldSets),
             }));
-    }, [commonConfig, fieldSets, dynamicFields]);
+    }, [commonConfig, fieldSets]);
 
     // Build tab groups from category config
     const categoryTabGroups = useMemo(() => {
@@ -138,9 +152,9 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
             .map((tab) => ({
                 id: `cat_${tab.id}`,
                 label: tab.label,
-                fields: resolveTabFields(tab.setIds, fieldSets, dynamicFields),
+                fields: resolveTabFields(tab.setIds, fieldSets),
             }));
-    }, [categoryConfig, fieldSets, dynamicFields]);
+    }, [categoryConfig, fieldSets]);
 
     // Merge all fields for validation
     const allFields = useMemo(

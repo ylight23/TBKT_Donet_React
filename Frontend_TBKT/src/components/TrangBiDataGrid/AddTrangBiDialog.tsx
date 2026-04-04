@@ -29,6 +29,7 @@ import type {
 import FieldInput from '../../pages/CauHinhThamSo/subComponents/FieldInput';
 import { getRealSetIds, parseTabMeta } from '../../pages/CauHinhThamSo/subComponents/formTabMeta';
 import { militaryColors } from '../../theme';
+import { buildByNormalizedId, normalizeId } from '../../utils/idUtils';
 
 // ── Props ───────────────────────────────────────────────────
 interface AddTrangBiDialogProps {
@@ -40,6 +41,21 @@ interface AddTrangBiDialogProps {
   activeMenu?: 'tbNhom1' | 'tbNhom2';
   configError?: string;
 }
+
+const CATEGORY_FIELD_CANDIDATES = ['MaDanhMucTrangBi', 'IDDanhMucTrangBi', 'IDNganh', 'IdNganh'];
+const normalizeCategoryValue = (value?: string | null): string => String(value ?? '').trim().toUpperCase();
+
+const matchesSyncCategory = (selectedCategory: string, syncCategory?: string): boolean => {
+  const normalizedSelected = normalizeCategoryValue(selectedCategory);
+  const normalizedSync = normalizeCategoryValue(syncCategory);
+
+  if (!normalizedSync) return true;
+  if (!normalizedSelected) return false;
+
+  return normalizedSelected === normalizedSync
+    || normalizedSelected.startsWith(normalizedSync)
+    || normalizedSync.startsWith(normalizedSelected);
+};
 
 // ── Field Item Component ───────────────────────────────────
 interface FormFieldItemProps {
@@ -216,7 +232,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   // Create lookup maps
   const fieldSetById = useMemo(
-    () => new Map(allFieldSets.map((set) => [set.id, set])),
+    () => buildByNormalizedId(allFieldSets),
     [allFieldSets],
   );
 
@@ -238,7 +254,18 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const rootTabs = tabStructure.roots;
   const currentRootTab = rootTabs[activeTab];
   const currentRootMeta = currentRootTab ? parseTabMeta(currentRootTab) : null;
-  const currentRootChildren = currentRootTab ? (tabStructure.childrenByParent[currentRootTab.id] || []) : [];
+  const rawRootChildren = currentRootTab ? (tabStructure.childrenByParent[currentRootTab.id] || []) : [];
+  const selectedCategoryCode = useMemo(
+    () => CATEGORY_FIELD_CANDIDATES
+      .map((key) => formData[key])
+      .find((value) => normalizeCategoryValue(value).length > 0) ?? '',
+    [formData],
+  );
+  const currentRootChildren = useMemo(() => {
+    if (!currentRootTab) return [];
+    if (currentRootMeta?.tabType !== 'sync-group') return rawRootChildren;
+    return rawRootChildren.filter((child) => matchesSyncCategory(selectedCategoryCode, parseTabMeta(child).syncCategory));
+  }, [currentRootMeta?.tabType, currentRootTab, rawRootChildren, selectedCategoryCode]);
 
   const activeChildTabIndex = currentRootTab
     ? Math.min(activeChildTabByParent[currentRootTab.id] ?? 0, Math.max(currentRootChildren.length - 1, 0))
@@ -261,9 +288,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
     return setIds
       .map((setId) => {
-        const fieldSet = fieldSetById.get(setId);
+        const fieldSet = fieldSetById.get(normalizeId(setId));
         if (!fieldSet) return null;
-
         const fields = fieldSet.fields ?? [];
 
         return { fieldSet, fields };
@@ -273,7 +299,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   const missingFieldSetIds = useMemo(() => {
     if (!effectiveTab) return [];
-    return Array.from(new Set(getRealSetIds(effectiveTab).filter((setId) => !fieldSetById.has(setId))));
+    return Array.from(new Set(
+      getRealSetIds(effectiveTab)
+        .filter((setId) => !fieldSetById.has(normalizeId(setId))),
+    ));
   }, [effectiveTab, fieldSetById]);
 
   const missingFieldRefs = useMemo(() => {
@@ -306,13 +335,14 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     rootTabs.forEach((rootTab) => {
       const rootMeta = parseTabMeta(rootTab);
       const tabsToCount = rootMeta.tabType === 'sync-group'
-        ? (tabStructure.childrenByParent[rootTab.id] || [])
+        ? (tabStructure.childrenByParent[rootTab.id] || []).filter((tab) =>
+          matchesSyncCategory(selectedCategoryCode, parseTabMeta(tab).syncCategory))
         : [rootTab];
 
       tabsToCount.forEach((tab) => {
         const setIds = getRealSetIds(tab);
         setIds.forEach((setId) => {
-          const fieldSet = fieldSetById.get(setId);
+          const fieldSet = fieldSetById.get(normalizeId(setId));
           if (fieldSet) {
             const fields = fieldSet.fields ?? [];
 
@@ -325,7 +355,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
     if (totalFields === 0) return 0;
     return Math.round((filledFields / totalFields) * 100);
-  }, [rootTabs, tabStructure, formData, fieldSetById]);
+  }, [fieldSetById, formData, rootTabs, selectedCategoryCode, tabStructure]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
     setFormData((prev) => {
@@ -678,7 +708,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
               </Typography>
               <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
                 {currentRootMeta?.tabType === 'sync-group'
-                  ? 'Tab cha đồng bộ không chứa trực tiếp bộ dữ liệu. Hãy chọn tab con ở phía trên.'
+                  ? (selectedCategoryCode
+                    ? `Chưa có bộ dữ liệu chi tiết nào được cấu hình cho mã danh mục "${selectedCategoryCode}".`
+                    : 'Hãy chọn mã danh mục trang bị ở tab "Thông tin chung" để nạp tab chi tiết tương ứng.')
                   : 'Vui lòng cấu hình form trong phần "Cấu hình tham số"'}
               </Typography>
             </Box>

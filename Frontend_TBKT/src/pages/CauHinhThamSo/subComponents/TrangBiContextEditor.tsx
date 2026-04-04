@@ -38,6 +38,7 @@ import type {
 import { saveFormConfig, saveFieldSet, saveDynamicField } from '../../../store/reducer/thamSo';
 import { nameToIcon, iconToName } from '../../../utils/thamSoUtils';
 import { getRealSetIds, randomId } from './formTabMeta';
+import { buildByNormalizedId, normalizeId } from '../../../utils/idUtils';
 import type { FieldSet, TrangBiSelection } from '../types';
 import TabSetPickerDialog from './TabSetPickerDialog';
 import FieldSetEditorDialog from './FieldSetEditorDialog';
@@ -84,32 +85,39 @@ const TrangBiContextEditor: React.FC<TrangBiContextEditorProps> = ({ selection }
         [storeFieldSets],
     );
 
+    const resolveFieldsForSet = useCallback((fs: LocalFieldSet): LocalDynamicField[] => {
+        return fs.fields ?? [];
+    }, []);
+
     // Scoped FieldSets: those used in this FormConfig's tabs
     const scopedSetIds = useMemo(() => {
         if (!formConfig) return new Set<string>();
-        return new Set(formConfig.tabs.flatMap((t) => getRealSetIds(t)));
+        return new Set(formConfig.tabs.flatMap((t) => getRealSetIds(t).map(normalizeId)));
     }, [formConfig]);
 
+    const fieldSetById = useMemo(() => buildByNormalizedId(storeFieldSets), [storeFieldSets]);
+
     const scopedFieldSets = useMemo(
-        () => storeFieldSets.filter((fs) => scopedSetIds.has(fs.id)),
-        [storeFieldSets, scopedSetIds],
+        () => storeFieldSets.filter((fs) => scopedSetIds.has(normalizeId(fs.id))),
+        [scopedSetIds, storeFieldSets],
     );
 
     // Scoped Fields: fields inside the scoped FieldSets
-    const scopedFieldIds = useMemo(
-        () => new Set(scopedFieldSets.flatMap((fs) => fs.fieldIds)),
-        [scopedFieldSets],
-    );
-
     const scopedFields = useMemo(
-        () => dynamicFields.filter((f) => scopedFieldIds.has(f.id)),
-        [dynamicFields, scopedFieldIds],
+        () => {
+            const fieldMap = new Map<string, LocalDynamicField>();
+            scopedFieldSets.forEach((fs) => {
+                resolveFieldsForSet(fs).forEach((field) => fieldMap.set(field.id, field));
+            });
+            return Array.from(fieldMap.values());
+        },
+        [resolveFieldsForSet, scopedFieldSets],
     );
 
     // Available (unused) FieldSets not in any tab of this config
     const availableFieldSets = useMemo(
-        () => storeFieldSets.filter((fs) => !scopedSetIds.has(fs.id)),
-        [storeFieldSets, scopedSetIds],
+        () => storeFieldSets.filter((fs) => !scopedSetIds.has(normalizeId(fs.id))),
+        [scopedSetIds, storeFieldSets],
     );
 
     // ── Create FormConfig ──
@@ -209,14 +217,14 @@ const TrangBiContextEditor: React.FC<TrangBiContextEditorProps> = ({ selection }
                 },
                 isNew: false,
             })).unwrap();
-            const fsName = storeFieldSets.find((fs) => fs.id === fieldSetId)?.name ?? fieldSetId;
+            const fsName = fieldSetById.get(normalizeId(fieldSetId))?.name ?? fieldSetId;
             setSuccessMsg(`Đã thêm "${fsName}" vào tab "${firstTab.label}"`);
         } catch (err) {
             setError((err as Error).message || 'Lỗi thêm bộ dữ liệu');
         } finally {
             setSaving(false);
         }
-    }, [dispatch, formConfig, storeFieldSets]);
+    }, [dispatch, fieldSetById, formConfig]);
 
     // ── Create new FieldSet + add to first tab ──
 
@@ -281,7 +289,7 @@ const TrangBiContextEditor: React.FC<TrangBiContextEditorProps> = ({ selection }
             };
             const result = await dispatch(saveDynamicField({ field, isNew: true })).unwrap();
             // Add to the target FieldSet
-            const targetSet = storeFieldSets.find((fs) => fs.id === targetSetId);
+            const targetSet = fieldSetById.get(normalizeId(targetSetId));
             if (targetSet) {
                 await dispatch(saveFieldSet({
                     fieldSet: { ...targetSet, fieldIds: [...targetSet.fieldIds, result.field.id] },
@@ -294,7 +302,7 @@ const TrangBiContextEditor: React.FC<TrangBiContextEditorProps> = ({ selection }
         } finally {
             setSaving(false);
         }
-    }, [dispatch, storeFieldSets]);
+    }, [dispatch, fieldSetById]);
 
     // ── Render ──
 
@@ -392,7 +400,7 @@ const TrangBiContextEditor: React.FC<TrangBiContextEditorProps> = ({ selection }
                             <FieldSetsSubTab
                                 scopedFieldSets={scopedFieldSets}
                                 availableFieldSets={availableFieldSets}
-                                dynamicFields={dynamicFields}
+                                resolveFieldsForSet={resolveFieldsForSet}
                                 formConfig={formConfig}
                                 onCreateNew={() => setNewFieldSetDialogOpen(true)}
                                 onAddExisting={addExistingFieldSet}
@@ -478,7 +486,7 @@ const FormSubTab: React.FC<FormSubTabProps> = ({
             const selectedSets = getRealSetIds(tab)
                 .map((id) => uiFieldSets.find((s) => s.id === id))
                 .filter(Boolean) as FieldSet[];
-            const totalFields = selectedSets.reduce((a, s) => a + s.fieldIds.length, 0);
+            const totalFields = selectedSets.reduce((a, s) => a + Math.max(s.fields?.length ?? 0, s.fieldIds?.length ?? 0), 0);
 
             return (
                 <Card key={tab.id} variant="outlined" sx={{ borderRadius: 2, '&:hover': { boxShadow: 1 }, transition: 'box-shadow 0.2s' }}>
@@ -548,7 +556,7 @@ const FormSubTab: React.FC<FormSubTabProps> = ({
 interface FieldSetsSubTabProps {
     scopedFieldSets: LocalFieldSet[];
     availableFieldSets: LocalFieldSet[];
-    dynamicFields: LocalDynamicField[];
+    resolveFieldsForSet: (fieldSet: LocalFieldSet) => LocalDynamicField[];
     formConfig: LocalFormConfig;
     onCreateNew: () => void;
     onAddExisting: (fieldSetId: string) => Promise<void>;
@@ -556,7 +564,7 @@ interface FieldSetsSubTabProps {
 }
 
 const FieldSetsSubTab: React.FC<FieldSetsSubTabProps> = ({
-    scopedFieldSets, availableFieldSets, dynamicFields, formConfig, onCreateNew, onAddExisting, saving,
+    scopedFieldSets, availableFieldSets, resolveFieldsForSet, formConfig, onCreateNew, onAddExisting, saving,
 }) => {
     const [showAvailable, setShowAvailable] = useState(false);
 
@@ -591,9 +599,7 @@ const FieldSetsSubTab: React.FC<FieldSetsSubTabProps> = ({
                     const usedInTabs = formConfig.tabs
                         .filter((t) => getRealSetIds(t).includes(fs.id))
                         .map((t) => t.label);
-                    const fields = fs.fieldIds
-                        .map((fid) => dynamicFields.find((f) => f.id === fid))
-                        .filter(Boolean) as LocalDynamicField[];
+                    const fields = resolveFieldsForSet(fs);
 
                     return (
                         <Card key={fs.id} variant="outlined"
@@ -617,10 +623,13 @@ const FieldSetsSubTab: React.FC<FieldSetsSubTabProps> = ({
                                 </Stack>
                                 {fields.length > 0 && (
                                     <Box sx={{ mt: 0.75, pl: 4 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                            Dynamic fields trong bộ này
+                                        </Typography>
                                         <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5}>
                                             {fields.map((f) => (
                                                 <Chip key={f.id} size="small"
-                                                    label={`${f.label} (${f.type})`}
+                                                    label={`${f.label} (${f.key})`}
                                                     variant="outlined"
                                                     sx={{ fontSize: 10, height: 20 }}
                                                 />
@@ -653,7 +662,7 @@ const FieldSetsSubTab: React.FC<FieldSetsSubTabProps> = ({
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Typography variant="body2" fontWeight={600}>{fs.name}</Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            {fs.fieldIds.length} trường
+                                            {Math.max(resolveFieldsForSet(fs).length, fs.fieldIds.length)} trường
                                         </Typography>
                                     </Box>
                                     <Button
@@ -667,6 +676,34 @@ const FieldSetsSubTab: React.FC<FieldSetsSubTabProps> = ({
                                         Thêm
                                     </Button>
                                 </Stack>
+                                {Math.max(resolveFieldsForSet(fs).length, fs.fieldIds.length) > 0 && (
+                                    <Box sx={{ mt: 0.75, pl: 4 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                            Dynamic fields mẫu
+                                        </Typography>
+                                        <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5}>
+                                            {resolveFieldsForSet(fs)
+                                                .slice(0, 6)
+                                                .map((field) => (
+                                                    <Chip
+                                                        key={`${fs.id}-${field!.id}`}
+                                                        size="small"
+                                                        label={`${field!.label} (${field!.key})`}
+                                                        variant="outlined"
+                                                        sx={{ fontSize: 10, height: 20 }}
+                                                    />
+                                                ))}
+                                            {Math.max(resolveFieldsForSet(fs).length, fs.fieldIds.length) > 6 && (
+                                                <Chip
+                                                    size="small"
+                                                    label={`+${Math.max(resolveFieldsForSet(fs).length, fs.fieldIds.length) - 6}`}
+                                                    variant="outlined"
+                                                    sx={{ fontSize: 10, height: 20 }}
+                                                />
+                                            )}
+                                        </Stack>
+                                    </Box>
+                                )}
                             </CardContent>
                         </Card>
                     ))}

@@ -14,6 +14,68 @@ public class FieldSetService(ILogger<FieldSetService> logger)
 {
     private const string PermissionCode = "thamso_fieldset";
 
+    private static string RequiredString(BsonDocument doc, string key)
+    {
+        if (!doc.TryGetValue(key, out var value) || value.IsBsonNull)
+            throw new FormatException($"Thieu field bat buoc '{key}'.");
+        if (!value.IsString)
+            throw new FormatException($"Field '{key}' phai la string.");
+
+        var text = value.AsString.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new FormatException($"Field '{key}' khong duoc de trong.");
+        return text;
+    }
+
+    private static string OptionalStringStrict(BsonDocument doc, string key)
+    {
+        if (!doc.TryGetValue(key, out var value) || value.IsBsonNull) return string.Empty;
+        if (!value.IsString)
+            throw new FormatException($"Field '{key}' phai la string.");
+        return value.AsString.Trim();
+    }
+
+    private static bool OptionalBoolStrict(BsonDocument doc, string key)
+    {
+        if (!doc.TryGetValue(key, out var value) || value.IsBsonNull) return false;
+        if (!value.IsBoolean)
+            throw new FormatException($"Field '{key}' phai la boolean.");
+        return value.AsBoolean;
+    }
+
+    private static double DoubleOr(BsonDocument? doc, string key, double fallback = 0)
+    {
+        if (doc == null) return fallback;
+        var value = doc.GetValue(key, BsonNull.Value);
+        if (value == BsonNull.Value || value.IsBsonNull) return fallback;
+        if (value.IsDouble) return value.AsDouble;
+        if (value.IsInt32) return value.AsInt32;
+        if (value.IsInt64) return value.AsInt64;
+        if (value.IsDecimal128) return (double)value.AsDecimal128;
+        throw new FormatException($"Field '{key}' khong phai so hop le.");
+    }
+
+    private static IEnumerable<string> ReadStringArrayStrict(BsonDocument doc, string key)
+    {
+        var array = doc.ArrayOr(key);
+        if (array == null) yield break;
+
+        foreach (var value in array)
+        {
+            if (value.IsBsonNull) continue;
+            if (!value.IsString)
+            {
+                throw new FormatException($"Field '{key}' phai la mang string.");
+            }
+
+            var text = value.AsString.Trim();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                yield return text;
+            }
+        }
+    }
+
     private static void ApplyAuditMetadata(FieldSet item, BsonDocument itemBson)
     {
         item.CreateDate = itemBson.TimestampOr("CreateDate") ?? item.CreateDate;
@@ -66,23 +128,71 @@ public class FieldSetService(ILogger<FieldSetService> logger)
 
     private static DynamicField ToDynamicField(BsonDocument itemBson)
     {
-        var item = BsonSerializer.Deserialize<DynamicField>(itemBson);
-        var validationBson = itemBson.GetValue("Validation", BsonNull.Value);
-        if (validationBson.IsBsonDocument)
+        var item = new DynamicField
         {
-            item.Validation = BsonSerializer.Deserialize<FieldValidation>(validationBson.AsBsonDocument);
-            item.Validation.Options.Clear();
+            Id = itemBson.IdString(),
+            Key = RequiredString(itemBson, "Key"),
+            Label = RequiredString(itemBson, "Label"),
+            Type = RequiredString(itemBson, "Type"),
+            Required = OptionalBoolStrict(itemBson, "Required"),
+            Validation = new FieldValidation(),
+        };
 
-            var optionsBson = validationBson.AsBsonDocument.GetValue("Options", BsonNull.Value);
-            if (optionsBson.IsBsonArray)
+        var cnIds = itemBson.ArrayOr("CnIds");
+        if (cnIds != null)
+        {
+            item.CnIds.AddRange(cnIds
+                .Where(value => !value.IsBsonNull)
+                .Select(value =>
+                {
+                    if (!value.IsString) throw new FormatException("Field 'CnIds' phai la mang string.");
+                    return value.AsString.Trim();
+                })
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+        }
+
+        var validationBson = itemBson.DocOr("Validation");
+        if (validationBson != null)
+        {
+            item.Validation.MinLength = validationBson.IntOr("MinLength");
+            item.Validation.MaxLength = validationBson.IntOr("MaxLength");
+            item.Validation.Pattern = OptionalStringStrict(validationBson, "Pattern");
+            item.Validation.Min = DoubleOr(validationBson, "Min");
+            item.Validation.Max = DoubleOr(validationBson, "Max");
+            item.Validation.DataSource = OptionalStringStrict(validationBson, "DataSource");
+            item.Validation.ApiUrl = OptionalStringStrict(validationBson, "ApiUrl");
+            item.Validation.DisplayType = OptionalStringStrict(validationBson, "DisplayType");
+
+            var optionsBson = validationBson.ArrayOr("Options");
+            if (optionsBson != null)
             {
                 item.Validation.Options.AddRange(
-                    optionsBson.AsBsonArray
+                    optionsBson
                         .Where(value => !value.IsBsonNull)
-                        .Select(value => value.ToString()));
+                        .Select(value =>
+                        {
+                            if (!value.IsString) throw new FormatException("Field 'Validation.Options' phai la mang string.");
+                            return value.AsString.Trim();
+                        }));
             }
         }
 
+        return item;
+    }
+
+    private static FieldSet ToFieldSetStrict(BsonDocument fieldSetDoc)
+    {
+        var item = new FieldSet
+        {
+            Id = fieldSetDoc.IdString(),
+            Name = RequiredString(fieldSetDoc, "Name"),
+            Icon = OptionalStringStrict(fieldSetDoc, "Icon"),
+            Color = OptionalStringStrict(fieldSetDoc, "Color"),
+            Desc = OptionalStringStrict(fieldSetDoc, "Desc"),
+        };
+
+        item.FieldIds.AddRange(ReadStringArrayStrict(fieldSetDoc, "FieldIds"));
+        ApplyAuditMetadata(item, fieldSetDoc);
         return item;
     }
 
@@ -141,13 +251,30 @@ public class FieldSetService(ILogger<FieldSetService> logger)
 
                 var item = new FieldSetDetail
                 {
-                    FieldSet = BsonSerializer.Deserialize<FieldSet>(fieldSetDoc)
+                    FieldSet = ToFieldSetStrict(fieldSetDoc)
                 };
-                ApplyAuditMetadata(item.FieldSet, fieldSetDoc);
 
                 foreach (var fieldDoc in fieldDocs.OfType<BsonDocument>())
                 {
                     item.Fields.Add(ToDynamicField(fieldDoc));
+                }
+
+                var hydratedFieldIdSet = item.Fields
+                    .Select(field => field.Id?.Trim())
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .ToHashSet(StringComparer.Ordinal);
+
+                var missingFieldIds = item.FieldSet.FieldIds
+                    .Where(fieldId => !string.IsNullOrWhiteSpace(fieldId))
+                    .Select(fieldId => fieldId.Trim())
+                    .Where(fieldId => !hydratedFieldIdSet.Contains(fieldId))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                if (missingFieldIds.Count > 0)
+                {
+                    throw new FormatException(
+                        $"FieldSet '{item.FieldSet.Id}' co FieldIds khong map duoc _id DynamicField: {string.Join(", ", missingFieldIds.Take(10))}");
                 }
 
                 response.Items.Add(item);
@@ -198,6 +325,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 item.CreateDate = ProtobufTimestampConverter.GetNowTimestamp();
 
                 var bsonDoc = item.ToBsonDocument();
+                bsonDoc.Remove("Id");
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyCreateAudit(bsonDoc, context, item.CreateDate);
                 ApplyAuditMetadata(item, bsonDoc);
@@ -225,6 +353,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 item.CreateDate = existingDoc.TimestampOr("CreateDate") ?? item.CreateDate;
 
                 var bsonDoc = item.ToBsonDocument();
+                bsonDoc.Remove("Id");
                 bsonDoc["_id"] = item.Id;
                 ServiceMutationPolicy.ApplyModifyAudit(bsonDoc, existingDoc, context, item.ModifyDate);
                 ApplyAuditMetadata(item, bsonDoc);

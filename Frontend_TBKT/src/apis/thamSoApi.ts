@@ -323,6 +323,16 @@ function protoSetDetailToLocal(item: FieldSetDetailProto): LocalFieldSet {
     };
 }
 
+function assertHydratedFieldSets(fieldSets: LocalFieldSet[], context: string): void {
+    const invalid = fieldSets.filter((fs) => (fs.fieldIds?.length ?? 0) > 0 && (fs.fields?.length ?? 0) === 0);
+    if (invalid.length === 0) return;
+    const sample = invalid.slice(0, 10).map((fs) => `${fs.name || fs.id}(${fs.id})`).join(', ');
+    throw new Error(
+        `[${context}] FieldSet thiếu hydrate fields từ backend: ${sample}. ` +
+        'Yêu cầu backend trả FieldSetDetail.Fields đầy đủ, không fallback client.',
+    );
+}
+
 function protoFormToLocal(fc: FormConfigProto): LocalFormConfig {
     return {
         id: fc.id,
@@ -526,7 +536,9 @@ const thamSoApi = {
             const request = create(GetListFieldSetsRequestSchema, {});
             const res = await thamSoClient.getListFieldSets(request);
             console.log('[thamSoApi] getListFieldSets:', res.items.length);
-            return res.items.map(protoSetDetailToLocal);
+            const mapped = res.items.map(protoSetDetailToLocal);
+            assertHydratedFieldSets(mapped, 'getListFieldSets');
+            return mapped;
         } catch (err) {
             console.error('[thamSoApi] getListFieldSets error:', err);
             throw err;
@@ -543,7 +555,11 @@ const thamSoApi = {
             const res = await thamSoClient.saveFieldSet(request);
             if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu bộ dữ liệu thất bại');
             console.log('[thamSoApi] saveFieldSet:', res.item.id);
-            return protoSetToLocal(res.item);
+            const hydrated = (await this.getListFieldSets()).find((set) => set.id === res.item!.id);
+            if (!hydrated) {
+                throw new Error(`Khong tim thay FieldSet da luu: ${res.item.id}`);
+            }
+            return hydrated;
         } catch (err) {
             console.error('[thamSoApi] saveFieldSet error:', err);
             throw err;
@@ -605,9 +621,12 @@ const thamSoApi = {
                 throw new Error(detail || `Khong the tai schema runtime cho key "${key}"`);
             }
 
+            const fieldSets = (res.fieldSets ?? []).map(protoSetDetailToLocal);
+            assertHydratedFieldSets(fieldSets, `getRuntimeFormSchema:${key}`);
+
             return {
                 formConfig: res.item ? protoFormToLocal(res.item) : null,
-                fieldSets: (res.fieldSets ?? []).map(protoSetDetailToLocal),
+                fieldSets,
                 fields: (res.fields ?? []).map(protoFieldToLocal),
             };
         } catch (err) {

@@ -28,7 +28,7 @@ import FieldSetEditorDialog from './FieldSetEditorDialog';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SET_ROW_HEIGHT = 60;
+const SET_ROW_HEIGHT = 86;
 const FIELD_ROW_HEIGHT = 44;
 const OVERSCAN = 12;
 
@@ -55,6 +55,11 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
 
     const activeSet = fieldSets.find((s) => s.id === activeSetId) ?? null;
 
+    const resolveFieldsForSet = useMemo(
+        () => (fieldSet: FieldSet): DynamicField[] => fieldSet.fields ?? [],
+        [],
+    );
+
     const filteredSets = useMemo(
         () => {
             const lower = search.toLowerCase().trim();
@@ -67,14 +72,12 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
     // Resolve fields for active set
     const activeFields = useMemo(() => {
         if (!activeSet) return [];
-        const resolved = activeSet.fieldIds
-            .map((fid) => fields.find((f) => f.id === fid))
-            .filter((f): f is DynamicField => Boolean(f));
+        const resolved = resolveFieldsForSet(activeSet);
 
         const lower = fieldSearch.toLowerCase().trim();
         if (!lower) return resolved;
         return resolved.filter((f) => f.label.toLowerCase().includes(lower) || f.key.toLowerCase().includes(lower));
-    }, [activeSet, fields, fieldSearch]);
+    }, [activeSet, fieldSearch, resolveFieldsForSet]);
 
     // ── Virtualizers ──
 
@@ -96,9 +99,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
 
     const attachFields = (fieldSet: FieldSet): FieldSet => ({
         ...fieldSet,
-        fields: fieldSet.fieldIds
-            .map((fieldId) => fields.find((field) => field.id === fieldId))
-            .filter((field): field is DynamicField => Boolean(field)),
+            fields: resolveFieldsForSet(fieldSet),
     });
 
     // ── Handlers ──
@@ -227,8 +228,27 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Typography variant="body2" fontWeight={700} noWrap>{s.name || '(chưa đặt tên)'}</Typography>
                                             <Typography variant="caption" color="text.secondary" noWrap>{s.desc}</Typography>
+                                            <Stack direction="row" spacing={0.5} mt={0.5} flexWrap="wrap" useFlexGap>
+                                                {resolveFieldsForSet(s).slice(0, 3).map((field) => (
+                                                    <Chip
+                                                        key={`${s.id}-${field.id}`}
+                                                        size="small"
+                                                        label={field.label}
+                                                        variant="outlined"
+                                                        sx={{ fontSize: 10, height: 18 }}
+                                                    />
+                                                ))}
+                                                {resolveFieldsForSet(s).length > 3 && (
+                                                    <Chip
+                                                        size="small"
+                                                        label={`+${resolveFieldsForSet(s).length - 3}`}
+                                                        variant="outlined"
+                                                        sx={{ fontSize: 10, height: 18 }}
+                                                    />
+                                                )}
+                                            </Stack>
                                         </Box>
-                                        <Chip size="small" label={s.fieldIds.length}
+                                        <Chip size="small" label={Math.max(s.fields?.length ?? 0, s.fieldIds?.length ?? 0)}
                                             sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: `${s.color}22`, color: s.color }} />
                                     </Box>
                                 </Box>
@@ -278,9 +298,22 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
 
                         <Stack direction="row" spacing={1} mt={1} alignItems="center">
                             <Chip size="small" icon={<LibraryBooksIcon sx={{ fontSize: 14 }} />}
-                                label={`${activeSet.fieldIds.length} trường`} color="primary" variant="outlined" />
+                                label={`${Math.max(activeSet.fields?.length ?? 0, activeSet.fieldIds?.length ?? 0)} trường`} color="primary" variant="outlined" />
                             <Box sx={{ width: 14, height: 14, borderRadius: 1.5, bgcolor: activeSet.color, border: '2px solid', borderColor: 'background.paper', boxShadow: `0 0 0 1px ${activeSet.color}` }} />
                         </Stack>
+                        {activeFields.length > 0 && (
+                            <Stack direction="row" spacing={0.5} mt={1.25} flexWrap="wrap" useFlexGap>
+                                {activeFields.map((field) => (
+                                    <Chip
+                                        key={`active-${field.id}`}
+                                        size="small"
+                                        label={`${field.label} (${field.key})`}
+                                        variant="outlined"
+                                        sx={{ fontSize: 10, height: 20 }}
+                                    />
+                                ))}
+                            </Stack>
+                        )}
                     </Box>
 
                     {/* Field list toolbar */}

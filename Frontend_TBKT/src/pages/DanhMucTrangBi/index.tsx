@@ -18,7 +18,6 @@ const TREE_PANEL_WIDTH = 320;
 
 const DanhMucTrangBi: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
-    const { loaded: thamSoLoaded } = useSelector((s: RootState) => s.thamSoReducer);
     const { visibleCNs, loaded: permissionLoaded } = useMyPermissions();
 
     const [cnOptions, setCnOptions] = useState<TrangBiSpecializationOption[]>([]);
@@ -34,12 +33,11 @@ const DanhMucTrangBi: React.FC = () => {
         [cnOptions, visibleCNs],
     );
 
-    // Load ThamSo schema (FormConfigs) if not yet loaded
+    // Load ThamSo schema whenever this page mounts so runtime fieldset/field links
+    // seeded from DB are reflected immediately (avoid stale Redux snapshot).
     useEffect(() => {
-        if (!thamSoLoaded) {
-            void dispatch(fetchThamSoSchema());
-        }
-    }, [thamSoLoaded, dispatch]);
+        void dispatch(fetchThamSoSchema());
+    }, [dispatch]);
 
     // Load CN options once
     useEffect(() => {
