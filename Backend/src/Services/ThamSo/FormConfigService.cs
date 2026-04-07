@@ -16,7 +16,6 @@ public class FormConfigService(ILogger<FormConfigService> logger)
 {
     private const string PermissionCode = "thamso_formconfig";
     private static readonly Regex MultiDashRegex = new("-{2,}", RegexOptions.Compiled);
-    private const string MetaSetPrefix = "__meta:";
 
     private static void ApplyAuditMetadata(FormConfig item, BsonDocument itemBson)
     {
@@ -50,13 +49,49 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             .SelectMany(tab => tab.FieldSetIds)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id.Trim())
-            .Where(id => !id.StartsWith(MetaSetPrefix, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-    private static bool IsMetaSetId(string id) =>
-        !string.IsNullOrWhiteSpace(id) &&
-        id.Trim().StartsWith(MetaSetPrefix, StringComparison.OrdinalIgnoreCase);
+    private static string NormalizeRequiredText(string? value, string fieldName)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            throw new FormatException($"Field '{fieldName}' khong duoc de trong.");
+        return normalized;
+    }
+
+    private static void ValidateAndNormalizeTabsStrict(FormConfig item)
+    {
+        if (item.Tabs.Count == 0)
+            throw new FormatException("Form phai co it nhat mot tab.");
+
+        var usedTabIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var tab in item.Tabs)
+        {
+            tab.Id = NormalizeRequiredText(tab.Id, "Tabs._id");
+            tab.Label = NormalizeRequiredText(tab.Label, "Tabs.Label");
+
+            if (!usedTabIds.Add(tab.Id))
+                throw new FormatException($"Tabs._id bi trung: '{tab.Id}'.");
+
+            var normalizedSetIds = tab.FieldSetIds
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (normalizedSetIds.Any(id => id.StartsWith("__meta:", StringComparison.OrdinalIgnoreCase)))
+                throw new FormatException(
+                    $"Tabs.FieldSetIds trong tab '{tab.Id}' khong duoc chua token __meta:*.");
+
+            if (normalizedSetIds.Any(id => string.IsNullOrWhiteSpace(id)))
+                throw new FormatException($"Tabs.FieldSetIds khong hop le trong tab '{tab.Id}'.");
+
+            tab.FieldSetIds.Clear();
+            tab.FieldSetIds.AddRange(normalizedSetIds);
+        }
+    }
 
     private static string ReadRequiredString(BsonDocument doc, string key)
     {
@@ -120,7 +155,13 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 Id = ReadRequiredString(tabDoc, "_id"),
                 Label = ReadRequiredString(tabDoc, "Label"),
             };
-            tab.FieldSetIds.AddRange(ReadStringArrayStrict(tabDoc, "FieldSetIds"));
+            var setIds = ReadStringArrayStrict(tabDoc, "FieldSetIds");
+            if (setIds.Any(id => id.StartsWith("__meta:", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new FormatException(
+                    $"FormTab '{tab.Id}' co token __meta:* trong FieldSetIds. Hay migrate du lieu de chi giu FieldSet _id.");
+            }
+            tab.FieldSetIds.AddRange(setIds);
             tabs.Add(tab);
         }
 
@@ -217,6 +258,7 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             Label = ReadRequiredString(itemBson, "Label"),
             Type = ReadRequiredString(itemBson, "Type"),
             Required = itemBson.BoolOr("Required"),
+            Disabled = itemBson.BoolOr("Disabled"),
             Validation = new FieldValidation(),
         };
 
@@ -282,6 +324,22 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 $"FieldSet '{item.FieldSet.Id}' co FieldIds khong map duoc _id DynamicField: {string.Join(", ", missingFieldIds.Take(10))}");
         }
 
+        return item;
+    }
+
+    private static FieldSet ToFieldSetStrict(BsonDocument fieldSetDoc)
+    {
+        var item = new FieldSet
+        {
+            Id = fieldSetDoc.IdString(),
+            Name = ReadRequiredString(fieldSetDoc, "Name"),
+            Icon = ReadOptionalStringStrict(fieldSetDoc, "Icon"),
+            Color = ReadOptionalStringStrict(fieldSetDoc, "Color"),
+            Desc = ReadOptionalStringStrict(fieldSetDoc, "Desc"),
+        };
+
+        item.FieldIds.AddRange(ReadStringArrayStrict(fieldSetDoc, "FieldIds"));
+        ApplyAuditMetadata(item, fieldSetDoc);
         return item;
     }
 
@@ -373,7 +431,6 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             var referencedFieldSetIds = formConfig.Tabs
                 .SelectMany(tab => tab.FieldSetIds)
                 .Where(id => !string.IsNullOrWhiteSpace(id))
-                .Where(id => !IsMetaSetId(id))
                 .Select(id => id.Trim())
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
@@ -443,14 +500,33 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 fieldLookup[field.Id] = field;
             }
 
+            var hydratedFieldIdSet = fieldDocs
+                .Select(doc => doc.IdString())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.Ordinal);
+
             var fieldSetLookup = new Dictionary<string, FieldSetDetail>(StringComparer.Ordinal);
             foreach (var fieldSetDoc in fieldSetDocs)
             {
-                var detail = ToFieldSetDetail(fieldSetDoc);
-                detail.Fields.Clear();
+                var detail = new FieldSetDetail
+                {
+                    FieldSet = ToFieldSetStrict(fieldSetDoc),
+                };
+
                 var fieldIds = detail.FieldSet.FieldIds
                     .Where(id => !string.IsNullOrWhiteSpace(id))
                     .ToList();
+
+                var missingFieldIds = fieldIds
+                    .Where(fieldId => !hydratedFieldIdSet.Contains(fieldId))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                if (missingFieldIds.Count > 0)
+                {
+                    throw new FormatException(
+                        $"FieldSet '{detail.FieldSet.Id}' co FieldIds khong map duoc _id DynamicField: {string.Join(", ", missingFieldIds.Take(10))}");
+                }
 
                 foreach (var fieldId in fieldIds)
                     if (fieldLookup.TryGetValue(fieldId, out var field))
@@ -464,11 +540,6 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 tab.FieldSets.Clear();
                 foreach (var fieldSetId in tab.FieldSetIds)
                 {
-                    if (IsMetaSetId(fieldSetId))
-                    {
-                        continue;
-                    }
-
                     if (fieldSetLookup.TryGetValue(fieldSetId, out var detail))
                     {
                         tab.FieldSets.Add(detail);
@@ -589,11 +660,6 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 {
                     foreach (var fieldSetId in tab.FieldSetIds)
                     {
-                        if (IsMetaSetId(fieldSetId))
-                        {
-                            continue;
-                        }
-
                         if (!joinedFieldSetDocs.TryGetValue(fieldSetId, out var fieldSetDoc))
                         {
                             throw new FormatException(
@@ -636,6 +702,10 @@ public class FormConfigService(ILogger<FormConfigService> logger)
                 response.Meta = ThamSoResponseFactory.Fail("Du lieu khong hop le");
                 return response;
             }
+
+            item.Name = NormalizeRequiredText(item.Name, "Name");
+            item.Desc = (item.Desc ?? string.Empty).Trim();
+            ValidateAndNormalizeTabsStrict(item);
 
             item.Key = NormalizeFormKey(string.IsNullOrWhiteSpace(item.Key) ? item.Name : item.Key);
             if (string.IsNullOrWhiteSpace(item.Key))

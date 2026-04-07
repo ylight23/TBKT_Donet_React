@@ -18,6 +18,7 @@ const IDS = {
     categoryO101: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0105',
     categoryO102: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0106',
     categoryI101: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0107',
+    categoryI102: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0108',
   },
   fieldSets: {
     common: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0201',
@@ -26,6 +27,7 @@ const IDS = {
     categoryO101: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0204',
     categoryO102: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0205',
     categoryI101: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0206',
+    categoryI102: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0207',
   },
   fields: {
     maTrangBi: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1001',
@@ -62,6 +64,9 @@ const IDS = {
     i101BanKinhQuet: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1401',
     i101SoKenhBamBat: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1402',
     i101CheDoCanhGioi: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1403',
+    i102TamBat: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1404',
+    i102DoChinhXac: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1405',
+    i102KenhDanBan: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1406',
   },
 };
 
@@ -75,6 +80,7 @@ const LEGACY = {
     'tab-trang-bi-nhom-1-category-o101',
     'tab-trang-bi-nhom-1-category-o102',
     'tab-trang-bi-nhom-1-category-i101',
+    'tab-trang-bi-nhom-1-category-i102',
   ],
   fieldSetIds: [
     'fieldset-trang-bi-nhom-1-runtime',
@@ -84,6 +90,7 @@ const LEGACY = {
     'fieldset-trang-bi-nhom-1-category-o101',
     'fieldset-trang-bi-nhom-1-category-o102',
     'fieldset-trang-bi-nhom-1-category-i101',
+    'fieldset-trang-bi-nhom-1-category-i102',
   ],
   fieldIds: [
     'field-tb1-ma-trang-bi',
@@ -120,6 +127,9 @@ const LEGACY = {
     'field-tb1-category-i101-ban-kinh-quet',
     'field-tb1-category-i101-so-kenh-bam',
     'field-tb1-category-i101-che-do-canh-gioi',
+    'field-tb1-category-i102-tam-bat',
+    'field-tb1-category-i102-do-chinh-xac',
+    'field-tb1-category-i102-kenh-dan-ban',
   ],
 };
 
@@ -127,6 +137,7 @@ const CATEGORY_CODES = {
   O101: 'O.1.01.00.00.00.000',
   O102: 'O.1.02.00.00.00.000',
   I101: 'I.1.01.00.00.00.000',
+  I102: 'I.1.02.00.00.00.000',
 };
 
 const defaultValidation = {
@@ -215,22 +226,13 @@ function upsertFieldSet(fieldSet) {
   );
 }
 
-function makeSyncLeaf(fieldSetId, tabType, parentId, syncCategory) {
-  const setIds = [fieldSetId];
-  if (tabType && tabType !== 'normal') setIds.push(`__meta:type:${tabType}`);
-  if (parentId) setIds.push(`__meta:parent:${parentId}`);
-  if (syncCategory) setIds.push(`__meta:category:${syncCategory}`);
-  setIds.push('__meta:source:root_equipment');
-  return setIds;
-}
-
 const commonFields = [
-  { id: IDS.fields.maTrangBi, key: 'Id', label: 'Ma trang bi', type: 'text', required: true },
+  { id: IDS.fields.maTrangBi, key: 'MaTrangBi', label: 'Ma trang bi', type: 'text', required: true },
   { id: IDS.fields.tenTrangBi, key: 'Ten', label: 'Ten trang bi', type: 'text', required: true },
   {
     id: IDS.fields.maDanhMuc,
-    key: 'MaDanhMucTrangBi',
-    label: 'Ma danh muc trang bi',
+    key: 'ma_dinh_danh',
+    label: 'Ma dinh danh',
     type: 'select',
     required: true,
     validation: { Options: [CATEGORY_CODES.O101, CATEGORY_CODES.O102, CATEGORY_CODES.I101] },
@@ -343,6 +345,12 @@ const categoryI101Fields = [
   },
 ];
 
+const categoryI102Fields = [
+  { id: IDS.fields.i102TamBat, key: 'I102TamBat', label: 'Tam bat', type: 'text', required: false, cnIds: ['I'] },
+  { id: IDS.fields.i102DoChinhXac, key: 'I102DoChinhXac', label: 'Do chinh xac', type: 'text', required: false, cnIds: ['I'] },
+  { id: IDS.fields.i102KenhDanBan, key: 'I102KenhDanBan', label: 'So kenh dan ban', type: 'number', required: false, cnIds: ['I'] },
+];
+
 const allFields = [
   ...commonFields,
   ...thongTinFields,
@@ -350,6 +358,7 @@ const allFields = [
   ...categoryO101Fields,
   ...categoryO102Fields,
   ...categoryI101Fields,
+  ...categoryI102Fields,
 ];
 
 const fieldSets = [
@@ -401,6 +410,14 @@ const fieldSets = [
     desc: 'Bo fieldset mau cho danh muc I.1.01.00.00.00.000',
     fieldIds: categoryI101Fields.map((field) => field.id),
   },
+  {
+    id: IDS.fieldSets.categoryI102,
+    name: 'Chi tiet danh muc I.1.02',
+    icon: 'TrackChanges',
+    color: '#6d28d9',
+    desc: 'Bo fieldset mau cho danh muc I.1.02.00.00.00.000',
+    fieldIds: categoryI102Fields.map((field) => field.id),
+  },
 ];
 
 cleanupLegacyDocs();
@@ -422,33 +439,8 @@ formConfigCol.updateOne(
         },
         {
           _id: IDS.tabs.thongTin,
-          Label: 'Thong tin',
-          FieldSetIds: [IDS.fieldSets.thongTin],
-        },
-        {
-          _id: IDS.tabs.rada,
-          Label: 'Ra da',
-          FieldSetIds: [IDS.fieldSets.rada],
-        },
-        {
-          _id: IDS.tabs.categoryGroup,
-          Label: 'Chi tiet theo danh muc',
-          FieldSetIds: ['__meta:type:sync-group'],
-        },
-        {
-          _id: IDS.tabs.categoryO101,
-          Label: 'Danh muc O.1.01',
-          FieldSetIds: makeSyncLeaf(IDS.fieldSets.categoryO101, 'sync-leaf', IDS.tabs.categoryGroup, CATEGORY_CODES.O101),
-        },
-        {
-          _id: IDS.tabs.categoryO102,
-          Label: 'Danh muc O.1.02',
-          FieldSetIds: makeSyncLeaf(IDS.fieldSets.categoryO102, 'sync-leaf', IDS.tabs.categoryGroup, CATEGORY_CODES.O102),
-        },
-        {
-          _id: IDS.tabs.categoryI101,
-          Label: 'Danh muc I.1.01',
-          FieldSetIds: makeSyncLeaf(IDS.fieldSets.categoryI101, 'sync-leaf', IDS.tabs.categoryGroup, CATEGORY_CODES.I101),
+          Label: 'Thong so ky thuat',
+          FieldSetIds: [IDS.fieldSets.thongTin, IDS.fieldSets.rada],
         },
       ],
       Delete: false,

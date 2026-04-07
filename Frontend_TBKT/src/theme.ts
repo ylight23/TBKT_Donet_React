@@ -242,8 +242,8 @@ export const dashboardTokensLight = {
   tableHeaderBg: '#43A047',
   tableHeaderGradient: gradientGreen.lightHeader,
   tableHeaderText: '#FFFFFF',
-  tableRowAlt: '#F1F8F1',
-  tableRowHover: 'rgba(46,125,50,0.08)',
+  tableRowAlt: '#EEF7FF',
+  tableRowHover: '#DDEEFF',
   divider: '#C8E6C9',
   activeMenu: militaryGold[500],
   activeMenuBg: '#C9A84C18',
@@ -274,8 +274,8 @@ export const dashboardTokensDark = {
   tableHeaderBg: '#1B5E20',
   tableHeaderGradient: gradientGreen.darkHeader,
   tableHeaderText: '#FFFFFF',
-  tableRowAlt: '#081009',
-  tableRowHover: 'rgba(76,175,80,0.12)',
+  tableRowAlt: 'rgba(144,202,249,0.12)',
+  tableRowHover: 'rgba(144,202,249,0.18)',
   divider: '#163B19',
   activeMenu: militaryGold[400],
   activeMenuBg: '#C9A84C20',
@@ -789,6 +789,13 @@ export const themeSetting = (mode: PaletteMode) => {
               lineHeight: '1.4 !important',
               padding: '8px !important',
               flexWrap: 'wrap',
+              backgroundColor: dt.contentBg,
+            },
+            '& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell': {
+              backgroundColor: dt.tableRowAlt,
+            },
+            '& .MuiDataGrid-row:hover .MuiDataGrid-cell': {
+              backgroundColor: `${dt.tableRowHover} !important`,
             },
             // Force center alignment for all text-align classes MUI uses
             '& .MuiDataGrid-cell--textLeft': {
@@ -813,7 +820,7 @@ export const themeSetting = (mode: PaletteMode) => {
             '& .MuiDataGrid-cell[data-field="actions"]': {
               position: 'sticky !important',
               right: '0 !important',
-              backgroundColor: isDark ? '#0C1A0E !important' : '#FFFFFF !important',
+              backgroundColor: `${dt.contentBg} !important`,
               zIndex: '100 !important' as any, // Extremely high to stay above all cells
               boxShadow: '-4px 0 10px rgba(0,0,0,0.15)',
               borderLeft: `2px solid ${dt.divider} !important`,
@@ -821,22 +828,23 @@ export const themeSetting = (mode: PaletteMode) => {
               justifyContent: 'center !important',
               alignItems: 'center',
             },
+            '& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell[data-field="actions"]': {
+              backgroundColor: `${dt.tableRowAlt} !important`,
+            },
             '& .MuiDataGrid-row:hover .MuiDataGrid-cell[data-field="actions"]': {
-              backgroundColor: isDark ? 'rgba(76,175,80,0.15)' : 'rgba(46,125,50,0.12)', // Match dt.tableRowHover
+              backgroundColor: `${dt.tableRowHover} !important`,
             },
             '& .MuiDataGrid-row--lastVisible .MuiDataGrid-cell[data-field="actions"]': {
               borderBottom: `1px solid ${dt.divider}33`,
             },
             // Row
             '& .MuiDataGrid-row': {
+              backgroundColor: dt.contentBg,
               transition: 'background-color 0.2s',
               overflow: 'visible !important',
               width: 'max-content', // Encourage row to span full width
               minWidth: '100%',
               display: 'flex', // Ensure row is flex for its children
-              '&:hover': {
-                backgroundColor: dt.tableRowHover,
-              },
             },
             // Critical: the scroll container itself must allow sticky
             '& .MuiDataGrid-virtualScroller': {

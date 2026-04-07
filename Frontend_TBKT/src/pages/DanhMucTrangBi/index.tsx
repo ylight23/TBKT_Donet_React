@@ -5,11 +5,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import catalogApi, { type CatalogTree, type TrangBiSpecializationOption } from '../../apis/catalogApi';
+import danhMucTrangBiApi, { type DanhMucTrangBiTree, type TrangBiSpecializationOption } from '../../apis/danhMucTrangBiApi';
 import { fetchThamSoSchema } from '../../store/reducer/thamSo';
 import type { RootState, AppDispatch } from '../../store';
 import CnTabBar from './CnTabBar';
-import CatalogTreePanel from './CatalogTreePanel';
+import DanhMucTrangBiTreePanel from './DanhMucTrangBiTreePanel';
 import TrangBiFormPanel from './TrangBiFormPanel';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
 import Alert from '@mui/material/Alert';
@@ -23,7 +23,7 @@ const DanhMucTrangBi: React.FC = () => {
     const [cnOptions, setCnOptions] = useState<TrangBiSpecializationOption[]>([]);
     const [cnLoading, setCnLoading] = useState(true);
     const [selectedCn, setSelectedCn] = useState('');
-    const [selectedNode, setSelectedNode] = useState<CatalogTree | null>(null);
+    const [selectedNode, setSelectedNode] = useState<DanhMucTrangBiTree | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
     const allowedCnOptions = React.useMemo(
@@ -45,7 +45,7 @@ const DanhMucTrangBi: React.FC = () => {
         const load = async () => {
             setCnLoading(true);
             try {
-                const opts = await catalogApi.getTrangBiSpecializationOptions();
+                const opts = await danhMucTrangBiApi.getTrangBiSpecializationOptions();
                 if (!cancelled) {
                     setCnOptions(opts);
                     if (opts.length > 0 && !selectedCn) {
@@ -143,7 +143,7 @@ const DanhMucTrangBi: React.FC = () => {
                             borderLeft: 0,
                         }}
                     >
-                        <CatalogTreePanel
+                        <DanhMucTrangBiTreePanel
                             key={`${selectedCn}-${refreshKey}`}
                             cn={selectedCn}
                             selectedId={selectedNode?.id ?? ''}

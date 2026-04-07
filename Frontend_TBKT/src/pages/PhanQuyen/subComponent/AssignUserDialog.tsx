@@ -18,6 +18,7 @@ import type { ScopeType, PhamViChuyenNganhConfig } from '../../../types/permissi
 import { SCOPE_TYPES, ALL_SCOPE_TYPES, scopeLookup } from '../data/permissionData';
 import employeeApi from '../../../apis/employeeApi';
 import type { RootState } from '../../../store';
+import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 
 interface EmployeeOption {
     id: string;
@@ -392,9 +393,10 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                                             borderRadius: 1.5,
                                                             cursor: 'pointer',
                                                             borderBottom: `1px solid ${theme.palette.divider}`,
+                                                            bgcolor: getStripedRowBackground(theme, virtualItem.index),
                                                             transition: 'all 0.1s ease',
                                                             '&:hover': {
-                                                                bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                                                bgcolor: getStripedHoverBackground(theme),
                                                             },
                                                         }}
                                                     >

@@ -27,8 +27,19 @@ import { CountryRegionData } from 'react-country-region-selector';
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import { FieldValidation } from '../types';
 import OfficeDictionary from '../../Office/subComponent/OfficeDictionary';
+import DanhMucTrangBiDictionary, { preloadDanhMucTrangBiTree } from '../../DanhMucTrangBi/DanhMucTrangBiDictionary';
+import danhMucTrangBiApi from '../../../apis/danhMucTrangBiApi';
 import officeApi from '../../../apis/officeApi';
+import {
+    isDanhMucTrangBiTreeOptionKey,
+    isMaDinhDanhTrangBiListOptionKey,
+    isMaDinhDanhTrangBiOptionKey,
+    isOfficeOptionKey,
+    resolveDynamicOptions,
+    type DynamicOptionItem,
+} from '../../../apis/dynamicOptionApi';
 import { serializeProtoObject } from '../../../utils/serializeProto';
+import VirtualOptionPicker from './VirtualOptionPicker';
 
 interface FieldInputProps {
     field: DynamicField;
@@ -79,20 +90,82 @@ const parseMultiValue = (rawValue: string | undefined): string[] => {
 };
 
 const getFieldLabel = (field: DynamicField): string => field.label;
+const toManualOptionItems = (options: string[] | undefined): DynamicOptionItem[] =>
+    (options ?? []).map((option) => ({
+        value: option,
+        label: option,
+    }));
+const getValidationHint = (field: DynamicField): string => {
+    if (field.type === 'number') {
+        const min = field.validation?.min;
+        const max = field.validation?.max;
+        if (typeof min === 'number' && typeof max === 'number') {
+            return `Nhập giá trị từ ${min} đến ${max}.`;
+        }
+        if (typeof min === 'number') {
+            return `Nhập giá trị lớn hơn hoặc bằng ${min}.`;
+        }
+        if (typeof max === 'number') {
+            return `Nhập giá trị nhỏ hơn hoặc bằng ${max}.`;
+        }
+    }
+
+    if (field.type === 'text' || field.type === 'textarea') {
+        const minLength = field.validation?.minLength;
+        const maxLength = field.validation?.maxLength;
+        if (typeof minLength === 'number' && typeof maxLength === 'number') {
+            return `Nhập từ ${minLength} đến ${maxLength} ký tự.`;
+        }
+        if (typeof minLength === 'number') {
+            return `Nhập tối thiểu ${minLength} ký tự.`;
+        }
+        if (typeof maxLength === 'number') {
+            return `Nhập tối đa ${maxLength} ký tự.`;
+        }
+    }
+
+    return ' ';
+};
 
 const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabel = false, onChange }) => {
     const currentValue = value ?? '';
-    const [apiOptions, setApiOptions] = useState<any[]>([]);
+    const isFieldDisabled = Boolean(field.disabled);
+    const effectiveHelperText = error || getValidationHint(field);
+    const [apiOptions, setApiOptions] = useState<DynamicOptionItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [displayLabel, setDisplayLabel] = useState(currentValue);
     const validation = field.validation as FieldValidation;
-    const isTreeSelect = field.type === 'select' && validation.displayType === 'tree';
+    const isOfficeApiSelect = field.type === 'select'
+        && validation.dataSource === 'api'
+        && isOfficeOptionKey(validation.apiUrl);
+    const isDanhMucTreeSelect = field.type === 'select'
+        && validation.dataSource === 'api'
+        && isDanhMucTrangBiTreeOptionKey(validation.apiUrl);
+    const isMaDinhDanhListSelect = field.type === 'select'
+        && validation.dataSource === 'api'
+        && isMaDinhDanhTrangBiListOptionKey(validation.apiUrl);
+    const isTreeSelect = field.type === 'select'
+        && (isOfficeApiSelect || isDanhMucTreeSelect);
     const isCountrySelect = field.type === 'select' && validation.dataSource === 'country';
+    const isVirtualOptionSelect = field.type === 'select'
+        && validation.dataSource === 'api'
+        && (isMaDinhDanhListSelect || (isMaDinhDanhTrangBiOptionKey(validation.apiUrl) && !isDanhMucTreeSelect))
+        && !isDanhMucTreeSelect;
     const [countrySearch, setCountrySearch] = useState('');
 
     // State cho Popover Dictionary
     const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isDanhMucTreeSelect) {
+            return;
+        }
+
+        void preloadDanhMucTrangBiTree().catch((err) => {
+            console.error('[FieldInput] preloadDanhMucTrangBiTree error:', err);
+        });
+    }, [isDanhMucTreeSelect]);
 
     useEffect(() => {
         if (!isTreeSelect) {
@@ -107,26 +180,41 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
         let cancelled = false;
 
         if (displayLabel === currentValue || !displayLabel) {
-            officeApi.getOffice(currentValue)
-                .then((res) => {
-                    if (!res || cancelled) {
+            const resolveTreeDisplayLabel = async () => {
+                try {
+                    if (isOfficeApiSelect) {
+                        const res = await officeApi.getOffice(currentValue);
+                        if (!res || cancelled) {
+                            return;
+                        }
+
+                        const serialized = serializeProtoObject(res) as any;
+                        setDisplayLabel(serialized.ten || serialized.tenDayDu || serialized.label || serialized.name || currentValue);
                         return;
                     }
 
-                    const serialized = serializeProtoObject(res) as any;
-                    setDisplayLabel(serialized.ten || serialized.tenDayDu || serialized.label || serialized.name || currentValue);
-                })
-                .catch((err) => {
-                    if (!cancelled) {
-                        console.error('[FieldInput] getOffice error:', err);
+                    if (isDanhMucTreeSelect) {
+                        const res = await danhMucTrangBiApi.getTreeItem(currentValue);
+                        if (!res || cancelled) {
+                            return;
+                        }
+
+                        setDisplayLabel(res.ten || res.tenDayDu || res.id || currentValue);
                     }
-                });
+                } catch (err) {
+                    if (!cancelled) {
+                        console.error('[FieldInput] tree label resolve error:', err);
+                    }
+                }
+            };
+
+            void resolveTreeDisplayLabel();
         }
 
         return () => {
             cancelled = true;
         };
-    }, [currentValue, displayLabel, isTreeSelect]);
+    }, [currentValue, displayLabel, isDanhMucTreeSelect, isOfficeApiSelect, isTreeSelect]);
 
     useEffect(() => {
         if (!isCountrySelect) {
@@ -138,32 +226,31 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
 
     useEffect(() => {
         // Chỉ tải apiOptions cho kiểu Dropdown/Tabs, riêng kiểu TREE sẽ để OfficeDictionary tự xử lý
-        if ((field.type === 'select' || field.type === 'radio' || field.type === 'checkboxGroup') && validation.displayType !== 'tree' && validation.dataSource === 'api' && validation.apiUrl) {
+        if ((field.type === 'select' || field.type === 'radio' || field.type === 'checkboxGroup') && !isTreeSelect && validation.dataSource === 'api' && validation.apiUrl) {
             setLoading(true);
-            fetch(validation.apiUrl)
-                .then(res => res.json())
-                .then(data => {
-                    const rawItems = data.items || data;
-                    if (Array.isArray(rawItems)) {
-                        const items = rawItems.map(item => serializeProtoObject(item));
-                        setApiOptions(items);
-                    }
+            resolveDynamicOptions(validation.apiUrl)
+                .then((items) => {
+                    setApiOptions(items);
                 })
-                .catch(err => console.error('[FieldInput] fetch apiUrl error:', err))
+                .catch(err => console.error('[FieldInput] resolveDynamicOptions error:', err))
                 .finally(() => setLoading(false));
+        } else {
+            setApiOptions([]);
+            setLoading(false);
         }
-    }, [field.type, validation.apiUrl, validation.dataSource, validation.displayType]);
+    }, [field.type, isTreeSelect, validation.apiUrl, validation.dataSource, validation.displayType]);
 
     const options = validation.dataSource === 'api'
-        ? apiOptions.map((opt) => typeof opt === 'string' ? opt : (opt.label || opt.name || opt.ten || opt.value || opt.id))
-        : (validation.options ?? []);
+        ? apiOptions
+        : toManualOptionItems(validation.options);
     const commonTextFieldProps = {
         fullWidth: true,
         size: 'small' as const,
         variant: 'outlined' as const,
         required: Boolean(field.required),
+        disabled: isFieldDisabled,
         error: Boolean(error),
-        helperText: error || ' ',
+        helperText: effectiveHelperText,
         label: useMuiLabel ? getFieldLabel(field) : undefined,
         FormHelperTextProps: {
             sx: {
@@ -226,8 +313,13 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
         const displayType = validation.displayType ?? 'dropdown';
 
         // SỬ DỤNG OFFICE DICTIONARY TANSTACK LÀM POPOVER
-        if (displayType === 'tree') {
-            const handleOpen = () => setAnchorEl(containerRef.current);
+        if (isTreeSelect) {
+            const handleOpen = () => {
+                if (isFieldDisabled) {
+                    return;
+                }
+                setAnchorEl(containerRef.current);
+            };
             const handleClose = () => setAnchorEl(null);
 
             const handleSelect = (node: any) => {
@@ -245,17 +337,17 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                         {...commonTextFieldProps}
                         value={displayLabel}
                         onClick={handleOpen}
-                        placeholder="-- Chọn đơn vị từ danh sách --"
+                        placeholder={isDanhMucTreeSelect ? '-- Chọn danh mục trang bị --' : '-- Chọn đơn vị từ danh sách --'}
                         InputProps={{
                             readOnly: true,
                             endAdornment: (
                                 <InputAdornment position="end">
-                                    <IconButton size="small" onClick={handleOpen}>
-                                        <AccountTreeIcon fontSize="small" color={anchorEl ? "primary" : "action"} />
+                                    <IconButton size="small" onClick={handleOpen} disabled={isFieldDisabled}>
+                                        <AccountTreeIcon fontSize="small" color={anchorEl ? 'primary' : 'action'} />
                                     </IconButton>
                                 </InputAdornment>
                             ),
-                            sx: { cursor: 'pointer', '& input': { cursor: 'pointer' } }
+                            sx: { cursor: isFieldDisabled ? 'default' : 'pointer', '& input': { cursor: isFieldDisabled ? 'default' : 'pointer' } },
                         }}
                     />
                     <Popover
@@ -278,8 +370,11 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                         }}
                     >
                         <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                            {/* Để OfficeDictionary tự fetch dữ liệu gốc nếu không truyền prop offices */}
-                            <OfficeDictionary onSelect={handleSelect} />
+                            {isDanhMucTreeSelect ? (
+                                <DanhMucTrangBiDictionary selectedId={currentValue} onSelect={handleSelect} />
+                            ) : (
+                                <OfficeDictionary onSelect={handleSelect} />
+                            )}
                         </Box>
                     </Popover>
                 </Box>
@@ -287,7 +382,12 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
         }
 
         if (validation.dataSource === 'country') {
-            const handleOpen = () => setAnchorEl(containerRef.current);
+            const handleOpen = () => {
+                if (isFieldDisabled) {
+                    return;
+                }
+                setAnchorEl(containerRef.current);
+            };
             const handleClose = () => {
                 setAnchorEl(null);
                 setCountrySearch('');
@@ -319,12 +419,12 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                             ) : undefined,
                             endAdornment: (
                                 <InputAdornment position="end">
-                                    <IconButton size="small" onClick={handleOpen}>
+                                    <IconButton size="small" onClick={handleOpen} disabled={isFieldDisabled}>
                                         <SearchIcon fontSize="small" color={anchorEl ? 'primary' : 'action'} />
                                     </IconButton>
                                 </InputAdornment>
                             ),
-                            sx: { cursor: 'pointer', '& input': { cursor: 'pointer' } },
+                            sx: { cursor: isFieldDisabled ? 'default' : 'pointer', '& input': { cursor: isFieldDisabled ? 'default' : 'pointer' } },
                         }}
                     />
                     <Popover
@@ -396,6 +496,23 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
             );
         }
 
+        if (isVirtualOptionSelect || displayType === 'dropdown' || displayType === 'tree') {
+            return (
+                <VirtualOptionPicker
+                    label={useMuiLabel ? getFieldLabel(field) : undefined}
+                    placeholder={isVirtualOptionSelect ? 'Chọn mã định danh' : 'Chọn giá trị'}
+                    value={currentValue}
+                    options={options}
+                    required={Boolean(field.required)}
+                    disabled={isFieldDisabled}
+                    error={Boolean(error)}
+                    helperText={effectiveHelperText}
+                    loading={loading}
+                    onChange={(nextValue) => onChange(field.key, nextValue)}
+                />
+            );
+        }
+
         if (displayType === 'tabs') {
             return (
                 <FormControl fullWidth error={Boolean(error)} sx={{ width: '100%' }}>
@@ -405,9 +522,9 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                         </FormLabel>
                     )}
                     <Tabs
-                        value={options.indexOf(currentValue) === -1 ? false : options.indexOf(currentValue)}
+                        value={options.findIndex((option) => option.value === currentValue) === -1 ? false : options.findIndex((option) => option.value === currentValue)}
                         onChange={(_, val) => {
-                            if (typeof val === 'number' && options[val]) onChange(field.key, options[val]);
+                            if (typeof val === 'number' && options[val]) onChange(field.key, options[val].value);
                         }}
                         variant="scrollable"
                         scrollButtons="auto"
@@ -422,9 +539,9 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                         }}
                         TabIndicatorProps={{ style: { display: 'none' } }}
                     >
-                        {options.map((opt, idx) => <Tab key={opt} label={opt} value={idx} />)}
+                        {options.map((opt, idx) => <Tab key={opt.value} label={opt.label} value={idx} disabled={isFieldDisabled} />)}
                     </Tabs>
-                    <FormHelperText sx={commonFormHelperTextSx}>{error || ' '}</FormHelperText>
+                    <FormHelperText sx={commonFormHelperTextSx}>{effectiveHelperText}</FormHelperText>
                 </FormControl>
             );
         }
@@ -440,7 +557,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                 }}
             >
                 <MenuItem value=""><em>{loading ? 'Đang tải...' : '-- Chọn --'}</em></MenuItem>
-                {options.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+                {options.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
             </TextField>
         );
     }
@@ -453,10 +570,10 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                 </FormLabel>
                 <RadioGroup value={currentValue} onChange={(event) => onChange(field.key, event.target.value)} sx={commonChoiceControlSx}>
                     {options.map((option) => (
-                        <FormControlLabel key={option} value={option} control={<Radio size="small" />} label={option} />
+                        <FormControlLabel key={option.value} value={option.value} control={<Radio size="small" disabled={isFieldDisabled} />} label={option.label} disabled={isFieldDisabled} />
                     ))}
                 </RadioGroup>
-                <FormHelperText sx={commonFormHelperTextSx}>{error || ' '}</FormHelperText>
+                <FormHelperText sx={commonFormHelperTextSx}>{effectiveHelperText}</FormHelperText>
             </FormControl>
         );
     }
@@ -474,9 +591,9 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                     {field.label}
                 </FormLabel>
                 <Box sx={commonChoiceControlSx}>
-                    <FormControlLabel control={<Checkbox checked={checked} onChange={(_, checked) => onChange(field.key, checked ? 'true' : 'false')} />} label={checked ? 'Có' : 'Không'} />
+                    <FormControlLabel control={<Checkbox checked={checked} disabled={isFieldDisabled} onChange={(_, checked) => onChange(field.key, checked ? 'true' : 'false')} />} label={checked ? 'Có' : 'Không'} disabled={isFieldDisabled} />
                 </Box>
-                <FormHelperText sx={commonFormHelperTextSx}>{error || ' '}</FormHelperText>
+                <FormHelperText sx={commonFormHelperTextSx}>{effectiveHelperText}</FormHelperText>
             </FormControl>
         );
     }
@@ -484,10 +601,10 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
     if (field.type === 'checkboxGroup') {
         const selectedValues = parseMultiValue(currentValue);
 
-        const toggleOption = (option: string) => {
-            const nextValues = selectedValues.includes(option)
-                ? selectedValues.filter((item) => item !== option)
-                : [...selectedValues, option];
+        const toggleOption = (optionValue: string) => {
+            const nextValues = selectedValues.includes(optionValue)
+                ? selectedValues.filter((item) => item !== optionValue)
+                : [...selectedValues, optionValue];
             onChange(field.key, JSON.stringify(nextValues));
         };
 
@@ -499,13 +616,14 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                 <FormGroup sx={commonChoiceControlSx}>
                     {options.map((option) => (
                         <FormControlLabel
-                            key={option}
-                            control={<Checkbox checked={selectedValues.includes(option)} onChange={() => toggleOption(option)} />}
-                            label={option}
+                            key={option.value}
+                            control={<Checkbox checked={selectedValues.includes(option.value)} disabled={isFieldDisabled} onChange={() => toggleOption(option.value)} />}
+                            label={option.label}
+                            disabled={isFieldDisabled}
                         />
                     ))}
                 </FormGroup>
-                <FormHelperText sx={commonFormHelperTextSx}>{error || ' '}</FormHelperText>
+                <FormHelperText sx={commonFormHelperTextSx}>{effectiveHelperText}</FormHelperText>
             </FormControl>
         );
     }

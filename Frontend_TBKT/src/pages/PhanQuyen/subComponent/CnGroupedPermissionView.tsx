@@ -35,6 +35,7 @@ import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TuneIcon from '@mui/icons-material/Tune';
 import { alpha, useTheme } from '@mui/material/styles';
+import { getStripedRowBackground } from '../../../utils/stripedSurface';
 
 import type { PhamViChuyenNganhConfig, PermissionAction, PermissionGroup } from '../../../types/permission';
 
@@ -322,7 +323,7 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
                                     sx={{
                                         borderRadius: 3,
                                         border: `1.5px solid ${alpha(cnColor, 0.35)}`,
-                                        bgcolor: 'background.paper',
+                                        bgcolor: getStripedRowBackground(theme, virtualItem.index),
                                         overflow: 'hidden',
                                         transition: 'box-shadow 0.2s',
                                         '&:hover': {

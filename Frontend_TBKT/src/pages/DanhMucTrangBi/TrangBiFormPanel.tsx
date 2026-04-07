@@ -15,7 +15,7 @@ import AddIcon from '@mui/icons-material/Add';
 import BuildIcon from '@mui/icons-material/Build';
 import SaveIcon from '@mui/icons-material/Save';
 import SettingsIcon from '@mui/icons-material/Settings';
-import catalogApi, { type CatalogTree, type TrangBiSpecializationOption } from '../../apis/catalogApi';
+import danhMucTrangBiApi, { type DanhMucTrangBiTree, type TrangBiSpecializationOption } from '../../apis/danhMucTrangBiApi';
 import TrangBiFormConfigDialog from './TrangBiFormConfigDialog';
 import DynamicDataForm from '../CauHinhThamSo/subComponents/DynamicDataForm';
 import type { AppDispatch, RootState } from '../../store';
@@ -46,8 +46,8 @@ function extractCategoryL1(nodeId: string | undefined | null): string {
     return '';
 }
 
-/** Extract form data from a CatalogTree node */
-function nodeToFormData(node: CatalogTree): Record<string, string> {
+/** Extract form data from a DanhMucTrangBi node */
+function nodeToFormData(node: DanhMucTrangBiTree): Record<string, string> {
     const data: Record<string, string> = {
         ten: node.ten ?? '',
         tenDayDu: node.tenDayDu ?? '',
@@ -95,12 +95,10 @@ interface TrangBiFormPanelProps {
     cn: string;
     cnLabel: string;
     cnOptions: TrangBiSpecializationOption[];
-    node: CatalogTree | null;
+    node: DanhMucTrangBiTree | null;
     /** Called after a successful save with the updated/new node id */
     onSaved: (id: string, isNew: boolean) => void;
 }
-
-const CATALOG_NAME = 'DanhMucTrangBi';
 
 const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOptions, node, onSaved }) => {
     const dispatch = useDispatch<AppDispatch>();
@@ -239,8 +237,7 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
 
         setSaving(true);
         try {
-            const res = await catalogApi.saveCatalogTreeItem(
-                CATALOG_NAME,
+            const res = await danhMucTrangBiApi.saveTreeItem(
                 {
                     id: isNew ? undefined : node?.id ?? undefined,
                     idCapTren,

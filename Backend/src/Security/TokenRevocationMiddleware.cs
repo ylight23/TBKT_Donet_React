@@ -56,6 +56,7 @@ public class TokenRevocationMiddleware
                     bool isGrpcRequest = context.Request.Path.StartsWithSegments("/Employee.EmployeeService") ||
                                         context.Request.Path.StartsWithSegments("/Office.OfficeService") ||
                                         context.Request.Path.StartsWithSegments("/Catalog.CatalogService") ||
+                                        context.Request.Path.StartsWithSegments("/DanhMucTrangBi.DanhMucTrangBiService") ||
                                         context.Request.ContentType?.Contains("application/grpc") == true;
 
                     if (isGrpcRequest)
@@ -108,6 +109,7 @@ public class TokenRevocationMiddleware
                     bool isGrpcRequest = context.Request.Path.StartsWithSegments("/Employee.EmployeeService") ||
                                         context.Request.Path.StartsWithSegments("/Office.OfficeService") ||
                                         context.Request.Path.StartsWithSegments("/Catalog.CatalogService") ||
+                                        context.Request.Path.StartsWithSegments("/DanhMucTrangBi.DanhMucTrangBiService") ||
                                         context.Request.ContentType?.Contains("application/grpc") == true;
 
                     if (isGrpcRequest)

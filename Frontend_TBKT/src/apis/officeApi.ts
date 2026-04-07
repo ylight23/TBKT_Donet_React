@@ -51,6 +51,13 @@ export interface DeleteBody {
     ids?: string[];
 }
 
+export interface OfficeListOption {
+    value: string;
+    label: string;
+}
+
+export const OFFICE_LIST_ENDPOINT = '/Office.OfficeService/GetListOffice';
+
 
 // =====================
 // API
@@ -75,6 +82,17 @@ const officeApi = {
             handleAuthError(err);
             throw err;
         }
+    },
+
+    async getListOfficeOptions(filters?: OfficeFilters): Promise<OfficeListOption[]> {
+        const items = await officeApi.getListOffices({ loadAll: true, ...filters });
+        return (items ?? [])
+            .map((item: any) => ({
+                value: String(item.id ?? '').trim(),
+                label: String(item.tenDayDu ?? item.ten ?? item.id ?? '').trim(),
+            }))
+            .filter((item) => item.value.length > 0)
+            .sort((a, b) => a.label.localeCompare(b.label, 'vi'));
     },
 
     // ===== GET ONE =====

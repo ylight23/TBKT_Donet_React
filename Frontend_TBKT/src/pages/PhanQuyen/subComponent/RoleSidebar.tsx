@@ -9,17 +9,19 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import type { Role } from '../../../types/permission';
+import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 
 // ── SidebarRole (memoized) ─────────────────────────────────────────────────────
 
 interface SidebarRoleProps {
     role: Role;
+    rowIndex: number;
     selected: boolean;
     onClick: () => void;
     onDelete?: () => void;
 }
 
-const SidebarRole = React.memo(function SidebarRole({ role, selected, onClick, onDelete }: SidebarRoleProps) {
+const SidebarRole = React.memo(function SidebarRole({ role, rowIndex, selected, onClick, onDelete }: SidebarRoleProps) {
     const [hovered, setHovered] = useState(false);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
@@ -41,8 +43,8 @@ const SidebarRole = React.memo(function SidebarRole({ role, selected, onClick, o
                 bgcolor: selected
                     ? isDark ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.08)
                     : hovered
-                        ? isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
-                        : 'transparent',
+                        ? getStripedHoverBackground(theme)
+                        : getStripedRowBackground(theme, rowIndex),
                 transition: 'all 0.15s ease',
                 border: selected ? `1px solid ${alpha(theme.palette.primary.main, 0.25)}` : '1px solid transparent',
             }}
@@ -271,6 +273,7 @@ const RoleSidebar: React.FC<RoleSidebarProps> = ({
                             >
                                 <SidebarRole
                                     role={row.data}
+                                    rowIndex={virtualItem.index}
                                     selected={selectedRoleId === row.data.id}
                                     onClick={() => onSelectRole(row.data.id)}
                                     onDelete={!row.isSystem ? () => onDeleteRole(row.data.id) : undefined}

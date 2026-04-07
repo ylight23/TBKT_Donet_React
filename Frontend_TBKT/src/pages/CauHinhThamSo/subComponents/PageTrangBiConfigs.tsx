@@ -20,8 +20,8 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import type { RootState } from '../../../store';
 import type { LocalFormConfig } from '../../../types/thamSo';
-import type { CatalogTree, TrangBiSpecializationOption } from '../../../apis/catalogApi';
-import catalogApi from '../../../apis/catalogApi';
+import type { DanhMucTrangBiTree, TrangBiSpecializationOption } from '../../../apis/danhMucTrangBiApi';
+import danhMucTrangBiApi from '../../../apis/danhMucTrangBiApi';
 import type { TrangBiSelection } from '../types';
 import TrangBiContextEditor from './TrangBiContextEditor';
 
@@ -53,7 +53,7 @@ const PageTrangBiConfigs: React.FC = () => {
         const load = async () => {
             setCnLoading(true);
             try {
-                const opts = await catalogApi.getTrangBiSpecializationOptions();
+                const opts = await danhMucTrangBiApi.getTrangBiSpecializationOptions();
                 if (!cancelled) setCnOptions(opts);
             } catch { /* silent */ } finally {
                 if (!cancelled) setCnLoading(false);
@@ -82,10 +82,10 @@ const PageTrangBiConfigs: React.FC = () => {
         setCatLoading(cn);
         try {
             const rootParentId = `${cn}.0.00.00.00.00.000`;
-            const children = await catalogApi.getCatalogTreeChildren('DanhMucTrangBi', { parentId: rootParentId });
+            const children = await danhMucTrangBiApi.getTreeChildren({ parentId: rootParentId });
             const cats: CategoryInfo[] = children
-                .filter((c: CatalogTree) => !!c.id)
-                .map((c: CatalogTree) => {
+                .filter((c: DanhMucTrangBiTree) => !!c.id)
+                .map((c: DanhMucTrangBiTree) => {
                     const nodeId = c.id!;
                     const l1 = nodeId.split('.')[1] ?? '';
                     return {

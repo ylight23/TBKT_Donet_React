@@ -29,7 +29,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import type { AppDispatch, RootState } from '../../store';
 import type { LocalFormConfig, LocalFormTabConfig } from '../../apis/thamSoApi';
 import { saveFormConfig } from '../../store/reducer/thamSo';
-import type { TrangBiSpecializationOption } from '../../apis/catalogApi';
+import type { TrangBiSpecializationOption } from '../../apis/danhMucTrangBiApi';
 
 type Mode = 'new' | 'clone';
 

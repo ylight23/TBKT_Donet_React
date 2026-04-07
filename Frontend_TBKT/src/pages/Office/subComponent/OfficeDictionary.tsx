@@ -21,6 +21,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import officeApi from '../../../apis/officeApi';
 import { serializeProtoObject } from '../../../utils/serializeProto';
 import OfficeContext from '../../../context/OfficeContext';
+import { getStripedRowSx } from '../../../utils/stripedSurface';
 
 
 
@@ -160,6 +161,7 @@ function computeVisibleList(
 
 interface VirtualTreeRowProps {
     row: VisibleRow;
+    rowIndex: number;
     isSelected: boolean;
     onToggleExpand: (id: string) => void;
     onSelect: (node: OfficeNode) => void;
@@ -168,6 +170,7 @@ interface VirtualTreeRowProps {
 
 const VirtualTreeRow = React.memo(function VirtualTreeRow({
     row,
+    rowIndex,
     isSelected,
     onToggleExpand,
     onSelect,
@@ -198,8 +201,7 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 pr: 1,
                 cursor: 'pointer',
                 borderRadius: 2.5,
-                backgroundColor: isSelected ? `${theme.palette.primary.main}15` : 'transparent',
-                '&:hover': { backgroundColor: isSelected ? `${theme.palette.primary.main}25` : theme.palette.action.hover },
+                ...getStripedRowSx(theme, rowIndex, isSelected),
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 userSelect: 'none',
                 mb: 0.25,
@@ -938,6 +940,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
                                     <VirtualTreeRow
                                         key={virtualRow.key}
                                         row={row}
+                                        rowIndex={virtualRow.index}
                                         isSelected={!!(row as TreeRow).node && (row as TreeRow).node?.id?.toString() === selectedId}
                                         onToggleExpand={handleToggleExpand}
                                         onSelect={handleSelect}

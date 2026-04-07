@@ -47,8 +47,8 @@ import {
     SyncDynamicMenuDataSourcesFromProtoRequestSchema,
     DiscoverCollectionFieldsRequestSchema,
     PreviewCollectionDocumentsRequestSchema,
-    ColumnConfigSchema,
 } from '../grpc/generated/ThamSo_pb';
+import * as ThamSoPb from '../grpc/generated/ThamSo_pb';
 
 import type {
     DynamicField as DynamicFieldProto,
@@ -65,6 +65,13 @@ import type {
 
 import { thamSoClient } from '../grpc/grpcClient';
 import { getStableFormConfigKey } from '../utils/formConfigKeys';
+
+const ColumnConfigSchemaResolved =
+    (ThamSoPb as any).ColumnConfigSchema ??
+    (ThamSoPb as any)?.default?.ColumnConfigSchema;
+if (!ColumnConfigSchemaResolved) {
+    throw new Error('[thamSoApi] Khong tim thay ColumnConfigSchema tu generated ThamSo_pb');
+}
 
 // ============================================================
 // Local types (used by the CauHinhThamSo UI)
@@ -95,6 +102,7 @@ export interface LocalDynamicField {
     label: string;
     type: string;
     required: boolean;
+    disabled?: boolean;
     validation: LocalFieldValidation;
     cnIds?: string[];
     audit?: LocalAuditMetadata;
@@ -252,6 +260,7 @@ function protoFieldToLocal(f: DynamicFieldProto): LocalDynamicField {
         label: f.label,
         type: f.type,
         required: f.required,
+        disabled: f.disabled || undefined,
         validation: {
             minLength: f.validation?.minLength || undefined,
             maxLength: f.validation?.maxLength || undefined,
@@ -275,6 +284,7 @@ function localFieldToProto(f: LocalDynamicField): any {
         label: f.label,
         type: f.type,
         required: f.required,
+        disabled: Boolean(f.disabled),
         validation: create(FieldValidationSchema, {
             minLength: f.validation?.minLength ?? 0,
             maxLength: f.validation?.maxLength ?? 0,
@@ -394,7 +404,7 @@ function localDynamicMenuToProto(item: LocalDynamicMenu): any {
         dataSource: item.dataSource || 'employee',
         gridCount: item.gridCount,
         columnCount: item.columnCount || 4,
-        columns: (item.columns ?? []).map(c => create(ColumnConfigSchema, { key: c.key, name: c.name })),
+        columns: (item.columns ?? []).map(c => create(ColumnConfigSchemaResolved, { key: c.key, name: c.name })),
         templateKey: item.templateKey || '',
         enabled: item.enabled,
     });
@@ -526,6 +536,21 @@ const thamSoApi = {
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreDynamicField error:', err);
+            throw err;
+        }
+    },
+
+    async hardDeleteDynamicField(id: string): Promise<boolean> {
+        try {
+            const request = create(DeleteDynamicFieldRequestSchema, { ids: [id] });
+            const res = await thamSoClient.hardDeleteDynamicField(request);
+            if (!res.success) {
+                throw new Error(res.message || 'Xoa vinh vien truong that bai');
+            }
+            console.log('[thamSoApi] hardDeleteDynamicField:', res.success);
+            return res.success;
+        } catch (err) {
+            console.error('[thamSoApi] hardDeleteDynamicField error:', err);
             throw err;
         }
     },

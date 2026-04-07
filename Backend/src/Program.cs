@@ -36,7 +36,6 @@ builder.Services.AddScoped<DynamicMenuDataSourceService>();
 builder.Services.AddScoped<TemplateLayoutService>();
 builder.Services.AddScoped<TemplateExportService>();
 builder.Services.AddScoped<ProtoSchemaDiscoveryService>();
-builder.Services.AddScoped<TrangBiCatalogService>();
 
 builder.Services.AddGrpc(options => 
 {

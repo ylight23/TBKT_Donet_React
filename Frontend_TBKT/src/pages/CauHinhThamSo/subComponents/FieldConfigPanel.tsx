@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -29,46 +29,139 @@ import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import { FIELD_TYPES } from '../constants';
 import { FieldType, FieldValidation } from '../types';
 import type { DanhMucChuyenNganhOption } from '../../../apis/danhmucChuyenNganhApi';
+import { DYNAMIC_OPTION_API_HINTS } from '../../../apis/dynamicOptionApi';
 import type { RootState } from '../../../store';
+
+const FIELD_KEY_PRESETS = [
+    {
+        id: 'ma_danh_muc_trang_bi',
+        title: 'Mã danh mục',
+        key: 'ma_danh_muc_trang_bi',
+        label: 'Mã danh mục trang bị',
+        type: 'select' as FieldType,
+        disabled: false,
+        validation: {
+            dataSource: 'api' as const,
+            apiUrl: '/DanhMucTrangBi.DanhMucTrangBiService/GetListTree',
+            displayType: 'tree' as const,
+            options: undefined,
+        },
+    },
+    {
+        id: 'ten_danh_muc_trang_bi',
+        title: 'Tên danh mục',
+        key: 'ten_danh_muc_trang_bi',
+        label: 'Tên danh mục trang bị',
+        type: 'text' as FieldType,
+        disabled: true,
+        validation: {},
+    },
+    {
+        id: 'id_cap_tren',
+        title: 'Mã cấp trên',
+        key: 'id_cap_tren',
+        label: 'Mã cấp trên',
+        type: 'text' as FieldType,
+        disabled: true,
+        validation: {},
+    },
+];
+const YEAR_FIELD_PRESET = {
+    min: 1900,
+    max: new Date().getFullYear() + 100,
+};
 
 interface FieldConfigPanelProps {
     field: DynamicField;
     onSave: (field: DynamicField) => void;
     onClose: () => void;
     cnOptions?: DanhMucChuyenNganhOption[];
+    keyEditable?: boolean;
 }
 
-const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onClose, cnOptions = [] }) => {
+const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
+    field,
+    onSave,
+    onClose,
+    cnOptions = [],
+    keyEditable = false,
+}) => {
     const visibleCNs = useSelector((state: RootState) => state.permissionReducer.visibleCNs);
     const [draft, setDraft] = useState<DynamicField>(field);
     const [activePanel, setActivePanel] = useState(0);
     const [cnError, setCnError] = useState('');
+    const [keyError, setKeyError] = useState('');
+    const [keyTouched, setKeyTouched] = useState(false);
     const supportsOptionSource = draft.type === 'select' || draft.type === 'radio' || draft.type === 'checkboxGroup';
+    const visibleCnSet = useMemo(() => new Set(visibleCNs), [visibleCNs]);
+    const allowedCnOptions = useMemo(
+        () => (visibleCNs.length === 0
+            ? cnOptions
+            : cnOptions.filter((cn) => visibleCnSet.has(cn.id))),
+        [cnOptions, visibleCNs.length, visibleCnSet],
+    );
+    const validation = draft.validation as FieldValidation;
 
-    const allowedCnOptions = visibleCNs.length === 0
-        ? cnOptions
-        : cnOptions.filter((cn) => visibleCNs.includes(cn.id));
-
-    const updateValidation = (key: keyof FieldValidation, value: any) => {
+    const updateValidation = useCallback((key: keyof FieldValidation, value: any) => {
         setDraft((prev) => ({
             ...prev,
             validation: { ...(prev.validation || {}), [key]: value },
         }));
-    };
+    }, []);
+
+    const normalizeFieldKey = useCallback((raw: string): string => {
+        const lowered = (raw || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+        return lowered
+            .replace(/\s+/g, '_')
+            .replace(/[^a-z0-9_]/g, '')
+            .replace(/_+/g, '_');
+    }, []);
+
+    const applyYearValidationPreset = useCallback(() => {
+        setDraft((prev) => ({
+            ...prev,
+            type: 'number',
+            validation: {
+                ...(prev.validation || {}),
+                min: YEAR_FIELD_PRESET.min,
+                max: YEAR_FIELD_PRESET.max,
+            },
+        }));
+    }, []);
+
+    const applyFieldKeyPreset = useCallback((preset: typeof FIELD_KEY_PRESETS[number]) => {
+        setDraft((prev) => ({
+            ...prev,
+            key: preset.key,
+            label: (!prev.label || !keyTouched) ? preset.label : prev.label,
+            type: preset.type,
+            disabled: preset.disabled || undefined,
+            validation: {
+                ...(preset.type === prev.type ? prev.validation : {}),
+                ...preset.validation,
+            },
+        }));
+        setKeyTouched(true);
+        setKeyError('');
+    }, [keyTouched]);
 
     const handleAddOption = () => {
-        const currentOptions = (draft.validation as FieldValidation).options || [];
+        const currentOptions = validation.options || [];
         updateValidation('options', [...currentOptions, `Lựa chọn ${currentOptions.length + 1}`]);
     };
 
     const handleUpdateOption = (index: number, value: string) => {
-        const currentOptions = [...((draft.validation as FieldValidation).options || [])];
+        const currentOptions = [...(validation.options || [])];
         currentOptions[index] = value;
         updateValidation('options', currentOptions);
     };
 
     const handleRemoveOption = (index: number) => {
-        const currentOptions = (draft.validation as FieldValidation).options || [];
+        const currentOptions = validation.options || [];
         updateValidation('options', currentOptions.filter((_, i) => i !== index));
     };
 
@@ -76,10 +169,20 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
         setCnError('');
     }, [draft.cnIds, visibleCNs]);
 
+    useEffect(() => {
+        setKeyTouched(false);
+    }, [field.id]);
+
     const handleSave = () => {
+        const normalizedKey = normalizeFieldKey(draft.key || '');
+        if (!normalizedKey) {
+            setKeyError('Key khong hop le. Chi duoc dung chu thuong, so va dau _.');
+            return;
+        }
+
         const requestedCnIds = (draft.cnIds ?? []).filter(Boolean);
         if (visibleCNs.length > 0) {
-            const invalidCnIds = requestedCnIds.filter((cnId) => !visibleCNs.includes(cnId));
+            const invalidCnIds = requestedCnIds.filter((cnId) => !visibleCnSet.has(cnId));
             if (invalidCnIds.length > 0) {
                 setCnError(`Khong duoc gan field cho chuyen nganh ngoai pham vi: ${invalidCnIds.join(', ')}`);
                 return;
@@ -87,12 +190,13 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
         }
 
         setCnError('');
-        onSave(draft);
+        setKeyError('');
+        onSave({ ...draft, key: normalizedKey });
     };
 
     return (
-        <Card sx={{ height: '100%' }}>
-            <CardContent>
+        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flex: 1, overflowY: 'auto' }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                     <Typography variant="h6" fontWeight={800} color="primary">
                         Cấu hình trường
@@ -120,24 +224,67 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                 {activePanel === 0 && (
                     <Stack spacing={2}>
                         {cnError && <Alert severity="warning">{cnError}</Alert>}
+                        {keyError && <Alert severity="warning">{keyError}</Alert>}
                         <TextField
                             label="Nhãn hiển thị"
                             size="small"
                             value={draft.label}
-                            onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+                            onChange={(event) => {
+                                const nextLabel = event.target.value;
+                                setDraft((prev) => {
+                                    const next = { ...prev, label: nextLabel };
+                                    if (keyEditable && !keyTouched) {
+                                        next.key = normalizeFieldKey(nextLabel);
+                                    }
+                                    return next;
+                                });
+                            }}
                         />
 
                         <TextField
                             label="Key"
                             size="small"
                             value={draft.key}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                                const nextKey = normalizeFieldKey(event.target.value);
                                 setDraft((prev) => ({
                                     ...prev,
-                                    key: event.target.value.replace(/\s+/g, '_').toLowerCase(),
-                                }))
-                            }
+                                    key: nextKey,
+                                }));
+                                setKeyTouched(true);
+                                if (keyError) setKeyError('');
+                            }}
+                            onBlur={() => {
+                                const normalized = normalizeFieldKey(draft.key || '');
+                                if (normalized !== draft.key) {
+                                    setDraft((prev) => ({ ...prev, key: normalized }));
+                                }
+                            }}
+                            helperText="Chi dung chu thuong (a-z), so (0-9) va dau _"
+                            disabled={!keyEditable}
                         />
+
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.75 }}>
+                                Preset field hệ thống
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                {FIELD_KEY_PRESETS.map((preset) => (
+                                    <Chip
+                                        key={preset.id}
+                                        size="small"
+                                        label={preset.title}
+                                        variant={draft.key === preset.key ? 'filled' : 'outlined'}
+                                        color={draft.key === preset.key ? 'primary' : 'default'}
+                                        onClick={() => applyFieldKeyPreset(preset)}
+                                        sx={{ fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                                    />
+                                ))}
+                            </Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                                Bấm để tự điền key chuẩn và cấu hình mặc định cho mã danh mục, tên danh mục hoặc mã cấp trên.
+                            </Typography>
+                        </Box>
 
                         <TextField
                             select
@@ -176,6 +323,16 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                 />
                             }
                             label="Trường bắt buộc"
+                        />
+
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={Boolean(draft.disabled)}
+                                    onChange={(_, checked) => setDraft((prev) => ({ ...prev, disabled: checked || undefined }))}
+                                />
+                            }
+                            label="Khóa người dùng nhập"
                         />
 
                         {/* CN tags */}
@@ -223,7 +380,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                 fullWidth
                                 size="small"
                                 label="Kiểu hiển thị"
-                                value={(draft.validation as FieldValidation).displayType ?? 'dropdown'}
+                                value={validation.displayType ?? 'dropdown'}
                                 onChange={(e) => updateValidation('displayType', e.target.value)}
                             >
                                 <MenuItem value="dropdown">Dropdown (Danh sách thả xuống)</MenuItem>
@@ -270,35 +427,48 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                         )}
 
                         {draft.type === 'number' && (
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-                                <TextField
-                                    label="Min"
-                                    type="number"
-                                    size="small"
-                                    value={draft.validation.min ?? ''}
-                                    onChange={(event) =>
-                                        updateValidation('min', event.target.value === '' ? undefined : Number(event.target.value))
-                                    }
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="Max"
-                                    type="number"
-                                    size="small"
-                                    value={draft.validation.max ?? ''}
-                                    onChange={(event) =>
-                                        updateValidation('max', event.target.value === '' ? undefined : Number(event.target.value))
-                                    }
-                                    fullWidth
-                                />
+                            <Stack spacing={1.25}>
+                                <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
+                                    <Chip
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                        label={`Preset năm ${YEAR_FIELD_PRESET.min}-${YEAR_FIELD_PRESET.max}`}
+                                        onClick={applyYearValidationPreset}
+                                        sx={{ fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                                    />
+                                    <Typography variant="caption" color="text.secondary">
+                                        Dùng cho năm sản xuất, niên hạn, hạn sử dụng để form có thông báo khoảng năm hợp lệ.
+                                    </Typography>
+                                </Stack>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+                                    <TextField
+                                        label="Min"
+                                        type="number"
+                                        size="small"
+                                        value={draft.validation.min ?? ''}
+                                        onChange={(event) =>
+                                            updateValidation('min', event.target.value === '' ? undefined : Number(event.target.value))
+                                        }
+                                        fullWidth
+                                    />
+                                    <TextField
+                                        label="Max"
+                                        type="number"
+                                        size="small"
+                                        value={draft.validation.max ?? ''}
+                                        onChange={(event) =>
+                                            updateValidation('max', event.target.value === '' ? undefined : Number(event.target.value))
+                                        }
+                                        fullWidth
+                                    />
+                                </Stack>
                             </Stack>
                         )}
                     </Stack>
                 )}
 
-                {activePanel === 1 && supportsOptionSource && (() => {
-                    const validation = draft.validation as FieldValidation;
-                    return (
+                {activePanel === 1 && supportsOptionSource && (
                         <Stack spacing={2}>
                             <TextField
                                 select
@@ -330,14 +500,26 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                             {validation.dataSource === 'api' ? (
                                 <Stack spacing={2}>
                                     <TextField
-                                        label="Endpoint API"
+                                        label="Endpoint service"
                                         size="small"
                                         fullWidth
-                                        placeholder="https://api.example.com/data"
+                                        placeholder="/Office.OfficeService/GetListOffice"
                                         value={validation.apiUrl ?? ''}
                                         onChange={(e) => updateValidation('apiUrl', e.target.value)}
-                                        helperText="URL API trả về mảng danh sách các lựa chọn."
+                                        helperText="Nhap truc tiep endpoint gRPC cua service. Vi du: /Office.OfficeService/GetListOffice hoac /DanhMucTrangBi.DanhMucTrangBiService/GetListTree"
                                     />
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                        {DYNAMIC_OPTION_API_HINTS.map((hint) => (
+                                            <Chip
+                                                key={hint}
+                                                size="small"
+                                                label={hint}
+                                                variant="outlined"
+                                                onClick={() => updateValidation('apiUrl', hint)}
+                                                sx={{ fontSize: 11, cursor: 'pointer' }}
+                                            />
+                                        ))}
+                                    </Box>
                                     <Box sx={{ p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 2.5, bgcolor: 'info.main' + '08' }}>
                                         <Typography variant="caption" color="info.main" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <PlayArrowIcon fontSize="inherit" /> Dữ liệu sẽ được tải động khi mở Form.
@@ -405,10 +587,9 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({ field, onSave, onCl
                                 </Box>
                             )}
                         </Stack>
-                    );
-                })()}
+                )}
 
-                <Stack spacing={2} sx={{ mt: 3 }}>
+                <Stack spacing={2} sx={{ mt: 3, position: 'sticky', bottom: 0, bgcolor: 'background.paper', pt: 1 }}>
                     <Divider />
                     <Stack direction="row" spacing={1}>
                         <Button variant="contained" onClick={handleSave} fullWidth size="large">

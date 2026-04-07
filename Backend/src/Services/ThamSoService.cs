@@ -35,6 +35,11 @@ public class ThamSoServiceImpl(
         dynamicFieldService.RestoreDynamicFieldAsync(request, context);
 
     [Authorize]
+    public override Task<DeleteBaseResponse> HardDeleteDynamicField(
+        DeleteDynamicFieldRequest request, ServerCallContext context) =>
+        dynamicFieldService.HardDeleteDynamicFieldAsync(request, context);
+
+    [Authorize]
     public override Task<GetListFieldSetsResponse> GetListFieldSets(
         GetListFieldSetsRequest request, ServerCallContext context) =>
         fieldSetService.GetListFieldSetsAsync(request);

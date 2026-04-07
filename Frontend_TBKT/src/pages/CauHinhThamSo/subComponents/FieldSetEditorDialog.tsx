@@ -4,19 +4,18 @@ import CommonDialog from '../../../components/Dialog/CommonDialog';
 import {
     Box,
     Button,
-    IconButton,
+    Grid,
+    Paper,
     Stack,
     TextField,
     Typography,
-    Grid,
-    Divider,
-    Paper
 } from '@mui/material';
+
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import {
     FIELD_SET_ICON_OPTIONS,
     iconToName,
-    nameToIcon
+    nameToIcon,
 } from '../../../utils/thamSoUtils';
 import { SET_COLORS, HEX_COLOR_REGEX, COLOR_COMMIT_DEBOUNCE_MS } from '../constants';
 import { FieldSet } from '../types';
@@ -40,19 +39,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
     const [iconPickerAnchorEl, setIconPickerAnchorEl] = useState<HTMLElement | null>(null);
     const [iconName, setIconName] = useState<string>(() => {
         const current = iconToName(setData.icon);
-        if (FIELD_SET_ICON_OPTIONS.some((opt) => opt.name === current)) {
-            return current;
-        }
-
-        for (const opt of FIELD_SET_ICON_OPTIONS) {
-            if (
-                React.isValidElement(setData.icon) &&
-                React.isValidElement(opt.node) &&
-                (setData.icon as React.ReactElement).type === (opt.node as React.ReactElement).type
-            ) {
-                return opt.name;
-            }
-        }
+        if (FIELD_SET_ICON_OPTIONS.some((opt) => opt.name === current)) return current;
         return 'Assignment';
     });
     const [selectedIds, setSelectedIds] = useState<string[]>([...setData.fieldIds]);
@@ -74,7 +61,6 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         }, COLOR_COMMIT_DEBOUNCE_MS);
     }, [clearPendingColorCommit]);
 
-    // Reset when dialog opens with new data
     useEffect(() => {
         clearPendingColorCommit();
         setName(setData.name);
@@ -90,27 +76,16 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         const current = iconToName(setData.icon);
         if (FIELD_SET_ICON_OPTIONS.some((opt) => opt.name === current)) {
             setIconName(current);
-            return;
+        } else {
+            setIconName('Assignment');
         }
-
-        for (const opt of FIELD_SET_ICON_OPTIONS) {
-            if (
-                React.isValidElement(setData.icon) &&
-                React.isValidElement(opt.node) &&
-                (setData.icon as React.ReactElement).type === (opt.node as React.ReactElement).type
-            ) {
-                setIconName(opt.name);
-                return;
-            }
-        }
-        setIconName('Assignment');
     }, [clearPendingColorCommit, setData]);
 
     useEffect(() => () => {
         clearPendingColorCommit();
     }, [clearPendingColorCommit]);
-    const isCustomColorValid = HEX_COLOR_REGEX.test(customColor.trim());
 
+    const isCustomColorValid = HEX_COLOR_REGEX.test(customColor.trim());
 
     const filteredAllFields = useMemo(
         () => allFields.filter(
@@ -139,8 +114,8 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         setIconPickerAnchorEl(null);
     }, []);
 
-    const handleSelectIcon = useCallback((name: string) => {
-        setIconName(name);
+    const handleSelectIcon = useCallback((nextName: string) => {
+        setIconName(nextName);
         setIconPickerAnchorEl(null);
     }, []);
 
@@ -156,13 +131,14 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         const iconNode = FIELD_SET_ICON_OPTIONS.find((o) => o.name === iconName)?.node ?? nameToIcon('Assignment');
         const normalizedCustomColor = customColor.trim().toLowerCase();
         const finalColor = HEX_COLOR_REGEX.test(normalizedCustomColor) ? normalizedCustomColor : pickerColor;
+
         onSave({
             ...setData,
             name: name.trim() || '(chưa đặt tên)',
             desc,
             color: finalColor,
             icon: iconNode,
-            fieldIds: [...new Set(selectedIds)]
+            fieldIds: [...new Set(selectedIds)],
         });
     };
 
@@ -182,7 +158,6 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
     }, [scheduleCommittedColor]);
 
     const displayColor = HEX_COLOR_REGEX.test(pickerColor) ? pickerColor : '#3b82f6';
-
     const currentIconNode = FIELD_SET_ICON_OPTIONS.find((o) => o.name === iconName)?.node ?? nameToIcon('Assignment');
 
     return (
@@ -191,52 +166,48 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
             onClose={onClose}
             mode={setData.id ? 'edit' : 'add'}
             title={setData.name || (setData.id ? 'Sửa bộ dữ liệu' : 'Tạo bộ dữ liệu mới')}
-            subtitle="Cấu hình thông tin hiển thị và chủ đề màu sắc dành riêng cho bộ dữ liệu này"
+            subtitle="Cấu hình thông tin, màu sắc và danh sách trường áp dụng"
             color={displayColor}
             icon={currentIconNode}
-            maxWidth="md"
+            maxWidth="xl"
+            sx={{ width: 'min(96vw, 1480px)' }}
             confirmText={setData.id ? 'Cập nhật ngay' : 'Thêm bộ dữ liệu'}
             onConfirm={handleSave}
             disabled={!name.trim()}
         >
-            <Grid container spacing={4}>
-                {/* Cột trái: Thông tin cơ bản & Icon */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Stack spacing={3} sx={{ height: '100%' }}>
-                        <Box flex={1}>
-                            <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
+            <Grid container spacing={2.5} alignItems="stretch">
+                <Grid size={{ xs: 12, lg: 4 }}>
+                    <Stack spacing={2.5} sx={{ height: '100%' }}>
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.5 }}>
                                 Thông tin chung
                             </Typography>
-                            <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, bgcolor: 'background.default' }}>
-                                <Stack spacing={2.5}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        label="Tên bộ dữ liệu"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        placeholder="Ví dụ: Thông số kỹ thuật..."
-                                        autoFocus
-                                        InputProps={{ sx: { fontWeight: 600 } }}
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        label="Mô tả ngắn"
-                                        value={desc}
-                                        onChange={(e) => setDesc(e.target.value)}
-                                        multiline
-                                        rows={3}
-                                        placeholder="Bộ dữ liệu này dùng để làm gì..."
-                                    />
-                                </Stack>
-                            </Paper>
-                        </Box>
+                            <Stack spacing={2}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Tên bộ dữ liệu"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="Ví dụ: Thông số kỹ thuật..."
+                                    autoFocus
+                                    InputProps={{ sx: { fontWeight: 600 } }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Mô tả ngắn"
+                                    value={desc}
+                                    onChange={(e) => setDesc(e.target.value)}
+                                    multiline
+                                    rows={3}
+                                    placeholder="Bộ dữ liệu này dùng để làm gì..."
+                                />
+                            </Stack>
+                        </Paper>
 
-                        <Box>
-                            <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.5 }}>
                                 Biểu tượng (Icon)
                             </Typography>
                             <Button
@@ -244,7 +215,6 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                 variant="outlined"
                                 onClick={(e) => openIconPicker(e.currentTarget)}
                                 sx={{
-                                    mt: 1.5,
                                     justifyContent: 'space-between',
                                     textTransform: 'none',
                                     borderStyle: 'dashed',
@@ -253,19 +223,11 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     py: 1.5,
                                     px: 2,
                                     borderColor: 'divider',
-                                    bgcolor: 'background.default',
-                                    '&:hover': { borderStyle: 'solid', borderColor: displayColor, bgcolor: `${displayColor}08` }
+                                    '&:hover': { borderStyle: 'solid', borderColor: displayColor, bgcolor: `${displayColor}08` },
                                 }}
                             >
                                 <Stack direction="row" spacing={2} alignItems="center">
-                                    <Box sx={{
-                                        color: displayColor,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        p: 1,
-                                        bgcolor: `${displayColor}10`,
-                                        borderRadius: 2.5
-                                    }}>
+                                    <Box sx={{ color: displayColor, display: 'flex', alignItems: 'center', p: 1, bgcolor: `${displayColor}10`, borderRadius: 2.5 }}>
                                         {currentIconNode}
                                     </Box>
                                     <Box sx={{ textAlign: 'left' }}>
@@ -289,62 +251,52 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                 onSelect={handleSelectIcon}
                                 onClose={closeIconPicker}
                             />
-                        </Box>
-                    </Stack>
-                </Grid>
+                        </Paper>
 
-                {/* Cột phải: Màu sắc (Color picker) */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                        <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
-                            Màu sắc chủ đạo
-                        </Typography>
-
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2.5, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.5 }}>
+                                Màu sắc chủ đạo
+                            </Typography>
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="center" sx={{ mb: 2 }}>
                                 {SET_COLORS.map((c) => (
                                     <Box
                                         key={c}
                                         onClick={() => selectColor(c)}
                                         sx={{
-                                            width: 32,
-                                            height: 32,
+                                            width: 28,
+                                            height: 28,
                                             borderRadius: 2.5,
                                             bgcolor: c,
                                             cursor: 'pointer',
                                             border: color === c ? '3px solid' : '2px solid transparent',
                                             borderColor: color === c ? 'background.paper' : 'transparent',
                                             boxShadow: color === c ? `0 0 0 3px ${c}` : 'rgba(0,0,0,0.08) 0px 2px 4px',
-                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            '&:hover': { transform: 'scale(1.15)', zIndex: 1 }
+                                            '&:hover': { transform: 'scale(1.12)' },
                                         }}
                                     />
                                 ))}
                             </Stack>
 
                             <Box sx={{
-                                flex: 1,
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
                                 '.react-colorful': {
                                     width: '100%',
                                     maxWidth: 260,
-                                    height: 140,
+                                    height: 130,
                                     borderRadius: 2.5,
                                     border: '1px solid',
                                     borderColor: 'divider',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                                 },
-                                '.react-colorful__saturation': { borderRadius: 2.5},
-                                '.react-colorful__hue': { height: 16, borderRadius: 2.5},
-                                '.react-colorful__hue-pointer': { width: 16, height: 16 }
+                                '.react-colorful__saturation': { borderRadius: 2.5 },
+                                '.react-colorful__hue': { height: 16, borderRadius: 2.5 },
+                                '.react-colorful__hue-pointer': { width: 16, height: 16 },
                             }}>
                                 <HexColorPicker color={displayColor} onChange={handleColorPickerChange} />
                             </Box>
 
-                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 2.5 }}>
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 2 }}>
                                 <TextField
                                     size="small"
                                     label="Mã HEX tùy chỉnh"
@@ -363,44 +315,45 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     error={customColor.trim().length > 0 && !isCustomColorValid}
                                     InputProps={{
                                         startAdornment: <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>#</Typography>,
-                                        sx: { fontFamily: 'monospace', fontWeight: 700 }
+                                        sx: { fontFamily: 'monospace', fontWeight: 700 },
                                     }}
                                     sx={{ flex: 1 }}
                                 />
                                 <Box sx={{
-                                    width: 40,
-                                    height: 40,
+                                    width: 36,
+                                    height: 36,
                                     borderRadius: 2.5,
                                     bgcolor: displayColor,
                                     border: '4px solid',
                                     borderColor: 'background.paper',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                 }} />
                             </Stack>
                         </Paper>
-                    </Box>
+                    </Stack>
                 </Grid>
 
-                {/* Dưới cùng: Bảng chọn field */}
-                <Grid size={12}>
-                    <Divider sx={{ mb: 3 }} />
-                    <Box>
-                        <Typography variant="subtitle2" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                            <Box component="span" sx={{ width: 4, height: 16, bgcolor: displayColor, borderRadius: 2.5}} />
+                <Grid size={{ xs: 12, lg: 8 }}>
+                    <Paper
+                        variant="outlined"
+                        sx={{ p: 1.75, borderRadius: 2.5, height: 720, display: 'flex', flexDirection: 'column' }}
+                    >
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2 }}>
                             Danh sách trường áp dụng
                         </Typography>
-                        <FieldSelectionPanel
-                            selectedIds={selectedIds}
-                            totalFields={allFields.length}
-                            filteredAllFields={filteredAllFields}
-                            fieldSearch={fieldSearch}
-                            selectedColor={color}
-                            onFieldSearchChange={handleFieldSearchChange}
-                            onSelectAll={handleSelectAllFields}
-                            onClearAll={handleClearAllFields}
-                            onToggle={toggle}
-                        />
-                    </Box>
+                        <Box sx={{ flex: 1, minHeight: 0 }}>
+                            <FieldSelectionPanel
+                                selectedIds={selectedIds}
+                                totalFields={allFields.length}
+                                filteredAllFields={filteredAllFields}
+                                fieldSearch={fieldSearch}
+                                selectedColor={color}
+                                onFieldSearchChange={handleFieldSearchChange}
+                                onSelectAll={handleSelectAllFields}
+                                onClearAll={handleClearAllFields}
+                                onToggle={toggle}
+                            />
+                        </Box>
+                    </Paper>
                 </Grid>
             </Grid>
         </CommonDialog>

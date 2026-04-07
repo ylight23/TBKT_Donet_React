@@ -8,6 +8,7 @@ import { CatalogService } from "./generated/Catalog_pb";
 import { ThamSoService } from "./generated/ThamSo_pb";
 import { PhanQuyenService } from "./generated/PhanQuyen_pb";
 import { DanhMucChuyenNganhService } from "./generated/DanhMucChuyenNganh_pb";
+import { DanhMucTrangBiService } from "./generated/DanhMucTrangBi_pb";
 import { FileTransferService } from "./generated/FileTransfer_pb";
 
 // =====================
@@ -65,5 +66,7 @@ export const thamSoClient = createClient(ThamSoService, transport);
 export const phanQuyenClient = createClient(PhanQuyenService, transport);
 
 export const danhmucChuyenNganhClient = createClient(DanhMucChuyenNganhService, transport);
+
+export const danhMucTrangBiClient = createClient(DanhMucTrangBiService, transport);
 
 export const fileTransferClient = createClient(FileTransferService, transport);

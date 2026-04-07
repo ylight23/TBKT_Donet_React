@@ -403,6 +403,16 @@ public static class Global
             c.MapIdProperty(x => x.Id);
             c.MapProperty(x => x.Tabs);
         });
+        if (!BsonClassMap.IsClassMapRegistered(typeof(TrangBiTree)))
+        {
+            BsonClassMap.RegisterClassMap<TrangBiTree>(c =>
+            {
+                c.AutoMap();
+                c.SetIgnoreExtraElements(true);
+                c.MapIdProperty(x => x.Id);
+                c.MapProperty(x => x.Parameters);
+            });
+        }
 
         
         BsonClassMap.RegisterClassMap<DynamicMenuDataSourceField>(c =>
@@ -495,6 +505,7 @@ public static class Global
         app.MapGrpcService<EmployeeServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<OfficeServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<CatalogServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<DanhMucTrangBiServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<ThamSoServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<PhanQuyenServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<DanhMucChuyenNganhServiceImpl>().EnableGrpcWeb().RequireAuthorization();

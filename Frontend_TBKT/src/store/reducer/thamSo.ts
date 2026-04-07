@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { thamSoApi } from '../../api/thamSoApiWithCache';
+import thamSoApi from '../../apis/thamSoApi';
 import type {
     LocalDynamicField,
     LocalFieldSet,

@@ -17,6 +17,7 @@ service ThamSoService {
   rpc SaveDynamicField(SaveDynamicFieldRequest) returns (SaveDynamicFieldResponse);
   rpc DeleteDynamicField(DeleteDynamicFieldRequest) returns (Base.DeleteBaseResponse);
   rpc RestoreDynamicField(RestoreDynamicFieldRequest) returns (Base.StatusResponse);
+  rpc HardDeleteDynamicField(DeleteDynamicFieldRequest) returns (Base.DeleteBaseResponse);
 
   // FieldSet
   rpc GetListFieldSets(GetListFieldSetsRequest) returns (GetListFieldSetsResponse);
@@ -96,6 +97,7 @@ message DynamicField {
   FieldValidation validation = 6;
   reserved 7; // was: delete (internal DB flag)
   repeated string cn_ids = 15; // Chuyên ngành IDs gán lên field
+  bool disabled = 16;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
   string create_by = 12;

@@ -20,31 +20,7 @@ namespace Backend.Services;
  [Authorize]  // Use default Bearer authentication
 public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnvironment environment) : CatalogService.CatalogServiceBase
 {
-    private const string DanhMucTrangBiCatalogName = "DanhMucTrangBi";
-
-    private static readonly Dictionary<string, string> TrangBiLegacyIdFields = new(StringComparer.Ordinal)
-    {
-        ["IDCapTren"] = "IdCapTren",
-        ["IDChuyenNganhKT"] = "IdChuyenNganhKT",
-        ["IDNganh"] = "IdNganh",
-        ["IDDonViTinh"] = "IdDonViTinh",
-        ["IDTBKTNhom1"] = "IdTBKTNhom1",
-        ["IDQuocGiaSanXuat"] = "IdQuocGiaSanXuat",
-        ["IDMaKiemKe"] = "IdMaKiemKe",
-    };
-
     private static string EscapeRegex(string input) => Regex.Escape(input);
-
-    private static void NormalizeTrangBiFieldNames(BsonDocument bson)
-    {
-        foreach (var (legacyName, normalizedName) in TrangBiLegacyIdFields)
-        {
-            if (bson.Contains(legacyName) && !bson.Contains(normalizedName))
-            {
-                bson[normalizedName] = bson[legacyName];
-            }
-        }
-    }
 
     private static CatalogTree DeserializeCatalogTree(BsonDocument bson)
     {
@@ -57,23 +33,6 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
         return item;
     }
 
-    private static string? ResolveTrangBiCnId(BsonDocument? bson)
-    {
-        if (bson == null)
-            return null;
-
-        return bson.StringOr("IDChuyenNganhKT",
-            bson.StringOr("IdChuyenNganhKT",
-                bson.StringOr("IDChuyenNganh",
-                    bson.StringOr("IdChuyenNganh"))));
-    }
-
-    private static FilterDefinition<BsonDocument> BuildTrangBiCnVisibilityFilter(ServerCallContext context)
-    {
-        var upper = ServiceMutationPolicy.BuildCnVisibilityFilter(context, "IDChuyenNganhKT", true);
-        var lower = ServiceMutationPolicy.BuildCnVisibilityFilter(context, "IdChuyenNganhKT", true);
-        return Builders<BsonDocument>.Filter.Or(upper, lower);
-    }
 
     // private readonly ILogger<CatalogService> _logger;
     // private const string funcNameCatalog = "catalog";
@@ -571,39 +530,6 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                         continue;
                     }
 
-                    // DanhMucTrangBi luu tru metadata o root fields (IDChuyenNganhKT, IDNganh, Nhom, ...),
-                    // khong luu trong Parameters nhu mot so catalog khac.
-                    if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var candidateFieldNames = new List<string> { item.Name };
-                        if (item.Name.StartsWith("ID", StringComparison.Ordinal))
-                        {
-                            candidateFieldNames.Add("Id" + item.Name.Substring(2));
-                        }
-                        else if (item.Name.StartsWith("Id", StringComparison.Ordinal))
-                        {
-                            candidateFieldNames.Add("ID" + item.Name.Substring(2));
-                        }
-
-                        if (item.IntValue != null)
-                        {
-                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.IntValue)));
-                        }
-                        else if (item.BoolValue != null)
-                        {
-                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.BoolValue)));
-                        }
-                        else if (item.StringValue != null)
-                        {
-                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.StringValue)));
-                        }
-                        else if (item.DoubleValue != null)
-                        {
-                            filter &= builder.Or(candidateFieldNames.Select(fieldName => builder.Eq(fieldName, item.DoubleValue)));
-                        }
-                        continue;
-                    }
-
                     filter &= builder.ElemMatch("Parameters", builder.Eq("Name", item.Name));
                     if (item.IntValue != null)
                     {
@@ -624,19 +550,9 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
                 }
             }
 
-            if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
-            {
-                filter &= BuildTrangBiCnVisibilityFilter(context);
-            }
-
             var set = collection.Find<BsonDocument>(filter).SortBy(bson => bson["ThuTuSapXep"]).ToList();
             foreach (var bson in set)
             {
-                if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
-                {
-                    NormalizeTrangBiFieldNames(bson);
-                }
-
                 response.Items.Add(DeserializeCatalogTree(bson));
             }
 
@@ -756,12 +672,6 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             var catalog = collection.Find<BsonDocument>(filter).FirstOrDefault();
             if (catalog != null)
             {
-                if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
-                {
-                    NormalizeTrangBiFieldNames(catalog);
-                    ServiceMutationPolicy.RequireSeeCN(context, ResolveTrangBiCnId(catalog), true);
-                }
-
                 response.Item = DeserializeCatalogTree(catalog);
             }
             response.Success = true;
@@ -791,19 +701,6 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             var collection = Global.MongoDB?.GetCollection<CatalogTree>(request.CatalogName);
             if (collection != null)
             {
-                if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
-                {
-                    var existingDoc = Global.MongoDB?
-                        .GetCollection<BsonDocument>(request.CatalogName)
-                        .Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
-                        .FirstOrDefault();
-                    if (existingDoc != null)
-                    {
-                        NormalizeTrangBiFieldNames(existingDoc);
-                        ServiceMutationPolicy.RequireActOnCN(context, "delete", ResolveTrangBiCnId(existingDoc), true);
-                    }
-                }
-
                // context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, $"DeleteCatalogTree", request);
                 var filter = Builders<CatalogTree>.Filter.Regex(x => x.Id, "/^" + request.Id + ".*/i");
                 var existing = collection.Find(filter).FirstOrDefault();
@@ -873,40 +770,6 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             var collection = Global.MongoDB?.GetCollection<CatalogTree>(request.CatalogName);
             if (collection != null)
             {
-                if (string.Equals(request.CatalogName, DanhMucTrangBiCatalogName, StringComparison.OrdinalIgnoreCase))
-                {
-                    var incomingDoc = request.Item?.ToBsonDocument() ?? new BsonDocument();
-                    NormalizeTrangBiFieldNames(incomingDoc);
-                    var targetCnId = ResolveTrangBiCnId(incomingDoc);
-
-                    if (request.IsNew)
-                    {
-                        ServiceMutationPolicy.RequireActOnCN(context, "add", targetCnId, true);
-                    }
-                    else
-                    {
-                        var existingDoc = Global.MongoDB?
-                            .GetCollection<BsonDocument>(request.CatalogName)
-                            .Find(Builders<BsonDocument>.Filter.Eq("_id", request.OldId))
-                            .FirstOrDefault();
-
-                        if (existingDoc != null)
-                        {
-                            NormalizeTrangBiFieldNames(existingDoc);
-                            var existingCnId = ResolveTrangBiCnId(existingDoc);
-                            ServiceMutationPolicy.RequireActOnCN(context, "edit", existingCnId, true);
-                            if (!string.Equals(existingCnId, targetCnId, StringComparison.OrdinalIgnoreCase))
-                            {
-                                ServiceMutationPolicy.RequireActOnCN(context, "edit", targetCnId, true);
-                            }
-                        }
-                        else
-                        {
-                            ServiceMutationPolicy.RequireActOnCN(context, "edit", targetCnId, true);
-                        }
-                    }
-                }
-
                 var parent = collection.Find<CatalogTree>(Builders<CatalogTree>.Filter.Eq(x => x.Id, request.Item.IdCapTren)).FirstOrDefault();
                 var reorder = false;
                 if (request.IsNew)

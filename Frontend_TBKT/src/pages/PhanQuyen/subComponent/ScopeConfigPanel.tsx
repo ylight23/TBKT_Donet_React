@@ -22,6 +22,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { alpha, useTheme } from '@mui/material/styles';
+import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 
 import officeApi from '../../../apis/officeApi';
 import { listDanhMucChuyenNganh } from '../../../apis/danhmucChuyenNganhApi';
@@ -271,6 +272,7 @@ const ScopeTypeSelector = React.memo(({ config, onSelect, theme }: ScopeTypeSele
 
 interface OfficeNodeProps {
     office: OfficeOption;
+    rowIndex: number;
     depth: number;
     isExpanded: boolean;
     checked: boolean;
@@ -283,6 +285,7 @@ interface OfficeNodeProps {
 
 const OfficeNode = React.memo(({
     office,
+    rowIndex,
     depth,
     isExpanded,
     checked,
@@ -304,13 +307,13 @@ const OfficeNode = React.memo(({
                     px: 1,
                     pl: `${0.75 + depth * 1.5}rem`,
                     borderRadius: 1.5,
-                    bgcolor: checked ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                    bgcolor: checked ? alpha(theme.palette.primary.main, 0.08) : getStripedRowBackground(theme, rowIndex),
                     borderLeft: `2px solid ${checked ? theme.palette.primary.main : 'transparent'}`,
                     transition: 'all 0.15s ease',
                     '&:hover': {
-                        bgcolor: checked 
+                        bgcolor: checked
                             ? alpha(theme.palette.primary.main, 0.12) 
-                            : alpha(theme.palette.action.hover, 0.04),
+                            : getStripedHoverBackground(theme),
                     },
                 }}
             >
@@ -501,6 +504,7 @@ function OfficeTree({
                             >
                                 <OfficeNode
                                     office={node.office}
+                                    rowIndex={virtualItem.index}
                                     depth={node.depth}
                                     isExpanded={expanded.has(node.office.id)}
                                     checked={isChecked(node.office.id)}

@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package DanhMucTrangBi;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "ExtendedField.proto";
+
+message TrangBiTree {
+  google.protobuf.StringValue id = 1;
+  google.protobuf.StringValue id_cap_tren = 2;
+  google.protobuf.StringValue ten = 3;
+  google.protobuf.StringValue viet_tat = 4;
+  google.protobuf.StringValue ten_day_du = 5;
+  bool co_cap_duoi = 6;
+  int32 thu_tu = 7;
+  google.protobuf.StringValue thu_tu_sap_xep = 8;
+  repeated ExtendedField.ExtendedField parameters = 9;
+  google.protobuf.StringValue id_chuyen_nganh_kt = 10;
+  google.protobuf.StringValue nguoi_tao = 11;
+  google.protobuf.StringValue nguoi_sua = 12;
+  google.protobuf.Timestamp ngay_tao = 13;
+  google.protobuf.Timestamp ngay_sua = 14;
+}
+
+message TrangBiTreeListRequest {
+  google.protobuf.StringValue parent_id = 1;
+  bool load_all = 2;
+  google.protobuf.StringValue search_text = 3;
+}
+
+message TrangBiTreeListResponse {
+  repeated TrangBiTree items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetListMaDinhDanhTrangBiRequest {
+  google.protobuf.StringValue search_text = 1;
+  bool only_leaf = 2;
+}
+
+message MaDinhDanhTrangBiItem {
+  google.protobuf.StringValue id = 1;
+  google.protobuf.StringValue label = 2;
+  google.protobuf.StringValue parent_id = 3;
+  bool is_leaf = 4;
+}
+
+message GetListMaDinhDanhTrangBiResponse {
+  repeated MaDinhDanhTrangBiItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message TrangBiTreeGetRequest {
+  string id = 1;
+}
+
+message TrangBiTreeGetResponse {
+  TrangBiTree item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message SaveTrangBiTreeRequest {
+  TrangBiTree item = 1;
+  bool is_new = 2;
+  google.protobuf.StringValue old_id = 3;
+  int32 level_length = 4;
+}
+
+message SaveTrangBiTreeResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DeleteTrangBiTreeRequest {
+  string id = 1;
+}
+
+message DeleteTrangBiTreeResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+service DanhMucTrangBiService {
+  rpc GetListMaDinhDanhTrangBi (GetListMaDinhDanhTrangBiRequest) returns (GetListMaDinhDanhTrangBiResponse);
+  rpc GetListTree (TrangBiTreeListRequest) returns (TrangBiTreeListResponse);
+  rpc GetTree (TrangBiTreeGetRequest) returns (TrangBiTreeGetResponse);
+  rpc SaveTree (SaveTrangBiTreeRequest) returns (SaveTrangBiTreeResponse);
+  rpc DeleteTree (DeleteTrangBiTreeRequest) returns (DeleteTrangBiTreeResponse);
+}

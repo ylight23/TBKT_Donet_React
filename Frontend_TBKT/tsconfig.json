@@ -1,11 +1,10 @@
 {
     "compilerOptions": {
-        "ignoreDeprecations": "6.0",
         "target": "ES2020",
         "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
         ],
         "allowJs": true,
         "skipLibCheck": true,
@@ -15,7 +14,33 @@
         "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
         "module": "esnext",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "apis/*": [
+                "./src/apis/*"
+            ],
+            "components/*": [
+                "./src/components/*"
+            ],
+            "configs/*": [
+                "./src/configs/*"
+            ],
+            "hooks/*": [
+                "./src/hooks/*"
+            ],
+            "pages/*": [
+                "./src/pages/*"
+            ],
+            "types/*": [
+                "./src/types/*"
+            ],
+            "utils/*": [
+                "./src/utils/*"
+            ]
+        },
         "types": [
             "node",
             "vite/client"
@@ -23,10 +48,10 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "jsx": "react-jsx",
-        "noEmit": true,
-        "baseUrl": "src"
+        "noEmit": true
     },
     "include": [
-        "src"
+        "src",
+        "vite.config.ts"
     ]
 }

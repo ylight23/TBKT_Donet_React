@@ -5,7 +5,7 @@ import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import type { TrangBiSpecializationOption } from '../../apis/catalogApi';
+import type { TrangBiSpecializationOption } from '../../apis/danhMucTrangBiApi';
 
 interface CnTabBarProps {
     options: TrangBiSpecializationOption[];

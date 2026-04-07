@@ -20,7 +20,7 @@ import Edit from '@mui/icons-material/Edit';
 
 import { useForm, Controller } from "react-hook-form";
 import * as Yup from "yup";
-import { yupResolver } from '@hookform/resolvers/yup';
+import * as yupResolverModule from '@hookform/resolvers/yup';
 import Create from '../../../components/Buttons/Create';
 import { CommonDialog } from "../../../components/Dialog";
 import officeApi from '../../../apis/officeApi';
@@ -91,6 +91,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [currentData, setCurrentData] = useState<OfficeNode | null>(null);
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const yupResolver = (yupResolverModule as any).yupResolver;
 
     const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<OfficeFormData>({
         resolver: yupResolver(validationSchema) as any,

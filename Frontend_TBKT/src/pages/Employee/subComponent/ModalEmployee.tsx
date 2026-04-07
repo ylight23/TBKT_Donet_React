@@ -23,7 +23,7 @@ import Clear from '@mui/icons-material/Clear';
 
 import { useForm, Controller } from "react-hook-form";
 import * as Yup from "yup";
-import { yupResolver } from '@hookform/resolvers/yup';
+import * as yupResolverModule from '@hookform/resolvers/yup';
 import moment from 'moment';
 import Create from '../../../components/Buttons/Create';
 import { CommonDialog } from "../../../components/Dialog";
@@ -98,6 +98,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
 
     const dataCache = useRef<Record<string, any>>({});
     const prevDataId = useRef<string | null>(null);
+    const yupResolver = (yupResolverModule as any).yupResolver;
 
     const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmployeeFormData>({
         resolver: yupResolver(isUpdate ? updateValidationSchema : createValidationSchema) as any,

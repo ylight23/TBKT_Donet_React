@@ -13,6 +13,8 @@ namespace Backend.Services;
 public class DynamicFieldService(ILogger<DynamicFieldService> logger)
 {
     private const string PermissionCode = "thamso_dynamicfield";
+    private static readonly System.Text.RegularExpressions.Regex ValidFieldKeyRegex =
+        new("^[a-z0-9_]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static HashSet<string> GetVisibleCnIdSet(ServerCallContext? context) =>
         context.GetAccessGate()
@@ -62,21 +64,24 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
         item.Version = itemBson.IntOr("Version", item.Version > 0 ? item.Version : 1);
     }
 
-    private static async Task<List<string>> GetReferencingFieldSetNamesAsync(IEnumerable<string> fieldIds)
+    private static async Task<List<string>> GetReferencingFieldSetNamesAsync(IEnumerable<string> fieldIds, bool includeDeleted = false)
     {
         var normalizedIds = fieldIds as List<string> ?? ServiceMutationPolicy.NormalizeIds(fieldIds);
         if (normalizedIds.Count == 0) return [];
 
-        var filter = Builders<BsonDocument>.Filter.And(
-            Builders<BsonDocument>.Filter.AnyIn("FieldIds", normalizedIds),
-            MongoDocumentHelpers.NotDeleted);
+        var filter = includeDeleted
+            ? Builders<BsonDocument>.Filter.AnyIn("FieldIds", normalizedIds)
+            : Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.AnyIn("FieldIds", normalizedIds),
+                MongoDocumentHelpers.NotDeleted);
 
-        var fieldSets = await Global.CollectionBsonFieldSet!
+        var fieldSetDocs = await Global.CollectionBsonFieldSet!
             .Find(filter)
-            .Project(doc => doc.StringOr("Name", doc.IdString()))
+            .Project(Builders<BsonDocument>.Projection.Include("_id").Include("Name"))
             .ToListAsync();
 
-        return fieldSets
+        return fieldSetDocs
+            .Select(doc => doc.StringOr("Name", doc.IdString()))
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.Ordinal)
             .ToList();
@@ -124,6 +129,13 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
             if (item == null)
             {
                 response.Meta = ThamSoResponseFactory.Fail("Du lieu khong hop le");
+                return response;
+            }
+
+            item.Key = (item.Key ?? string.Empty).Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(item.Key) || !ValidFieldKeyRegex.IsMatch(item.Key))
+            {
+                response.Meta = ThamSoResponseFactory.Fail("Key khong hop le. Chi duoc dung chu thuong, so va dau _");
                 return response;
             }
 
@@ -176,8 +188,9 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
                 }
 
                 var existingKey = existingDoc.StringOr("Key");
-                var incomingKey = item.Key?.Trim() ?? string.Empty;
-                if (!string.Equals(existingKey, incomingKey, StringComparison.Ordinal))
+                var existingKeyNormalized = (existingKey ?? string.Empty).Trim().ToLowerInvariant();
+                var incomingKey = item.Key?.Trim().ToLowerInvariant() ?? string.Empty;
+                if (!string.Equals(existingKeyNormalized, incomingKey, StringComparison.Ordinal))
                 {
                     response.Meta = ThamSoResponseFactory.Fail("Khong duoc thay doi key cua truong sau khi da tao");
                     return response;
@@ -337,6 +350,66 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
 
         return response;
     }
+
+    public async Task<DeleteBaseResponse> HardDeleteDynamicFieldAsync(DeleteDynamicFieldRequest request, ServerCallContext? context)
+    {
+        var response = new DeleteBaseResponse();
+        try
+        {
+            if (!ServiceMutationPolicy.CanRestoreThamSo(context))
+            {
+                response.Success = false;
+                response.Message = "Chi admin cau hinh hoac superadmin moi duoc xoa vinh vien truong";
+                return response;
+            }
+
+            var normalizedIds = ServiceMutationPolicy.NormalizeIds(request.Ids);
+            if (normalizedIds.Count == 0)
+            {
+                response.Success = false;
+                response.Message = "Khong co truong nao de xoa vinh vien";
+                return response;
+            }
+
+            var deletedDocs = await Global.CollectionBsonDynamicField!
+                .Find(ServiceMutationPolicy.DeletedIdsFilter(normalizedIds))
+                .Project(Builders<BsonDocument>.Projection.Include("_id"))
+                .ToListAsync();
+
+            if (deletedDocs.Count == 0)
+            {
+                response.Success = false;
+                response.Message = "Chi duoc xoa vinh vien truong da nam trong muc da xoa";
+                return response;
+            }
+
+            var deletedIds = deletedDocs.Select(doc => doc.IdString()).ToList();
+            var referencingFieldSetNames = await GetReferencingFieldSetNamesAsync(deletedIds, includeDeleted: true);
+            if (referencingFieldSetNames.Count > 0)
+            {
+                response.Success = false;
+                response.Message =
+                    $"Khong the xoa vinh vien vi field van duoc tham chieu trong FieldSet: {string.Join(", ", referencingFieldSetNames.Take(10))}";
+                return response;
+            }
+
+            var result = await Global.CollectionBsonDynamicField!
+                .DeleteManyAsync(Builders<BsonDocument>.Filter.In("_id", deletedIds));
+
+            response.Success = result.DeletedCount > 0;
+            response.Message = $"Da xoa vinh vien {result.DeletedCount} truong";
+            logger.LogInformation("HardDeleteDynamicField: Permanently deleted {Count}", result.DeletedCount);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "HardDeleteDynamicField error");
+            response.Success = false;
+            response.Message = "Loi khi xoa vinh vien truong";
+            response.MessageException = ex.Message;
+        }
+
+        return response;
+    }
     private static double DoubleOr(BsonDocument? doc, string key, double fallback = 0)
     {
         if (doc == null) return fallback;
@@ -358,6 +431,7 @@ public class DynamicFieldService(ILogger<DynamicFieldService> logger)
             Label = itemBson.StringOr("Label"),
             Type = itemBson.StringOr("Type"),
             Required = itemBson.BoolOr("Required"),
+            Disabled = itemBson.BoolOr("Disabled"),
             Validation = new FieldValidation(),
         };
 

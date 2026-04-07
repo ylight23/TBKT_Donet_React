@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -12,6 +13,8 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ClearIcon from '@mui/icons-material/Clear';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -21,6 +24,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
 
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
+import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 import { nameToIcon } from '../../../utils/thamSoUtils';
 import { FieldSet } from '../types';
 import { typeOf } from '../utils';
@@ -28,7 +32,7 @@ import FieldSetEditorDialog from './FieldSetEditorDialog';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SET_ROW_HEIGHT = 86;
+const SET_ROW_HEIGHT = 112;
 const FIELD_ROW_HEIGHT = 44;
 const OVERSCAN = 12;
 
@@ -45,6 +49,7 @@ interface PageDatasetsProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setFieldSets, activeSetId, setActiveSetId }) => {
+    const theme = useTheme();
     const [search, setSearch] = useState('');
     const [fieldSearch, setFieldSearch] = useState('');
     const [editingSet, setEditingSet] = useState<FieldSet | null>(null);
@@ -52,32 +57,34 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
 
     const setListScrollRef = useRef<HTMLDivElement>(null);
     const fieldListScrollRef = useRef<HTMLDivElement>(null);
+    const deferredSearch = useDeferredValue(search);
+    const deferredFieldSearch = useDeferredValue(fieldSearch);
 
     const activeSet = fieldSets.find((s) => s.id === activeSetId) ?? null;
 
-    const resolveFieldsForSet = useMemo(
-        () => (fieldSet: FieldSet): DynamicField[] => fieldSet.fields ?? [],
-        [],
+    const setFieldsMap = useMemo(
+        () => new Map(fieldSets.map((fieldSet) => [fieldSet.id, fieldSet.fields ?? []])),
+        [fieldSets],
     );
 
     const filteredSets = useMemo(
         () => {
-            const lower = search.toLowerCase().trim();
+            const lower = deferredSearch.toLowerCase().trim();
             if (!lower) return fieldSets;
             return fieldSets.filter((s) => s.name.toLowerCase().includes(lower) || (s.desc ?? '').toLowerCase().includes(lower));
         },
-        [fieldSets, search],
+        [fieldSets, deferredSearch],
     );
 
     // Resolve fields for active set
     const activeFields = useMemo(() => {
         if (!activeSet) return [];
-        const resolved = resolveFieldsForSet(activeSet);
+        const resolved = setFieldsMap.get(activeSet.id) ?? [];
 
-        const lower = fieldSearch.toLowerCase().trim();
+        const lower = deferredFieldSearch.toLowerCase().trim();
         if (!lower) return resolved;
         return resolved.filter((f) => f.label.toLowerCase().includes(lower) || f.key.toLowerCase().includes(lower));
-    }, [activeSet, fieldSearch, resolveFieldsForSet]);
+    }, [activeSet, deferredFieldSearch, setFieldsMap]);
 
     // ── Virtualizers ──
 
@@ -99,8 +106,10 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
 
     const attachFields = (fieldSet: FieldSet): FieldSet => ({
         ...fieldSet,
-            fields: resolveFieldsForSet(fieldSet),
+        fields: setFieldsMap.get(fieldSet.id) ?? fieldSet.fields ?? [],
     });
+
+    const canReorderActiveFields = Boolean(activeSet) && !deferredFieldSearch.trim();
 
     // ── Handlers ──
 
@@ -158,6 +167,31 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
         setActiveSetId(dup.id);
     };
 
+    const handleMoveField = useCallback((fieldId: string, direction: -1 | 1) => {
+        if (!activeSetId) return;
+
+        setFieldSets((prev) => prev.map((fieldSet) => {
+            if (fieldSet.id !== activeSetId) return fieldSet;
+
+            const currentFields = [...(fieldSet.fields ?? [])];
+            const currentIndex = currentFields.findIndex((field) => field.id === fieldId);
+            if (currentIndex < 0) return fieldSet;
+
+            const nextIndex = currentIndex + direction;
+            if (nextIndex < 0 || nextIndex >= currentFields.length) return fieldSet;
+
+            const reorderedFields = [...currentFields];
+            const [movedField] = reorderedFields.splice(currentIndex, 1);
+            reorderedFields.splice(nextIndex, 0, movedField);
+
+            return {
+                ...fieldSet,
+                fields: reorderedFields,
+                fieldIds: reorderedFields.map((field) => field.id),
+            };
+        }));
+    }, [activeSetId, setFieldSets]);
+
     // ── Render ──
     return (
         <Box sx={{ display: 'flex', height: '100%', overflow: 'hidden', gap: 1.5 }}>
@@ -201,7 +235,6 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                 <Box
                                     key={vRow.key}
                                     data-index={vRow.index}
-                                    ref={setVirtualizer.measureElement}
                                     style={{
                                         position: 'absolute',
                                         top: 0,
@@ -213,43 +246,103 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                     <Box
                                         onClick={() => { setActiveSetId(s.id); setFieldSearch(''); }}
                                         sx={{
-                                            display: 'flex', alignItems: 'center', gap: 1,
-                                            px: 1.25, py: 0.75, mx: 0.5,
-                                            height: SET_ROW_HEIGHT - 1,
-                                            borderRadius: 2, cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'stretch',
+                                            gap: 1,
+                                            px: 1.25,
+                                            py: 1,
+                                            mx: 0.5,
+                                            height: SET_ROW_HEIGHT - 2,
+                                            borderRadius: 2,
+                                            cursor: 'pointer',
                                             border: '1px solid',
                                             borderColor: isActive ? 'primary.main' : 'transparent',
-                                            bgcolor: isActive ? 'action.selected' : 'transparent',
-                                            '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+                                            bgcolor: isActive ? 'action.selected' : getStripedRowBackground(theme, vRow.index),
+                                            '&:hover': { bgcolor: isActive ? 'action.selected' : getStripedHoverBackground(theme) },
                                             transition: 'background-color 0.1s',
                                         }}
                                     >
-                                        <Box sx={{ color: s.color, display: 'flex', alignItems: 'center', fontSize: 20 }}>{s.icon}</Box>
-                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography variant="body2" fontWeight={700} noWrap>{s.name || '(chưa đặt tên)'}</Typography>
-                                            <Typography variant="caption" color="text.secondary" noWrap>{s.desc}</Typography>
-                                            <Stack direction="row" spacing={0.5} mt={0.5} flexWrap="wrap" useFlexGap>
-                                                {resolveFieldsForSet(s).slice(0, 3).map((field) => (
-                                                    <Chip
-                                                        key={`${s.id}-${field.id}`}
-                                                        size="small"
-                                                        label={field.label}
-                                                        variant="outlined"
-                                                        sx={{ fontSize: 10, height: 18 }}
-                                                    />
-                                                ))}
-                                                {resolveFieldsForSet(s).length > 3 && (
+                                        <Box sx={{ color: s.color, display: 'flex', alignItems: 'flex-start', fontSize: 20, pt: 0.25 }}>{s.icon}</Box>
+                                        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 0.5 }}>
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                                                    <Typography variant="body2" fontWeight={700} noWrap sx={{ flex: 1, minWidth: 0 }}>
+                                                        {s.name || '(chua dat ten)'}
+                                                    </Typography>
                                                     <Chip
                                                         size="small"
-                                                        label={`+${resolveFieldsForSet(s).length - 3}`}
-                                                        variant="outlined"
-                                                        sx={{ fontSize: 10, height: 18 }}
+                                                        label={Math.max(s.fields?.length ?? 0, s.fieldIds?.length ?? 0)}
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: 11,
+                                                            fontWeight: 700,
+                                                            bgcolor: `${s.color}22`,
+                                                            color: s.color,
+                                                            flexShrink: 0,
+                                                        }}
                                                     />
-                                                )}
+                                                </Stack>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    sx={{
+                                                        mt: 0.25,
+                                                        minHeight: 32,
+                                                        lineHeight: 1.35,
+                                                        display: '-webkit-box',
+                                                        overflow: 'hidden',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrient: 'vertical',
+                                                    }}
+                                                >
+                                                    {s.desc || 'Chua co mo ta cho bo du lieu nay.'}
+                                                </Typography>
+                                            </Box>
+
+                                            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
+                                                <Chip
+                                                    size="small"
+                                                    icon={<LibraryBooksIcon sx={{ fontSize: 12 }} />}
+                                                    label={`${Math.max(s.fields?.length ?? 0, s.fieldIds?.length ?? 0)} truong`}
+                                                    variant="outlined"
+                                                    sx={{
+                                                        height: 20,
+                                                        fontSize: 10,
+                                                        flexShrink: 0,
+                                                        '& .MuiChip-label': { px: 0.75 },
+                                                    }}
+                                                />
+                                                <Stack direction="row" spacing={0.5} useFlexGap sx={{ minWidth: 0, overflow: 'hidden' }}>
+                                                    {(setFieldsMap.get(s.id) ?? []).slice(0, 2).map((field) => (
+                                                        <Chip
+                                                            key={`${s.id}-${field.id}`}
+                                                            size="small"
+                                                            label={field.label}
+                                                            variant="outlined"
+                                                            sx={{
+                                                                fontSize: 10,
+                                                                height: 20,
+                                                                maxWidth: 88,
+                                                                '& .MuiChip-label': {
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    whiteSpace: 'nowrap',
+                                                                    px: 0.75,
+                                                                },
+                                                            }}
+                                                        />
+                                                    ))}
+                                                    {(setFieldsMap.get(s.id) ?? []).length > 2 && (
+                                                        <Chip
+                                                            size="small"
+                                                            label={`+${(setFieldsMap.get(s.id) ?? []).length - 2}`}
+                                                            variant="outlined"
+                                                            sx={{ fontSize: 10, height: 20, flexShrink: 0 }}
+                                                        />
+                                                    )}
+                                                </Stack>
                                             </Stack>
                                         </Box>
-                                        <Chip size="small" label={Math.max(s.fields?.length ?? 0, s.fieldIds?.length ?? 0)}
-                                            sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: `${s.color}22`, color: s.color }} />
                                     </Box>
                                 </Box>
                             );
@@ -338,6 +431,11 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                         <Typography variant="caption" color="text.secondary">
                             {activeFields.length} trường
                         </Typography>
+                        {deferredFieldSearch.trim() && (
+                            <Typography variant="caption" color="warning.main">
+                                Tắt tìm kiếm để sắp xếp thứ tự
+                            </Typography>
+                        )}
                         <Box sx={{ flex: 1 }} />
                         <Button size="small" variant="outlined" startIcon={<EditIcon fontSize="small" />}
                             onClick={() => { setIsNewMode(false); setEditingSet(activeSet); }}
@@ -364,11 +462,12 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                 {fieldVirtualizer.getVirtualItems().map((vRow) => {
                                     const field = activeFields[vRow.index];
                                     const meta = typeOf(field.type);
+                                    const moveUpDisabled = !canReorderActiveFields || vRow.index === 0;
+                                    const moveDownDisabled = !canReorderActiveFields || vRow.index === activeFields.length - 1;
                                     return (
                                         <Box
                                             key={vRow.key}
                                             data-index={vRow.index}
-                                            ref={fieldVirtualizer.measureElement}
                                             style={{
                                                 position: 'absolute',
                                                 top: 0,
@@ -381,8 +480,36 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                                 display: 'flex', alignItems: 'center', gap: 1,
                                                 px: 2, height: FIELD_ROW_HEIGHT - 1,
                                                 borderBottom: '1px solid', borderColor: 'divider',
-                                                '&:hover': { bgcolor: 'action.hover' },
+                                                bgcolor: getStripedRowBackground(theme, vRow.index),
+                                                '&:hover': { bgcolor: getStripedHoverBackground(theme) },
                                             }}>
+                                                <Stack direction="row" spacing={0.25} sx={{ mr: 0.25 }}>
+                                                    <Tooltip title={canReorderActiveFields ? 'Đưa lên trên' : 'Tắt tìm kiếm để sắp xếp'}>
+                                                        <span>
+                                                            <IconButton
+                                                                size="small"
+                                                                disabled={moveUpDisabled}
+                                                                onClick={() => handleMoveField(field.id, -1)}
+                                                                sx={{ p: 0.25 }}
+                                                            >
+                                                                <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Tooltip title={canReorderActiveFields ? 'Đưa xuống dưới' : 'Tắt tìm kiếm để sắp xếp'}>
+                                                        <span>
+                                                            <IconButton
+                                                                size="small"
+                                                                disabled={moveDownDisabled}
+                                                                onClick={() => handleMoveField(field.id, 1)}
+                                                                sx={{ p: 0.25 }}
+                                                            >
+                                                                <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                </Stack>
+
                                                 <Typography variant="caption" color="text.disabled"
                                                     sx={{ width: 32, textAlign: 'right', fontFamily: 'monospace' }}>
                                                     {vRow.index + 1}

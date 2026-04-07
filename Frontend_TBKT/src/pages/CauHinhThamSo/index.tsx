@@ -64,6 +64,11 @@ const replaceFieldIdInFieldSets = (fieldSets: FieldSet[], oldId: string, nextId:
 const AUTO_SAVE_DEBOUNCE_MS = 500;
 const isTempFieldId = (id: string) => id.startsWith('field_');
 const isTempFieldSetId = (id: string) => id.startsWith('set_');
+const DYNAMIC_FIELD_KEY_REGEX = /^[a-z0-9_]+$/;
+const canPersistDynamicField = (field: DynamicField): boolean => {
+  const normalizedKey = (field.key ?? '').trim();
+  return normalizedKey.length > 0 && DYNAMIC_FIELD_KEY_REGEX.test(normalizedKey);
+};
 
 const CauHinhThamSo: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -92,6 +97,7 @@ const CauHinhThamSo: React.FC = () => {
   const queuedFieldSetUpdatesRef = useRef<Map<string, FieldSet>>(new Map());
   const queuedFieldDeletesRef = useRef<Set<string>>(new Set());
   const queuedFieldSetDeletesRef = useRef<Set<string>>(new Set());
+  const hardDeletingFieldIdsRef = useRef<Set<string>>(new Set());
 
   const clearScheduledSave = useCallback((timers: React.MutableRefObject<Map<string, number>>, key: string) => {
     const timeoutId = timers.current.get(key);
@@ -202,7 +208,7 @@ const CauHinhThamSo: React.FC = () => {
         pendingFieldCreatesRef.current.delete(currentId);
       }
       console.error('[CauHinhThamSo] saveDynamicField error', err);
-      setSnack({ open: true, message: 'Lỗi lưu trường dữ liệu', severity: 'error' });
+      setSnack({ open: true, message: (err as Error)?.message || 'Lỗi lưu trường dữ liệu', severity: 'error' });
     }
   };
 
@@ -244,6 +250,52 @@ const CauHinhThamSo: React.FC = () => {
       setSnack({ open: true, message: 'Loi khoi phuc truong du lieu', severity: 'error' });
     }
   }, [dispatch]);
+
+  const handleHardDeleteField = useCallback(async (id: string) => {
+    if (!window.confirm('Xoa vinh vien truong nay? Hanh dong nay khong the hoan tac.')) {
+      return;
+    }
+
+    if (hardDeletingFieldIdsRef.current.has(id)) {
+      return;
+    }
+
+    if (!deletedFields.some((field) => field.id === id)) {
+      setSnack({ open: true, message: 'Truong nay khong con nam trong muc da xoa. Hay tai lai danh sach.', severity: 'info' });
+      return;
+    }
+
+    hardDeletingFieldIdsRef.current.add(id);
+
+    try {
+      await thamSoApi.hardDeleteDynamicField(id);
+      setDeletedFields((prev) => prev.filter((field) => field.id !== id));
+      await dispatch(fetchThamSoSchema()).unwrap();
+      setSnack({ open: true, message: 'Da xoa vinh vien truong du lieu', severity: 'success' });
+    } catch (err) {
+      console.error('[CauHinhThamSo] hardDeleteDynamicField error', err);
+      const message = (err as Error)?.message || 'Loi xoa vinh vien truong du lieu';
+
+      if (message.includes('Chi duoc xoa vinh vien truong da nam trong muc da xoa')) {
+        setDeletedFields((prev) => prev.filter((field) => field.id !== id));
+        try {
+          await dispatch(fetchThamSoSchema()).unwrap();
+        } catch (refreshErr) {
+          console.error('[CauHinhThamSo] refresh after hard delete sync error', refreshErr);
+        }
+        setSnack({
+          open: true,
+          message: 'Truong nay khong con o trang thai da xoa. Danh sach da duoc dong bo lai.',
+          severity: 'info',
+        });
+        return;
+      }
+
+      setSnack({ open: true, message, severity: 'error' });
+    } finally {
+      hardDeletingFieldIdsRef.current.delete(id);
+    }
+  }, [deletedFields, dispatch]);
 
   const handleSaveFieldSet = async (fieldSet: FieldSet, isNew: boolean) => {
     const currentId = fieldSet.id;
@@ -340,8 +392,19 @@ const CauHinhThamSo: React.FC = () => {
       for (const f of next) {
         const existing = prev.find((p: DynamicField) => p.id === f.id);
         if (!existing) {
+          if (!canPersistDynamicField(f)) {
+            continue;
+          }
           handleSaveField(f, true);
         } else if (JSON.stringify(existing) !== JSON.stringify(f)) {
+          if (!canPersistDynamicField(f)) {
+            clearScheduledSave(fieldSaveTimersRef, f.id);
+            if (pendingFieldCreatesRef.current.has(f.id)) {
+              queuedFieldUpdatesRef.current.set(f.id, f);
+            }
+            continue;
+          }
+
           if (pendingFieldCreatesRef.current.has(f.id)) {
             queuedFieldUpdatesRef.current.set(f.id, f);
           } else if (isTempFieldId(f.id) && !storeFields.some((field) => field.id === f.id)) {
@@ -490,6 +553,7 @@ const CauHinhThamSo: React.FC = () => {
             fields={fields}
             deletedFields={deletedFields}
             onRestoreField={handleRestoreField}
+            onHardDeleteField={handleHardDeleteField}
             setFields={setFieldsAndPersist}
             fieldSets={fieldSets}
             setFieldSets={setFieldSetsAndPersist}
