@@ -12,7 +12,8 @@ namespace Backend.Services;
 
 [Authorize]
 public sealed class DanhMucTrangBiServiceImpl(
-    ILogger<DanhMucTrangBiServiceImpl> logger) : DanhMucTrangBiService.DanhMucTrangBiServiceBase
+    ILogger<DanhMucTrangBiServiceImpl> logger,
+    FieldSetService fieldSetService) : DanhMucTrangBiService.DanhMucTrangBiServiceBase
 {
     private static IMongoCollection<BsonDocument>? GetCollection()
         => Global.MongoDB?.GetCollection<BsonDocument>("DanhMucTrangBi");
@@ -477,4 +478,9 @@ public sealed class DanhMucTrangBiServiceImpl(
         }
         return response;
     }
+
+    [Authorize]
+    public override Task<GetFieldSetsByMaDanhMucResponse> GetFieldSetsByMaDanhMuc(
+        GetFieldSetsByMaDanhMucRequest request, ServerCallContext context) =>
+        fieldSetService.GetFieldSetsByMaDanhMucAsync(request);
 }

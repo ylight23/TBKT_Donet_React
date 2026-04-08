@@ -3,7 +3,7 @@
 // Thiết kế: Hiện đại, trực quan, dễ sử dụng
 // Lấy dữ liệu từ FormConfig (Cấu hình tham số)
 // ============================================================
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -12,6 +12,7 @@ import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme } from '@mui/material/styles';
 
 // Icons
@@ -41,79 +42,6 @@ interface AddTrangBiDialogProps {
   activeMenu?: 'tbNhom1' | 'tbNhom2';
   configError?: string;
 }
-
-const CATEGORY_FIELD_CANDIDATES = [
-  'ma_dinh_danh',
-  'madinhdanh',
-  'madanhmuctrangbi',
-  'ma_danh_muc_trang_bi',
-  'iddanhmuctrangbi',
-  // Backward compatibility for older schemas
-  'MaDanhMucTrangBi',
-  'IDDanhMucTrangBi',
-];
-const CATEGORY_FIELD_CANDIDATE_SET = new Set(CATEGORY_FIELD_CANDIDATES.map((key) => key.trim().toLowerCase()));
-const PARENT_FIELD_CANDIDATES = [
-  'id_cap_tren',
-  'idcaptren',
-  'ma_cap_tren',
-  'macaptren',
-  'IdCapTren',
-  'MaCapTren',
-];
-const PARENT_FIELD_CANDIDATE_SET = new Set(PARENT_FIELD_CANDIDATES.map((key) => key.trim().toLowerCase()));
-const CATEGORY_NAME_FIELD_CANDIDATES = [
-  'ten_danh_muc_trang_bi',
-  'tendanhmuctrangbi',
-  'ten_danh_muc',
-  'tendanhmuc',
-  'TenDanhMucTrangBi',
-  'TenDanhMuc',
-];
-const CATEGORY_NAME_FIELD_CANDIDATE_SET = new Set(CATEGORY_NAME_FIELD_CANDIDATES.map((key) => key.trim().toLowerCase()));
-const TRANG_BI_NHOM_1_COMMON_TAB_ID = 'tab-runtime-trang-bi-nhom-1-common';
-const TRANG_BI_NHOM_1_TECH_TAB_ID = 'tab-runtime-trang-bi-nhom-1-tech';
-const normalizeCategoryValue = (value?: string | null): string => String(value ?? '').trim().toUpperCase();
-const normalizeCategoryTechnicalCode = (value?: string | null): string => {
-  const normalized = normalizeCategoryValue(value);
-  const match = normalized.match(/^([A-Z])\.(\d+)\.(\d+)/);
-  if (!match) {
-    return '';
-  }
-
-  return `${match[1]}${match[2]}${match[3]}`.toLowerCase();
-};
-const normalizeCategoryMatcher = (value?: string | null): string =>
-  String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
-const readTreeNodeText = (node: Record<string, unknown> | null | undefined, keys: string[]): string => {
-  if (!node) {
-    return '';
-  }
-
-  for (const key of keys) {
-    const value = node[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  return '';
-};
-
-const matchesSyncCategory = (selectedCategory: string, syncCategory?: string): boolean => {
-  const normalizedSelected = normalizeCategoryValue(selectedCategory);
-  const normalizedSync = normalizeCategoryValue(syncCategory);
-
-  if (!normalizedSync) return true;
-  if (!normalizedSelected) return false;
-
-  return normalizedSelected === normalizedSync
-    || normalizedSelected.startsWith(normalizedSync)
-    || normalizedSync.startsWith(normalizedSelected);
-};
 
 // ── Field Item Component ───────────────────────────────────
 interface FormFieldItemProps {
@@ -277,6 +205,15 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [activeChildTabByParent, setActiveChildTabByParent] = useState<Record<string, number>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [danhMucError] = useState('');
+  const [technicalFieldSets, setTechnicalFieldSets] = useState<FieldSet[]>([]);
+  const [technicalLoading, setTechnicalLoading] = useState(false);
+  const [technicalError, setTechnicalError] = useState('');
+  const technicalFetchRef = useRef(0); // để tránh race condition khi chọn nhanh nhiều danh mục
+  const categoryFieldKey = 'ma_dinh_danh';
+  const parentFieldKey = 'IDCapTren';
+  const categoryNameFieldKey = 'ten_danh_muc_trang_bi';
+  const commonTabId = 'tab-runtime-trang-bi-nhom-1-common';
+  const technicalTabId = 'tab-runtime-trang-bi-nhom-1-tech';
 
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -287,6 +224,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       setActiveTab(0);
       setActiveChildTabByParent({});
       setFormData({});
+      setTechnicalFieldSets([]);
+      setTechnicalLoading(false);
+      setTechnicalError('');
+      technicalFetchRef.current += 1;
     }
   }, [open, formConfig?.id]);
 
@@ -313,15 +254,42 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }, [formConfig]);
 
   const selectedCategoryCode = useMemo(
-    () => CATEGORY_FIELD_CANDIDATES
-      .map((key) => formData[key])
-      .find((value) => normalizeCategoryValue(value).length > 0) ?? '',
-    [formData],
+    () => formData[categoryFieldKey] ?? '',
+    [categoryFieldKey, formData],
   );
-  const selectedCategoryTechnicalCode = useMemo(
-    () => normalizeCategoryTechnicalCode(selectedCategoryCode),
-    [selectedCategoryCode],
-  );
+
+  // ── Gọi API nạp FieldSet kỹ thuật khi đổi mã danh mục ──
+  useEffect(() => {
+    if (!isTrangBiNhom1Runtime) return;
+
+    const maDanhMuc = String(selectedCategoryCode ?? '').trim();
+    if (!maDanhMuc) {
+      setTechnicalFieldSets([]);
+      setTechnicalError('');
+      return;
+    }
+
+    const fetchId = ++technicalFetchRef.current;
+    setTechnicalLoading(true);
+    setTechnicalError('');
+
+    danhMucTrangBiApi.getFieldSetsByMaDanhMuc(maDanhMuc)
+      .then((fieldSets) => {
+        if (technicalFetchRef.current !== fetchId) return; // bỏ qua nếu đã chọn danh mục khác
+        setTechnicalFieldSets(fieldSets);
+      })
+      .catch((err) => {
+        if (technicalFetchRef.current !== fetchId) return;
+        console.error('[AddTrangBiDialog] fetchTechnicalFieldSets error', err);
+        setTechnicalError(String(err?.message || 'Khong tai duoc thong so ky thuat'));
+      })
+      .finally(() => {
+        if (technicalFetchRef.current === fetchId) {
+          setTechnicalLoading(false);
+        }
+      });
+  }, [isTrangBiNhom1Runtime, selectedCategoryCode]);
+
   const commonTabSetIds = useMemo(() => {
     if (!isTrangBiNhom1Runtime) {
       return [];
@@ -337,17 +305,17 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
     return [
       {
-        id: TRANG_BI_NHOM_1_COMMON_TAB_ID,
+          id: commonTabId,
         label: 'Thông tin chung',
         setIds: commonTabSetIds,
       },
       {
-        id: TRANG_BI_NHOM_1_TECH_TAB_ID,
+          id: technicalTabId,
         label: 'Thông số kỹ thuật',
         setIds: [],
       },
     ] as FormTabConfig[];
-  }, [commonTabSetIds, isTrangBiNhom1Runtime, tabStructure.roots]);
+  }, [commonTabId, commonTabSetIds, isTrangBiNhom1Runtime, tabStructure.roots, technicalTabId]);
   const currentRootTab = rootTabs[activeTab];
   const currentRootMeta = currentRootTab ? parseTabMeta(currentRootTab) : null;
   const rawRootChildren = currentRootTab ? (tabStructure.childrenByParent[currentRootTab.id] || []) : [];
@@ -355,7 +323,17 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     if (!currentRootTab) return [];
     if (isTrangBiNhom1Runtime) return [];
     if (currentRootMeta?.tabType !== 'sync-group') return rawRootChildren;
-    return rawRootChildren.filter((child) => matchesSyncCategory(selectedCategoryCode, parseTabMeta(child).syncCategory));
+    return rawRootChildren.filter((child) => {
+      const normalizedSelected = String(selectedCategoryCode ?? '').trim().toUpperCase();
+      const normalizedSync = String(parseTabMeta(child).syncCategory ?? '').trim().toUpperCase();
+
+      if (!normalizedSync) return true;
+      if (!normalizedSelected) return false;
+
+      return normalizedSelected === normalizedSync
+        || normalizedSelected.startsWith(normalizedSync)
+        || normalizedSync.startsWith(normalizedSelected);
+    });
   }, [currentRootMeta?.tabType, currentRootTab, isTrangBiNhom1Runtime, rawRootChildren, selectedCategoryCode]);
 
   const activeChildTabIndex = currentRootTab
@@ -379,15 +357,15 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         const fieldSet = fieldSetById.get(normalizeId(setId));
         if (!fieldSet) return null;
         const fields = (fieldSet.fields ?? []).map((field) => {
-          const normalizedKey = String(field.key ?? '').trim().toLowerCase();
-          if (!CATEGORY_FIELD_CANDIDATE_SET.has(normalizedKey)) {
-            if (!PARENT_FIELD_CANDIDATE_SET.has(normalizedKey) && !CATEGORY_NAME_FIELD_CANDIDATE_SET.has(normalizedKey)) {
-              return field;
+          if (field.key !== categoryFieldKey) {
+            if (field.key === parentFieldKey || field.key === categoryNameFieldKey) {
+              return {
+                ...field,
+                disabled: true,
+              };
             }
-
             return {
               ...field,
-              disabled: true,
             };
           }
 
@@ -397,7 +375,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
             validation: {
               ...field.validation,
               dataSource: 'api',
-              apiUrl: field.validation?.apiUrl || DANH_MUC_TRANG_BI_TREE_ENDPOINT,
+              apiUrl: DANH_MUC_TRANG_BI_TREE_ENDPOINT,
               displayType: 'tree',
             },
           };
@@ -406,74 +384,59 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         return { fieldSet, fields };
       })
       .filter((item): item is { fieldSet: FieldSet; fields: DynamicField[] } => item !== null);
-  }, [fieldSetById]);
+  }, [categoryFieldKey, categoryNameFieldKey, fieldSetById, parentFieldKey]);
+
+  /** Map FieldSet từ API thành dạng hiển thị (áp dụng override field cho category field) */
+  const resolveTechnicalFieldSetItems = useCallback(
+    (fieldSets: FieldSet[]): { fieldSet: FieldSet; fields: DynamicField[] }[] => {
+      return fieldSets.map((fs) => {
+        const fields = (fs.fields ?? []).map((field) => {
+          if (field.key === parentFieldKey || field.key === categoryNameFieldKey) {
+            return { ...field, disabled: true };
+          }
+          if (field.key === categoryFieldKey) {
+            return {
+              ...field,
+              type: 'select',
+              validation: {
+                ...field.validation,
+                dataSource: 'api',
+                apiUrl: DANH_MUC_TRANG_BI_TREE_ENDPOINT,
+                displayType: 'tree',
+              },
+            };
+          }
+          return { ...field };
+        });
+        return { fieldSet: fs, fields };
+      });
+    },
+    [categoryFieldKey, categoryNameFieldKey, parentFieldKey],
+  );
 
   // Get fieldSets and fields for current tab
   const currentTabContent = useMemo(() => {
     if (!effectiveTab) return [];
 
-    if (isTrangBiNhom1Runtime && effectiveTab.id === TRANG_BI_NHOM_1_TECH_TAB_ID) {
-      const technicalSetIds: string[] = [];
-      const normalizedCategory = normalizeCategoryValue(selectedCategoryCode);
-
-      if (normalizedCategory.startsWith('O.')) {
-        technicalSetIds.push('fieldset-trang-bi-nhom-1-thongtin');
-      } else if (normalizedCategory.startsWith('I.')) {
-        technicalSetIds.push('fieldset-trang-bi-nhom-1-rada');
-      }
-
-      if (selectedCategoryTechnicalCode) {
-        const matchedFieldSets = allFieldSets
-          .filter((fieldSet) => {
-            const normalizedId = normalizeId(fieldSet.id);
-            const normalizedName = normalizeCategoryMatcher(fieldSet.name);
-            const normalizedDesc = normalizeCategoryMatcher(fieldSet.desc);
-            const categoryToken = normalizeCategoryMatcher(`category-${selectedCategoryTechnicalCode}`);
-            const directCodeToken = normalizeCategoryMatcher(selectedCategoryCode);
-            return normalizedId.includes(`category-${selectedCategoryTechnicalCode}`)
-              || normalizedName.includes(categoryToken)
-              || normalizedDesc.includes(categoryToken)
-              || normalizedName.includes(directCodeToken)
-              || normalizedDesc.includes(directCodeToken);
-          })
-          .map((fieldSet) => fieldSet.id);
-
-        technicalSetIds.push(...matchedFieldSets);
-      }
-
-      return resolveFieldSetItems(technicalSetIds);
+    if (isTrangBiNhom1Runtime && effectiveTab.id === technicalTabId) {
+      // Sử dụng field sets đã được nạp từ API theo mã danh mục
+      return resolveTechnicalFieldSetItems(technicalFieldSets);
     }
 
     return resolveFieldSetItems(getRealSetIds(effectiveTab));
-  }, [allFieldSets, effectiveTab, isTrangBiNhom1Runtime, resolveFieldSetItems, selectedCategoryCode, selectedCategoryTechnicalCode]);
+  }, [effectiveTab, isTrangBiNhom1Runtime, resolveFieldSetItems, resolveTechnicalFieldSetItems, technicalFieldSets, technicalTabId]);
 
   const missingFieldSetIds = useMemo(() => {
     if (!effectiveTab) return [];
 
-    if (isTrangBiNhom1Runtime && effectiveTab.id === TRANG_BI_NHOM_1_TECH_TAB_ID) {
-      const expectedSetIds: string[] = [];
-      const normalizedCategory = normalizeCategoryValue(selectedCategoryCode);
-
-      if (normalizedCategory.startsWith('O.')) {
-        expectedSetIds.push('fieldset-trang-bi-nhom-1-thongtin');
-      } else if (normalizedCategory.startsWith('I.')) {
-        expectedSetIds.push('fieldset-trang-bi-nhom-1-rada');
-      }
-
-      if (selectedCategoryTechnicalCode) {
-        expectedSetIds.push(`fieldset-trang-bi-nhom-1-category-${selectedCategoryTechnicalCode}`);
-      }
-
-      return Array.from(new Set(
-        expectedSetIds.filter((setId) => !fieldSetById.has(normalizeId(setId))),
-      ));
-    }
+    // Tab kỹ thuật nhóm 1: field sets đã được nạp từ API, không cần kiểm tra missing
+    if (isTrangBiNhom1Runtime && effectiveTab.id === technicalTabId) return [];
 
     return Array.from(new Set(
       getRealSetIds(effectiveTab)
         .filter((setId) => !fieldSetById.has(normalizeId(setId))),
     ));
-  }, [effectiveTab, fieldSetById, isTrangBiNhom1Runtime, selectedCategoryCode, selectedCategoryTechnicalCode]);
+  }, [effectiveTab, fieldSetById, isTrangBiNhom1Runtime, technicalTabId]);
 
   const missingFieldRefs = useMemo(() => {
     return currentTabContent.flatMap(({ fieldSet }) => {
@@ -483,53 +446,49 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         .map((fieldId) => `${fieldSet.name}:${fieldId}`);
     });
   }, [currentTabContent]);
-  const parentFieldKeys = useMemo(
-    () => allFields
-      .map((field) => String(field.key ?? '').trim())
-      .filter((key) => PARENT_FIELD_CANDIDATE_SET.has(key.toLowerCase())),
-    [allFields],
+  const hasParentField = useMemo(
+    () => allFields.some((field) => field.key === parentFieldKey),
+    [allFields, parentFieldKey],
   );
-  const categoryNameFieldKeys = useMemo(
-    () => allFields
-      .map((field) => String(field.key ?? '').trim())
-      .filter((key) => CATEGORY_NAME_FIELD_CANDIDATE_SET.has(key.toLowerCase())),
-    [allFields],
+  const hasCategoryNameField = useMemo(
+    () => allFields.some((field) => field.key === categoryNameFieldKey),
+    [allFields, categoryNameFieldKey],
   );
 
   const syncParentCategoryFields = useCallback(async (selectedCategoryId: string) => {
-    const normalizedCategoryId = String(selectedCategoryId ?? '').trim();
-    const selectedCategoryNode = normalizedCategoryId
-      ? await danhMucTrangBiApi.getTreeItem(normalizedCategoryId)
-      : null;
-    const selectedCategoryNodeRecord = selectedCategoryNode as Record<string, unknown> | null;
-    const parentCode = readTreeNodeText(selectedCategoryNodeRecord, ['idCapTren', 'IdCapTren', 'idcaptren']);
-    const categoryName = readTreeNodeText(selectedCategoryNodeRecord, ['ten', 'Ten', 'tenDayDu', 'TenDayDu', 'label', 'Label', 'id', 'Id']);
+    try {
+      const normalizedCategoryId = String(selectedCategoryId ?? '').trim();
+      const selectedCategoryNode = normalizedCategoryId
+        ? await danhMucTrangBiApi.getTreeItem(normalizedCategoryId)
+        : null;
 
-    setFormData((prev) => {
-      let changed = false;
-      const next = { ...prev };
+      if (!selectedCategoryNode) {
+        return;
+      }
 
-      parentFieldKeys.forEach((key) => {
-        if ((prev[key] ?? '') === parentCode) {
-          return;
+      const parentCode = String(selectedCategoryNode.idCapTren ?? '').trim();
+      const categoryName = String(selectedCategoryNode.ten ?? '').trim();
+
+      setFormData((prev) => {
+        let changed = false;
+        const next = { ...prev };
+
+        if (hasParentField && (prev[parentFieldKey] ?? '') !== parentCode) {
+          next[parentFieldKey] = parentCode;
+          changed = true;
         }
 
-        next[key] = parentCode;
-        changed = true;
-      });
-
-      categoryNameFieldKeys.forEach((key) => {
-        if ((prev[key] ?? '') === categoryName) {
-          return;
+        if (hasCategoryNameField && (prev[categoryNameFieldKey] ?? '') !== categoryName) {
+          next[categoryNameFieldKey] = categoryName;
+          changed = true;
         }
 
-        next[key] = categoryName;
-        changed = true;
+        return changed ? next : prev;
       });
-
-      return changed ? next : prev;
-    });
-  }, [categoryNameFieldKeys, parentFieldKeys]);
+    } catch (error) {
+      console.error('[AddTrangBiDialog] syncParentCategoryFields error', error);
+    }
+  }, [categoryNameFieldKey, hasCategoryNameField, hasParentField, parentFieldKey]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
     setFormData((prev) => {
@@ -537,10 +496,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       return { ...prev, [fieldKey]: value };
     });
 
-    if (CATEGORY_FIELD_CANDIDATE_SET.has(fieldKey.trim().toLowerCase())) {
+    if (fieldKey === categoryFieldKey) {
       void syncParentCategoryFields(value);
     }
-  }, [syncParentCategoryFields]);
+  }, [categoryFieldKey, syncParentCategoryFields]);
 
   const handleSave = useCallback(() => {
     console.log('Add Equipment:', formData);
@@ -638,7 +597,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       open={open}
       onClose={onClose}
       mode="add"
-      maxWidth="lg"
+      maxWidth="md"
       title="Thêm trang bị kỹ thuật mới"
       subtitle={`Nhóm ${activeMenu === 'tbNhom1' ? '1 - Phương tiện thông tin' : '2 - Phương tiện bay, xe thiết giáp'}`}
       icon={<AddIcon />}
@@ -647,8 +606,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       contentPadding={0}
       sx={{
         '& .MuiDialog-paper': {
-          width: 'min(1080px, calc(100vw - 32px))',
-          maxHeight: '82vh',
+          width: 'min(820px, calc(100vw - 32px))',
+          maxHeight: '90vh',
           height: 'auto',
         },
       }}
@@ -746,7 +705,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       <Box sx={{
         px: 2.5,
         pt: 2,
-        pb: configError || danhMucError || missingFieldSetIds.length > 0 || missingFieldRefs.length > 0 ? 1.5 : 0.75,
+        pb: configError || danhMucError || technicalError || missingFieldSetIds.length > 0 || missingFieldRefs.length > 0 ? 1.5 : 0.75,
         display: 'grid',
         gap: 1,
       }}>
@@ -758,6 +717,11 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         {danhMucError && (
           <Alert severity="warning">
             Kh??ng t???i ???????c danh m???c trang b??? ????? ch???n m?? ?????nh danh: {danhMucError}
+          </Alert>
+        )}
+        {technicalError && (
+          <Alert severity="warning">
+            Không tải được thông số kỹ thuật: {technicalError}
           </Alert>
         )}
         {missingFieldSetIds.length > 0 && (
@@ -869,9 +833,16 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         bgcolor: isDark ? 'rgba(0,0,0,0.2)' : 'grey.50',
         minHeight: 280,
       }}>
-        <Box sx={{ maxWidth: 840, mx: 'auto' }}>
-          {/* Field Sets - Lấy từ formConfig */}
-          {currentTabContent.length > 0 ? (
+        <Box sx={{ maxWidth: '100%', mx: 'auto' }}>
+          {/* Field Sets - Lấy từ formConfig hoặc API */}
+          {technicalLoading && isTrangBiNhom1Runtime && effectiveTab?.id === technicalTabId ? (
+            <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
+              <CircularProgress size={28} sx={{ mb: 2 }} />
+              <Typography variant="body2" fontWeight={600}>
+                Đang tải thông số kỹ thuật...
+              </Typography>
+            </Box>
+          ) : currentTabContent.length > 0 ? (
             currentTabContent.map((item, index) => (
               <FieldSetGroup
                 key={`${item.fieldSet.id}-${index}`}
@@ -892,7 +863,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                 Chưa có trường dữ liệu được cấu hình
               </Typography>
               <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
-                {isTrangBiNhom1Runtime && effectiveTab?.id === TRANG_BI_NHOM_1_TECH_TAB_ID
+                {isTrangBiNhom1Runtime && effectiveTab?.id === technicalTabId
                   ? (selectedCategoryCode
                     ? `Chua co thong so ky thuat duoc cau hinh cho ma danh muc "${selectedCategoryCode}".`
                     : 'Hay chon ma danh muc trang bi o tab "Thong tin chung" de nap thong so ky thuat tuong ung.')

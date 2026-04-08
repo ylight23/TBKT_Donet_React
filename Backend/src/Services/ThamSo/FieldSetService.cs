@@ -192,6 +192,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         };
 
         item.FieldIds.AddRange(ReadStringArrayStrict(fieldSetDoc, "FieldIds"));
+        item.MaDanhMucTrangBi.AddRange(ReadStringArrayStrict(fieldSetDoc, "MaDanhMucTrangBi"));
         ApplyAuditMetadata(item, fieldSetDoc);
         return item;
     }
@@ -521,6 +522,118 @@ public class FieldSetService(ILogger<FieldSetService> logger)
             response.Success = false;
             response.Message = "Loi khi khoi phuc bo du lieu";
             response.MessageException = ex.Message;
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// Tra ve cac FieldSet co MaDanhMucTrangBi khop voi ma danh muc trang bi dang chon.
+    /// Match logic: FieldSet duoc tra ve neu bat ky MaDanhMucTrangBi nao cua no
+    /// la prefix cua maDanhMuc truyen vao (hoac bang chinh no).
+    /// Vi du: FieldSet gan "B.1.00.00.00.00.000" se khop voi "B.1.01.00.00.00.001".
+    /// </summary>
+    public async Task<GetFieldSetsByMaDanhMucResponse> GetFieldSetsByMaDanhMucAsync(
+        GetFieldSetsByMaDanhMucRequest request)
+    {
+        var response = new GetFieldSetsByMaDanhMucResponse();
+        try
+        {
+            var maDanhMuc = (request.MaDanhMuc ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(maDanhMuc))
+            {
+                response.Meta = ThamSoResponseFactory.Ok("Khong co ma danh muc nao duoc truyen");
+                return response;
+            }
+
+            // Query: field sets co MaDanhMucTrangBi khong rong va chua bi xoa
+            var pipeline = new[]
+            {
+                new BsonDocument("$match", new BsonDocument
+                {
+                    { "Delete", new BsonDocument("$ne", true) },
+                    { "MaDanhMucTrangBi", new BsonDocument("$exists", true) },
+                    { "MaDanhMucTrangBi.0", new BsonDocument("$exists", true) },
+                }),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "DynamicField" },
+                    { "let", new BsonDocument("fieldIds", "$FieldIds") },
+                    { "pipeline", new BsonArray
+                        {
+                            new BsonDocument("$match", new BsonDocument("$expr", new BsonDocument("$and", new BsonArray
+                            {
+                                new BsonDocument("$in", new BsonArray { "$_id", "$$fieldIds" }),
+                                new BsonDocument("$ne", new BsonArray { "$Delete", true }),
+                            }))),
+                        }
+                    },
+                    { "as", "Fields" }
+                }),
+                new BsonDocument("$addFields", new BsonDocument("Fields", new BsonDocument("$map", new BsonDocument
+                {
+                    { "input", "$FieldIds" },
+                    { "as", "fieldId" },
+                    { "in", new BsonDocument("$first", new BsonDocument("$filter", new BsonDocument
+                        {
+                            { "input", "$Fields" },
+                            { "as", "field" },
+                            { "cond", new BsonDocument("$eq", new BsonArray { "$$field._id", "$$fieldId" }) }
+                        }))
+                    }
+                }))),
+                new BsonDocument("$addFields", new BsonDocument("Fields", new BsonDocument("$filter", new BsonDocument
+                {
+                    { "input", "$Fields" },
+                    { "as", "field" },
+                    { "cond", new BsonDocument("$ne", new BsonArray { "$$field", BsonNull.Value }) }
+                })))
+            };
+
+            var resultDocs = await Global.CollectionBsonFieldSet!
+                .Aggregate<BsonDocument>(pipeline)
+                .ToListAsync();
+
+            foreach (var resultDoc in resultDocs)
+            {
+                var fieldSetDoc = new BsonDocument(resultDoc);
+                var fieldDocs = fieldSetDoc.GetValue("Fields", new BsonArray()).AsBsonArray;
+                fieldSetDoc.Remove("Fields");
+
+                var fieldSet = ToFieldSetStrict(fieldSetDoc);
+
+                // Match: maDanhMuc phai bat dau bang (hoac bang chinh) mot trong cac MaDanhMucTrangBi cua FieldSet
+                // Vi du: FieldSet.MaDanhMucTrangBi = ["B.1.00.00.00.00.000"]
+                //         maDanhMuc = "B.1.01.00.00.00.001" → match vi bat dau bang "B"
+                var isMatch = fieldSet.MaDanhMucTrangBi.Any(fsId =>
+                {
+                    var trimmed = fsId.Trim();
+                    if (string.IsNullOrEmpty(trimmed)) return false;
+                    return maDanhMuc.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase)
+                        || trimmed.StartsWith(maDanhMuc, StringComparison.OrdinalIgnoreCase);
+                });
+
+                if (!isMatch) continue;
+
+                var item = new FieldSetDetail { FieldSet = fieldSet };
+                foreach (var fieldDoc in fieldDocs.OfType<BsonDocument>())
+                {
+                    item.Fields.Add(ToDynamicField(fieldDoc));
+                }
+
+                response.Items.Add(item);
+            }
+
+            response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} field set(s) matched");
+            logger.LogInformation(
+                "GetFieldSetsByMaDanhMuc: {Count} matched for maDanhMuc='{MaDanhMuc}'",
+                response.Items.Count,
+                maDanhMuc);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GetFieldSetsByMaDanhMuc error");
+            response.Meta = ThamSoResponseFactory.Fail("Loi khi tra cuu bo du lieu theo ma danh muc trang bi", ex.Message);
         }
 
         return response;

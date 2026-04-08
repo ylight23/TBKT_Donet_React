@@ -139,6 +139,7 @@ message FieldSet {
   string desc = 5;
   repeated string field_ids = 6;   // reference by ID, not embedded
   reserved 7; // was: delete
+  repeated string ma_danh_muc_trang_bi = 8; // _id DanhMucTrangBi mà FieldSet này áp dụng (ví dụ: "B.1.00.00.00.00.000")
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
   string create_by = 12;

@@ -7,6 +7,8 @@ package DanhMucTrangBi;
 import "google/protobuf/wrappers.proto";
 import "google/protobuf/timestamp.proto";
 import "ExtendedField.proto";
+import "ThamSo.proto";
+import "Base.proto";
 
 message TrangBiTree {
   google.protobuf.StringValue id = 1;
@@ -87,10 +89,23 @@ message DeleteTrangBiTreeResponse {
   string message = 2;
 }
 
+// ============================================================
+// GetFieldSetsByMaDanhMuc – tra cứu FieldSet theo mã danh mục trang bị
+// ============================================================
+message GetFieldSetsByMaDanhMucRequest {
+  string ma_danh_muc = 1; // _id DanhMucTrangBi đang chọn (ví dụ: "B.1.01.00.00.00.001")
+}
+
+message GetFieldSetsByMaDanhMucResponse {
+  repeated ThamSo.FieldSetDetail items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
 service DanhMucTrangBiService {
   rpc GetListMaDinhDanhTrangBi (GetListMaDinhDanhTrangBiRequest) returns (GetListMaDinhDanhTrangBiResponse);
   rpc GetListTree (TrangBiTreeListRequest) returns (TrangBiTreeListResponse);
   rpc GetTree (TrangBiTreeGetRequest) returns (TrangBiTreeGetResponse);
   rpc SaveTree (SaveTrangBiTreeRequest) returns (SaveTrangBiTreeResponse);
   rpc DeleteTree (DeleteTrangBiTreeRequest) returns (DeleteTrangBiTreeResponse);
+  rpc GetFieldSetsByMaDanhMuc (GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
 }

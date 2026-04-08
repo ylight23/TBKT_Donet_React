@@ -7,11 +7,13 @@ import {
     TrangBiTreeListRequestSchema,
     TrangBiTreeSchema,
     SaveTrangBiTreeRequestSchema,
+    GetFieldSetsByMaDanhMucRequestSchema,
 } from '../grpc/generated/DanhMucTrangBi_pb';
 import { create as createEf } from '@bufbuild/protobuf';
 import { ExtendedFieldSchema } from '../grpc/generated/ExtendedField_pb';
 import { listDanhMucChuyenNganh } from './danhmucChuyenNganhApi';
 import { serializeProtoObject } from '../utils/serializeProto';
+import { type LocalFieldSet, protoSetDetailToLocal, assertHydratedFieldSets } from './thamSoApi';
 
 export type { DanhMucTrangBiTree };
 
@@ -159,6 +161,32 @@ export async function saveTreeItem(
     return { success: res.success, id: res.id, message: res.message };
 }
 
+/**
+ * Tra cứu FieldSet theo mã danh mục trang bị (_id DanhMucTrangBi).
+ * Backend match: prefix match giữa MaDanhMucTrangBi của FieldSet và mã truyền vào.
+ */
+export async function getFieldSetsByMaDanhMuc(maDanhMuc: string): Promise<LocalFieldSet[]> {
+    try {
+        const trimmed = maDanhMuc.trim();
+        if (!trimmed) return [];
+
+        const request = create(GetFieldSetsByMaDanhMucRequestSchema, {
+            maDanhMuc: trimmed,
+        });
+        const res = await danhMucTrangBiClient.getFieldSetsByMaDanhMuc(request);
+        if (!res.meta?.success) {
+            throw new Error(res.meta?.message || 'Khong the tra cuu field set theo ma danh muc trang bi');
+        }
+        const mapped = (res.items ?? []).map(protoSetDetailToLocal);
+        assertHydratedFieldSets(mapped, `getFieldSetsByMaDanhMuc:${trimmed}`);
+        console.log('[danhMucTrangBiApi] getFieldSetsByMaDanhMuc:', trimmed, '→', mapped.length, 'items');
+        return mapped;
+    } catch (err) {
+        console.error('[danhMucTrangBiApi] getFieldSetsByMaDanhMuc error:', err);
+        throw err;
+    }
+}
+
 export default {
     getDanhMucTrangBiOptions,
     getListMaDinhDanhTrangBi,
@@ -166,4 +194,5 @@ export default {
     getTreeChildren,
     getTreeItem,
     saveTreeItem,
+    getFieldSetsByMaDanhMuc,
 };

@@ -115,6 +115,7 @@ export interface LocalFieldSet {
     color: string;
     desc?: string;
     fieldIds: string[];
+    maDanhMucTrangBi?: string[];  // _id DanhMucTrangBi mà FieldSet này áp dụng
     fields?: LocalDynamicField[];
     audit?: LocalAuditMetadata;
 }
@@ -308,6 +309,7 @@ function protoSetToLocal(s: FieldSetProto): LocalFieldSet {
         color: s.color,
         desc: s.desc,
         fieldIds: [...s.fieldIds],
+        maDanhMucTrangBi: s.maDanhMucTrangBi?.length ? [...s.maDanhMucTrangBi] : undefined,
         audit: mapAuditMetadata(s),
     };
 }
@@ -320,10 +322,11 @@ function localSetToProto(s: LocalFieldSet): any {
         color: s.color,
         desc: s.desc || '',
         fieldIds: s.fieldIds,
+        maDanhMucTrangBi: s.maDanhMucTrangBi ?? [],
     });
 }
 
-function protoSetDetailToLocal(item: FieldSetDetailProto): LocalFieldSet {
+export function protoSetDetailToLocal(item: FieldSetDetailProto): LocalFieldSet {
     const fieldSet = protoSetToLocal(item.fieldSet!);
     const fields = (item.fields ?? []).map(protoFieldToLocal);
 
@@ -333,7 +336,7 @@ function protoSetDetailToLocal(item: FieldSetDetailProto): LocalFieldSet {
     };
 }
 
-function assertHydratedFieldSets(fieldSets: LocalFieldSet[], context: string): void {
+export function assertHydratedFieldSets(fieldSets: LocalFieldSet[], context: string): void {
     const invalid = fieldSets.filter((fs) => (fs.fieldIds?.length ?? 0) > 0 && (fs.fields?.length ?? 0) === 0);
     if (invalid.length === 0) return;
     const sample = invalid.slice(0, 10).map((fs) => `${fs.name || fs.id}(${fs.id})`).join(', ');
