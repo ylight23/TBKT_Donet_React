@@ -498,18 +498,14 @@ public class CatalogServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnv
             if (!string.IsNullOrEmpty(request.ParentId))
             {
                 if (!request.LoadAll)
-                    filter &= builder.Or(
-                        builder.Eq("IdCapTren", request.ParentId),
-                        builder.Eq("IDCapTren", request.ParentId));
+                    filter &= builder.Eq("IdCapTren", request.ParentId);
                 else
                     filter &= builder.Regex("_id", "/^" + EscapeRegex(request.ParentId) + ".*/i");
             }
             else if (!request.LoadAll)
                 filter &= builder.Or(
                     builder.Eq("IdCapTren", request.ParentId),
-                    builder.Eq("IdCapTren", BsonNull.Value),
-                    builder.Eq("IDCapTren", request.ParentId),
-                    builder.Eq("IDCapTren", BsonNull.Value));
+                    builder.Eq("IdCapTren", BsonNull.Value));
             if (request.InIds.Count > 0)
                 filter &= builder.In("_id", request.InIds);
             if (request.ExcludeLeaf)

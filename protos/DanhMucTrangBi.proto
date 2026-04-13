@@ -101,6 +101,48 @@ message GetFieldSetsByMaDanhMucResponse {
   Base.ResponseMeta meta = 2;
 }
 
+// ============================================================
+// SaveTrangBiNhom1 – lưu bản ghi trang bị (equipment instance)
+// ============================================================
+message TrangBiNhom1Record {
+  string id = 1;                                              // GUID, tự sinh khi tạo mới
+  string ma_danh_muc = 2;                                     // _id DanhMucTrangBi (loại trang bị)
+  google.protobuf.StringValue id_cap_tren = 3;                // mã cấp trên (DanhMucTrangBi cha)
+  google.protobuf.StringValue ten_danh_muc = 4;               // tên danh mục trang bị
+  google.protobuf.StringValue id_chuyen_nganh_kt = 5;         // chuyên ngành kỹ thuật (CN scope)
+  repeated ExtendedField.ExtendedField parameters = 6;        // tất cả trường động từ FormConfig
+  google.protobuf.StringValue nguoi_tao = 7;
+  google.protobuf.StringValue nguoi_sua = 8;
+  google.protobuf.Timestamp ngay_tao = 9;
+  google.protobuf.Timestamp ngay_sua = 10;
+}
+
+message SaveTrangBiNhom1Request {
+  TrangBiNhom1Record item = 1;
+  bool is_new = 2;
+}
+
+message SaveTrangBiNhom1Response {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// ============================================================
+// GetListTrangBiNhom1 – lấy danh sách bản ghi trang bị nhóm 1
+// ============================================================
+message GetListTrangBiNhom1Request {
+  google.protobuf.StringValue id_chuyen_nganh_kt = 1;   // lọc theo chuyên ngành (tùy chọn)
+  google.protobuf.StringValue ma_danh_muc = 2;           // lọc theo danh mục trang bị (tùy chọn)
+  google.protobuf.StringValue search_text = 3;           // tìm kiếm toàn văn (tùy chọn)
+}
+
+message GetListTrangBiNhom1Response {
+  repeated TrangBiNhom1Record items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
 service DanhMucTrangBiService {
   rpc GetListMaDinhDanhTrangBi (GetListMaDinhDanhTrangBiRequest) returns (GetListMaDinhDanhTrangBiResponse);
   rpc GetListTree (TrangBiTreeListRequest) returns (TrangBiTreeListResponse);
@@ -108,4 +150,6 @@ service DanhMucTrangBiService {
   rpc SaveTree (SaveTrangBiTreeRequest) returns (SaveTrangBiTreeResponse);
   rpc DeleteTree (DeleteTrangBiTreeRequest) returns (DeleteTrangBiTreeResponse);
   rpc GetFieldSetsByMaDanhMuc (GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
+  rpc SaveTrangBiNhom1 (SaveTrangBiNhom1Request) returns (SaveTrangBiNhom1Response);
+  rpc GetListTrangBiNhom1 (GetListTrangBiNhom1Request) returns (GetListTrangBiNhom1Response);
 }

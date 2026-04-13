@@ -23,6 +23,7 @@ export interface FieldSet {
     color: string;
     desc?: string;
     fieldIds: string[];
+    maDanhMucTrangBi?: string[];
     fields?: LocalDynamicField[];
 }
 

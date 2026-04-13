@@ -105,6 +105,31 @@ public class FieldSetService(ILogger<FieldSetService> logger)
             .ToList();
     }
 
+    private static async Task<List<string>> GetMissingDanhMucCodesAsync(IEnumerable<string> codes)
+    {
+        var normalized = codes
+            .Select(c => c.Trim())
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (normalized.Count == 0) return [];
+
+        var collection = Global.MongoDB?.GetCollection<BsonDocument>("DanhMucTrangBi");
+        if (collection == null) return [];
+
+        var foundDocs = await collection
+            .Find(Builders<BsonDocument>.Filter.In("_id", normalized))
+            .Project(Builders<BsonDocument>.Projection.Include("_id"))
+            .ToListAsync();
+
+        var foundSet = foundDocs
+            .Select(d => d.IdString())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+
+        return normalized.Where(code => !foundSet.Contains(code)).ToList();
+    }
+
     private static void RemoveFieldSetIdsFromFormConfigDoc(BsonDocument formConfigDoc, HashSet<string> removeIds)
     {
         if (!formConfigDoc.TryGetValue("Tabs", out var tabsValue) || !tabsValue.IsBsonArray)
@@ -317,6 +342,17 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                 response.Meta = ThamSoResponseFactory.Fail(
                     $"Khong the luu bo du lieu vi co field khong hop le: {string.Join(", ", missingFieldIds.Take(10))}");
                 return response;
+            }
+
+            if (item.MaDanhMucTrangBi.Count > 0)
+            {
+                var missingCodes = await GetMissingDanhMucCodesAsync(item.MaDanhMucTrangBi);
+                if (missingCodes.Count > 0)
+                {
+                    response.Meta = ThamSoResponseFactory.Fail(
+                        $"Ma danh muc trang bi khong ton tai trong he thong: {string.Join(", ", missingCodes.Take(5))}");
+                    return response;
+                }
             }
 
             var isNew = string.IsNullOrWhiteSpace(item.Id);

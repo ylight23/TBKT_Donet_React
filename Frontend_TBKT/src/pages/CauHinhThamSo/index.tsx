@@ -51,6 +51,7 @@ const mapUiFieldSetToStore = (fieldSet: FieldSet): LocalFieldSet => ({
   color: fieldSet.color,
   desc: fieldSet.desc ?? '',
   fieldIds: fieldSet.fieldIds,
+  maDanhMucTrangBi: fieldSet.maDanhMucTrangBi,
 });
 
 const replaceFieldIdInFieldSets = (fieldSets: FieldSet[], oldId: string, nextId: string): FieldSet[] => (

@@ -10,7 +10,6 @@ import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import Alert from '@mui/material/Alert';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useTheme } from '@mui/material/styles';
 
@@ -22,13 +21,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import AddIcon from '@mui/icons-material/Add';
 
-import type {
-  LocalDynamicField as DynamicField,
-  LocalFieldSet as FieldSet,
-  LocalFormConfig as FormConfig,
-} from '../../types/thamSo';
-import thamSoApi from '../../apis/thamSoApi';
-
 import { ITrangBi, TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
 import { militaryColors } from '../../theme';
 import FilterTrangBi, { FilterTrangBiValues } from './FilterTrangBi';
@@ -37,8 +29,9 @@ import { OfficeProvider } from '../../context/OfficeContext';
 import StatsButton from '../Stats/StatsButton';
 import AddTrangBiDialog from './AddTrangBiDialog';
 import LazyDataGrid from '../LazyDataGrid';
-import { getRequiredFormKeyForMenu } from '../../utils/formConfigKeys';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
+import { prefetchRuntimeFormSchema } from '../../apis/thamSoApi';
+import { getRequiredFormKeyForMenu } from '../../utils/formConfigKeys';
 
 // ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -64,6 +57,7 @@ interface TrangBiDataGridProps {
   subtitle: string;
   data: ITrangBi[];
   activeMenu?: 'tbNhom1' | 'tbNhom2' | string;
+  onRecordSaved?: () => void;
 }
 
 const isTrangBiGroupMenu = (value?: string): value is 'tbNhom1' | 'tbNhom2' => (
@@ -71,86 +65,22 @@ const isTrangBiGroupMenu = (value?: string): value is 'tbNhom1' | 'tbNhom2' => (
 );
 
 // ── TrangBiDataGrid ──────────────────────────────────────────
-const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data, activeMenu }) => {
+const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data, activeMenu, onRecordSaved }) => {
   const theme = useTheme();
   const { canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
   const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
-  const [runtimeFields, setRuntimeFields] = useState<DynamicField[]>([]);
-  const [runtimeFieldSets, setRuntimeFieldSets] = useState<FieldSet[]>([]);
-  const [runtimeForm, setRuntimeForm] = useState<FormConfig | null>(null);
-  const [runtimeLoading, setRuntimeLoading] = useState(false);
-  const [runtimeError, setRuntimeError] = useState('');
 
-  // State bộ lọc nâng cao
+  // Pre-warm schema cache so AddTrangBiDialog opens instantly
+  useEffect(() => {
+    if (!activeMenuForDialog) return;
+    const formKey = getRequiredFormKeyForMenu(activeMenuForDialog);
+    if (formKey) prefetchRuntimeFormSchema(formKey, activeMenuForDialog);
+  }, [activeMenuForDialog]);
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
   const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
 
   // States for Dynamic Form
   const [openAdd, setOpenAdd] = useState(false);
-
-  useEffect(() => {
-    if (!activeMenuForDialog) {
-      setRuntimeFields([]);
-      setRuntimeFieldSets([]);
-      setRuntimeForm(null);
-      setRuntimeError('');
-      setRuntimeLoading(false);
-      return;
-    }
-
-    const requiredKey = getRequiredFormKeyForMenu(activeMenuForDialog);
-    if (!requiredKey) {
-      setRuntimeFields([]);
-      setRuntimeFieldSets([]);
-      setRuntimeForm(null);
-      setRuntimeError('Khong xac dinh duoc form runtime cho menu hien tai.');
-      setRuntimeLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        setRuntimeLoading(true);
-        setRuntimeError('');
-        const schema = await thamSoApi.getRuntimeFormSchema(requiredKey, activeMenuForDialog);
-        if (cancelled) return;
-
-        setRuntimeFields(schema.fields);
-        setRuntimeFieldSets(schema.fieldSets);
-        setRuntimeForm(schema.formConfig);
-        if (!schema.formConfig) {
-          setRuntimeError(`Khong tim thay FormConfig co key "${requiredKey}" cho menu hien tai.`);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setRuntimeFields([]);
-        setRuntimeFieldSets([]);
-        setRuntimeForm(null);
-        setRuntimeError((err as Error)?.message || 'Khong the tai schema runtime cho bieu mau trang bi.');
-      } finally {
-        if (!cancelled) {
-          setRuntimeLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeMenuForDialog]);
-
-  // Determine which form to use
-  const activeForm = useMemo(() => runtimeForm, [runtimeForm]);
-
-  const isSchemaReady = Boolean(activeForm) && runtimeFieldSets.length > 0;
-  const formConfigError = useMemo(() => {
-    if (!activeMenuForDialog) return '';
-    if (runtimeLoading) return '';
-    if (runtimeError) return runtimeError;
-    if (!isSchemaReady) return 'Schema runtime chua san sang. Vui long kiem tra FormConfig, FieldSet va DynamicField da duoc admin cau hinh.';
-    return '';
-  }, [activeMenuForDialog, isSchemaReady, runtimeError, runtimeLoading]);
 
   // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
@@ -415,7 +345,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setOpenAdd(true)}
-                disabled={runtimeLoading || !isSchemaReady || Boolean(formConfigError) || !canAddAny}
+                disabled={!canAddAny}
                 sx={{
                   bgcolor: militaryColors.navy,
                   '&:hover': { bgcolor: militaryColors.navy, filter: 'brightness(1.1)' },
@@ -426,7 +356,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
                   textTransform: 'none', fontWeight: 700, px: 3, height: 40,
                 }}
               >
-                {runtimeLoading ? 'Dang tai bieu mau...' : 'Them trang bi'}
+                Thêm trang bị
               </Button>
               <Button
                 variant="contained"
@@ -448,21 +378,12 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             </Stack>
           </Stack>
 
-          {formConfigError && (
-            <Alert severity="warning">
-              {formConfigError}
-            </Alert>
-          )}
-
           {/* Dynamic Add Dialog */}
           <AddTrangBiDialog
             open={openAdd}
             onClose={() => setOpenAdd(false)}
-            formConfig={activeForm}
-            allFields={runtimeFields}
-            allFieldSets={runtimeFieldSets}
+            onSaved={() => { onRecordSaved?.(); }}
             activeMenu={activeMenuForDialog}
-            configError={formConfigError}
           />
 
           {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}

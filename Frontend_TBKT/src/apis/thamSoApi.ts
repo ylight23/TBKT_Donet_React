@@ -217,6 +217,10 @@ const timestampToIso = (ts?: Timestamp | null): string | undefined => {
 
 const templateLayoutDetailCacheByKey = new Map<string, LocalTemplateLayout>();
 
+type RuntimeFormSchema = { formConfig: LocalFormConfig | null; fieldSets: LocalFieldSet[]; fields: LocalDynamicField[] };
+const runtimeFormSchemaCache = new Map<string, RuntimeFormSchema>();
+const runtimeFormSchemaPending = new Map<string, Promise<RuntimeFormSchema>>();
+
 const perfNow = (): number =>
     typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
@@ -583,6 +587,7 @@ const thamSoApi = {
             const res = await thamSoClient.saveFieldSet(request);
             if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu bộ dữ liệu thất bại');
             console.log('[thamSoApi] saveFieldSet:', res.item.id);
+            runtimeFormSchemaCache.clear();
             const hydrated = (await this.getListFieldSets()).find((set) => set.id === res.item!.id);
             if (!hydrated) {
                 throw new Error(`Khong tim thay FieldSet da luu: ${res.item.id}`);
@@ -599,6 +604,7 @@ const thamSoApi = {
             const request = create(DeleteFieldSetRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteFieldSet(request);
             console.log('[thamSoApi] deleteFieldSet:', res.success);
+            runtimeFormSchemaCache.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteFieldSet error:', err);
@@ -611,6 +617,7 @@ const thamSoApi = {
             const request = create(RestoreFieldSetRequestSchema, { ids: [id] });
             const res = await thamSoClient.restoreFieldSet(request);
             console.log('[thamSoApi] restoreFieldSet:', res.success);
+            runtimeFormSchemaCache.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreFieldSet error:', err);
@@ -636,31 +643,47 @@ const thamSoApi = {
         fieldSets: LocalFieldSet[];
         fields: LocalDynamicField[];
     }> {
-        try {
-            const request = create(GetRuntimeFormSchemaRequestSchema, {
-                key,
-                activeMenu,
-            });
-            const res = await thamSoClient.getRuntimeFormSchema(request);
-            if (!res.meta?.success) {
-                const detail = [res.meta?.message, res.meta?.messageException]
-                    .filter(Boolean)
-                    .join(': ');
-                throw new Error(detail || `Khong the tai schema runtime cho key "${key}"`);
+        const cacheKey = `${key}__${activeMenu}`;
+        const cached = runtimeFormSchemaCache.get(cacheKey);
+        if (cached) return cached;
+
+        const pending = runtimeFormSchemaPending.get(cacheKey);
+        if (pending) return pending;
+
+        const fetchPromise = (async () => {
+            try {
+                const request = create(GetRuntimeFormSchemaRequestSchema, {
+                    key,
+                    activeMenu,
+                });
+                const res = await thamSoClient.getRuntimeFormSchema(request);
+                if (!res.meta?.success) {
+                    const detail = [res.meta?.message, res.meta?.messageException]
+                        .filter(Boolean)
+                        .join(': ');
+                    throw new Error(detail || `Khong the tai schema runtime cho key "${key}"`);
+                }
+
+                const fieldSets = (res.fieldSets ?? []).map(protoSetDetailToLocal);
+                assertHydratedFieldSets(fieldSets, `getRuntimeFormSchema:${key}`);
+
+                const result: RuntimeFormSchema = {
+                    formConfig: res.item ? protoFormToLocal(res.item) : null,
+                    fieldSets,
+                    fields: (res.fields ?? []).map(protoFieldToLocal),
+                };
+                runtimeFormSchemaCache.set(cacheKey, result);
+                return result;
+            } catch (err) {
+                console.error('[thamSoApi] getRuntimeFormSchema error:', err);
+                throw err;
+            } finally {
+                runtimeFormSchemaPending.delete(cacheKey);
             }
+        })();
 
-            const fieldSets = (res.fieldSets ?? []).map(protoSetDetailToLocal);
-            assertHydratedFieldSets(fieldSets, `getRuntimeFormSchema:${key}`);
-
-            return {
-                formConfig: res.item ? protoFormToLocal(res.item) : null,
-                fieldSets,
-                fields: (res.fields ?? []).map(protoFieldToLocal),
-            };
-        } catch (err) {
-            console.error('[thamSoApi] getRuntimeFormSchema error:', err);
-            throw err;
-        }
+        runtimeFormSchemaPending.set(cacheKey, fetchPromise);
+        return fetchPromise;
     },
 
     async saveFormConfig(form: LocalFormConfig, isNew: boolean): Promise<LocalFormConfig> {
@@ -673,6 +696,7 @@ const thamSoApi = {
             const res = await thamSoClient.saveFormConfig(request);
             if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu form thất bại');
             console.log('[thamSoApi] saveFormConfig:', res.item.id);
+            runtimeFormSchemaCache.clear();
             return protoFormToLocal(res.item);
         } catch (err) {
             console.error('[thamSoApi] saveFormConfig error:', err);
@@ -685,6 +709,7 @@ const thamSoApi = {
             const request = create(DeleteFormConfigRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteFormConfig(request);
             console.log('[thamSoApi] deleteFormConfig:', res.success);
+            runtimeFormSchemaCache.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteFormConfig error:', err);
@@ -697,6 +722,7 @@ const thamSoApi = {
             const request = create(RestoreFormConfigRequestSchema, { ids: [id] });
             const res = await thamSoClient.restoreFormConfig(request);
             console.log('[thamSoApi] restoreFormConfig:', res.success);
+            runtimeFormSchemaCache.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreFormConfig error:', err);
@@ -1092,3 +1118,8 @@ const thamSoApi = {
 };
 
 export default thamSoApi;
+
+/** Pre-warm the runtime form schema cache before the user opens AddTrangBiDialog. */
+export function prefetchRuntimeFormSchema(key: string, activeMenu = ''): void {
+    thamSoApi.getRuntimeFormSchema(key, activeMenu).catch(() => {});
+}

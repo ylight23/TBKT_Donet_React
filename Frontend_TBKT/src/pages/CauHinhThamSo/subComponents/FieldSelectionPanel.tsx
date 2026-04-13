@@ -6,6 +6,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
+import SvgIcon from '@mui/material/SvgIcon';
 import TablePagination from '@mui/material/TablePagination';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -20,6 +21,12 @@ const OVERSCAN = 16;
 const DEFAULT_PAGE_SIZE = 100;
 const PAGE_SIZE_OPTIONS = [50, 100, 200];
 const GRID_COLUMNS = 2;
+
+const RequiredAsteriskIcon = (props: React.ComponentProps<typeof SvgIcon>) => (
+    <SvgIcon {...props} viewBox="0 0 24 24">
+        <path d="M11 2h2v7.1l6.15-3.55 1 1.73L14 10.83l6.15 3.56-1 1.73L13 12.57V19h-2v-6.43l-6.15 3.55-1-1.73L10 10.83 3.85 7.27l1-1.73L11 9.1V2z" />
+    </SvgIcon>
+);
 
 interface FieldSelectionPanelProps {
     selectedIds: string[];
@@ -204,7 +211,17 @@ const FieldSelectionPanel: React.FC<FieldSelectionPanelProps> = React.memo(({
                                                         </Typography>
                                                     </Box>
                                                     {field.required && (
-                                                        <Chip size="small" label="*" color="error" sx={{ height: 16, fontSize: 10, ml: 0.5 }} />
+                                                        <Chip
+                                                            size="small"
+                                                            icon={<RequiredAsteriskIcon sx={{ fontSize: 10 }} />}
+                                                            color="error"
+                                                            sx={{
+                                                                height: 16,
+                                                                ml: 0.5,
+                                                                '& .MuiChip-label': { display: 'none' },
+                                                                '& .MuiChip-icon': { ml: '4px', mr: '4px' },
+                                                            }}
+                                                        />
                                                     )}
                                                 </Box>
                                             );

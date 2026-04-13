@@ -165,6 +165,7 @@ export const DialogShell: React.FC<DialogShellProps> = ({
             onClose={loading ? undefined : onClose}
             maxWidth={maxWidth}
             fullWidth={fullWidth}
+            transitionDuration={0}
             PaperProps={{
                 sx: {
                     borderRadius: 2.5,
@@ -178,20 +179,20 @@ export const DialogShell: React.FC<DialogShellProps> = ({
             }}
         >
             <DialogTitle sx={{
-                p: 2.5,
+                p: 1.5,
                 background: `linear-gradient(135deg, ${alpha(titleColor, 0.14)} 0%, ${alpha(titleColor, 0.06)} 100%)`,
                 borderBottom: '1px solid',
                 borderColor: 'divider',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: 1.5,
             }}>
                 <Stack direction="row" alignItems="center" spacing={2} sx={{ minWidth: 0, flex: 1 }}>
                     <Paper elevation={0} sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 2.5,
+                        width: 34,
+                        height: 34,
+                        borderRadius: 2,
                         bgcolor: alpha(titleColor, 0.14),
                         color: titleColor,
                         display: 'flex',
@@ -204,7 +205,7 @@ export const DialogShell: React.FC<DialogShellProps> = ({
                         {mainIcon}
                     </Paper>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography fontWeight={800} variant="h6" sx={{ lineHeight: 1.2, color: 'text.primary' }}>
+                        <Typography fontWeight={700} variant="subtitle1" sx={{ lineHeight: 1.2, color: 'text.primary' }}>
                             {title}
                         </Typography>
                         {subtitle && (
