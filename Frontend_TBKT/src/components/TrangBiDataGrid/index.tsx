@@ -1,19 +1,18 @@
 // ============================================================
-// TrangBiDataGrid – Bảng dữ liệu trang bị kỹ thuật dùng chung
-// Dùng cho cả Nhóm 1 và Nhóm 2
+// TrangBiDataGrid - Bang du lieu trang bi ky thuat dung chung
+// Dung cho ca Nhom 1 va Nhom 2
 // ============================================================
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { useTheme } from '@mui/material/styles';
 
-// Icons
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
@@ -21,10 +20,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import AddIcon from '@mui/icons-material/Add';
 
-import { ITrangBi, TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
+import type { TrangBiNhom1GridItem, TrangBiNhom2GridItem } from '../../grpc/generated/DanhMucTrangBi_pb';
+import { TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
 import { militaryColors } from '../../theme';
-import FilterTrangBi, { FilterTrangBiValues } from './FilterTrangBi';
-import OfficeDictionary, { OfficeNode } from '../../pages/Office/subComponent/OfficeDictionary';
+import FilterTrangBi, { type FilterTrangBiValues } from './FilterTrangBi';
+import OfficeDictionary, { type OfficeNode } from '../../pages/Office/subComponent/OfficeDictionary';
 import { OfficeProvider } from '../../context/OfficeContext';
 import StatsButton from '../Stats/StatsButton';
 import AddTrangBiDialog from './AddTrangBiDialog';
@@ -33,7 +33,6 @@ import { useMyPermissions } from '../../hooks/useMyPermissions';
 import { prefetchRuntimeFormSchema } from '../../apis/thamSoApi';
 import { getRequiredFormKeyForMenu } from '../../utils/formConfigKeys';
 
-// ── Màu trạng thái trang bị ──────────────────────────────────
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
   [TrangThaiTrangBi.HoatDong]: 'success',
   [TrangThaiTrangBi.SuaChua]: 'warning',
@@ -42,7 +41,6 @@ const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 
   [TrangThaiTrangBi.DaThanhLy]: 'default',
 };
 
-// ── Màu chất lượng ───────────────────────────────────────────
 const chatLuongColor: Record<string, string> = {
   [ChatLuong.Tot]: '#2e7d32',
   [ChatLuong.Kha]: '#1565c0',
@@ -51,38 +49,47 @@ const chatLuongColor: Record<string, string> = {
   [ChatLuong.HỏngHoc]: '#6a1b9a',
 };
 
-// ── Props component ──────────────────────────────────────────
 interface TrangBiDataGridProps {
   title: string;
   subtitle: string;
-  data: ITrangBi[];
+  data: Array<TrangBiNhom1GridItem | TrangBiNhom2GridItem>;
+  loading?: boolean;
+  errorMessage?: string;
   activeMenu?: 'tbNhom1' | 'tbNhom2' | string;
   onRecordSaved?: () => void;
 }
+
+type TrangBiGridRow = TrangBiNhom1GridItem | TrangBiNhom2GridItem;
 
 const isTrangBiGroupMenu = (value?: string): value is 'tbNhom1' | 'tbNhom2' => (
   value === 'tbNhom1' || value === 'tbNhom2'
 );
 
-// ── TrangBiDataGrid ──────────────────────────────────────────
-const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data, activeMenu, onRecordSaved }) => {
-  const theme = useTheme();
+const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
+  title,
+  subtitle,
+  data,
+  loading = false,
+  errorMessage = '',
+  activeMenu,
+  onRecordSaved,
+}) => {
   const { canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
   const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
 
-  // Pre-warm schema cache so AddTrangBiDialog opens instantly
   useEffect(() => {
     if (!activeMenuForDialog) return;
     const formKey = getRequiredFormKeyForMenu(activeMenuForDialog);
-    if (formKey) prefetchRuntimeFormSchema(formKey, activeMenuForDialog);
+    if (formKey) {
+      prefetchRuntimeFormSchema(formKey, activeMenuForDialog);
+    }
   }, [activeMenuForDialog]);
+
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
   const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
-
-  // States for Dynamic Form
   const [openAdd, setOpenAdd] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
-  // Xóa toàn bộ bộ lọc
   const handleClearFilter = useCallback(() => {
     setFilterValues(null);
   }, []);
@@ -91,7 +98,16 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
     setFilterValues(values);
   }, []);
 
-  // Lọc dữ liệu theo các điều kiện
+  const handleOpenCreateDialog = useCallback(() => {
+    setEditingRecordId(null);
+    setOpenAdd(true);
+  }, []);
+
+  const handleCloseDialog = useCallback(() => {
+    setOpenAdd(false);
+    setEditingRecordId(null);
+  }, []);
+
   const filtered = useMemo(() => {
     if (!filterValues) return data;
 
@@ -108,35 +124,38 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
       tinhTrangKyThuat,
       donViQuanLy,
       namSanXuat,
-      namSuDung
+      namSuDung,
     } = filterValues;
 
     const q = fullTextSearch.toLowerCase();
 
-    return data.filter(row => {
+    return data.filter((row) => {
       const matchSearch = !q || [
-        row.maTrangBi, row.ten, row.loai, row.serial, row.mac, row.donVi,
-      ].some(v => v && v.toLowerCase().includes(q));
+        row.maDanhMuc,
+        row.tenDanhMuc,
+        row.loai,
+        row.soHieu,
+        row.donVi,
+      ].some((value) => value && value.toLowerCase().includes(q));
 
       if (!matchSearch) return false;
-
       if (donVi && !row.donVi.toLowerCase().includes(donVi.toLowerCase())) return false;
-      if (maTrangBi && !row.maTrangBi.toLowerCase().includes(maTrangBi.toLowerCase())) return false;
-      if (tenTrangBi && !row.ten.toLowerCase().includes(tenTrangBi.toLowerCase())) return false;
+      if (maTrangBi && !row.maDanhMuc.toLowerCase().includes(maTrangBi.toLowerCase())) return false;
+      if (tenTrangBi && !row.tenDanhMuc.toLowerCase().includes(tenTrangBi.toLowerCase())) return false;
       if (capChatLuong && row.chatLuong !== capChatLuong) return false;
       if (tinhTrangSuDung && row.trangThai !== tinhTrangSuDung) return false;
-      if (soHieu && row.serial && !row.serial.toLowerCase().includes(soHieu.toLowerCase())) return false;
+      if (soHieu && !row.soHieu.toLowerCase().includes(soHieu.toLowerCase())) return false;
 
-      const r = row as any;
-      if (nhom && r.nhom !== nhom) return false;
-      if (phanNganh && r.phanNganh !== phanNganh) return false;
-      if (tinhTrangKyThuat && r.tinhTrangKyThuat !== tinhTrangKyThuat) return false;
-      if (donViQuanLy && r.donViQuanLy !== donViQuanLy) return false;
-      if (namSanXuat && r.namSanXuat !== Number(namSanXuat)) return false;
-      if (namSuDung && r.namSuDung !== Number(namSuDung)) return false;
+      const extendedRow = row as Record<string, unknown>;
+      if (nhom && extendedRow.nhom !== nhom) return false;
+      if (phanNganh && row.idCapTren !== phanNganh) return false;
+      if (tinhTrangKyThuat && extendedRow.tinhTrangKyThuat !== tinhTrangKyThuat) return false;
+      if (donViQuanLy && extendedRow.donViQuanLy !== donViQuanLy) return false;
+      if (namSanXuat && extendedRow.namSanXuat !== Number(namSanXuat)) return false;
+      if (namSuDung && extendedRow.namSuDung !== Number(namSuDung)) return false;
 
       if (selectedOffice) {
-        const officeName = selectedOffice.ten || selectedOffice.tenDayDu || "";
+        const officeName = selectedOffice.ten || selectedOffice.tenDayDu || '';
         if (!row.donVi.toLowerCase().includes(officeName.toLowerCase())) return false;
       }
 
@@ -144,20 +163,19 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
     });
   }, [data, filterValues, selectedOffice]);
 
-  // Giả lập export Excel
   const handleExport = useCallback(() => {
-    alert(`[Giả lập] Xuất ${filtered.length} bản ghi ra Excel`);
+    alert(`[Gia lap] Xuat ${filtered.length} ban ghi ra Excel`);
   }, [filtered.length]);
 
-  // ── Định nghĩa cột DataGrid ──────────────────────────────
-  const resolveTrangBiCnId = useCallback((row: ITrangBi): string =>
-    String(row.IDChuyenNganhKT || row.IDChuyenNganh || '').trim(),
-  []);
+  const resolveTrangBiCnId = useCallback((row: TrangBiGridRow): string => (
+    String(row.idChuyenNganhKt || '').trim()
+  ), []);
 
   const isRowActionDisabled = useCallback(
-    (action: 'view' | 'edit' | 'delete' | 'print' | 'export', row: ITrangBi): boolean => {
+    (action: 'view' | 'edit' | 'delete' | 'print' | 'export', row: TrangBiGridRow): boolean => {
       if (!permissionLoaded) return false;
       const cnId = resolveTrangBiCnId(row);
+      if (!cnId) return true;
       const mappedAction = action === 'export' ? 'download' : action;
       return !canCnAction(mappedAction, cnId);
     },
@@ -172,106 +190,182 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
 
   const canExportAny = useMemo(() => {
     if (!permissionLoaded) return true;
-    return filtered.some((row) => canCnAction('download', resolveTrangBiCnId(row)));
+    return filtered.some((row) => {
+      const cnId = resolveTrangBiCnId(row);
+      return cnId ? canCnAction('download', cnId) : false;
+    });
   }, [canCnAction, filtered, permissionLoaded, resolveTrangBiCnId]);
 
-  const columns: GridColDef[] = [
+  const handleEditRow = useCallback((row: TrangBiGridRow) => {
+    if (activeMenuForDialog === 'tbNhom1') {
+      setEditingRecordId(row.id);
+      setOpenAdd(true);
+      return;
+    }
+
+    alert(`Sua: ${row.maDanhMuc}`);
+  }, [activeMenuForDialog]);
+
+  const columns = useMemo<GridColDef<TrangBiGridRow>[]>(() => [
     {
       field: 'stt',
       headerName: 'STT',
       width: 60,
-      renderCell: (p) => {
-        const index = p.api.getAllRowIds().indexOf(p.id);
+      renderCell: (params) => {
+        const index = params.api.getSortedRowIds().indexOf(params.id);
         return <Typography variant="body2">{index + 1}</Typography>;
       },
     },
     {
-      field: 'maTrangBi', headerName: 'Mã trang bị', width: 140,
-      renderCell: (p) => (
+      field: 'maDanhMuc',
+      headerName: 'Mã danh mục',
+      width: 140,
+      renderCell: (params) => (
         <Typography variant="body2" fontWeight={600} sx={{ color: 'var(--mil-text-primary)' }}>
-          {p.value}
+          {params.value}
         </Typography>
       ),
     },
     {
-      field: 'donVi', headerName: 'Đơn vị', flex: 1, minWidth: 160,
+      field: 'donVi',
+      headerName: 'Đơn vị',
+      flex: 1,
+      minWidth: 160,
     },
-    { field: 'phanNganh', headerName: 'Phân ngành', width: 150 },
-    { field: 'donViQuanLy', headerName: 'Đơn vị quản lý', width: 180 },
     {
-      field: 'trangThai', headerName: 'Tình trạng sử dụng', width: 160,
-      renderCell: (p: GridRenderCellParams<ITrangBi, TrangThaiTrangBi>) => (
+      field: 'idCapTren',
+      headerName: 'Phân ngành',
+      width: 150,
+    },
+    {
+      field: 'donViQuanLy',
+      headerName: 'Đơn vị quản lý',
+      width: 180,
+    },
+    {
+      field: 'trangThai',
+      headerName: 'Tình trạng sử dụng',
+      width: 160,
+      renderCell: (params: GridRenderCellParams<TrangBiGridRow, string>) => (
         <Chip
-          label={p.value}
-          color={trangThaiColor[p.value!] ?? 'default'}
+          label={params.value}
+          color={trangThaiColor[params.value ?? ''] ?? 'default'}
           size="small"
           sx={{ fontWeight: 600, fontSize: 11 }}
         />
       ),
     },
-    { field: 'tinhTrangKyThuat', headerName: 'Tình trạng kỹ thuật', width: 160 },
     {
-      field: 'chatLuong', headerName: 'Cấp chất lượng', width: 140,
-      renderCell: (p: GridRenderCellParams<ITrangBi, ChatLuong>) => (
-        <Chip
-          label={p.value}
-          size="small"
-          sx={{
-            bgcolor: `${chatLuongColor[p.value!]}22`,
-            color: chatLuongColor[p.value!],
-            fontWeight: 600,
-            fontSize: 11,
-            border: `1px solid ${chatLuongColor[p.value!]}44`,
-          }}
-        />
-      ),
+      field: 'tinhTrangKyThuat',
+      headerName: 'Tình trạng kỹ thuật',
+      width: 160,
     },
-    { field: 'serial', headerName: 'Số hiệu', width: 140 },
-    { field: 'namSanXuat', headerName: 'Năm sản xuất', width: 120, type: 'number' },
-    { field: 'namSuDung', headerName: 'Năm sử dụng', width: 120, type: 'number' },
-    { field: 'nienHanSuDung', headerName: 'Niên hạn sử dụng', width: 150, type: 'number' },
-    { field: 'nuocSanXuat', headerName: 'Nước sản xuất', width: 140 },
-    { field: 'hangSanXuat', headerName: 'Hãng sản xuất', width: 150 },
-    { field: 'loai', headerName: 'Loại trang bị', width: 150 },
     {
-      field: 'actions', headerName: 'Thao tác', width: 160, sortable: false, filterable: false,
-      renderCell: (p: GridRenderCellParams<ITrangBi>) => (
+      field: 'chatLuong',
+      headerName: 'Cấp chất lượng',
+      width: 140,
+      renderCell: (params: GridRenderCellParams<TrangBiGridRow, string>) => {
+        const color = chatLuongColor[params.value ?? ''] ?? '#6b7280';
+        return (
+          <Chip
+            label={params.value}
+            size="small"
+            sx={{
+              bgcolor: `${color}22`,
+              color,
+              fontWeight: 600,
+              fontSize: 11,
+              border: `1px solid ${color}44`,
+            }}
+          />
+        );
+      },
+    },
+    {
+      field: 'soHieu',
+      headerName: 'Số hiệu',
+      width: 140,
+      renderCell: (params: GridRenderCellParams<TrangBiGridRow>) => params.row.soHieu,
+    },
+    {
+      field: 'namSanXuat',
+      headerName: 'Năm sản xuất',
+      width: 120,
+      type: 'number',
+    },
+    {
+      field: 'namSuDung',
+      headerName: 'Năm sử dụng',
+      width: 120,
+      type: 'number',
+    },
+    {
+      field: 'nienHanSuDung',
+      headerName: 'Niên hạn sử dụng',
+      width: 150,
+      type: 'number',
+    },
+    {
+      field: 'nuocSanXuat',
+      headerName: 'Nước sản xuất',
+      width: 140,
+    },
+    {
+      field: 'hangSanXuat',
+      headerName: 'Hãng sản xuất',
+      width: 150,
+    },
+    {
+      field: 'loai',
+      headerName: 'Loại trang bị',
+      width: 150,
+    },
+    {
+      field: 'actions',
+      headerName: 'Thao tác',
+      width: 160,
+      sortable: false,
+      filterable: false,
+      renderCell: (params: GridRenderCellParams<TrangBiGridRow>) => (
         <Stack direction="row" spacing={0.5} justifyContent="center" width="100%">
           <Tooltip title="Xem chi tiết">
             <IconButton
               size="small"
-              onClick={() => alert(`Xem: ${p.row.maTrangBi}`)}
-              disabled={isRowActionDisabled('view', p.row)}
+              onClick={() => alert(`Xem: ${params.row.maDanhMuc}`)}
+              disabled={isRowActionDisabled('view', params.row)}
               sx={{ color: militaryColors.navy }}
             >
               <VisibilityIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
+
           <Tooltip title="Chỉnh sửa">
             <IconButton
               size="small"
-              onClick={() => alert(`Sửa: ${p.row.maTrangBi}`)}
-              disabled={isRowActionDisabled('edit', p.row)}
+              onClick={() => handleEditRow(params.row)}
+              disabled={isRowActionDisabled('edit', params.row)}
               sx={{ color: militaryColors.warning }}
             >
               <EditIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
+
           <Tooltip title="In chi tiết">
             <IconButton
               size="small"
-              onClick={() => alert(`In: ${p.row.maTrangBi}`)}
-              disabled={isRowActionDisabled('print', p.row)}
+              onClick={() => alert(`In: ${params.row.maDanhMuc}`)}
+              disabled={isRowActionDisabled('print', params.row)}
               sx={{ color: militaryColors.success }}
             >
               <PrintIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
+
           <Tooltip title="Xóa trang bị">
             <IconButton
               size="small"
-              onClick={() => alert(`Xóa: ${p.row.maTrangBi}`)}
-              disabled={isRowActionDisabled('delete', p.row)}
+              onClick={() => alert(`Xoa: ${params.row.maDanhMuc}`)}
+              disabled={isRowActionDisabled('delete', params.row)}
               sx={{ color: militaryColors.error }}
             >
               <DeleteIcon fontSize="inherit" />
@@ -280,29 +374,32 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
         </Stack>
       ),
     },
-  ];
+  ], [handleEditRow, isRowActionDisabled]);
 
   return (
     <OfficeProvider>
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: '270px 1fr',
-        height: 'calc(100vh - 120px)',
-        bgcolor: 'background.default',
-        overflow: 'hidden'
-      }}>
-        {/* Sidebar: Office Dictionary */}
-        <Box component="aside" sx={{
-          borderRight: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '270px 1fr',
+          height: 'calc(100vh - 120px)',
+          bgcolor: 'background.default',
           overflow: 'hidden',
-          height: '100%'
-        }}>
+        }}
+      >
+        <Box
+          component="aside"
+          sx={{
+            borderRight: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            overflow: 'hidden',
+            height: '100%',
+          }}
+        >
           <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
         </Box>
 
-        {/* Main Content: DataGrid */}
         <Stack
           component="section"
           spacing={1}
@@ -311,10 +408,9 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             px: { xs: 1.5, sm: 2, md: 2 },
             pb: 0,
             overflow: 'hidden',
-            height: '100%'
+            height: '100%',
           }}
         >
-          {/* Header Section */}
           <Stack
             direction="row"
             justifyContent="space-between"
@@ -340,11 +436,11 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             </Stack>
 
             <Stack direction="row" spacing={1.5}>
-              {activeMenu && <StatsButton activeMenu={activeMenu} />}
+              {activeMenu && <StatsButton activeMenu={activeMenu} trangBiData={data} />}
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => setOpenAdd(true)}
+                onClick={handleOpenCreateDialog}
                 disabled={!canAddAny}
                 sx={{
                   bgcolor: militaryColors.navy,
@@ -353,7 +449,10 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
                     bgcolor: `${militaryColors.navy}66`,
                     color: 'rgba(255,255,255,0.8)',
                   },
-                  textTransform: 'none', fontWeight: 700, px: 3, height: 40,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  px: 3,
+                  height: 40,
                 }}
               >
                 Thêm trang bị
@@ -370,7 +469,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
                   fontWeight: 700,
                   px: 3,
                   height: 40,
-                  boxShadow: `0 4px 12px ${militaryColors.deepOlive}44`
+                  boxShadow: `0 4px 12px ${militaryColors.deepOlive}44`,
                 }}
               >
                 Xuất Excel
@@ -378,28 +477,36 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
             </Stack>
           </Stack>
 
-          {/* Dynamic Add Dialog */}
           <AddTrangBiDialog
             open={openAdd}
-            onClose={() => setOpenAdd(false)}
-            onSaved={() => { onRecordSaved?.(); }}
+            onClose={handleCloseDialog}
+            onSaved={() => {
+              setEditingRecordId(null);
+              onRecordSaved?.();
+            }}
             activeMenu={activeMenuForDialog}
+            editingRecordId={editingRecordId}
           />
 
-          {/* ── Bộ lọc nâng cao ─────────────────────────────────── */}
           <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />
 
-          {/* ── DataGrid Container ───────────────────────────────── */}
+          {errorMessage && (
+            <Alert severity="error" variant="filled" sx={{ borderRadius: 2 }}>
+              {errorMessage}
+            </Alert>
+          )}
+
           <LazyDataGrid
             rows={filtered}
             columns={columns}
             getRowId={(row) => row.id}
+            loading={loading}
             fallbackRows={8}
             fallbackCols={8}
             sx={{
               flex: 1,
               minHeight: 450,
-              width: "100%",
+              width: '100%',
             }}
           />
         </Stack>
@@ -409,5 +516,3 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({ title, subtitle, data
 };
 
 export default TrangBiDataGrid;
-
-

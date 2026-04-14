@@ -29,7 +29,7 @@ import { getRealSetIds } from '../CauHinhThamSo/subComponents/formTabMeta';
 import { buildByNormalizedId, normalizeId } from '../../utils/idUtils';
 
 const STANDARD_KEYS = new Set(['ten', 'tenDayDu', 'vietTat', 'idCapTren', 'thuTu']);
-const CATEGORY_FIELD_KEY = 'ma_dinh_danh';
+const CATEGORY_FIELD_KEY = 'ma_danh_muc';
 
 function nodeToFormData(node: DanhMucTrangBiTree): Record<string, string> {
     const data: Record<string, string> = {

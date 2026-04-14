@@ -6,22 +6,29 @@
  */
 
 const isActive = { Delete: { $ne: true } };
-const CATEGORY_KEYS = new Set([
-  'ma_danh_muc_trang_bi',
+const CANONICAL_CATEGORY_KEYS = new Set([
+  'ma_danh_muc',
+]);
+const LEGACY_CATEGORY_KEYS = new Set([
   'ma_dinh_danh',
+  'ma_danh_muc_trang_bi',
   'iddanhmuctrangbi',
   'madanhmuctrangbi',
 ]);
-const CATEGORY_NAME_KEYS = new Set([
+const CANONICAL_CATEGORY_NAME_KEYS = new Set([
+  'ten_danh_muc',
+]);
+const LEGACY_CATEGORY_NAME_KEYS = new Set([
   'ten_danh_muc_trang_bi',
 ]);
 const PARENT_KEYS = new Set([
   'id_cap_tren',
+  'idcaptren',
   'ma_cap_tren',
+  'macaptren',
 ]);
 const LEGACY_NAME_KEYS = new Set([
   'ten',
-  'ten_danh_muc',
   'tendanhmuc',
 ]);
 
@@ -49,8 +56,12 @@ function analyzeFieldSet(fieldSet) {
   const fields = fieldIds.map((id) => fieldById.get(id)).filter(Boolean);
   const normalizedKeys = fields.map((field) => normalize(field.Key));
 
-  const hasCategoryField = normalizedKeys.some((key) => CATEGORY_KEYS.has(key));
-  const hasCategoryNameField = normalizedKeys.some((key) => CATEGORY_NAME_KEYS.has(key));
+  const hasCanonicalCategoryField = normalizedKeys.some((key) => CANONICAL_CATEGORY_KEYS.has(key));
+  const hasLegacyCategoryField = normalizedKeys.some((key) => LEGACY_CATEGORY_KEYS.has(key));
+  const hasCategoryField = hasCanonicalCategoryField || hasLegacyCategoryField;
+  const hasCanonicalCategoryNameField = normalizedKeys.some((key) => CANONICAL_CATEGORY_NAME_KEYS.has(key));
+  const hasLegacyCategoryNameField = normalizedKeys.some((key) => LEGACY_CATEGORY_NAME_KEYS.has(key));
+  const hasCategoryNameField = hasCanonicalCategoryNameField || hasLegacyCategoryNameField;
   const hasParentField = normalizedKeys.some((key) => PARENT_KEYS.has(key));
   const legacyNameFields = fields
     .filter((field) => LEGACY_NAME_KEYS.has(normalize(field.Key)))
@@ -60,21 +71,43 @@ function analyzeFieldSet(fieldSet) {
       label: field.Label || '',
     }));
 
-  const categoryNameField = fields.find((field) => CATEGORY_NAME_KEYS.has(normalize(field.Key)));
+  const categoryNameField = fields.find((field) =>
+    CANONICAL_CATEGORY_NAME_KEYS.has(normalize(field.Key)) || LEGACY_CATEGORY_NAME_KEYS.has(normalize(field.Key)),
+  );
   const parentField = fields.find((field) => PARENT_KEYS.has(normalize(field.Key)));
+  const legacyCategoryFields = fields
+    .filter((field) => LEGACY_CATEGORY_KEYS.has(normalize(field.Key)))
+    .map((field) => ({
+      id: String(field._id),
+      key: field.Key,
+      label: field.Label || '',
+    }));
+  const legacyCategoryNameFields = fields
+    .filter((field) => LEGACY_CATEGORY_NAME_KEYS.has(normalize(field.Key)))
+    .map((field) => ({
+      id: String(field._id),
+      key: field.Key,
+      label: field.Label || '',
+    }));
 
   const issues = [];
   if (hasCategoryField && !hasCategoryNameField) {
-    issues.push('Thieu field ten_danh_muc_trang_bi');
+    issues.push('Thieu field ten_danh_muc');
   }
   if (hasCategoryField && !hasParentField) {
     issues.push('Thieu field id_cap_tren/ma_cap_tren');
+  }
+  if (legacyCategoryFields.length > 0) {
+    issues.push(`Dang dung legacy category key: ${legacyCategoryFields.map((field) => field.key).join(', ')}`);
+  }
+  if (legacyCategoryNameFields.length > 0) {
+    issues.push(`Dang dung legacy category-name key: ${legacyCategoryNameFields.map((field) => field.key).join(', ')}`);
   }
   if (legacyNameFields.length > 0) {
     issues.push(`Dang dung legacy key ten: ${legacyNameFields.map((field) => field.key).join(', ')}`);
   }
   if (categoryNameField && categoryNameField.Disabled !== true) {
-    issues.push('Field ten_danh_muc_trang_bi chua disabled');
+    issues.push('Field ten_danh_muc chua disabled');
   }
   if (parentField && parentField.Disabled !== true) {
     issues.push('Field id_cap_tren/ma_cap_tren chua disabled');

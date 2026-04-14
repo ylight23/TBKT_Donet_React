@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"Tabs.FieldSetIds":{"$numberInt":"1"}},"name":"idx_thamso_formconfig_tabs_fieldsetids"}],"uuid":"1848248142374ee599cf9fbc95bfe0a7","collectionName":"FormConfig","type":"collection"}

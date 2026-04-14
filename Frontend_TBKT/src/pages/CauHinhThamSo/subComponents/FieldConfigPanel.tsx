@@ -34,9 +34,9 @@ import type { RootState } from '../../../store';
 
 const FIELD_KEY_PRESETS = [
     {
-        id: 'ma_danh_muc_trang_bi',
+        id: 'ma_danh_muc',
         title: 'Mã danh mục',
-        key: 'ma_danh_muc_trang_bi',
+        key: 'ma_danh_muc',
         label: 'Mã danh mục trang bị',
         type: 'select' as FieldType,
         disabled: false,
@@ -48,9 +48,9 @@ const FIELD_KEY_PRESETS = [
         },
     },
     {
-        id: 'ten_danh_muc_trang_bi',
+        id: 'ten_danh_muc',
         title: 'Tên danh mục',
-        key: 'ten_danh_muc_trang_bi',
+        key: 'ten_danh_muc',
         label: 'Tên danh mục trang bị',
         type: 'text' as FieldType,
         disabled: true,

@@ -1,0 +1,15 @@
+2026/04/14-07:43:17.306 26c8 Reusing MANIFEST C:\Users\dungp\AppData\Local\Google\Chrome\User Data\Default\Session Storage/MANIFEST-000001
+2026/04/14-07:43:17.309 26c8 Recovering log #7118
+2026/04/14-07:43:17.313 26c8 Reusing old log C:\Users\dungp\AppData\Local\Google\Chrome\User Data\Default\Session Storage/007118.log 
+2026/04/14-08:48:36.025 26c8 Level-0 table #7122: started
+2026/04/14-08:48:36.035 26c8 Level-0 table #7122: 28260 bytes OK
+2026/04/14-08:48:36.037 26c8 Delete type=0 #7118
+2026/04/14-08:48:36.037 26c8 Compacting 4@0 + 1@1 files
+2026/04/14-08:48:36.073 26c8 Generated table #7123@0: 38923 keys, 895648 bytes
+2026/04/14-08:48:36.073 26c8 Compacted 4@0 + 1@1 files => 895648 bytes
+2026/04/14-08:48:36.074 26c8 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/04/14-08:48:36.075 26c8 Delete type=2 #7112
+2026/04/14-08:48:36.075 26c8 Delete type=2 #7114
+2026/04/14-08:48:36.075 26c8 Delete type=2 #7117
+2026/04/14-08:48:36.075 26c8 Delete type=2 #7119
+2026/04/14-08:48:36.075 26c8 Delete type=2 #7122

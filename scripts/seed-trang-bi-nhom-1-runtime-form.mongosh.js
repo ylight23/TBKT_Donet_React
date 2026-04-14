@@ -263,11 +263,11 @@ function upsertFieldSet(fieldSet) {
 }
 
 const commonFields = [
-  { id: IDS.fields.tenTrangBi, key: 'ten_danh_muc_trang_bi', label: 'Ten danh muc', type: 'text', required: true },
+  { id: IDS.fields.tenTrangBi, key: 'ten_danh_muc', label: 'Ten danh muc', type: 'text', required: true },
   {
     id: IDS.fields.maDanhMuc,
-    key: 'ma_dinh_danh',
-    label: 'Ma dinh danh',
+    key: 'ma_danh_muc',
+    label: 'Ma danh muc',
     type: 'select',
     required: true,
     validation: { Options: [CATEGORY_CODES.B101, CATEGORY_CODES.B102, CATEGORY_CODES.O101, CATEGORY_CODES.O102, CATEGORY_CODES.I101, CATEGORY_CODES.I102] },

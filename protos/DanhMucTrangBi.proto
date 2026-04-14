@@ -110,7 +110,7 @@ message TrangBiNhom1Record {
   google.protobuf.StringValue id_cap_tren = 3;                // mã cấp trên (DanhMucTrangBi cha)
   google.protobuf.StringValue ten_danh_muc = 4;               // tên danh mục trang bị
   google.protobuf.StringValue id_chuyen_nganh_kt = 5;         // chuyên ngành kỹ thuật (CN scope)
-  repeated ExtendedField.ExtendedField parameters = 6;        // tất cả trường động từ FormConfig
+  map<string, string> parameters = 6;                         // tất cả trường động từ FormConfig
   google.protobuf.StringValue nguoi_tao = 7;
   google.protobuf.StringValue nguoi_sua = 8;
   google.protobuf.Timestamp ngay_tao = 9;
@@ -137,8 +137,94 @@ message GetListTrangBiNhom1Request {
   google.protobuf.StringValue search_text = 3;           // tìm kiếm toàn văn (tùy chọn)
 }
 
+message TrangBiNhom1GridItem {
+  string id = 1;
+  string ma_danh_muc = 2;
+  string ten_danh_muc = 3;
+  string id_cap_tren = 4;      // Phân ngành (UI header) – top-level IdCapTren của danh mục
+  string id_chuyen_nganh_kt = 5;
+  string so_hieu = 6;
+  string don_vi = 7;
+  string don_vi_quan_ly = 8;
+  string loai = 9;
+  string chat_luong = 10;
+  string trang_thai = 11;
+  string tinh_trang_ky_thuat = 12;
+  int32 nam_san_xuat = 13;
+  int32 nam_su_dung = 14;
+  int32 nien_han_su_dung = 15;
+  string nuoc_san_xuat = 16;
+  string hang_san_xuat = 17;
+}
+
 message GetListTrangBiNhom1Response {
-  repeated TrangBiNhom1Record items = 1;
+  repeated TrangBiNhom1GridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetTrangBiNhom1Request {
+  string id = 1;
+}
+
+message GetTrangBiNhom1Response {
+  TrangBiNhom1Record item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message TrangBiNhom2Record {
+  string id = 1;
+  string ma_danh_muc = 2;
+  google.protobuf.StringValue id_cap_tren = 3;
+  google.protobuf.StringValue ten_danh_muc = 4;
+  google.protobuf.StringValue id_chuyen_nganh_kt = 5;
+  map<string, string> parameters = 6;                         // tất cả trường động từ FormConfig
+  google.protobuf.StringValue nguoi_tao = 7;
+  google.protobuf.StringValue nguoi_sua = 8;
+  google.protobuf.Timestamp ngay_tao = 9;
+  google.protobuf.Timestamp ngay_sua = 10;
+}
+
+message SaveTrangBiNhom2Request {
+  TrangBiNhom2Record item = 1;
+  bool is_new = 2;
+}
+
+message SaveTrangBiNhom2Response {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetListTrangBiNhom2Request {
+  google.protobuf.StringValue id_chuyen_nganh_kt = 1;
+  google.protobuf.StringValue ma_danh_muc = 2;
+  google.protobuf.StringValue search_text = 3;
+}
+
+message TrangBiNhom2GridItem {
+  string id = 1;
+  string ma_danh_muc = 2;
+  string ten_danh_muc = 3;
+  string id_cap_tren = 4;      // Phân ngành (UI header) – top-level IdCapTren của danh mục
+  string id_chuyen_nganh_kt = 5;
+  string so_hieu = 6;
+  string don_vi = 7;
+  string don_vi_quan_ly = 8;
+  string loai = 9;
+  string chat_luong = 10;
+  string trang_thai = 11;
+  string tinh_trang_ky_thuat = 12;
+  int32 nam_san_xuat = 13;
+  int32 nam_su_dung = 14;
+  int32 nien_han_su_dung = 15;
+  string nuoc_san_xuat = 16;
+  string hang_san_xuat = 17;
+}
+
+message GetListTrangBiNhom2Response {
+  repeated TrangBiNhom2GridItem items = 1;
   bool success = 2;
   string message = 3;
 }
@@ -152,4 +238,7 @@ service DanhMucTrangBiService {
   rpc GetFieldSetsByMaDanhMuc (GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
   rpc SaveTrangBiNhom1 (SaveTrangBiNhom1Request) returns (SaveTrangBiNhom1Response);
   rpc GetListTrangBiNhom1 (GetListTrangBiNhom1Request) returns (GetListTrangBiNhom1Response);
+  rpc GetTrangBiNhom1 (GetTrangBiNhom1Request) returns (GetTrangBiNhom1Response);
+  rpc SaveTrangBiNhom2 (SaveTrangBiNhom2Request) returns (SaveTrangBiNhom2Response);
+  rpc GetListTrangBiNhom2 (GetListTrangBiNhom2Request) returns (GetListTrangBiNhom2Response);
 }

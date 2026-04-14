@@ -33,8 +33,55 @@ public sealed class DanhMucTrangBiServiceImpl(
     private static BsonValue StringOrNull(string? value)
         => string.IsNullOrWhiteSpace(value) ? BsonNull.Value : value;
 
+    private static BsonDocument ToParameterBson(IDictionary<string, string> parameters)
+    {
+        var doc = new BsonDocument();
+        foreach (var kv in parameters)
+            doc[kv.Key] = kv.Value;
+        return doc;
+    }
+
+    // Used for TrangBiTree which still uses repeated ExtendedField parameters
     private static BsonArray ToParameterArray(IEnumerable<ExtendedField> parameters)
-        => new(parameters.Select(p => p.ToBsonDocument()));
+    {
+        var arr = new BsonArray();
+        foreach (var p in parameters)
+            arr.Add(new BsonDocument
+            {
+                ["Name"] = p.Name ?? string.Empty,
+                ["StringValue"] = p.StringValue ?? string.Empty
+            });
+        return arr;
+    }
+
+    private static Dictionary<string, string> ReadParameterMap(BsonDocument doc)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!doc.TryGetElement("Parameters", out var paramElem)) return result;
+        if (paramElem.Value is not BsonDocument paramDoc) return result;
+        foreach (var kv in paramDoc)
+            result[kv.Name] = kv.Value.BsonType == BsonType.String ? kv.Value.AsString : string.Empty;
+        return result;
+    }
+
+    // Dùng protobuf reflection: key snake_case trong Parameters khớp tên field trong .proto
+    private static void FillFromParameters(Google.Protobuf.IMessage message, IReadOnlyDictionary<string, string> parameters)
+    {
+        var descriptor = message.Descriptor;
+        foreach (var (key, value) in parameters)
+        {
+            var field = descriptor.FindFieldByName(key);
+            if (field is null) continue;
+            object? boxed = field.FieldType switch
+            {
+                Google.Protobuf.Reflection.FieldType.Int32
+                    when int.TryParse(value, out var i) => (object)i,
+                Google.Protobuf.Reflection.FieldType.String => value,
+                _ => null,
+            };
+            if (boxed is not null) field.Accessor.SetValue(message, boxed);
+        }
+    }
 
     private static string BuildLabel(BsonDocument doc)
     {
@@ -488,6 +535,89 @@ public sealed class DanhMucTrangBiServiceImpl(
     private static IMongoCollection<BsonDocument>? GetTrangBiCollection()
         => Global.MongoDB?.GetCollection<BsonDocument>("TrangBiNhom1");
 
+    private static IMongoCollection<BsonDocument>? GetTrangBiNhom2Collection()
+        => Global.MongoDB?.GetCollection<BsonDocument>("TrangBiNhom2");
+
+    private static BsonDocument BuildTrangBiInstanceDocument(
+        string itemId,
+        string maDanhMuc,
+        string? idCapTren,
+        string? tenDanhMuc,
+        string? idChuyenNganhKt,
+        IDictionary<string, string> parameters,
+        string user,
+        Google.Protobuf.WellKnownTypes.Timestamp now)
+    {
+        return new BsonDocument
+        {
+            ["_id"] = itemId,
+            ["MaDanhMuc"] = StringOrNull(maDanhMuc),
+            ["IdCapTren"] = StringOrNull(idCapTren),
+            ["TenDanhMuc"] = StringOrNull(tenDanhMuc),
+            ["IdChuyenNganhKT"] = StringOrNull(idChuyenNganhKt),
+            ["Parameters"] = ToParameterBson(parameters),
+            ["NguoiTao"] = StringOrNull(user),
+            ["NguoiSua"] = StringOrNull(user),
+            ["NgayTao"] = now.ToBsonDocument(),
+            ["NgaySua"] = now.ToBsonDocument(),
+        };
+    }
+
+    private static UpdateDefinition<BsonDocument> BuildTrangBiInstanceUpdate(
+        string maDanhMuc,
+        string? idCapTren,
+        string? tenDanhMuc,
+        string? idChuyenNganhKt,
+        IDictionary<string, string> parameters,
+        string nguoiTao,
+        string nguoiSua,
+        Google.Protobuf.WellKnownTypes.Timestamp ngayTao,
+        Google.Protobuf.WellKnownTypes.Timestamp ngaySua)
+    {
+        return Builders<BsonDocument>.Update
+            .Set("MaDanhMuc", StringOrNull(maDanhMuc))
+            .Set("IdCapTren", StringOrNull(idCapTren))
+            .Set("TenDanhMuc", StringOrNull(tenDanhMuc))
+            .Set("IdChuyenNganhKT", StringOrNull(idChuyenNganhKt))
+            .Set("Parameters", ToParameterBson(parameters))
+            .Set("NguoiTao", StringOrNull(nguoiTao))
+            .Set("NguoiSua", StringOrNull(nguoiSua))
+            .Set("NgayTao", ngayTao.ToBsonDocument())
+            .Set("NgaySua", ngaySua.ToBsonDocument());
+    }
+
+    private static async Task<List<BsonDocument>> LoadTrangBiInstanceDocsAsync(
+        IMongoCollection<BsonDocument> collection,
+        string? idChuyenNganhKt,
+        string? maDanhMuc,
+        string? searchText,
+        ServerCallContext context)
+    {
+        var builder = Builders<BsonDocument>.Filter;
+        var filter = ServiceMutationPolicy.BuildCnVisibilityFilter(context, "IdChuyenNganhKT", true);
+
+        if (!string.IsNullOrWhiteSpace(idChuyenNganhKt))
+            filter &= builder.Eq("IdChuyenNganhKT", idChuyenNganhKt);
+
+        if (!string.IsNullOrWhiteSpace(maDanhMuc))
+            filter &= builder.Eq("MaDanhMuc", maDanhMuc);
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var q = EscapeRegex(searchText);
+            var regex = new BsonRegularExpression($".*{q}.*", "i");
+            filter &= builder.Or(
+                builder.Regex("TenDanhMuc", regex),
+                builder.Regex("MaDanhMuc", regex),
+                builder.Regex("Parameters.so_hieu", regex),
+                builder.Regex("Parameters.ky_hieu", regex));
+        }
+
+        return await collection.Find(filter)
+            .SortByDescending(d => d["NgayTao"])
+            .ToListAsync(context.CancellationToken);
+    }
+
     public override async Task<SaveTrangBiNhom1Response> SaveTrangBiNhom1(SaveTrangBiNhom1Request request, ServerCallContext context)
     {
         var response = new SaveTrangBiNhom1Response();
@@ -520,19 +650,15 @@ public sealed class DanhMucTrangBiServiceImpl(
 
                 var itemId = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString() : item.Id;
 
-                var doc = new BsonDocument
-                {
-                    ["_id"] = itemId,
-                    ["MaDanhMuc"] = StringOrNull(item.MaDanhMuc),
-                    ["IdCapTren"] = StringOrNull(item.IdCapTren),
-                    ["TenDanhMuc"] = StringOrNull(item.TenDanhMuc),
-                    ["IdChuyenNganhKT"] = StringOrNull(item.IdChuyenNganhKt),
-                    ["Parameters"] = ToParameterArray(item.Parameters),
-                    ["NguoiTao"] = StringOrNull(user),
-                    ["NguoiSua"] = StringOrNull(user),
-                    ["NgayTao"] = now.ToBsonDocument(),
-                    ["NgaySua"] = now.ToBsonDocument(),
-                };
+                var doc = BuildTrangBiInstanceDocument(
+                    itemId,
+                    item.MaDanhMuc,
+                    item.IdCapTren,
+                    item.TenDanhMuc,
+                    item.IdChuyenNganhKt,
+                    item.Parameters,
+                    user,
+                    now);
                 await collection.InsertOneAsync(doc, cancellationToken: context.CancellationToken);
 
                 response.Id = itemId;
@@ -571,16 +697,16 @@ public sealed class DanhMucTrangBiServiceImpl(
                 ? user
                 : existingDoc.StringOr("NguoiTao");
 
-            var update = Builders<BsonDocument>.Update
-                .Set("MaDanhMuc", StringOrNull(item.MaDanhMuc))
-                .Set("IdCapTren", StringOrNull(item.IdCapTren))
-                .Set("TenDanhMuc", StringOrNull(item.TenDanhMuc))
-                .Set("IdChuyenNganhKT", StringOrNull(item.IdChuyenNganhKt))
-                .Set("Parameters", ToParameterArray(item.Parameters))
-                .Set("NguoiTao", StringOrNull(nguoiTao))
-                .Set("NguoiSua", StringOrNull(user))
-                .Set("NgayTao", ngayTao.ToBsonDocument())
-                .Set("NgaySua", now.ToBsonDocument());
+            var update = BuildTrangBiInstanceUpdate(
+                item.MaDanhMuc,
+                item.IdCapTren,
+                item.TenDanhMuc,
+                item.IdChuyenNganhKt,
+                item.Parameters,
+                nguoiTao,
+                user,
+                ngayTao,
+                now);
             await collection.UpdateOneAsync(
                 Builders<BsonDocument>.Filter.Eq("_id", item.Id),
                 update,
@@ -612,28 +738,14 @@ public sealed class DanhMucTrangBiServiceImpl(
                 return response;
             }
 
-            var builder = Builders<BsonDocument>.Filter;
-            var filter = ServiceMutationPolicy.BuildCnVisibilityFilter(context, "IdChuyenNganhKT", true);
+            var docs = await LoadTrangBiInstanceDocsAsync(
+                collection,
+                request.IdChuyenNganhKt,
+                request.MaDanhMuc,
+                request.SearchText,
+                context);
 
-            if (!string.IsNullOrWhiteSpace(request.IdChuyenNganhKt))
-                filter &= builder.Eq("IdChuyenNganhKT", request.IdChuyenNganhKt);
-
-            if (!string.IsNullOrWhiteSpace(request.MaDanhMuc))
-                filter &= builder.Eq("MaDanhMuc", request.MaDanhMuc);
-
-            if (!string.IsNullOrWhiteSpace(request.SearchText))
-            {
-                var q = EscapeRegex(request.SearchText);
-                filter &= builder.Or(
-                    builder.Regex("TenDanhMuc", "/.*" + q + ".*/i"),
-                    builder.Regex("MaDanhMuc", "/.*" + q + ".*/i"));
-            }
-
-            var docs = await collection.Find(filter)
-                .SortByDescending(d => d["NgayTao"])
-                .ToListAsync(context.CancellationToken);
-
-            response.Items.AddRange(docs.Select(DocToTrangBiRecord));
+            response.Items.AddRange(docs.Select(DocToTrangBiGridItem<TrangBiNhom1GridItem>));
             response.Success = true;
             response.Message = $"Lay {response.Items.Count} ban ghi trang bi";
         }
@@ -643,6 +755,193 @@ public sealed class DanhMucTrangBiServiceImpl(
             response.Success = false;
             response.Message = ex.Message;
         }
+        return response;
+    }
+
+    public override async Task<GetTrangBiNhom1Response> GetTrangBiNhom1(GetTrangBiNhom1Request request, ServerCallContext context)
+    {
+        var response = new GetTrangBiNhom1Response();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Id))
+            {
+                response.Success = false;
+                response.Message = "Thieu id ban ghi can lay";
+                return response;
+            }
+
+            var collection = GetTrangBiCollection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection TrangBi";
+                return response;
+            }
+
+            var doc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
+                .FirstOrDefaultAsync(context.CancellationToken);
+            if (doc == null)
+            {
+                response.Success = false;
+                response.Message = $"Khong tim thay ban ghi id '{request.Id}'";
+                return response;
+            }
+
+            var cnId = doc.StringOr("IdChuyenNganhKT");
+            ServiceMutationPolicy.RequireActOnCN(
+                context,
+                "view",
+                string.IsNullOrWhiteSpace(cnId) ? null : cnId,
+                true);
+
+            response.Item = DocToTrangBiRecord(doc);
+            response.Success = true;
+            response.Message = "Lay chi tiet trang bi thanh cong";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.GetTrangBiNhom1 error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
+        return response;
+    }
+
+    public override async Task<SaveTrangBiNhom2Response> SaveTrangBiNhom2(SaveTrangBiNhom2Request request, ServerCallContext context)
+    {
+        var response = new SaveTrangBiNhom2Response();
+        try
+        {
+            if (request.Item == null)
+            {
+                response.Success = false;
+                response.Message = "Thieu item";
+                return response;
+            }
+
+            var collection = GetTrangBiNhom2Collection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection TrangBiNhom2";
+                return response;
+            }
+
+            var item = request.Item;
+            var now = ProtobufTimestampConverter.GetNowTimestamp();
+            var user = context.GetUserName() ?? context.GetUserID() ?? "system";
+            var targetCn = string.IsNullOrWhiteSpace(item.IdChuyenNganhKt) ? null : item.IdChuyenNganhKt;
+
+            if (request.IsNew)
+            {
+                ServiceMutationPolicy.RequireActOnCN(context, "add", targetCn, true);
+                var itemId = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString() : item.Id;
+                var doc = BuildTrangBiInstanceDocument(
+                    itemId,
+                    item.MaDanhMuc,
+                    item.IdCapTren,
+                    item.TenDanhMuc,
+                    item.IdChuyenNganhKt,
+                    item.Parameters,
+                    user,
+                    now);
+                await collection.InsertOneAsync(doc, cancellationToken: context.CancellationToken);
+                response.Id = itemId;
+                response.Success = true;
+                response.Message = "Them moi trang bi nhom 2 thanh cong";
+                return response;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Id))
+            {
+                response.Success = false;
+                response.Message = "Thieu id ban ghi can cap nhat";
+                return response;
+            }
+
+            var existingDoc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", item.Id))
+                .FirstOrDefaultAsync(context.CancellationToken);
+            if (existingDoc == null)
+            {
+                response.Success = false;
+                response.Message = $"Khong tim thay ban ghi id '{item.Id}'";
+                return response;
+            }
+
+            var existingCn = existingDoc.StringOr("IdChuyenNganhKT");
+            ServiceMutationPolicy.RequireActOnCN(context, "edit",
+                string.IsNullOrWhiteSpace(existingCn) ? null : existingCn, true);
+            if (!string.Equals(existingCn, targetCn, StringComparison.OrdinalIgnoreCase))
+            {
+                ServiceMutationPolicy.RequireActOnCN(context, "edit", targetCn, true);
+            }
+
+            var ngayTao = existingDoc.TimestampOr("NgayTao") ?? now;
+            var nguoiTao = string.IsNullOrWhiteSpace(existingDoc.StringOr("NguoiTao"))
+                ? user
+                : existingDoc.StringOr("NguoiTao");
+
+            var update = BuildTrangBiInstanceUpdate(
+                item.MaDanhMuc,
+                item.IdCapTren,
+                item.TenDanhMuc,
+                item.IdChuyenNganhKt,
+                item.Parameters,
+                nguoiTao,
+                user,
+                ngayTao,
+                now);
+            await collection.UpdateOneAsync(
+                Builders<BsonDocument>.Filter.Eq("_id", item.Id),
+                update,
+                cancellationToken: context.CancellationToken);
+
+            response.Id = item.Id;
+            response.Success = true;
+            response.Message = "Cap nhat trang bi nhom 2 thanh cong";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.SaveTrangBiNhom2 error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
+        return response;
+    }
+
+    public override async Task<GetListTrangBiNhom2Response> GetListTrangBiNhom2(GetListTrangBiNhom2Request request, ServerCallContext context)
+    {
+        var response = new GetListTrangBiNhom2Response();
+        try
+        {
+            var collection = GetTrangBiNhom2Collection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection TrangBiNhom2";
+                return response;
+            }
+
+            var docs = await LoadTrangBiInstanceDocsAsync(
+                collection,
+                request.IdChuyenNganhKt,
+                request.MaDanhMuc,
+                request.SearchText,
+                context);
+
+            response.Items.AddRange(docs.Select(DocToTrangBiGridItem<TrangBiNhom2GridItem>));
+            response.Success = true;
+            response.Message = $"Lay {response.Items.Count} ban ghi trang bi nhom 2";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.GetListTrangBiNhom2 error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
         return response;
     }
 
@@ -665,18 +964,30 @@ public sealed class DanhMucTrangBiServiceImpl(
         var ngaySua = doc.TimestampOr("NgaySua");
         if (ngaySua != null) record.NgaySua = ngaySua;
 
-        if (doc.TryGetElement("Parameters", out var paramElem) && paramElem.Value is BsonArray paramArr)
-        {
-            foreach (var el in paramArr)
-            {
-                if (el is BsonDocument paramDoc)
-                {
-                    try { record.Parameters.Add(BsonSerializer.Deserialize<ExtendedField>(paramDoc)); }
-                    catch { /* skip malformed */ }
-                }
-            }
-        }
+        foreach (var kv in ReadParameterMap(doc))
+            record.Parameters[kv.Key] = kv.Value;
 
         return record;
+    }
+
+    // Generic: dùng được cho cả TrangBiNhom1GridItem và TrangBiNhom2GridItem
+    private static TOut DocToTrangBiGridItem<TOut>(BsonDocument doc)
+        where TOut : Google.Protobuf.IMessage, new()
+    {
+        var item = new TOut();
+        var d = item.Descriptor;
+        void S(string n, string v) => d.FindFieldByName(n)?.Accessor.SetValue(item, v);
+
+        S("id", doc.IdString());
+        S("ma_danh_muc", doc.StringOr("MaDanhMuc") ?? string.Empty);
+        S("ten_danh_muc", doc.StringOr("TenDanhMuc") ?? string.Empty);
+        S("id_chuyen_nganh_kt", doc.StringOr("IdChuyenNganhKT") ?? string.Empty);
+
+        FillFromParameters(item, ReadParameterMap(doc));
+
+        // id_cap_tren: luôn lấy từ top-level IdCapTren (không qua Parameters)
+        S("id_cap_tren", doc.StringOr("IdCapTren") ?? string.Empty);
+
+        return item;
     }
 }

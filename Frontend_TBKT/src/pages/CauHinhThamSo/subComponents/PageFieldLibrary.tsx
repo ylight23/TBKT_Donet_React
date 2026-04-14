@@ -45,7 +45,7 @@ const OVERSCAN = 16;
 const QUICK_CATEGORY_FIELD_PRESETS: DynamicField[] = [
     {
         id: '',
-        key: 'ma_danh_muc_trang_bi',
+        key: 'ma_danh_muc',
         label: 'Mã danh mục trang bị',
         type: 'select',
         required: false,
@@ -58,7 +58,7 @@ const QUICK_CATEGORY_FIELD_PRESETS: DynamicField[] = [
     },
     {
         id: '',
-        key: 'ten_danh_muc_trang_bi',
+        key: 'ten_danh_muc',
         label: 'Tên danh mục trang bị',
         type: 'text',
         required: false,

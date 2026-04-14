@@ -21,12 +21,17 @@ function normalizeKey(raw) {
 }
 
 const forceRenameById = {
-  '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1003': 'ma_dinh_danh',
+  '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1002': 'ten_danh_muc',
+  '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1003': 'ma_danh_muc',
 };
 
 const forceRenameByKey = {
-  madanhmuctrangbi: 'ma_dinh_danh',
-  ma_danh_muc_trang_bi: 'ma_dinh_danh',
+  ten: 'ten_danh_muc',
+  tendanhmuc: 'ten_danh_muc',
+  ten_danh_muc_trang_bi: 'ten_danh_muc',
+  madanhmuctrangbi: 'ma_danh_muc',
+  ma_danh_muc_trang_bi: 'ma_danh_muc',
+  ma_dinh_danh: 'ma_danh_muc',
 };
 
 const now = new Date();
@@ -72,8 +77,12 @@ for (const item of candidates) {
     NguoiSua: 'normalize-dynamicfield-keys',
   };
 
+  if (item.id === '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1002') {
+    updateDoc.Label = 'Ten danh muc';
+  }
+
   if (item.id === '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1003') {
-    updateDoc.Label = 'Ma dinh danh';
+    updateDoc.Label = 'Ma danh muc';
   }
 
   const result = col.updateOne(
@@ -91,4 +100,3 @@ printjson({
   skippedDuplicate,
   duplicateTargets,
 });
-

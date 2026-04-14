@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 
 // Icons
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 
 import { FormDialog } from '../Dialog';
@@ -31,7 +32,7 @@ import { getRealSetIds, parseTabMeta } from '../../pages/CauHinhThamSo/subCompon
 import { militaryColors } from '../../theme';
 import { buildByNormalizedId, normalizeId } from '../../utils/idUtils';
 import danhMucTrangBiApi, { DANH_MUC_TRANG_BI_TREE_ENDPOINT } from '../../apis/danhMucTrangBiApi';
-import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
+import trangBiKiThuatApi, { type TrangBiNhom1Record } from '../../apis/trangBiKiThuatApi';
 import thamSoApi from '../../apis/thamSoApi';
 import { getRequiredFormKeyForMenu } from '../../utils/formConfigKeys';
 
@@ -41,6 +42,7 @@ interface AddTrangBiDialogProps {
   onClose: () => void;
   onSaved?: () => void;
   activeMenu?: 'tbNhom1' | 'tbNhom2';
+  editingRecordId?: string | null;
 }
 
 // ── Field Item Component ───────────────────────────────────
@@ -185,7 +187,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   onClose,
   onSaved,
   activeMenu,
+  editingRecordId,
 }) => {
+  const isEditMode = Boolean(editingRecordId);
+  const dialogMode = isEditMode ? 'edit' : 'add';
+  const dialogTitle = isEditMode ? 'Chinh sua trang bi ky thuat' : 'Them trang bi ky thuat moi';
+  const dialogIcon = isEditMode ? <EditIcon /> : <AddIcon />;
+  const saveButtonLabel = isEditMode ? 'Cap nhat trang bi' : 'Luu trang bi';
   const [activeTab, setActiveTab] = useState(0);
   const [activeChildTabByParent, setActiveChildTabByParent] = useState<Record<string, number>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -202,9 +210,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [technicalError, setTechnicalError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [recordLoading, setRecordLoading] = useState(false);
+  const [recordError, setRecordError] = useState('');
+  const [editorRecord, setEditorRecord] = useState<TrangBiNhom1Record | null>(null);
+  const [editorCnId, setEditorCnId] = useState('');
   const technicalFetchRef = useRef(0); // để tránh race condition khi chọn nhanh nhiều danh mục
-  const categoryFieldKey = 'ma_dinh_danh';
-  const categoryNameFieldKey = 'ten_danh_muc_trang_bi';
+  const categoryFieldKey = 'ma_danh_muc';
+  const categoryNameFieldKey = 'ten_danh_muc';
 
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -251,15 +263,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       setTechnicalError('');
       setSaving(false);
       setSaveError('');
+      setRecordLoading(false);
+      setRecordError('');
+      setEditorRecord(null);
+      setEditorCnId('');
       technicalFetchRef.current += 1;
     }
   }, [open]);
-
-  // Create lookup maps
-  const fieldSetById = useMemo(
-    () => buildByNormalizedId(allFieldSets),
-    [allFieldSets],
-  );
 
   // Resolve actual field keys from allFields (case-insensitive) to handle
   // DB field key casing differences (e.g. "IDCapTren" vs "IdCapTren")
@@ -271,6 +281,59 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     const found = allFields.find((f) => f.key.toLowerCase() === categoryNameFieldKey.toLowerCase());
     return found?.key ?? categoryNameFieldKey;
   }, [allFields, categoryNameFieldKey]);
+
+  useEffect(() => {
+    if (!open || !isEditMode || !editingRecordId || activeMenu !== 'tbNhom1' || schemaLoading) {
+      return;
+    }
+
+    let cancelled = false;
+    setRecordLoading(true);
+    setRecordError('');
+
+    trangBiKiThuatApi.getTrangBiNhom1(editingRecordId)
+      .then((record) => {
+        if (cancelled) return;
+
+        const nextFormData: Record<string, string> = {
+          ...record.parameters,
+          [categoryFieldKey]: record.maDanhMuc ?? '',
+          [parentFieldKey]: record.idCapTren ?? '',
+          [resolvedCategoryNameKey]: record.tenDanhMuc ?? '',
+        };
+
+        setEditorRecord(record);
+        setEditorCnId(record.idChuyenNganhKt ?? '');
+        setFormData(nextFormData);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[AddTrangBiDialog] loadEditRecord error', err);
+        setRecordError(String((err as Error)?.message || 'Khong the tai chi tiet trang bi'));
+      })
+      .finally(() => {
+        if (!cancelled) setRecordLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    isEditMode,
+    editingRecordId,
+    activeMenu,
+    schemaLoading,
+    categoryFieldKey,
+    parentFieldKey,
+    resolvedCategoryNameKey,
+  ]);
+
+  // Create lookup maps
+  const fieldSetById = useMemo(
+    () => buildByNormalizedId(allFieldSets),
+    [allFieldSets],
+  );
 
   // Build parent-child structure from tab metadata
   const tabStructure = useMemo(() => {
@@ -458,6 +521,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
       const parentCode = String(selectedCategoryNode.idCapTren ?? '').trim();
       const categoryName = String(selectedCategoryNode.ten ?? '').trim();
+      const cnId = String(selectedCategoryNode.idChuyenNganhKt ?? '').trim();
+
+      setEditorCnId(cnId);
 
       setFormData((prev) => {
         let changed = false;
@@ -513,24 +579,40 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     setSaving(true);
     setSaveError('');
     try {
-      await trangBiKiThuatApi.saveTrangBiNhom1(
+      const saveTrangBi = activeMenu === 'tbNhom2'
+        ? trangBiKiThuatApi.saveTrangBiNhom2
+        : trangBiKiThuatApi.saveTrangBiNhom1;
+      await saveTrangBi(
         {
+          id: editorRecord?.id || undefined,
           maDanhMuc: maDinhDanh,
           idCapTren: idCapTren || undefined,
           tenDanhMuc: ten || undefined,
+          idChuyenNganhKt: editorCnId || editorRecord?.idChuyenNganhKt || undefined,
           parameters,
         },
-        { isNew: true },
+        { isNew: !isEditMode },
       );
       onSaved?.();
       onClose();
     } catch (err) {
-      console.error('[AddTrangBiDialog] saveTrangBiNhom1 error', err);
+      console.error('[AddTrangBiDialog] saveTrangBi error', err);
       setSaveError(String((err as Error)?.message || 'Lưu trang bị thất bại'));
     } finally {
       setSaving(false);
     }
-  }, [formData, categoryFieldKey, resolvedCategoryNameKey, parentFieldKey, onSaved, onClose]);
+  }, [
+    activeMenu,
+    formData,
+    categoryFieldKey,
+    resolvedCategoryNameKey,
+    parentFieldKey,
+    editorRecord,
+    editorCnId,
+    isEditMode,
+    onSaved,
+    onClose,
+  ]);
 
   const handlePreviousTab = useCallback(() => {
     if (!currentRootTab || !currentRootMeta) return;
@@ -593,12 +675,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const isAtEnd = activeTab >= rootTabs.length - 1
     && !(currentRootMeta?.tabType === 'sync-group' && currentRootChildren.length > 0 && activeChildTabIndex < currentRootChildren.length - 1);
 
-  if (schemaLoading || !formConfig) {
+  if (schemaLoading || !formConfig || (isEditMode && (recordLoading || !editorRecord))) {
     return (
       <FormDialog
         open={open}
         onClose={onClose}
-        mode="add"
+        mode={dialogMode}
+        icon={dialogIcon}
         maxWidth="sm"
         title="Nhập trang bị kỹ thuật"
         contentPadding={0}
@@ -606,7 +689,12 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         showCancel={false}
       >
         <Box sx={{ p: 3, textAlign: 'center' }}>
-          {schemaLoading
+          {recordError && !schemaLoading && !recordLoading && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {recordError}
+            </Alert>
+          )}
+          {(schemaLoading || recordLoading)
             ? <CircularProgress size={32} />
             : <Alert severity="warning">{schemaError || 'Không tìm thấy cấu hình biểu mẫu cho menu hiện tại.'}</Alert>}
         </Box>
@@ -621,10 +709,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     <FormDialog
       open={open}
       onClose={onClose}
-      mode="add"
+      mode={dialogMode}
       maxWidth="md"
       title="Thêm trang bị kỹ thuật mới"
-      icon={<AddIcon />}
+      icon={dialogIcon}
       onConfirm={handleSave}
       confirmText="Lưu trang bị"
       contentPadding={0}
@@ -727,7 +815,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         </>
       )}
     >
-      {(schemaError || danhMucError || technicalError || saveError || missingFieldSetIds.length > 0 || missingFieldRefs.length > 0) && (
+      {(schemaError || recordError || danhMucError || technicalError || saveError || missingFieldSetIds.length > 0 || missingFieldRefs.length > 0) && (
         <Box sx={{
           px: 2.5,
           pt: 2,
@@ -738,6 +826,11 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           {schemaError && (
             <Alert severity="warning">
               {schemaError}
+            </Alert>
+          )}
+          {recordError && (
+            <Alert severity="error" onClose={() => setRecordError('')}>
+              {recordError}
             </Alert>
           )}
           {danhMucError && (
