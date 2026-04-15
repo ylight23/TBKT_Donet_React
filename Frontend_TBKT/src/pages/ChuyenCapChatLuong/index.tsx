@@ -62,7 +62,7 @@ const getTrend = (capCu: ChatLuong, capMoi: ChatLuong): 'up' | 'down' | 'flat' =
 const chuyenCapRows = mockChuyenCap.map((r, i) => ({
   ...r,
   stt: i + 1,
-  ten: r.tenTrangBi,
+  ten: r.tenDanhMuc,
   soMenhLenh: `ML/${2400 + i}/QĐ-Kỹ thuật`,
   canCu: `Biên bản giám định số ${100 + i}`,
   thoiGian: r.ngayCapNhat,

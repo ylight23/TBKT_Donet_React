@@ -114,8 +114,8 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
     const {
       fullTextSearch,
       donVi,
-      maTrangBi,
-      tenTrangBi,
+      maDanhMuc,
+      tenDanhMuc,
       capChatLuong,
       tinhTrangSuDung,
       soHieu,
@@ -140,8 +140,8 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
 
       if (!matchSearch) return false;
       if (donVi && !row.donVi.toLowerCase().includes(donVi.toLowerCase())) return false;
-      if (maTrangBi && !row.maDanhMuc.toLowerCase().includes(maTrangBi.toLowerCase())) return false;
-      if (tenTrangBi && !row.tenDanhMuc.toLowerCase().includes(tenTrangBi.toLowerCase())) return false;
+      if (maDanhMuc && !row.maDanhMuc.toLowerCase().includes(maDanhMuc.toLowerCase())) return false;
+      if (tenDanhMuc && !row.tenDanhMuc.toLowerCase().includes(tenDanhMuc.toLowerCase())) return false;
       if (capChatLuong && row.chatLuong !== capChatLuong) return false;
       if (tinhTrangSuDung && row.trangThai !== tinhTrangSuDung) return false;
       if (soHieu && !row.soHieu.toLowerCase().includes(soHieu.toLowerCase())) return false;
@@ -197,7 +197,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   }, [canCnAction, filtered, permissionLoaded, resolveTrangBiCnId]);
 
   const handleEditRow = useCallback((row: TrangBiGridRow) => {
-    if (activeMenuForDialog === 'tbNhom1') {
+    if (activeMenuForDialog) {
       setEditingRecordId(row.id);
       setOpenAdd(true);
       return;

@@ -103,18 +103,18 @@ const catalogApi = {
                 options.id,
                 data.id,
                 data.ma,
-                data.ma_trang_bi,
-                data.maTrangBi,
+                data.ma_danh_muc,
+                data.maDanhMuc,
                 data.code,
             ) || generateClientId();
         const ten =
             pickFirstNonEmpty(
                 options.ten,
                 data.ten,
+                data.ten_danh_muc,
+                data.tenDanhMuc,
                 data.name,
                 data.title,
-                data.ten_trang_bi,
-                data.tenTrangBi,
             ) || normalizedId;
 
         const vietTat = pickFirstNonEmpty(options.vietTat, data.vietTat, data.code);

@@ -1,0 +1,7 @@
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0/Employee.cs \
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0/EmployeeGrpc.cs: C:/Users/dungp/.nuget/packages/grpc.tools/2.76.0/build/native/include/google/protobuf/timestamp.proto\
+ C:/Users/dungp/.nuget/packages/grpc.tools/2.76.0/build/native/include/google/protobuf/wrappers.proto\
+ ../../protos/Enum.proto\
+ ../../protos/Base.proto\
+ ../../protos/Pager.proto\
+ ../../protos/Employee.proto

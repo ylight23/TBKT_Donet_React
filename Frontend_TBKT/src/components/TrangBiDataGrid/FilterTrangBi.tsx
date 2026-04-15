@@ -43,9 +43,9 @@ import { listDanhMucChuyenNganh } from '../../apis/danhmucChuyenNganhApi';
 
 export interface FilterTrangBiValues {
     donVi: string;
-    maTrangBi: string;
+    maDanhMuc: string;
     nhom: string;
-    tenTrangBi: string;
+    tenDanhMuc: string;
     phanNganh: string;
     capChatLuong: string;
     tinhTrangSuDung: string;
@@ -93,9 +93,9 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [filters, setFilters] = useState<FilterTrangBiValues>({
         donVi: '',
-        maTrangBi: '',
+        maDanhMuc: '',
         nhom: '',
-        tenTrangBi: '',
+        tenDanhMuc: '',
         phanNganh: '',
         capChatLuong: '',
         tinhTrangSuDung: '',
@@ -177,7 +177,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
         const chips = [];
         if (filters.donVi) chips.push({ key: 'donVi', label: `Đơn vị: ${officeNames.donVi || filters.donVi}`, icon: <BusinessIcon fontSize="small" /> });
         if (filters.donViQuanLy) chips.push({ key: 'donViQuanLy', label: `Quản lý: ${officeNames.donViQuanLy || filters.donViQuanLy}`, icon: <BusinessIcon fontSize="small" /> });
-        if (filters.maTrangBi) chips.push({ key: 'maTrangBi', label: `Mã: ${filters.maTrangBi}`, icon: <CategoryIcon fontSize="small" /> });
+        if (filters.maDanhMuc) chips.push({ key: 'maDanhMuc', label: `Mã danh mục: ${filters.maDanhMuc}`, icon: <CategoryIcon fontSize="small" /> });
         if (filters.soHieu) chips.push({ key: 'soHieu', label: `Số hiệu: ${filters.soHieu}`, icon: <CategoryIcon fontSize="small" /> });
         if (filters.nhom) chips.push({ key: 'nhom', label: `Nhóm: ${filters.nhom}`, icon: <CategoryIcon fontSize="small" /> });
         if (filters.phanNganh) chips.push({ key: 'phanNganh', label: `Ngành: ${filters.phanNganh}`, icon: <CategoryIcon fontSize="small" /> });
@@ -186,7 +186,7 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
         if (filters.tinhTrangSuDung) chips.push({ key: 'tinhTrangSuDung', label: `Sử dụng: ${filters.tinhTrangSuDung}`, icon: <HistoryIcon fontSize="small" /> });
         if (filters.namSanXuat) chips.push({ key: 'namSanXuat', label: `Năm SX: ${filters.namSanXuat}`, icon: <CalendarTodayIcon fontSize="small" /> });
         if (filters.namSuDung) chips.push({ key: 'namSuDung', label: `Năm SD: ${filters.namSuDung}`, icon: <CalendarTodayIcon fontSize="small" /> });
-        if (filters.tenTrangBi) chips.push({ key: 'tenTrangBi', label: `Tên: ${filters.tenTrangBi}`, icon: <CategoryIcon fontSize="small" /> });
+        if (filters.tenDanhMuc) chips.push({ key: 'tenDanhMuc', label: `Tên danh mục: ${filters.tenDanhMuc}`, icon: <CategoryIcon fontSize="small" /> });
         return chips;
     }, [filters, officeNames]);
 
@@ -209,9 +209,9 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
     const handleClear = () => {
         const cleared: FilterTrangBiValues = {
             donVi: '',
-            maTrangBi: '',
+            maDanhMuc: '',
             nhom: '',
-            tenTrangBi: '',
+            tenDanhMuc: '',
             phanNganh: '',
             capChatLuong: '',
             tinhTrangSuDung: '',
@@ -284,13 +284,13 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
 
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.5, ml: 0.5, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                            MÃ TRANG BỊ
+                            MÃ DANH MỤC
                         </Typography>
                         <TextField
                             fullWidth size="small"
                             placeholder="Nhập mã..."
-                            value={filters.maTrangBi}
-                            onChange={(e) => handleFieldChange('maTrangBi', e.target.value)}
+                            value={filters.maDanhMuc}
+                            onChange={(e) => handleFieldChange('maDanhMuc', e.target.value)}
                             InputProps={{ sx: { borderRadius: 2.5} }}
                         />
                     </Grid>
@@ -431,13 +431,13 @@ const FilterTrangBi: React.FC<FilterTrangBiProps> = ({ onSearch, onClear, initia
 
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.5, ml: 0.5, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                            TÊN TRANG BỊ
+                            TÊN DANH MỤC
                         </Typography>
                         <TextField
                             fullWidth size="small"
                             placeholder="Nhập tên..."
-                            value={filters.tenTrangBi}
-                            onChange={(e) => handleFieldChange('tenTrangBi', e.target.value)}
+                            value={filters.tenDanhMuc}
+                            onChange={(e) => handleFieldChange('tenDanhMuc', e.target.value)}
                             InputProps={{ sx: { borderRadius: 2.5} }}
                         />
                     </Grid>

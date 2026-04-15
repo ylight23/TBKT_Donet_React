@@ -1,0 +1,8 @@
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.csproj.AssemblyReference.cache
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\rpswa.dswa.cache.json
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.GeneratedMSBuildEditorConfig.editorconfig
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.AssemblyInfoInputs.cache
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.AssemblyInfo.cs
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.csproj.CoreCompileInputs.cache
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.MvcApplicationPartsAssemblyInfo.cache
+d:\TBKT_Donet_React\artifacts\backend-obj\Debug\net9.0\src.sourcelink.json

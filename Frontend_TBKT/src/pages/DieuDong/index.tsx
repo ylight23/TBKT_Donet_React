@@ -57,7 +57,7 @@ const ttColor: Record<string, 'info' | 'success' | 'warning' | 'error' | 'defaul
 const dieuDongRows = mockDieuDong.map((r, i) => ({
   ...r,
   stt: i + 1,
-  tieuDe: `Điều động ${r.tenTrangBi}`,
+  tieuDe: `Điều động ${r.tenDanhMuc}`,
   canCu: `Lệnh ${400 + i}/L-ĐĐ`,
   thoiGian: r.ngayDieuDong,
   thuTruong: r.nguoiDuyet,
@@ -78,7 +78,7 @@ const DieuDong: React.FC = () => {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return dieuDongRows.filter(r => {
-      const matchSearch = !q || [r.maTrangBi, r.tenTrangBi, r.donViGiao, r.donViNhan, r.lyDo, r.tieuDe, r.canCu].some(v => v?.toLowerCase().includes(q));
+      const matchSearch = !q || [r.maDanhMuc, r.tenDanhMuc, r.donViGiao, r.donViNhan, r.lyDo, r.tieuDe, r.canCu].some(v => v?.toLowerCase().includes(q));
       const matchTT = !filterTT || r.trangThai === filterTT;
       return matchSearch && matchTT;
     });

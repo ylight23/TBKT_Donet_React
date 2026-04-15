@@ -32,7 +32,10 @@ import { getRealSetIds, parseTabMeta } from '../../pages/CauHinhThamSo/subCompon
 import { militaryColors } from '../../theme';
 import { buildByNormalizedId, normalizeId } from '../../utils/idUtils';
 import danhMucTrangBiApi, { DANH_MUC_TRANG_BI_TREE_ENDPOINT } from '../../apis/danhMucTrangBiApi';
-import trangBiKiThuatApi, { type TrangBiNhom1Record } from '../../apis/trangBiKiThuatApi';
+import trangBiKiThuatApi, {
+  type TrangBiNhom1EditorItem,
+  type TrangBiNhom2EditorItem,
+} from '../../apis/trangBiKiThuatApi';
 import thamSoApi from '../../apis/thamSoApi';
 import { getRequiredFormKeyForMenu } from '../../utils/formConfigKeys';
 
@@ -44,6 +47,8 @@ interface AddTrangBiDialogProps {
   activeMenu?: 'tbNhom1' | 'tbNhom2';
   editingRecordId?: string | null;
 }
+
+type TrangBiEditorRecord = TrangBiNhom1EditorItem | TrangBiNhom2EditorItem;
 
 // ── Field Item Component ───────────────────────────────────
 interface FormFieldItemProps {
@@ -212,8 +217,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [saveError, setSaveError] = useState('');
   const [recordLoading, setRecordLoading] = useState(false);
   const [recordError, setRecordError] = useState('');
-  const [editorRecord, setEditorRecord] = useState<TrangBiNhom1Record | null>(null);
-  const [editorCnId, setEditorCnId] = useState('');
+  const [editorRecord, setEditorRecord] = useState<TrangBiEditorRecord | null>(null);
   const technicalFetchRef = useRef(0); // để tránh race condition khi chọn nhanh nhiều danh mục
   const categoryFieldKey = 'ma_danh_muc';
   const categoryNameFieldKey = 'ten_danh_muc';
@@ -266,7 +270,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       setRecordLoading(false);
       setRecordError('');
       setEditorRecord(null);
-      setEditorCnId('');
       technicalFetchRef.current += 1;
     }
   }, [open]);
@@ -277,13 +280,21 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     const found = allFields.find((f) => f.key.toLowerCase() === 'idcaptren');
     return found?.key ?? 'IdCapTren';
   }, [allFields]);
+  const specializationFieldKey = useMemo(() => {
+    const found = allFields.find((f) => f.key.toLowerCase() === 'idchuyennganhkt');
+    return found?.key ?? 'IdChuyenNganhKT';
+  }, [allFields]);
+  const nganhFieldKey = useMemo(() => {
+    const found = allFields.find((f) => f.key.toLowerCase() === 'idnganh');
+    return found?.key ?? 'IdNganh';
+  }, [allFields]);
   const resolvedCategoryNameKey = useMemo(() => {
     const found = allFields.find((f) => f.key.toLowerCase() === categoryNameFieldKey.toLowerCase());
     return found?.key ?? categoryNameFieldKey;
   }, [allFields, categoryNameFieldKey]);
 
   useEffect(() => {
-    if (!open || !isEditMode || !editingRecordId || activeMenu !== 'tbNhom1' || schemaLoading) {
+    if (!open || !isEditMode || !editingRecordId || !activeMenu || schemaLoading) {
       return;
     }
 
@@ -291,7 +302,11 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     setRecordLoading(true);
     setRecordError('');
 
-    trangBiKiThuatApi.getTrangBiNhom1(editingRecordId)
+    const loadEditorRecord = activeMenu === 'tbNhom2'
+      ? trangBiKiThuatApi.getTrangBiNhom2
+      : trangBiKiThuatApi.getTrangBiNhom1;
+
+    loadEditorRecord(editingRecordId)
       .then((record) => {
         if (cancelled) return;
 
@@ -299,11 +314,12 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           ...record.parameters,
           [categoryFieldKey]: record.maDanhMuc ?? '',
           [parentFieldKey]: record.idCapTren ?? '',
+          [specializationFieldKey]: record.idChuyenNganhKt ?? '',
+          [nganhFieldKey]: record.idNganh ?? '',
           [resolvedCategoryNameKey]: record.tenDanhMuc ?? '',
         };
 
         setEditorRecord(record);
-        setEditorCnId(record.idChuyenNganhKt ?? '');
         setFormData(nextFormData);
       })
       .catch((err) => {
@@ -326,6 +342,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     schemaLoading,
     categoryFieldKey,
     parentFieldKey,
+    specializationFieldKey,
+    nganhFieldKey,
     resolvedCategoryNameKey,
   ]);
 
@@ -436,7 +454,12 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   const applyFieldOverrides = useCallback((fields: DynamicField[]): DynamicField[] => {
     return fields.map((field) => {
-      if (field.key === parentFieldKey || field.key === resolvedCategoryNameKey) {
+      if (
+        field.key === parentFieldKey
+        || field.key === specializationFieldKey
+        || field.key === nganhFieldKey
+        || field.key === resolvedCategoryNameKey
+      ) {
         return { ...field, disabled: true };
       }
       if (field.key === categoryFieldKey) {
@@ -453,7 +476,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       }
       return { ...field };
     });
-  }, [categoryFieldKey, resolvedCategoryNameKey, parentFieldKey]);
+  }, [categoryFieldKey, resolvedCategoryNameKey, parentFieldKey, specializationFieldKey, nganhFieldKey]);
 
   const resolveFieldSetItems = useCallback((setIds: string[]) => {
     return Array.from(new Set(setIds))
@@ -503,6 +526,14 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     () => allFields.some((field) => field.key === parentFieldKey),
     [allFields, parentFieldKey],
   );
+  const hasSpecializationField = useMemo(
+    () => allFields.some((field) => field.key === specializationFieldKey),
+    [allFields, specializationFieldKey],
+  );
+  const hasNganhField = useMemo(
+    () => allFields.some((field) => field.key === nganhFieldKey),
+    [allFields, nganhFieldKey],
+  );
   const hasCategoryNameField = useMemo(
     () => allFields.some((field) => field.key === resolvedCategoryNameKey),
     [allFields, resolvedCategoryNameKey],
@@ -522,8 +553,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       const parentCode = String(selectedCategoryNode.idCapTren ?? '').trim();
       const categoryName = String(selectedCategoryNode.ten ?? '').trim();
       const cnId = String(selectedCategoryNode.idChuyenNganhKt ?? '').trim();
-
-      setEditorCnId(cnId);
+      const nganhValue = String(selectedCategoryNode.idNganh ?? '').trim();
 
       setFormData((prev) => {
         let changed = false;
@@ -539,12 +569,31 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           changed = true;
         }
 
+        if (hasSpecializationField && (prev[specializationFieldKey] ?? '') !== cnId) {
+          next[specializationFieldKey] = cnId;
+          changed = true;
+        }
+
+        if (hasNganhField && (prev[nganhFieldKey] ?? '') !== nganhValue) {
+          next[nganhFieldKey] = nganhValue;
+          changed = true;
+        }
+
         return changed ? next : prev;
       });
     } catch (error) {
       console.error('[AddTrangBiDialog] syncParentCategoryFields error', error);
     }
-  }, [resolvedCategoryNameKey, hasCategoryNameField, hasParentField, parentFieldKey]);
+  }, [
+    resolvedCategoryNameKey,
+    hasCategoryNameField,
+    hasParentField,
+    hasSpecializationField,
+    hasNganhField,
+    parentFieldKey,
+    specializationFieldKey,
+    nganhFieldKey,
+  ]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
     setFormData((prev) => {
@@ -559,8 +608,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   const handleSave = useCallback(async () => {
     const maDinhDanh = (formData[categoryFieldKey] ?? '').trim();
-    const ten = (formData[resolvedCategoryNameKey] ?? '').trim();
-    const idCapTren = (formData[parentFieldKey] ?? '').trim();
 
     if (!maDinhDanh) {
       setSaveError('Vui lòng chọn mã danh mục trang bị trước khi lưu.');
@@ -568,7 +615,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     }
 
     // Collect core field keys to exclude from parameters
-    const coreKeys = new Set([categoryFieldKey, parentFieldKey, resolvedCategoryNameKey]);
+    const coreKeys = new Set([
+      categoryFieldKey,
+      parentFieldKey,
+      specializationFieldKey,
+      nganhFieldKey,
+      resolvedCategoryNameKey,
+    ]);
     const parameters: Record<string, string> = {};
     for (const [key, value] of Object.entries(formData)) {
       if (!coreKeys.has(key) && value.trim()) {
@@ -586,12 +639,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         {
           id: editorRecord?.id || undefined,
           maDanhMuc: maDinhDanh,
-          idCapTren: idCapTren || undefined,
-          tenDanhMuc: ten || undefined,
-          idChuyenNganhKt: editorCnId || editorRecord?.idChuyenNganhKt || undefined,
           parameters,
+          expectedVersion: editorRecord?.version,
         },
-        { isNew: !isEditMode },
       );
       onSaved?.();
       onClose();
@@ -607,9 +657,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     categoryFieldKey,
     resolvedCategoryNameKey,
     parentFieldKey,
+    specializationFieldKey,
+    nganhFieldKey,
     editorRecord,
-    editorCnId,
-    isEditMode,
     onSaved,
     onClose,
   ]);
@@ -711,10 +761,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       onClose={onClose}
       mode={dialogMode}
       maxWidth="md"
-      title="Thêm trang bị kỹ thuật mới"
+      title={dialogTitle}
       icon={dialogIcon}
       onConfirm={handleSave}
-      confirmText="Lưu trang bị"
+      confirmText={saveButtonLabel}
       contentPadding={0}
       sx={{
         '& .MuiDialog-paper': {

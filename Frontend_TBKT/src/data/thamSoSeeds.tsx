@@ -21,8 +21,8 @@ import type {
 export type { DynamicField, FieldSet, FormConfig };
 
 export const SEED_FIELDS: DynamicField[] = []; /* [
-    { id: 'ma_trang_bi', key: 'ma_trang_bi', label: 'Mã trang bị', type: 'text', required: true, validation: { minLength: 2, maxLength: 50 } },
-    { id: 'f02', key: 'ten_trang_bi', label: 'Tên trang bị', type: 'text', required: true, validation: { minLength: 3, maxLength: 200 } },
+    { id: 'ma_danh_muc', key: 'ma_danh_muc', label: 'Mã danh mục', type: 'text', required: true, validation: { minLength: 2, maxLength: 50 } },
+    { id: 'f02', key: 'ten_danh_muc', label: 'Tên danh mục', type: 'text', required: true, validation: { minLength: 3, maxLength: 200 } },
     { id: 'f03', key: 'don_vi_tinh', label: 'Đơn vị tính', type: 'text', required: false, validation: {} },
     { id: 'f04', key: 'don_vi_quan_ly', label: 'Đơn vị quản lý', type: 'text', required: false, validation: {} },
     { id: 'f05', key: 'don_vi_su_dung', label: 'Đơn vị sử dụng', type: 'text', required: false, validation: {} },
@@ -100,7 +100,7 @@ export const SEED_SETS: FieldSet[] = []; /* [
         icon: 'Assignment',
         color: '#3b82f6',
         desc: '19 trường thông tin gốc bắt buộc theo quy định',
-        fieldIds: ['ma_trang_bi', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07', 'f08', 'f09', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19'],
+        fieldIds: ['ma_danh_muc', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07', 'f08', 'f09', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18', 'f19'],
     },
     {
         id: 'gs02',

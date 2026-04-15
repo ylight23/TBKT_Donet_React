@@ -35,8 +35,8 @@ const IDS = {
     categoryB102: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f0210',
   },
   fields: {
-    maTrangBi: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1001',
-    tenTrangBi: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1002',
+    legacyMaTrangBi: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1001',
+    tenDanhMuc: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1002',
     maDanhMuc: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1003',
     idCapTren: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1004',
     idNganh: '0d2a0d55-5f4d-4f8b-a7a4-9fb8f57f1005',
@@ -202,7 +202,7 @@ function mergeValidation(validation) {
 
 function cleanupLegacyDocs() {
   dynamicFieldCol.deleteMany({ _id: { $in: LEGACY.fieldIds } });
-  dynamicFieldCol.deleteMany({ _id: { $in: [IDS.fields.maTrangBi] } });
+  dynamicFieldCol.deleteMany({ _id: { $in: [IDS.fields.legacyMaTrangBi] } });
   fieldSetCol.deleteMany({ _id: { $in: LEGACY.fieldSetIds } });
   formConfigCol.deleteMany({
     $or: [
@@ -263,7 +263,7 @@ function upsertFieldSet(fieldSet) {
 }
 
 const commonFields = [
-  { id: IDS.fields.tenTrangBi, key: 'ten_danh_muc', label: 'Ten danh muc', type: 'text', required: true },
+  { id: IDS.fields.tenDanhMuc, key: 'ten_danh_muc', label: 'Ten danh muc', type: 'text', required: true },
   {
     id: IDS.fields.maDanhMuc,
     key: 'ma_danh_muc',

@@ -60,7 +60,7 @@ const kqColor: Record<string, 'success' | 'warning' | 'error'> = {
 const suaChuaRows = mockSuaChua.map((r, i) => ({
   ...r,
   stt: i + 1,
-  tieuDe: `Sửa chữa ${r.tenTrangBi}`,
+  tieuDe: `Sửa chữa ${r.tenDanhMuc}`,
   canCu: `Công văn ${500 + i}/CV-KT`,
   mucSuaChua: i % 2 === 0 ? 'Sửa chữa lớn' : 'Sửa chữa nhỏ',
   capSuaChua: r.loaiSuaChua, // Map từ loaiSuaChua sang cấp sửa chữa
@@ -137,7 +137,7 @@ const SuaChua: React.FC = () => {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return sourceData.filter(r => {
-      const matchSearch = !q || [r.maTrangBi, r.tenTrangBi, r.donVi, r.donViSuaChua, r.tieuDe].some(v => v.toLowerCase().includes(q));
+      const matchSearch = !q || [r.maDanhMuc, r.tenDanhMuc, r.donVi, r.donViSuaChua, r.tieuDe].some(v => v.toLowerCase().includes(q));
       const matchLoai = !filterLoai || r.capSuaChua === filterLoai;
       const matchKQ = !filterKQ || r.mucSuaChua === filterKQ;
       return matchSearch && matchLoai && matchKQ;

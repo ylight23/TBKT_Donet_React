@@ -25,6 +25,7 @@ message TrangBiTree {
   google.protobuf.StringValue nguoi_sua = 12;
   google.protobuf.Timestamp ngay_tao = 13;
   google.protobuf.Timestamp ngay_sua = 14;
+  google.protobuf.StringValue id_nganh = 15;
 }
 
 message TrangBiTreeListRequest {
@@ -104,7 +105,7 @@ message GetFieldSetsByMaDanhMucResponse {
 // ============================================================
 // SaveTrangBiNhom1 – lưu bản ghi trang bị (equipment instance)
 // ============================================================
-message TrangBiNhom1Record {
+message TrangBiNhom1EditorItem {
   string id = 1;                                              // GUID, tự sinh khi tạo mới
   string ma_danh_muc = 2;                                     // _id DanhMucTrangBi (loại trang bị)
   google.protobuf.StringValue id_cap_tren = 3;                // mã cấp trên (DanhMucTrangBi cha)
@@ -115,11 +116,15 @@ message TrangBiNhom1Record {
   google.protobuf.StringValue nguoi_sua = 8;
   google.protobuf.Timestamp ngay_tao = 9;
   google.protobuf.Timestamp ngay_sua = 10;
+  google.protobuf.StringValue id_nganh = 13;
+  int32 version = 14;
 }
 
 message SaveTrangBiNhom1Request {
-  TrangBiNhom1Record item = 1;
-  bool is_new = 2;
+  google.protobuf.StringValue id = 1;
+  string ma_danh_muc = 2;
+  map<string, string> parameters = 3;
+  google.protobuf.Int32Value expected_version = 4;
 }
 
 message SaveTrangBiNhom1Response {
@@ -155,6 +160,10 @@ message TrangBiNhom1GridItem {
   int32 nien_han_su_dung = 15;
   string nuoc_san_xuat = 16;
   string hang_san_xuat = 17;
+  string id_nganh = 18;
+  string ky_hieu = 19;
+  string nguoi_sua = 20;
+  google.protobuf.Timestamp ngay_sua = 21;
 }
 
 message GetListTrangBiNhom1Response {
@@ -168,12 +177,12 @@ message GetTrangBiNhom1Request {
 }
 
 message GetTrangBiNhom1Response {
-  TrangBiNhom1Record item = 1;
+  TrangBiNhom1EditorItem item = 1;
   bool success = 2;
   string message = 3;
 }
 
-message TrangBiNhom2Record {
+message TrangBiNhom2EditorItem {
   string id = 1;
   string ma_danh_muc = 2;
   google.protobuf.StringValue id_cap_tren = 3;
@@ -184,11 +193,15 @@ message TrangBiNhom2Record {
   google.protobuf.StringValue nguoi_sua = 8;
   google.protobuf.Timestamp ngay_tao = 9;
   google.protobuf.Timestamp ngay_sua = 10;
+  google.protobuf.StringValue id_nganh = 11;
+  int32 version = 12;
 }
 
 message SaveTrangBiNhom2Request {
-  TrangBiNhom2Record item = 1;
-  bool is_new = 2;
+  google.protobuf.StringValue id = 1;
+  string ma_danh_muc = 2;
+  map<string, string> parameters = 3;
+  google.protobuf.Int32Value expected_version = 4;
 }
 
 message SaveTrangBiNhom2Response {
@@ -221,10 +234,24 @@ message TrangBiNhom2GridItem {
   int32 nien_han_su_dung = 15;
   string nuoc_san_xuat = 16;
   string hang_san_xuat = 17;
+  string id_nganh = 18;
+  string ky_hieu = 19;
+  string nguoi_sua = 20;
+  google.protobuf.Timestamp ngay_sua = 21;
 }
 
 message GetListTrangBiNhom2Response {
   repeated TrangBiNhom2GridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetTrangBiNhom2Request {
+  string id = 1;
+}
+
+message GetTrangBiNhom2Response {
+  TrangBiNhom2EditorItem item = 1;
   bool success = 2;
   string message = 3;
 }
@@ -241,4 +268,5 @@ service DanhMucTrangBiService {
   rpc GetTrangBiNhom1 (GetTrangBiNhom1Request) returns (GetTrangBiNhom1Response);
   rpc SaveTrangBiNhom2 (SaveTrangBiNhom2Request) returns (SaveTrangBiNhom2Response);
   rpc GetListTrangBiNhom2 (GetListTrangBiNhom2Request) returns (GetListTrangBiNhom2Response);
+  rpc GetTrangBiNhom2 (GetTrangBiNhom2Request) returns (GetTrangBiNhom2Response);
 }

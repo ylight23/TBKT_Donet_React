@@ -58,7 +58,7 @@ const ketQuaColor: Record<string, 'success' | 'warning' | 'info'> = {
 const niemCatRows = mockNiemCat.map((r, i) => ({
   ...r,
   stt: i + 1,
-  ten: r.tenTrangBi,
+  ten: r.tenDanhMuc,
   loaiDeNghi: i % 2 === 0 ? 'Niêm cất dài hạn' : 'Niêm cất ngắn hạn',
   loaiNiemCat: i % 2 === 0 ? 'Niêm cất khô' : 'Niêm cất ẩm',
   donViThucHien: r.donVi,

@@ -16,8 +16,8 @@ export enum TrangThaiTrangBi {
 
 export interface IBaoDuong {
     id: string;
-    maTrangBi: string;
-    tenTrangBi: string;
+    maDanhMuc: string;
+    tenDanhMuc: string;
     donVi: string;
     loaiBaoDuong: string;
     ngayBaoDuong: string;
@@ -28,8 +28,8 @@ export interface IBaoDuong {
 
 export interface ISuaChua {
     id: string;
-    maTrangBi: string;
-    tenTrangBi: string;
+    maDanhMuc: string;
+    tenDanhMuc: string;
     loai: string;
     donVi: string;
     loaiSuaChua: string;
@@ -43,8 +43,8 @@ export interface ISuaChua {
 
 export interface IChuyenCap {
     id: string;
-    maTrangBi: string;
-    tenTrangBi: string;
+    maDanhMuc: string;
+    tenDanhMuc: string;
     donVi: string;
     capCu: ChatLuong;
     capMoi: ChatLuong;
@@ -55,8 +55,8 @@ export interface IChuyenCap {
 
 export interface IDieuDong {
     id: string;
-    maTrangBi: string;
-    tenTrangBi: string;
+    maDanhMuc: string;
+    tenDanhMuc: string;
     donViCu: string;
     donViMoi: string;
     ngayDieuDong: string;
@@ -67,8 +67,8 @@ export interface IDieuDong {
 
 export interface INiemCat {
     id: string;
-    maTrangBi: string;
-    tenTrangBi: string;
+    maDanhMuc: string;
+    tenDanhMuc: string;
     donVi: string;
     khoNiemCat: string;
     ngayNiemCat: string;

@@ -37,7 +37,7 @@ const BaoQuan: React.FC = () => {
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
         return baoQuanRows.filter((r) => {
-            const matchSearch = !q || [r.maTrangBi, r.tenTrangBi, r.donVi, r.donViQuanLy, r.soHieu]
+            const matchSearch = !q || [r.maDanhMuc, r.tenDanhMuc, r.donVi, r.donViQuanLy, r.soHieu]
                 .some((v) => (v || '').toLowerCase().includes(q));
             const matchTT = !filterTT || r.trangThai === filterTT;
             return matchSearch && matchTT;
@@ -57,8 +57,8 @@ const BaoQuan: React.FC = () => {
     }, [filterTT]);
 
     const columns: GridColDef[] = [
-        { field: 'maTrangBi', headerName: 'Ma trang bi', width: 140 },
-        { field: 'tenTrangBi', headerName: 'Ten trang bi', minWidth: 220, flex: 1 },
+        { field: 'maDanhMuc', headerName: 'Ma trang bi', width: 140 },
+        { field: 'tenDanhMuc', headerName: 'Ten trang bi', minWidth: 220, flex: 1 },
         { field: 'soHieu', headerName: 'So hieu', width: 140 },
         { field: 'donVi', headerName: 'Don vi', minWidth: 180, flex: 1 },
         { field: 'donViQuanLy', headerName: 'Don vi quan ly', width: 180 },

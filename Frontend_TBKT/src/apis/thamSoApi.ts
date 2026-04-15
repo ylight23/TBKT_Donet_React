@@ -67,8 +67,7 @@ import { thamSoClient } from '../grpc/grpcClient';
 import { getStableFormConfigKey } from '../utils/formConfigKeys';
 
 const ColumnConfigSchemaResolved =
-    (ThamSoPb as any).ColumnConfigSchema ??
-    (ThamSoPb as any)?.default?.ColumnConfigSchema;
+    (ThamSoPb as any).ColumnConfigSchema;
 if (!ColumnConfigSchemaResolved) {
     throw new Error('[thamSoApi] Khong tim thay ColumnConfigSchema tu generated ThamSo_pb');
 }

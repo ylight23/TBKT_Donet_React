@@ -45,7 +45,7 @@ const ketQuaColor: Record<string, 'success' | 'warning' | 'error'> = {
 const baoDuongRows = mockBaoDuong.map((r, i) => ({
   ...r,
   stt: i + 1,
-  tenBaoDuong: `Bảo dưỡng ${r.tenTrangBi} định kỳ`,
+  tenBaoDuong: `Bảo dưỡng ${r.tenDanhMuc} định kỳ`,
   canCu: `Kế hoạch ${200 + i}/KH-KT`,
   donViThucHien: r.donVi,
   nguoiPhuTrach: `Thiếu tá Lê Văn ${String.fromCharCode(65 + (i % 26))}`,
@@ -64,7 +64,7 @@ const BaoDuong: React.FC = () => {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return baoDuongRows.filter((r) => {
-      const matchSearch = !q || [r.maTrangBi, r.tenTrangBi, r.donVi, r.nguoiThucHien, r.tenBaoDuong].some(v => v.toLowerCase().includes(q));
+      const matchSearch = !q || [r.maDanhMuc, r.tenDanhMuc, r.donVi, r.nguoiThucHien, r.tenBaoDuong].some(v => v.toLowerCase().includes(q));
       const matchKQ = !filterKQ || r.ketQua === filterKQ;
       return matchSearch && matchKQ;
     });

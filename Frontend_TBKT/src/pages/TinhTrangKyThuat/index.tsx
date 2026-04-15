@@ -116,7 +116,7 @@ const TinhTrangKyThuat: React.FC = () => {
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
         return allTrangBi.filter((row) => {
-            const matchSearch = !q || [row.maTrangBi, row.tenTrangBi, row.donVi, row.soHieu, row.loai]
+            const matchSearch = !q || [row.maDanhMuc, row.tenDanhMuc, row.donVi, row.soHieu, row.loai]
                 .some((v) => (v || '').toLowerCase().includes(q));
             const matchCL = !filterCL || row.chatLuong === filterCL;
             return matchSearch && matchCL;
@@ -125,7 +125,7 @@ const TinhTrangKyThuat: React.FC = () => {
 
     const columns: GridColDef[] = [
         {
-            field: 'maTrangBi',
+            field: 'maDanhMuc',
             headerName: 'Ma trang bi',
             width: 140,
             renderCell: (p) => (
@@ -134,7 +134,7 @@ const TinhTrangKyThuat: React.FC = () => {
                 </Typography>
             ),
         },
-        { field: 'tenTrangBi', headerName: 'Ten trang bi', flex: 1, minWidth: 220 },
+        { field: 'tenDanhMuc', headerName: 'Ten trang bi', flex: 1, minWidth: 220 },
         { field: 'loai', headerName: 'Loai', width: 180 },
         { field: 'donVi', headerName: 'Don vi', flex: 1, minWidth: 160 },
         {
