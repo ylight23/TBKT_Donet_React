@@ -5,6 +5,7 @@ import danhMucTrangBiApi, {
 } from './danhMucTrangBiApi';
 import officeApi, { OFFICE_LIST_ENDPOINT } from './officeApi';
 import { listDanhMucChuyenNganh } from './danhmucChuyenNganhApi';
+import { getListNhomDongBo, NHOM_DONG_BO_LIST_ENDPOINT } from './nhomDongBoApi';
 
 export interface DynamicOptionItem {
     value: string;
@@ -16,8 +17,10 @@ export const DYNAMIC_OPTION_API_HINTS = [
     DANH_MUC_TRANG_BI_TREE_ENDPOINT,
     MA_DINH_DANH_TRANG_BI_LIST_ENDPOINT,
     '/DanhMucChuyenNganh.DanhMucChuyenNganhService/GetList',
+    NHOM_DONG_BO_LIST_ENDPOINT,
     'api/getlist/office',
     'api/getlist/danh-muc-trang-bi',
+    'api/getlist/nhom-dong-bo',
 ] as const;
 
 const MA_DINH_DANH_KEYS = new Set<string>([
@@ -42,6 +45,11 @@ const CHUYEN_NGANH_KEYS = new Set<string>([
     'api/getlist/chuyen-nganh',
     'api/getlistchuyennganh',
 ]);
+const NHOM_DONG_BO_KEYS = new Set<string>([
+    NHOM_DONG_BO_LIST_ENDPOINT.toLowerCase(),
+    'api/getlist/nhom-dong-bo',
+    'api/getlistnhomdongbo',
+]);
 
 const normalizeKey = (value: string | undefined): string => (value ?? '').trim().toLowerCase();
 export const isMaDinhDanhTrangBiOptionKey = (value: string | undefined): boolean =>
@@ -59,6 +67,8 @@ export const isMaDinhDanhTrangBiListOptionKey = (value: string | undefined): boo
     || normalizeKey(value) === 'api/getlist/ma-danh-muc-trang-bi'
     || normalizeKey(value) === 'api/getlistdanhmuctrangbi'
     || normalizeKey(value) === 'api/getlistmadinhdanhtrangbi';
+export const isNhomDongBoOptionKey = (value: string | undefined): boolean =>
+    NHOM_DONG_BO_KEYS.has(normalizeKey(value));
 
 const mapMaDinhDanhOptions = (items: MaDinhDanhTrangBiOption[]): DynamicOptionItem[] =>
     items.map((item) => ({
@@ -91,6 +101,15 @@ export async function resolveDynamicOptions(apiKey: string | undefined): Promise
         return (await listDanhMucChuyenNganh()).map((item) => ({
             value: item.id,
             label: item.ten || item.id,
+        }));
+    }
+
+    if (NHOM_DONG_BO_KEYS.has(normalizedKey)) {
+        return (await getListNhomDongBo()).map((item) => ({
+            value: item.id,
+            label: item.tenDonVi
+                ? `${item.tenNhom} - ${item.tenDonVi}`
+                : (item.tenNhom || item.id),
         }));
     }
 

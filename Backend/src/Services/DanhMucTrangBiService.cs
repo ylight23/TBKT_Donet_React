@@ -540,6 +540,25 @@ public sealed class DanhMucTrangBiServiceImpl(
     private static IMongoCollection<BsonDocument>? GetTrangBiNhom2Collection()
         => Global.MongoDB?.GetCollection<BsonDocument>("TrangBiNhom2");
 
+    private static IMongoCollection<BsonDocument>? GetNhomDongBoCollection()
+        => Global.MongoDB?.GetCollection<BsonDocument>("NhomDongBo");
+
+    private static IMongoCollection<BsonDocument>? GetOfficeCollection()
+        => Global.MongoDB?.GetCollection<BsonDocument>(PermissionCollectionNames.Offices);
+
+    private static IMongoCollection<BsonDocument>? GetTrangBiCollectionByNhom(int nhom)
+        => nhom switch
+        {
+            1 => GetTrangBiCollection(),
+            2 => GetTrangBiNhom2Collection(),
+            _ => null,
+        };
+
+    private sealed record LoadedTrangBiRef(
+        string Id,
+        int Nhom,
+        BsonDocument Doc);
+
     private sealed record TrangBiCatalogMetadata(
         string MaDanhMuc,
         string? TenDanhMuc,
@@ -557,6 +576,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         "id_cap_tren",
         "id_chuyen_nganh_kt",
         "id_nganh",
+        "id_nhom_dong_bo",
+        "trang_thai_dong_bo",
         "idcaptren",
         "idchuyennganhkt",
         "idnganh",
@@ -604,6 +625,257 @@ public sealed class DanhMucTrangBiServiceImpl(
             string.IsNullOrWhiteSpace(idNganh) ? null : idNganh);
     }
 
+    private static string BuildTrangBiRefKey(int nhom, string id)
+        => $"{nhom}:{id}";
+
+    private static async Task<BsonDocument?> FindOfficeDocAsync(string idDonVi, CancellationToken cancellationToken)
+    {
+        var normalizedId = (idDonVi ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedId)) return null;
+
+        var collection = GetOfficeCollection();
+        if (collection == null)
+            throw new InvalidOperationException("Khong khoi tao duoc collection Office");
+
+        return await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", normalizedId))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private static string ReadTrangBiSoHieu(BsonDocument doc)
+        => doc.DocOr("Parameters")?.StringOr("so_hieu") ?? string.Empty;
+
+    private static async Task<LoadedTrangBiRef> LoadTrangBiRefAsync(
+        NhomDongBoItemRef item,
+        CancellationToken cancellationToken)
+    {
+        var collection = GetTrangBiCollectionByNhom(item.Nhom);
+        if (collection == null)
+            throw new InvalidOperationException($"Khong ho tro nhom trang bi '{item.Nhom}'");
+
+        var normalizedId = (item.Id ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedId))
+            throw new InvalidOperationException("DsTrangBi co phan tu thieu id");
+
+        var doc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", normalizedId))
+            .FirstOrDefaultAsync(cancellationToken);
+        if (doc == null)
+            throw new InvalidOperationException($"Khong tim thay trang bi '{normalizedId}' trong nhom {item.Nhom}");
+
+        return new LoadedTrangBiRef(normalizedId, item.Nhom, doc);
+    }
+
+    private static async Task UpdateTrangBiDongBoBacklinkAsync(
+        int nhom,
+        string idTrangBi,
+        string? idNhomDongBo,
+        bool trangThaiDongBo,
+        CancellationToken cancellationToken)
+    {
+        var collection = GetTrangBiCollectionByNhom(nhom);
+        if (collection == null)
+            throw new InvalidOperationException($"Khong ho tro nhom trang bi '{nhom}'");
+
+        await collection.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", idTrangBi),
+            Builders<BsonDocument>.Update
+                .Set("IdNhomDongBo", StringOrNull(idNhomDongBo))
+                .Set("TrangThaiDongBo", trangThaiDongBo),
+            cancellationToken: cancellationToken);
+    }
+
+    private static async Task ApplyTrangBiNhomDongBoSelectionAsync(
+        int nhom,
+        string idTrangBi,
+        string? currentGroupId,
+        string? requestedGroupId,
+        bool? requestedTrangThaiDongBo,
+        CancellationToken cancellationToken)
+    {
+        var hasRequestedFields = requestedTrangThaiDongBo.HasValue || !string.IsNullOrWhiteSpace(requestedGroupId);
+        if (!hasRequestedFields)
+            return;
+
+        var normalizedCurrentGroupId = string.IsNullOrWhiteSpace(currentGroupId) ? null : currentGroupId.Trim();
+        var normalizedRequestedGroupId = string.IsNullOrWhiteSpace(requestedGroupId) ? null : requestedGroupId.Trim();
+        var shouldLink = requestedTrangThaiDongBo == true;
+
+        if (!shouldLink)
+            normalizedRequestedGroupId = null;
+
+        if (shouldLink && string.IsNullOrWhiteSpace(normalizedRequestedGroupId))
+            throw new InvalidOperationException("Thieu id_nhom_dong_bo khi trang_thai_dong_bo = true");
+
+        var groupCollection = GetNhomDongBoCollection();
+        if (groupCollection == null)
+            throw new InvalidOperationException("Khong khoi tao duoc collection NhomDongBo");
+
+        if (!string.IsNullOrWhiteSpace(normalizedCurrentGroupId)
+            && !string.Equals(normalizedCurrentGroupId, normalizedRequestedGroupId, StringComparison.Ordinal))
+        {
+            await groupCollection.UpdateOneAsync(
+                Builders<BsonDocument>.Filter.Eq("_id", normalizedCurrentGroupId),
+                Builders<BsonDocument>.Update.Pull(
+                    "DsTrangBi",
+                    new BsonDocument
+                    {
+                        ["Id"] = idTrangBi,
+                        ["Nhom"] = nhom,
+                    }),
+                cancellationToken: cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedRequestedGroupId))
+        {
+            var groupDoc = await groupCollection.Find(Builders<BsonDocument>.Filter.Eq("_id", normalizedRequestedGroupId))
+                .FirstOrDefaultAsync(cancellationToken);
+            if (groupDoc == null)
+                throw new InvalidOperationException($"Khong tim thay nhom dong bo '{normalizedRequestedGroupId}'");
+
+            await groupCollection.UpdateOneAsync(
+                Builders<BsonDocument>.Filter.Eq("_id", normalizedRequestedGroupId),
+                Builders<BsonDocument>.Update.AddToSet(
+                    "DsTrangBi",
+                    new BsonDocument
+                    {
+                        ["Id"] = idTrangBi,
+                        ["Nhom"] = nhom,
+                    }),
+                cancellationToken: cancellationToken);
+        }
+
+        await UpdateTrangBiDongBoBacklinkAsync(
+            nhom,
+            idTrangBi,
+            normalizedRequestedGroupId,
+            !string.IsNullOrWhiteSpace(normalizedRequestedGroupId),
+            cancellationToken);
+    }
+
+    private static List<NhomDongBoItemRef> ReadNhomDongBoRefs(BsonDocument doc)
+    {
+        var result = new List<NhomDongBoItemRef>();
+        foreach (var itemDoc in doc.DocumentsOr("DsTrangBi"))
+        {
+            var id = itemDoc.StringOr("Id");
+            var nhom = itemDoc.IntOr("Nhom");
+            if (string.IsNullOrWhiteSpace(id) || nhom <= 0) continue;
+            result.Add(new NhomDongBoItemRef
+            {
+                Id = id,
+                Nhom = nhom,
+            });
+        }
+
+        return result;
+    }
+
+    private static BsonArray ToNhomDongBoRefArray(IEnumerable<NhomDongBoItemRef> refs)
+    {
+        var arr = new BsonArray();
+        foreach (var item in refs)
+        {
+            var id = (item.Id ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(id) || item.Nhom <= 0) continue;
+
+            arr.Add(new BsonDocument
+            {
+                ["Id"] = id,
+                ["Nhom"] = item.Nhom,
+            });
+        }
+
+        return arr;
+    }
+
+    private static BsonDocument BuildNhomDongBoDocument(
+        string id,
+        string tenNhom,
+        string idDonVi,
+        IEnumerable<NhomDongBoItemRef> dsTrangBi,
+        IDictionary<string, string> parameters,
+        int version,
+        string nguoiTao,
+        string nguoiSua,
+        Google.Protobuf.WellKnownTypes.Timestamp ngayTao,
+        Google.Protobuf.WellKnownTypes.Timestamp ngaySua)
+    {
+        return new BsonDocument
+        {
+            ["_id"] = id,
+            ["TenNhom"] = tenNhom,
+            ["IdDonVi"] = idDonVi,
+            ["DsTrangBi"] = ToNhomDongBoRefArray(dsTrangBi),
+            ["Parameters"] = ToParameterBson(parameters),
+            ["Version"] = version,
+            ["NguoiTao"] = StringOrNull(nguoiTao),
+            ["NguoiSua"] = StringOrNull(nguoiSua),
+            ["NgayTao"] = ngayTao.ToBsonDocument(),
+            ["NgaySua"] = ngaySua.ToBsonDocument(),
+        };
+    }
+
+    private static NhomDongBo DocToNhomDongBo(BsonDocument doc)
+    {
+        var item = new NhomDongBo
+        {
+            Id = doc.IdString(),
+            TenNhom = doc.StringOr("TenNhom"),
+            IdDonVi = doc.StringOr("IdDonVi"),
+            NguoiTao = doc.StringOr("NguoiTao"),
+            NguoiSua = doc.StringOr("NguoiSua"),
+            Version = doc.IntOr("Version", 1),
+        };
+
+        if (doc.TimestampOr("NgayTao") is { } ngayTao)
+            item.NgayTao = ngayTao;
+        if (doc.TimestampOr("NgaySua") is { } ngaySua)
+            item.NgaySua = ngaySua;
+
+        foreach (var kv in ReadParameterMap(doc))
+            item.Parameters[kv.Key] = kv.Value;
+
+        item.DsTrangBi.AddRange(ReadNhomDongBoRefs(doc));
+        return item;
+    }
+
+    private static NhomDongBoGridItem DocToNhomDongBoGridItem(
+        BsonDocument doc,
+        string tenDonVi)
+    {
+        var item = new NhomDongBoGridItem
+        {
+            Id = doc.IdString(),
+            TenNhom = doc.StringOr("TenNhom"),
+            IdDonVi = doc.StringOr("IdDonVi"),
+            TenDonVi = tenDonVi,
+            SoTrangBi = ReadNhomDongBoRefs(doc).Count,
+            NguoiSua = doc.StringOr("NguoiSua"),
+        };
+        if (doc.TimestampOr("NgaySua") is { } ngaySua)
+            item.NgaySua = ngaySua;
+        return item;
+    }
+
+    private static NhomDongBoThanhVienView BuildNhomDongBoThanhVienView(
+        LoadedTrangBiRef loaded,
+        bool restricted)
+    {
+        var doc = loaded.Doc;
+        return new NhomDongBoThanhVienView
+        {
+            Id = loaded.Id,
+            Nhom = loaded.Nhom,
+            MaDanhMuc = doc.StringOr("MaDanhMuc"),
+            TenDanhMuc = doc.StringOr("TenDanhMuc"),
+            IdCapTren = doc.StringOr("IdCapTren"),
+            IdChuyenNganhKt = doc.StringOr("IdChuyenNganhKT"),
+            IdNganh = doc.StringOr("IdNganh"),
+            IdDonViQuanLy = doc.DocOr("Parameters")?.StringOr("id_don_vi_quan_ly"),
+            SoHieu = restricted ? string.Empty : ReadTrangBiSoHieu(doc),
+            Restricted = restricted,
+        };
+    }
+
     private static BsonDocument BuildTrangBiInstanceDocument(
         string itemId,
         TrangBiCatalogMetadata metadata,
@@ -621,6 +893,8 @@ public sealed class DanhMucTrangBiServiceImpl(
             ["IdChuyenNganhKT"] = StringOrNull(metadata.IdChuyenNganhKt),
             ["IdNganh"] = StringOrNull(metadata.IdNganh),
             ["Parameters"] = ToParameterBson(parameters),
+            ["IdNhomDongBo"] = BsonNull.Value,
+            ["TrangThaiDongBo"] = false,
             ["Version"] = version,
             ["NguoiTao"] = StringOrNull(user),
             ["NguoiSua"] = StringOrNull(user),
@@ -703,6 +977,8 @@ public sealed class DanhMucTrangBiServiceImpl(
             var metadata = await ResolveTrangBiCatalogMetadataAsync(request.MaDanhMuc, context.CancellationToken);
             var targetCn = metadata.IdChuyenNganhKt;
             var itemId = (request.Id ?? string.Empty).Trim();
+            var requestedGroupId = string.IsNullOrWhiteSpace(request.IdNhomDongBo) ? null : request.IdNhomDongBo.Trim();
+            var requestedTrangThaiDongBo = request.TrangThaiDongBo;
 
             if (string.IsNullOrWhiteSpace(itemId))
             {
@@ -717,6 +993,13 @@ public sealed class DanhMucTrangBiServiceImpl(
                     user,
                     now);
                 await collection.InsertOneAsync(doc, cancellationToken: context.CancellationToken);
+                await ApplyTrangBiNhomDongBoSelectionAsync(
+                    nhom: 1,
+                    idTrangBi: itemId,
+                    currentGroupId: null,
+                    requestedGroupId,
+                    requestedTrangThaiDongBo,
+                    context.CancellationToken);
 
                 response.Id = itemId;
                 response.Success = true;
@@ -765,6 +1048,13 @@ public sealed class DanhMucTrangBiServiceImpl(
                 Builders<BsonDocument>.Filter.Eq("_id", itemId),
                 update,
                 cancellationToken: context.CancellationToken);
+            await ApplyTrangBiNhomDongBoSelectionAsync(
+                nhom: 1,
+                idTrangBi: itemId,
+                currentGroupId: existingDoc.StringOr("IdNhomDongBo"),
+                requestedGroupId,
+                requestedTrangThaiDongBo,
+                context.CancellationToken);
 
             response.Id = itemId;
             response.Success = true;
@@ -881,6 +1171,8 @@ public sealed class DanhMucTrangBiServiceImpl(
             var metadata = await ResolveTrangBiCatalogMetadataAsync(request.MaDanhMuc, context.CancellationToken);
             var targetCn = metadata.IdChuyenNganhKt;
             var itemId = (request.Id ?? string.Empty).Trim();
+            var requestedGroupId = string.IsNullOrWhiteSpace(request.IdNhomDongBo) ? null : request.IdNhomDongBo.Trim();
+            var requestedTrangThaiDongBo = request.TrangThaiDongBo;
 
             if (string.IsNullOrWhiteSpace(itemId))
             {
@@ -894,6 +1186,13 @@ public sealed class DanhMucTrangBiServiceImpl(
                     user,
                     now);
                 await collection.InsertOneAsync(doc, cancellationToken: context.CancellationToken);
+                await ApplyTrangBiNhomDongBoSelectionAsync(
+                    nhom: 2,
+                    idTrangBi: itemId,
+                    currentGroupId: null,
+                    requestedGroupId,
+                    requestedTrangThaiDongBo,
+                    context.CancellationToken);
                 response.Id = itemId;
                 response.Success = true;
                 response.Message = "Them moi trang bi nhom 2 thanh cong";
@@ -941,6 +1240,13 @@ public sealed class DanhMucTrangBiServiceImpl(
                 Builders<BsonDocument>.Filter.Eq("_id", itemId),
                 update,
                 cancellationToken: context.CancellationToken);
+            await ApplyTrangBiNhomDongBoSelectionAsync(
+                nhom: 2,
+                idTrangBi: itemId,
+                currentGroupId: existingDoc.StringOr("IdNhomDongBo"),
+                requestedGroupId,
+                requestedTrangThaiDongBo,
+                context.CancellationToken);
 
             response.Id = itemId;
             response.Success = true;
@@ -1040,6 +1346,376 @@ public sealed class DanhMucTrangBiServiceImpl(
         return response;
     }
 
+    public override async Task<GetListNhomDongBoResponse> GetListNhomDongBo(GetListNhomDongBoRequest request, ServerCallContext context)
+    {
+        var response = new GetListNhomDongBoResponse();
+        try
+        {
+            var collection = GetNhomDongBoCollection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection NhomDongBo";
+                return response;
+            }
+
+            var builder = Builders<BsonDocument>.Filter;
+            var filter = builder.Empty;
+
+            if (!string.IsNullOrWhiteSpace(request.IdDonVi))
+                filter &= builder.Eq("IdDonVi", request.IdDonVi);
+
+            if (!string.IsNullOrWhiteSpace(request.IdTrangBi))
+            {
+                filter &= new BsonDocument(
+                    "DsTrangBi",
+                    new BsonDocument("$elemMatch", new BsonDocument("Id", request.IdTrangBi)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.SearchText))
+            {
+                var q = EscapeRegex(request.SearchText);
+                var regex = new BsonRegularExpression($".*{q}.*", "i");
+                filter &= builder.Or(
+                    builder.Regex("TenNhom", regex),
+                    builder.Regex("_id", regex));
+            }
+
+            var docs = await collection.Find(filter)
+                .SortByDescending(d => d["NgaySua"])
+                .ToListAsync(context.CancellationToken);
+
+            var officeIds = docs
+                .Select(doc => doc.StringOr("IdDonVi"))
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            var officeMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (officeIds.Count > 0 && GetOfficeCollection() is { } officeCollection)
+            {
+                var officeDocs = await officeCollection.Find(
+                        Builders<BsonDocument>.Filter.In("_id", officeIds))
+                    .ToListAsync(context.CancellationToken);
+                foreach (var officeDoc in officeDocs)
+                    officeMap[officeDoc.IdString()] = officeDoc.StringOr("Ten");
+            }
+
+            response.Items.AddRange(docs.Select(doc =>
+                DocToNhomDongBoGridItem(doc, officeMap.GetValueOrDefault(doc.StringOr("IdDonVi"), string.Empty))));
+            response.Success = true;
+            response.Message = $"Lay {response.Items.Count} nhom dong bo";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.GetListNhomDongBo error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
+        return response;
+    }
+
+    public override async Task<GetNhomDongBoResponse> GetNhomDongBo(GetNhomDongBoRequest request, ServerCallContext context)
+    {
+        var response = new GetNhomDongBoResponse();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Id))
+            {
+                response.Success = false;
+                response.Message = "Thieu id nhom dong bo";
+                return response;
+            }
+
+            var collection = GetNhomDongBoCollection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection NhomDongBo";
+                return response;
+            }
+
+            var doc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
+                .FirstOrDefaultAsync(context.CancellationToken);
+            if (doc == null)
+            {
+                response.Success = false;
+                response.Message = $"Khong tim thay nhom dong bo id '{request.Id}'";
+                return response;
+            }
+
+            response.Item = DocToNhomDongBo(doc);
+
+            foreach (var itemRef in response.Item.DsTrangBi)
+            {
+                var loaded = await LoadTrangBiRefAsync(itemRef, context.CancellationToken);
+                var cnId = loaded.Doc.StringOr("IdChuyenNganhKT");
+                var restricted = !ServiceMutationPolicy.CanActOnCN(
+                    context,
+                    "view",
+                    string.IsNullOrWhiteSpace(cnId) ? null : cnId);
+
+                response.ThanhVien.Add(BuildNhomDongBoThanhVienView(loaded, restricted));
+            }
+
+            response.Success = true;
+            response.Message = "Lay chi tiet nhom dong bo thanh cong";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.GetNhomDongBo error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
+        return response;
+    }
+
+    public override async Task<SaveNhomDongBoResponse> SaveNhomDongBo(SaveNhomDongBoRequest request, ServerCallContext context)
+    {
+        var response = new SaveNhomDongBoResponse();
+        try
+        {
+            var collection = GetNhomDongBoCollection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection NhomDongBo";
+                return response;
+            }
+
+            var tenNhom = (request.TenNhom ?? string.Empty).Trim();
+            var idDonVi = (request.IdDonVi ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(tenNhom))
+            {
+                response.Success = false;
+                response.Message = "Thieu ten_nhom";
+                return response;
+            }
+
+            if (string.IsNullOrWhiteSpace(idDonVi))
+            {
+                response.Success = false;
+                response.Message = "Thieu id_don_vi";
+                return response;
+            }
+
+            var officeDoc = await FindOfficeDocAsync(idDonVi, context.CancellationToken);
+            if (officeDoc == null)
+            {
+                response.Success = false;
+                response.Message = $"Khong tim thay don vi '{idDonVi}'";
+                return response;
+            }
+
+            if (request.DsTrangBi.Count == 0)
+            {
+                response.Success = false;
+                response.Message = "Nhom dong bo phai co it nhat 1 trang bi";
+                return response;
+            }
+
+            var itemId = (request.Id ?? string.Empty).Trim();
+            var existingDoc = default(BsonDocument);
+            var now = ProtobufTimestampConverter.GetNowTimestamp();
+            var user = context.GetUserName() ?? context.GetUserID() ?? "system";
+
+            if (!string.IsNullOrWhiteSpace(itemId))
+            {
+                existingDoc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", itemId))
+                    .FirstOrDefaultAsync(context.CancellationToken);
+                if (existingDoc == null)
+                {
+                    response.Success = false;
+                    response.Message = $"Khong tim thay nhom dong bo id '{itemId}'";
+                    return response;
+                }
+            }
+            else
+            {
+                itemId = Guid.NewGuid().ToString();
+            }
+
+            var uniqueKeys = new HashSet<string>(StringComparer.Ordinal);
+            var loadedRefs = new List<LoadedTrangBiRef>();
+            foreach (var itemRef in request.DsTrangBi)
+            {
+                var key = BuildTrangBiRefKey(itemRef.Nhom, (itemRef.Id ?? string.Empty).Trim());
+                if (!uniqueKeys.Add(key))
+                {
+                    response.Success = false;
+                    response.Message = $"Trung trang bi trong nhom dong bo: {key}";
+                    return response;
+                }
+
+                var loaded = await LoadTrangBiRefAsync(itemRef, context.CancellationToken);
+                var cnId = loaded.Doc.StringOr("IdChuyenNganhKT");
+                ServiceMutationPolicy.RequireActOnCN(
+                    context,
+                    existingDoc == null ? "add" : "edit",
+                    string.IsNullOrWhiteSpace(cnId) ? null : cnId,
+                    true);
+
+                var existingGroupId = loaded.Doc.StringOr("IdNhomDongBo");
+                if (!string.IsNullOrWhiteSpace(existingGroupId)
+                    && !string.Equals(existingGroupId, itemId, StringComparison.Ordinal))
+                {
+                    response.Success = false;
+                    response.Message = $"Trang bi '{loaded.Id}' da thuoc nhom dong bo khac";
+                    return response;
+                }
+
+                loadedRefs.Add(loaded);
+            }
+
+            var existingRefs = existingDoc == null
+                ? []
+                : ReadNhomDongBoRefs(existingDoc);
+
+            var existingVersion = existingDoc?.IntOr("Version", 1) ?? 0;
+            if (existingDoc != null && request.ExpectedVersion.HasValue && request.ExpectedVersion.Value != existingVersion)
+            {
+                response.Success = false;
+                response.Message = $"Xung dot du lieu: version hien tai la {existingVersion}";
+                return response;
+            }
+
+            var ngayTao = existingDoc?.TimestampOr("NgayTao") ?? now;
+            var nguoiTao = existingDoc == null
+                ? user
+                : (string.IsNullOrWhiteSpace(existingDoc.StringOr("NguoiTao")) ? user : existingDoc.StringOr("NguoiTao"));
+            var version = existingDoc == null ? 1 : existingVersion + 1;
+
+            var savedDoc = BuildNhomDongBoDocument(
+                itemId,
+                tenNhom,
+                idDonVi,
+                loadedRefs.Select(x => new NhomDongBoItemRef { Id = x.Id, Nhom = x.Nhom }),
+                request.Parameters,
+                version,
+                nguoiTao,
+                user,
+                ngayTao,
+                now);
+
+            if (existingDoc == null)
+            {
+                await collection.InsertOneAsync(savedDoc, cancellationToken: context.CancellationToken);
+            }
+            else
+            {
+                await collection.ReplaceOneAsync(
+                    Builders<BsonDocument>.Filter.Eq("_id", itemId),
+                    savedDoc,
+                    cancellationToken: context.CancellationToken);
+            }
+
+            var newKeys = new HashSet<string>(loadedRefs.Select(x => BuildTrangBiRefKey(x.Nhom, x.Id)), StringComparer.Ordinal);
+            var removedRefs = existingRefs
+                .Where(x => !newKeys.Contains(BuildTrangBiRefKey(x.Nhom, x.Id)))
+                .ToList();
+
+            foreach (var loaded in loadedRefs)
+            {
+                await UpdateTrangBiDongBoBacklinkAsync(
+                    loaded.Nhom,
+                    loaded.Id,
+                    itemId,
+                    trangThaiDongBo: true,
+                    context.CancellationToken);
+            }
+
+            foreach (var removed in removedRefs)
+            {
+                await UpdateTrangBiDongBoBacklinkAsync(
+                    removed.Nhom,
+                    removed.Id,
+                    idNhomDongBo: null,
+                    trangThaiDongBo: false,
+                    context.CancellationToken);
+            }
+
+            response.Id = itemId;
+            response.Success = true;
+            response.Message = existingDoc == null
+                ? "Them moi nhom dong bo thanh cong"
+                : "Cap nhat nhom dong bo thanh cong";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.SaveNhomDongBo error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
+        return response;
+    }
+
+    public override async Task<DeleteNhomDongBoResponse> DeleteNhomDongBo(DeleteNhomDongBoRequest request, ServerCallContext context)
+    {
+        var response = new DeleteNhomDongBoResponse();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Id))
+            {
+                response.Success = false;
+                response.Message = "Thieu id nhom dong bo";
+                return response;
+            }
+
+            var collection = GetNhomDongBoCollection();
+            if (collection == null)
+            {
+                response.Success = false;
+                response.Message = "Khong khoi tao duoc collection NhomDongBo";
+                return response;
+            }
+
+            var doc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
+                .FirstOrDefaultAsync(context.CancellationToken);
+            if (doc == null)
+            {
+                response.Success = false;
+                response.Message = $"Khong tim thay nhom dong bo id '{request.Id}'";
+                return response;
+            }
+
+            foreach (var itemRef in ReadNhomDongBoRefs(doc))
+            {
+                var loaded = await LoadTrangBiRefAsync(itemRef, context.CancellationToken);
+                var cnId = loaded.Doc.StringOr("IdChuyenNganhKT");
+                ServiceMutationPolicy.RequireActOnCN(
+                    context,
+                    "edit",
+                    string.IsNullOrWhiteSpace(cnId) ? null : cnId,
+                    true);
+
+                await UpdateTrangBiDongBoBacklinkAsync(
+                    loaded.Nhom,
+                    loaded.Id,
+                    idNhomDongBo: null,
+                    trangThaiDongBo: false,
+                    context.CancellationToken);
+            }
+
+            await collection.DeleteOneAsync(
+                Builders<BsonDocument>.Filter.Eq("_id", request.Id),
+                context.CancellationToken);
+
+            response.Success = true;
+            response.Message = "Xoa nhom dong bo thanh cong";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "DanhMucTrangBi.DeleteNhomDongBo error");
+            response.Success = false;
+            response.Message = ex.Message;
+        }
+
+        return response;
+    }
+
     private static TrangBiNhom1EditorItem DocToTrangBiNhom1EditorItem(BsonDocument doc)
     {
         var item = new TrangBiNhom1EditorItem();
@@ -1066,6 +1742,9 @@ public sealed class DanhMucTrangBiServiceImpl(
         void SetInt32(string fieldName, int value)
             => descriptor.FindFieldByName(fieldName)?.Accessor.SetValue(item, value);
 
+        void SetBool(string fieldName, bool value)
+            => descriptor.FindFieldByName(fieldName)?.Accessor.SetValue(item, value);
+
         void SetTimestamp(string fieldName, Google.Protobuf.WellKnownTypes.Timestamp? value)
         {
             if (value == null) return;
@@ -1078,6 +1757,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         SetString("ten_danh_muc", doc.StringOr("TenDanhMuc"));
         SetString("id_chuyen_nganh_kt", doc.StringOr("IdChuyenNganhKT"));
         SetString("id_nganh", doc.StringOr("IdNganh"));
+        SetString("id_nhom_dong_bo", doc.StringOr("IdNhomDongBo"));
+        SetBool("trang_thai_dong_bo", !string.IsNullOrWhiteSpace(doc.StringOr("IdNhomDongBo")) || doc.BoolOr("TrangThaiDongBo"));
         SetString("nguoi_tao", doc.StringOr("NguoiTao"));
         SetString("nguoi_sua", doc.StringOr("NguoiSua"));
         SetInt32("version", doc.IntOr("Version", 1));
@@ -1099,6 +1780,7 @@ public sealed class DanhMucTrangBiServiceImpl(
         var item = new TOut();
         var d = item.Descriptor;
         void S(string n, string v) => d.FindFieldByName(n)?.Accessor.SetValue(item, v);
+        void B(string n, bool v) => d.FindFieldByName(n)?.Accessor.SetValue(item, v);
         void T(string n, Google.Protobuf.WellKnownTypes.Timestamp? v)
         {
             if (v != null) d.FindFieldByName(n)?.Accessor.SetValue(item, v);
@@ -1109,6 +1791,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         S("ten_danh_muc", doc.StringOr("TenDanhMuc") ?? string.Empty);
         S("id_chuyen_nganh_kt", doc.StringOr("IdChuyenNganhKT") ?? string.Empty);
         S("id_nganh", doc.StringOr("IdNganh") ?? string.Empty);
+        S("id_nhom_dong_bo", doc.StringOr("IdNhomDongBo") ?? string.Empty);
+        B("trang_thai_dong_bo", !string.IsNullOrWhiteSpace(doc.StringOr("IdNhomDongBo")) || doc.BoolOr("TrangThaiDongBo"));
         S("nguoi_sua", doc.StringOr("NguoiSua") ?? string.Empty);
         T("ngay_sua", doc.TimestampOr("NgaySua"));
 

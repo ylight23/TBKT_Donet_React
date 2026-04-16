@@ -47,6 +47,8 @@ export async function saveTrangBiNhom1(
         maDanhMuc: string;
         parameters?: Record<string, string>;
         expectedVersion?: number;
+        idNhomDongBo?: string;
+        trangThaiDongBo?: boolean;
     },
 ): Promise<{ success: boolean; id: string; message: string }> {
     const request = create(SaveTrangBiNhom1RequestSchema, {
@@ -54,6 +56,8 @@ export async function saveTrangBiNhom1(
         maDanhMuc: data.maDanhMuc,
         parameters: data.parameters ?? {},
         expectedVersion: data.expectedVersion,
+        idNhomDongBo: data.idNhomDongBo,
+        trangThaiDongBo: data.trangThaiDongBo,
     });
 
     const res = await danhMucTrangBiClient.saveTrangBiNhom1(request);
@@ -96,6 +100,8 @@ export async function saveTrangBiNhom2(
         maDanhMuc: string;
         parameters?: Record<string, string>;
         expectedVersion?: number;
+        idNhomDongBo?: string;
+        trangThaiDongBo?: boolean;
     },
 ): Promise<{ success: boolean; id: string; message: string }> {
     const request = create(SaveTrangBiNhom2RequestSchema, {
@@ -103,6 +109,8 @@ export async function saveTrangBiNhom2(
         maDanhMuc: data.maDanhMuc,
         parameters: data.parameters ?? {},
         expectedVersion: data.expectedVersion,
+        idNhomDongBo: data.idNhomDongBo,
+        trangThaiDongBo: data.trangThaiDongBo,
     });
 
     const res = await danhMucTrangBiClient.saveTrangBiNhom2(request);

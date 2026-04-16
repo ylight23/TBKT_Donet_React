@@ -89,6 +89,7 @@
     { "title": "Bang dieu hanh", "path": "/", "icon": "Dashboard", "active": "dashboard" },
     { "title": "Trang bi nhom 1", "path": "/trang-bi-nhom-1", "icon": "Computer", "active": "tbNhom1", "permissionCodes": ["equipment.view"] },
     { "title": "Trang bi nhom 2", "path": "/trang-bi-nhom-2", "icon": "DevicesOther", "active": "tbNhom2", "permissionCodes": ["equipment.view"] },
+    { "title": "Nhom dong bo", "path": "/nhom-dong-bo", "icon": "Build", "active": "nhomDongBo", "permissionCodes": ["equipment.view"] },
     { "title": "Tinh trang ky thuat", "path": "/tinh-trang-ky-thuat", "icon": "Shield", "active": "tinhTrangKT", "permissionCodes": ["tinhtrangkt.view"] },
     { "title": "Bao quan", "path": "/bao-quan", "icon": "Inventory", "active": "baoQuan", "permissionCodes": ["baoquan.view"] },
     { "title": "Bao duong", "path": "/bao-duong", "icon": "MiscellaneousServices", "active": "baoDuong", "permissionCodes": ["baoduong.view"] },

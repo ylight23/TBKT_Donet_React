@@ -19,6 +19,7 @@ const Employee = React.lazy(() => import('../pages/Employee'));
 const Office = React.lazy(() => import('../pages/Office'));
 const TrangBiNhom1 = React.lazy(() => import('../pages/TrangBiNhom1'));
 const TrangBiNhom2 = React.lazy(() => import('../pages/TrangBiNhom2'));
+const NhomDongBo = React.lazy(() => import('../pages/NhomDongBo'));
 const TinhTrangKyThuat = React.lazy(() => import('../pages/TinhTrangKyThuat'));
 const BaoQuan = React.lazy(() => import('../pages/BaoQuan'));
 const BaoDuong = React.lazy(() => import('../pages/BaoDuong'));
@@ -172,6 +173,7 @@ const MainRoute: RouteObject = {
         { path: '', element: routeElement(Dashboard) },
         { path: '/trang-bi-nhom-1', element: routeElement(TrangBiNhom1) },
         { path: '/trang-bi-nhom-2', element: routeElement(TrangBiNhom2) },
+        { path: '/nhom-dong-bo', element: routeElement(NhomDongBo) },
         { path: '/tinh-trang-ky-thuat', element: routeElement(TinhTrangKyThuat) },
         { path: '/bao-quan', element: routeElement(BaoQuan) },
         { path: '/bao-duong', element: routeElement(BaoDuong) },

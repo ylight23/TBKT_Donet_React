@@ -49,7 +49,6 @@ export interface EquipmentItem {
     selectedSetIds: string[];
     data: Record<string, string>;
     techParams: TechParam[];
-    syncEquipment: string[];
     logs: EquipmentLog[];
 }
 

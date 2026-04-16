@@ -1,178 +1,206 @@
+# Thong Nhat Nhom Dong Bo
 
-Hiểu — `DongBo` là boolean trên instance TB. Nhưng cần làm rõ cách nhóm: 
+Tai lieu nay chot mot phuong an duy nhat de team co the implement ngay, khong con giu song song nhieu mo hinh cu.
 
-Analyzing your answers...
+## 1. Muc tieu nghiep vu hien tai
 
-Cảm ơn dữ liệu legacy — bây giờ tôi hiểu rõ hơn. Hệ thống cũ đã có `TrangThaiDongBo: true` trên instance. Tôi sẽ thiết kế lại đơn giản hơn phù hợp với mô hình đã có.
+- Moi trang bi la mot ho so doc lap.
+- Co truong hop 1 trang bi chinh dong bo voi nhieu trang bi phu di kem.
+- Tat ca cac trang bi trong cum do thuoc 1 bo ho so dong bo duy nhat.
+- Mot trang bi tai 1 thoi diem chi thuoc toi da 1 nhom dong bo.
+- Uu tien trien khai mo hinh 1:N:
+  
+  - N trang bi thanh vien
+  - 1 nhom dong bo
 
----
+## 2. Quyet dinh chot
 
-## Thiết kế cập nhật: Boolean-first, không cần collection riêng
+### 2.1 Mo hinh tong the
 
-### Phân tích dữ liệu legacy
+- Su dung collection rieng `NhomDongBo`.
+- `NhomDongBo` la ho so dong bo dung de quan ly:
+  - trang bi chinh
+  - danh sach trang bi thanh vien
+  - metadata ngay lap, nguoi lap
+  - dynamic fields cua bo ho so
+- `TrangBiNhom1` va `TrangBiNhom2` chi giu backlink don:
+  - `TrangThaiDongBo`
+  - `IdNhomDongBo`
 
-Từ sample bạn gửi, TB instance đã có các field quan trọng:
+### 2.2 Rang buoc quan he
 
-| Field legacy | Ý nghĩa | Map sang hệ thống mới |
-|---|---|---|
-| `TrangThaiDongBo: true` | TB này là thành phần của bộ hồ sơ đồng bộ | Giữ nguyên |
-| `IDDonViQuanLy` | Đơn vị quản lý | `Parameters.don_vi_quan_ly` |
-| `IDDonViSuDung` | Đơn vị sử dụng | `Parameters.don_vi_su_dung` |
-| `IDCapTren` | TB cha (cấu trúc phân cấp) | Top-level `IdCapTren` |
-| `IDChuyenNganh` | Chuyên ngành | `IdChuyenNganhKT` |
-| `parentId` | Parent node | Có trong instance hierarchy |
+ 
+- Mot `NhomDongBo` co the co 0..N thanh vien.
+- Mot trang bi khong duoc thuoc 2 nhom dong bo khac nhau cung luc.
+- Trang bi chinh cung phai mang `IdNhomDongBo` cua nhom do.
+- Trang bi thanh vien cung phai mang `IdNhomDongBo` cua nhom do.
+- Neu `IdNhomDongBo = null` thi trang bi khong thuoc bo ho so dong bo nao.
 
-### Cơ chế nhóm: implicit grouping
+### 2.3 Pham vi hien tai
 
-Từ câu trả lời *"khi biên chế 1 trang bị sẽ đồng bộ các trang bị đi cùng khác, tạo thành **bộ hồ sơ trang bị**"* — bộ hồ sơ hình thành tự động khi biên chế.
+- Uu tien quan he 1:N de implement nhanh, ro nghia, de validate.
+- Chua lam many-to-many.
+- Chua cho 1 trang bi la thanh vien cua nhieu nhom dong bo.
 
-**Quy tắc nhóm đề xuất:**
+## 3. Mongo schema chot
 
-```
-Tất cả TB instance có:
-  TrangThaiDongBo = true
-  + cùng IDDonViQuanLy (hoặc IDDonViSuDung)
-→ thuộc cùng 1 "bộ hồ sơ trang bị" của đơn vị đó
-```
-
-Tuy nhiên, 1 đơn vị có thể có **nhiều** hồ sơ đồng bộ (VD: Tiểu đoàn 1 có 2 xe tăng, mỗi xe đi kèm radar + thông tin riêng). Trong trường hợp đó cần **IdNhomDongBo** (group ID) để phân biệt bộ nào với bộ nào. 
-
-Analyzing your answers...
-
-Tất cả quyết định đã rõ. Đây là thiết kế cuối cùng (v3):
-
----
-
-## Thiết kế v3: `TrangThaiDongBo` boolean + `NhomDongBo` collection
-
-### Kiến trúc tổng quan
-
-```
-TrangBiNhom1/2 instance              NhomDongBo collection
-┌──────────────────────┐              ┌──────────────────────────┐
-│ _id: "guid-tb-1"     │◄────────────│ ThanhVien[].IdTrangBi    │
-│ TrangThaiDongBo: true│              │ _id: "uuid-group-1"     │
-│ DsNhomDongBo: [      │─────────────►│ TenNhom: "Bộ ĐB xe ..."│
-│   "uuid-group-1",    │              │ IdDonVi: "000.050.017"  │
-│   "uuid-group-2"     │              │ Parameters: { ... }     │
-│ ]                     │              │ ThanhVien: [ ... ]      │
-└──────────────────────┘              └──────────────────────────┘
-```
-
-**2 chiều tham chiếu:**
-- **TB → Nhóm**: `DsNhomDongBo` (array ID) — cho biết TB thuộc bao nhiêu bộ
-- **Nhóm → TB**: `ThanhVien[]` (embedded) — cho biết bộ gồm những TB nào
-
----
-
-### MongoDB Schema
-
-#### Collection `NhomDongBo`
+### 3.1 Collection `NhomDongBo`
 
 ```js
 {
   "_id": "uuid-group-1",
-  "TenNhom": "Bộ ĐB xe tăng T-72 - Tiểu đoàn 1",
-  "IdDonVi": "000.050.017",                // Office biên chế
-  "TenDonVi": "Tiểu đoàn 1",              // denormalized
-  
-  "Parameters": {                           // dynamic fields bộ hồ sơ
-    "ngay_thanh_lap": "2026-01-15",         // FormConfig "nhom-dong-bo"
-    "trang_thai": "hoat_dong",
-    "ghi_chu": "Kiểm tra Q1/2026"
+
+  // Trang bi chinh cua nhom
+  "TrangBiChinh": {
+    "IdTrangBi": "guid-tb-main-1",
+    "NhomTrangBi": 1,
+    "MaDanhMuc": "G.1.01.00.00.00.001",
+    "TenDanhMuc": "Xe tang T-72",
+    "ChuyenNganh": "G",
+    "SoHieu": "T72-001"
   },
 
+  // Don vi lap va quan ly bo ho so
+  "IdDonVi": "000.050.017",
+  "TenDonVi": "Tieu doan 1",
+
+  // Metadata rieng cua ho so dong bo
+  "HoSoDongBo": {
+    "NgayLap": { "Seconds": 1770000000, "Nanos": 0 },
+    "NguoiLap": "user-a",
+    "NgaySua": { "Seconds": 1770003600, "Nanos": 0 },
+    "NguoiSua": "user-b",
+    "GhiChu": "Lap nhom dong bo theo bien che"
+  },
+
+  // Dynamic fields cap nhom
+  "Parameters": {
+    "trang_thai": "hoat_dong",
+    "ngay_thanh_lap": "2026-01-15"
+  },
+
+  // Danh sach trang bi thanh vien
   "ThanhVien": [
-    {
-      "IdTrangBi": "guid-tb-1",
-      "NhomTrangBi": 1,                    // 1 hoặc 2
-      "MaDanhMuc": "G.1.01.00.00.00.001",  // denormalized
-      "TenDanhMuc": "Xe tăng T-72",
-      "ChuyenNganh": "G",
-      "SoHieu": "T72-001",
-      "IdDonViSuaChua": "000.060.003",
-      "TenDonViSuaChua": "Xưởng sửa chữa A",
-      "TrangThai": "hoat_dong",             // "hoat_dong"|"thanh_ly"|"chuyen_don_vi"
-      "Parameters": {                       // dynamic fields thành viên
-        "ngay_ghep_bo": "2025-06-10",       // FormConfig "thanh-vien-dong-bo"
-        "ghi_chu_sua_chua": "Thay xích Q4"
-      }
-    },
     {
       "IdTrangBi": "guid-tb-2",
       "NhomTrangBi": 1,
-      "MaDanhMuc": "I.1.02.00.00.00.001",
-      "TenDanhMuc": "Đài Ra-đa P-18",
-      "ChuyenNganh": "I",
-      "SoHieu": "RD-018",
-      "IdDonViSuaChua": "000.070.005",
-      "TenDonViSuaChua": "Trạm sửa chữa RĐ",
-      "TrangThai": "hoat_dong",
-      "Parameters": { "ngay_ghep_bo": "2025-06-10" }
+      "MaDanhMuc": "G.1.02.00.00.00.001",
+      "TenDanhMuc": "Thiet bi ngam",
+      "ChuyenNganh": "G",
+      "SoHieu": "NG-002",
+      "ConHieuLuc": true,
+      "Parameters": {
+        "ngay_ghep_bo": "2026-01-15",
+        "ghi_chu_ghep_bo": "Dong bo theo bien che"
+      }
+    },
+    {
+      "IdTrangBi": "guid-tb-3",
+      "NhomTrangBi": 1,
+      "MaDanhMuc": "G.1.03.00.00.00.001",
+      "TenDanhMuc": "May do xa",
+      "ChuyenNganh": "G",
+      "SoHieu": "MDX-003",
+      "ConHieuLuc": true,
+      "Parameters": {
+        "ngay_ghep_bo": "2026-01-15"
+      }
     }
   ],
 
   "Version": 1,
-  "NguoiTao": "user-id",
-  "NguoiSua": "user-id",
-  "NgayTao": { "Seconds": ..., "Nanos": ... },
-  "NgaySua": { "Seconds": ..., "Nanos": ... }
+  "NguoiTao": "user-a",
+  "NguoiSua": "user-b",
+  "NgayTao": { "Seconds": 1770000000, "Nanos": 0 },
+  "NgaySua": { "Seconds": 1770003600, "Nanos": 0 }
 }
 ```
 
-#### TrangBiNhom1/Nhom2 — thêm 2 fields
+### 3.2 Collection `TrangBiNhom1` / `TrangBiNhom2`
+
+Chi them backlink don, khong embed ho so dong bo day du vao record trang bi:
 
 ```js
 {
-  "_id": "guid-tb-1",
+  "_id": "guid-tb-main-1",
   "MaDanhMuc": "G.1.01.00.00.00.001",
   // ... existing fields ...
-  "TrangThaiDongBo": true,                  // computed: DsNhomDongBo.length > 0
-  "DsNhomDongBo": ["uuid-group-1", "uuid-group-2"]  // backlinks → NhomDongBo._id
+  "TrangThaiDongBo": true,
+  "IdNhomDongBo": "uuid-group-1"
 }
 ```
 
-#### Indexes
-
 ```js
-db.NhomDongBo.createIndex({ "IdDonVi": 1 }, { name: "idx_donvi" });
-db.NhomDongBo.createIndex({ "ThanhVien.IdTrangBi": 1 }, { name: "idx_tv_idtb" });
-db.NhomDongBo.createIndex({ "ThanhVien.ChuyenNganh": 1 }, { name: "idx_tv_cn" });
-
-db.TrangBiNhom1.createIndex({ "DsNhomDongBo": 1 }, { name: "idx_ds_nhom_db" });
-db.TrangBiNhom2.createIndex({ "DsNhomDongBo": 1 }, { name: "idx_ds_nhom_db" });
+{
+  "_id": "guid-tb-2",
+  "MaDanhMuc": "G.1.02.00.00.00.001",
+  // ... existing fields ...
+  "TrangThaiDongBo": true,
+  "IdNhomDongBo": "uuid-group-1"
+}
 ```
 
----
+```js
+{
+  "_id": "guid-tb-doc-lap",
+  "MaDanhMuc": "G.1.99.00.00.00.001",
+  // ... existing fields ...
+  "TrangThaiDongBo": false,
+  "IdNhomDongBo": null
+}
+```
 
-### Proto
+### 3.3 Index can co
+
+```js
+db.NhomDongBo.createIndex({ "TrangBiChinh.IdTrangBi": 1 }, { name: "idx_tb_chinh" });
+db.NhomDongBo.createIndex({ "ThanhVien.IdTrangBi": 1 }, { name: "idx_tv_idtb" });
+db.NhomDongBo.createIndex({ "IdDonVi": 1 }, { name: "idx_donvi" });
+
+db.TrangBiNhom1.createIndex({ "IdNhomDongBo": 1 }, { name: "idx_id_nhom_dong_bo" });
+db.TrangBiNhom2.createIndex({ "IdNhomDongBo": 1 }, { name: "idx_id_nhom_dong_bo" });
+```
+
+## 4. Proto chot
 
 ```protobuf
-// ============================================================
-// NhomDongBo — Bộ hồ sơ trang bị đồng bộ
-// ============================================================
+message HoSoDongBoInfo {
+  google.protobuf.Timestamp ngay_lap = 1;
+  google.protobuf.StringValue nguoi_lap = 2;
+  google.protobuf.Timestamp ngay_sua = 3;
+  google.protobuf.StringValue nguoi_sua = 4;
+  google.protobuf.StringValue ghi_chu = 5;
+}
 
-message ThanhVienDongBo {
+message TrangBiDongBoRef {
   string id_trang_bi = 1;
-  int32  nhom_trang_bi = 2;
+  int32 nhom_trang_bi = 2;
   string ma_danh_muc = 3;
   string ten_danh_muc = 4;
   string chuyen_nganh = 5;
   string so_hieu = 6;
-  string id_don_vi_sua_chua = 7;
-  string ten_don_vi_sua_chua = 8;
-  string trang_thai = 9;              // "hoat_dong" | "thanh_ly" | "chuyen_don_vi"
-  map<string, string> parameters = 10; // dynamic fields riêng thành viên
-  bool restricted = 11;               // true = user không có quyền CN → ẩn chi tiết
+}
+
+message ThanhVienDongBo {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+  string ma_danh_muc = 3;
+  string ten_danh_muc = 4;
+  string chuyen_nganh = 5;
+  string so_hieu = 6;
+  bool con_hieu_luc = 7;
+  map<string, string> parameters = 8;
+  bool restricted = 9;
 }
 
 message NhomDongBo {
   string id = 1;
-  string ten_nhom = 2;
+  TrangBiDongBoRef trang_bi_chinh = 2;
   string id_don_vi = 3;
   string ten_don_vi = 4;
-  repeated ThanhVienDongBo thanh_vien = 5;
-  map<string, string> parameters = 6; // dynamic fields bộ hồ sơ
+  HoSoDongBoInfo ho_so_dong_bo = 5;
+  repeated ThanhVienDongBo thanh_vien = 6;
+  map<string, string> parameters = 7;
   google.protobuf.StringValue nguoi_tao = 10;
   google.protobuf.StringValue nguoi_sua = 11;
   google.protobuf.Timestamp ngay_tao = 12;
@@ -182,22 +210,54 @@ message NhomDongBo {
 
 message NhomDongBoGridItem {
   string id = 1;
-  string ten_nhom = 2;
+  string id_trang_bi_chinh = 2;
+  string ma_danh_muc_trang_bi_chinh = 3;
+  string ten_danh_muc_trang_bi_chinh = 4;
+  string so_hieu_trang_bi_chinh = 5;
+  string id_don_vi = 6;
+  string ten_don_vi = 7;
+  int32 so_thanh_vien = 8;
+  string trang_thai = 9;
+  string nguoi_sua = 10;
+  google.protobuf.Timestamp ngay_sua = 11;
+}
+
+message SaveThanhVienDongBoInput {
+  string id_trang_bi = 1;
+  bool con_hieu_luc = 2;
+  map<string, string> parameters = 3;
+}
+
+message SaveNhomDongBoRequest {
+  google.protobuf.StringValue id = 1;
+  string id_trang_bi_chinh = 2;
   string id_don_vi = 3;
-  string ten_don_vi = 4;
-  int32  so_thanh_vien = 5;
-  int32  so_hoat_dong = 6;            // count TrangThai == "hoat_dong"
-  string cac_chuyen_nganh = 7;        // "G, I, O" — joined
-  string trang_thai = 8;              // từ Parameters
-  string nguoi_sua = 9;
-  google.protobuf.Timestamp ngay_sua = 10;
+  HoSoDongBoInfo ho_so_dong_bo = 4;
+  map<string, string> parameters = 5;
+  repeated SaveThanhVienDongBoInput thanh_vien = 6;
+  google.protobuf.Int32Value expected_version = 7;
+}
+
+message SaveNhomDongBoResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetNhomDongBoRequest {
+  string id = 1;
+}
+
+message GetNhomDongBoResponse {
+  NhomDongBo item = 1;
+  bool success = 2;
+  string message = 3;
 }
 
 message GetListNhomDongBoRequest {
   google.protobuf.StringValue id_don_vi = 1;
-  google.protobuf.StringValue chuyen_nganh = 2;
+  google.protobuf.StringValue id_trang_bi_chinh = 2;
   google.protobuf.StringValue search_text = 3;
-  google.protobuf.StringValue id_trang_bi = 4;  // tìm nhóm chứa TB cụ thể
 }
 
 message GetListNhomDongBoResponse {
@@ -206,210 +266,236 @@ message GetListNhomDongBoResponse {
   string message = 3;
 }
 
-message GetNhomDongBoRequest { string id = 1; }
-message GetNhomDongBoResponse {
-  NhomDongBo item = 1;
-  bool success = 2;
-  string message = 3;
-}
-
-message SaveNhomDongBoRequest { NhomDongBo item = 1; }
-message SaveNhomDongBoResponse {
+message DeleteNhomDongBoRequest {
   string id = 1;
-  bool success = 2;
-  string message = 3;
 }
 
-message DeleteNhomDongBoRequest { string id = 1; }
 message DeleteNhomDongBoResponse {
   bool success = 1;
   string message = 2;
 }
 ```
 
-Thêm vào `DanhMucTrangBiService`:
-
-```protobuf
-service DanhMucTrangBiService {
-  // ... existing RPCs ...
-  rpc GetListNhomDongBo (GetListNhomDongBoRequest) returns (GetListNhomDongBoResponse);
-  rpc GetNhomDongBo (GetNhomDongBoRequest) returns (GetNhomDongBoResponse);
-  rpc SaveNhomDongBo (SaveNhomDongBoRequest) returns (SaveNhomDongBoResponse);
-  rpc DeleteNhomDongBo (DeleteNhomDongBoRequest) returns (DeleteNhomDongBoResponse);
-}
-```
-
-TrangBiNhom1/Nhom2 EditorItem — thêm backlink:
+### 4.1 Bo sung vao editor item cua TrangBiNhom1 / TrangBiNhom2
 
 ```protobuf
 message TrangBiNhom1EditorItem {
   // ... existing fields 1-14 ...
-  repeated string ds_nhom_dong_bo = 15;  // IDs NhomDongBo chứa TB này
-  bool trang_thai_dong_bo = 16;          // computed: ds_nhom_dong_bo.length > 0
+  google.protobuf.StringValue id_nhom_dong_bo = 15;
+  bool trang_thai_dong_bo = 16;
 }
 ```
 
----
+`TrangBiNhom2EditorItem` them tuong tu.
 
-### Backend Save flow
+## 5. Save flow chot
 
-```
-SaveNhomDongBo:
-  1. Validate IdDonVi → Office tồn tại
-  2. Per ThanhVien:
-     a. IdTrangBi tồn tại trong TrangBiNhom{NhomTrangBi}
-     b. IdDonViSuaChua → Office tồn tại (bất kỳ ĐV)
-     c. Không trùng IdTrangBi trong cùng nhóm
-  3. Denormalize: TenDanhMuc, ChuyenNganh, SoHieu, TenDonVi...
-  4. Upsert NhomDongBo doc
+### 5.1 SaveNhomDongBo
 
-  5. Cập nhật backlink DsNhomDongBo (many-to-many):
-     If UPDATE:
-       old = load existing NhomDongBo doc
-       added   = new.ThanhVien - old.ThanhVien  (by IdTrangBi)
-       removed = old.ThanhVien - new.ThanhVien  (chỉ TrangThai != "thanh_ly")
-     If INSERT:
-       added = all ThanhVien;  removed = empty
-
-     Per added TB:
-       TrangBiNhom{N}.updateOne(
-         { _id: idTrangBi },
-         { $addToSet: { DsNhomDongBo: nhomId },
-           $set: { TrangThaiDongBo: true } })
-
-     Per removed TB:
-       TrangBiNhom{N}.updateOne(
-         { _id: idTrangBi },
-         { $pull: { DsNhomDongBo: nhomId } })
-       // Re-check nếu DsNhomDongBo rỗng → set TrangThaiDongBo = false
-       TrangBiNhom{N}.updateOne(
-         { _id: idTrangBi, DsNhomDongBo: { $size: 0 } },
-         { $set: { TrangThaiDongBo: false } })
-
-DeleteNhomDongBo:
-  1. Load doc
-  2. Per ThanhVien: $pull DsNhomDongBo, re-check TrangThaiDongBo
-  3. Delete NhomDongBo doc
-
-Khi thanh lý/xóa TB (hook trong SaveTrangBiNhom1):
-  1. Find NhomDongBo where ThanhVien.IdTrangBi == id
-  2. Set ThanhVien.$.TrangThai = "thanh_ly" (giữ lịch sử)
-  3. KHÔNG remove khỏi nhóm → user thấy TB đã thanh lý
-
-GetNhomDongBo (cross-CN restriction):
-  userCnScopes = GetUserCnScopes(context)  // ["G", "F"]
-  per ThanhVien:
-    if tv.ChuyenNganh NOT IN userCnScopes:
-      tv.SoHieu = ""
-      tv.Parameters.Clear()
-      tv.Restricted = true
+```text
+1. Validate IdDonVi ton tai trong Office.
+2. Load TrangBiChinh theo id_trang_bi_chinh.
+3. Validate TrangBiChinh ton tai.
+4. Validate TrangBiChinh chua thuoc nhom khac:
+   - neu TrangBiChinh.IdNhomDongBo != null va != currentNhomId -> reject
+5. Validate tung thanh vien:
+   - IdTrangBi ton tai
+   - khong trung nhau trong request
+   - khong trung voi id_trang_bi_chinh
+   - khong thuoc nhom khac:
+     existing.IdNhomDongBo != null va != currentNhomId -> reject
+   - cung Nhom voi TrangBiChinh
+6. Backend tu denormalize:
+   - MaDanhMuc
+   - TenDanhMuc
+   - ChuyenNganh
+   - SoHieu
+   - TenDonVi
+7. Neu create:
+   - tao NhomDongBo moi
+8. Neu update:
+   - load old doc
+   - tinh added / removed / kept members theo IdTrangBi
+9. Save NhomDongBo.
+10. Update backlink tren TrangBiChinh:
+   - TrangThaiDongBo = true
+   - IdNhomDongBo = nhomId
+11. Update backlink tren cac thanh vien:
+   - added / kept -> set IdNhomDongBo = nhomId, TrangThaiDongBo = true
+   - removed -> set IdNhomDongBo = null, TrangThaiDongBo = false
+12. Tang Version va luu audit fields.
 ```
 
----
+### 5.2 DeleteNhomDongBo
 
-### FormConfig tích hợp
+```text
+1. Load NhomDongBo.
+2. Clear backlink cua TrangBiChinh:
+   - IdNhomDongBo = null
+   - TrangThaiDongBo = false
+3. Clear backlink cua tat ca ThanhVien:
+   - IdNhomDongBo = null
+   - TrangThaiDongBo = false
+4. Xoa document NhomDongBo.
+```
 
-| FormConfig Key | Scope | Lưu vào |
+### 5.3 Khi xoa hoac thanh ly mot TrangBi
+
+Phien ban hien tai uu tien don gian:
+
+- Neu trang bi dang la thanh vien cua NhomDongBo:
+  - reject thao tac xoa cung, yeu cau go khoi nhom truoc
+  - hoac support auto-remove trong phase sau
+- Neu trang bi dang la TrangBiChinh cua NhomDongBo:
+  - reject xoa neu nhom van con thanh vien
+  - user phai giai the nhom hoac doi trang bi chinh truoc
+
+Khuyen nghi phase 1:
+
+- Chua auto-migrate lich su thanh ly trong `NhomDongBo`.
+- Uu tien validate block de tranh phat sinh state nua vo.
+
+## 6. Get flow chot
+
+### 6.1 GetNhomDongBo
+
+```text
+1. Load NhomDongBo by id.
+2. Map trang_bi_chinh.
+3. Map danh sach thanh_vien.
+4. Neu co cross-CN restriction:
+   - neu user khong co quyen voi ChuyenNganh cua thanh vien:
+     - clear SoHieu
+     - clear Parameters
+     - set restricted = true
+5. Tra response.
+```
+
+### 6.2 GetListNhomDongBo
+
+Read-model phang de grid:
+
+- id
+- id_trang_bi_chinh
+- ma_danh_muc_trang_bi_chinh
+- ten_danh_muc_trang_bi_chinh
+- so_hieu_trang_bi_chinh
+- id_don_vi
+- ten_don_vi
+- so_thanh_vien
+- trang_thai
+- nguoi_sua
+- ngay_sua
+
+### 6.3 GetTrangBiNhom1 / GetTrangBiNhom2
+
+Tra them:
+
+- `id_nhom_dong_bo`
+- `trang_thai_dong_bo`
+
+Frontend neu can thong tin chi tiet nhom dong bo se goi them `GetNhomDongBo` bang `id_nhom_dong_bo`.
+
+## 7. Rule validate backend chi tiet
+
+### 7.1 Rule cau truc
+
+- Mot `NhomDongBo` phai co dung 1 `TrangBiChinh`.
+- `TrangBiChinh` khong duoc xuat hien trong `ThanhVien`.
+- `ThanhVien` khong duoc trung `IdTrangBi`.
+- Mot `TrangBi` chi duoc thuoc toi da 1 `NhomDongBo`.
+- Tat ca `ThanhVien` phai cung `Nhom` voi `TrangBiChinh`.
+
+### 7.2 Rule save contract
+
+- Frontend chi gui:
+  - `id_trang_bi_chinh`
+  - `id_don_vi`
+  - `ho_so_dong_bo`
+  - `parameters`
+  - danh sach `id_trang_bi` thanh vien + member parameters
+- Frontend khong duoc gui de backend tin cac field denormalized:
+  - `TenDanhMuc`
+  - `SoHieu`
+  - `ChuyenNganh`
+  - `TenDonVi`
+- Backend phai resolve lai cac field nay tu du lieu goc.
+
+### 7.3 Rule audit
+
+- `NguoiLap` va `NgayLap` cua `HoSoDongBo` chi set khi tao moi.
+- `NguoiSua` va `NgaySua` cua `HoSoDongBo` set lai moi lan cap nhat.
+- `Version` bat buoc check optimistic concurrency khi update.
+
+### 7.4 Rule quyen
+
+- User chi duoc tao/sua nhom dong bo voi cac trang bi trong scope duoc phep.
+- Neu co thanh vien khac chuyen nganh va policy hien tai cho phep hien summary:
+  - backend co the tra `restricted = true`
+  - frontend khong duoc hien so_hieu va member parameters cua thanh vien bi restricted
+
+## 8. FormConfig tich hop
+
+| FormConfig Key | Scope | Luu vao |
 |---|---|---|
-| `nhom-dong-bo` | Fields chung bộ hồ sơ (tên, trạng thái, ngày thành lập...) | `NhomDongBo.Parameters` |
-| `thanh-vien-dong-bo` | Fields riêng mỗi thành viên (ngày ghép bộ, ghi chú sửa chữa...) | `ThanhVienDongBo.parameters` |
+| `nhom-dong-bo` | Dynamic fields cua ho so dong bo | `NhomDongBo.Parameters` |
+| `thanh-vien-dong-bo` | Dynamic fields cua moi thanh vien | `ThanhVienDongBo.Parameters` |
 
-Runtime flow giống hệt TrangBiNhom1 hiện tại:
+Runtime flow:
 
-```
-Frontend → GetRuntimeFormSchema({ key: "nhom-dong-bo" })
-         → Render dynamic tabs cho bộ hồ sơ
-         → Values ↔ NhomDongBo.Parameters
+```text
+Frontend -> GetRuntimeFormSchema({ key: "nhom-dong-bo" })
+         -> Render fields cap nhom
+         -> Bind values vao NhomDongBo.Parameters
 
-Frontend → GetRuntimeFormSchema({ key: "thanh-vien-dong-bo" })
-         → Render inline form mỗi thành viên
-         → Values ↔ ThanhVienDongBo.parameters
-```
-
----
-
-### Tóm tắt kiến trúc cuối cùng
-
-```
-              ┌──────────────┐
-              │   Office     │
-              └──────┬───────┘
-                     │ 1:N
-              ┌──────┴───────┐
-              │ NhomDongBo   │ ← Collection riêng, có metadata + ThanhVien[]
-              │ Parameters   │ ← FormConfig "nhom-dong-bo"
-              └──────┬───────┘
-                     │ N:M (via DsNhomDongBo + ThanhVien[])
-         ┌───────────┼───────────┐
-         │           │           │
-  ┌──────┴─────┐ ┌───┴────┐ ┌───┴────┐
-  │TrangBiNhom1│ │  Nhom1 │ │  Nhom1 │
-  │ CN: G      │ │ CN: I  │ │ CN: O  │
-  │ DsNhomDB[] │ │DsNhom[]│ │DsNhom[]│
-  │ ĐB: true   │ │ĐB: true│ │ĐB:true │
-  └────────────┘ └────────┘ └────────┘
-         │    mỗi ThanhVien có:
-         │    - Parameters (FormConfig "thanh-vien-dong-bo")
-         │    - IdDonViSuaChua (bất kỳ Office)
-         │    - TrangThai (hoat_dong|thanh_ly|...)
-         │    - Restricted (cross-CN quyền)
+Frontend -> GetRuntimeFormSchema({ key: "thanh-vien-dong-bo" })
+         -> Render inline form tren tung member
+         -> Bind values vao ThanhVienDongBo.Parameters
 ```
 
-Muốn bắt đầu implement proto + backend service?
+## 9. UI flow de implement
 
-OK — quay lại 1:1. Thiết kế đơn giản hơn:
+### 9.1 Man hinh danh sach nhom dong bo
 
-### Thay đổi so với v3
+- Grid hien:
+  - Trang bi chinh
+  - So hieu trang bi chinh
+  - Don vi
+  - So thanh vien
+  - Trang thai
+  - Nguoi sua
+  - Ngay sua
 
-| Aspect | v3 (many-to-many) | Final (1:1) |
-|---|---|---|
-| Backlink trên TB | `DsNhomDongBo: [...]` (array) | `IdNhomDongBo: "uuid"` (string, nullable) |
-| `TrangThaiDongBo` | `DsNhomDongBo.length > 0` | `IdNhomDongBo != null` |
-| Validate khi thêm | Chỉ check trùng trong cùng nhóm | **Block** nếu TB đã thuộc nhóm khác |
-| Index | `{ DsNhomDongBo: 1 }` | `{ IdNhomDongBo: 1 }` |
-| Proto EditorItem | `repeated string ds_nhom_dong_bo` | `string id_nhom_dong_bo` |
+### 9.2 Form tao/sua nhom dong bo
 
-### DB Schema cập nhật
+- Chon `TrangBiChinh`
+- Chon `DonVi`
+- Nhap thong tin `HoSoDongBo`
+- Nhap dynamic fields cap nhom
+- Them danh sach `ThanhVien`
+- Moi thanh vien co:
+  - thong tin tom tat
+  - dynamic fields rieng
 
-```js
-// TrangBiNhom1 / TrangBiNhom2 — backlink đơn
-{
-  "_id": "guid-tb-1",
-  // ... existing fields ...
-  "TrangThaiDongBo": true,              // boolean flag (legacy compat)
-  "IdNhomDongBo": "uuid-group-1"       // FK → NhomDongBo._id, null = chưa thuộc nhóm
-}
-```
+### 9.3 Trong form sua TrangBi
 
-### Validate khi Save nhóm
+- Hien read-only:
+  - `TrangThaiDongBo`
+  - `IdNhomDongBo`
+- Neu co `IdNhomDongBo`:
+  - co link mo chi tiet nhom dong bo
 
-```
-SaveNhomDongBo — per ThanhVien:
-  existing = TrangBiNhom{N}.findOne({ _id: idTrangBi })
-  if existing.IdNhomDongBo != null 
-     AND existing.IdNhomDongBo != currentNhomId:
-    → REJECT: "TB {TenDanhMuc} đã thuộc nhóm đồng bộ khác"
-```
+## 10. Ghi chu cho phase sau neu doi quan he
 
-### Backlink update đơn giản hơn
+Neu sau nay can mo rong sang many-to-many:
 
-```
-Save (insert/update):
-  added TB:   $set { IdNhomDongBo: nhomId, TrangThaiDongBo: true }
-  removed TB: $set { IdNhomDongBo: null,   TrangThaiDongBo: false }
+- doi backlink tren `TrangBiNhom1/2`:
+  - tu `IdNhomDongBo`
+  - sang `DsNhomDongBo[]`
+- update validation:
+  - bo rule "mot trang bi chi thuoc 1 nhom"
+- update grid/editor item:
+  - `id_nhom_dong_bo` -> `repeated string ds_nhom_dong_bo`
+- giu nguyen collection `NhomDongBo`, chi doi backlink va save flow
 
-Delete nhóm:
-  all TB in nhóm: $set { IdNhomDongBo: null, TrangThaiDongBo: false }
-```
-
-### Proto cập nhật
-
-```protobuf
-message TrangBiNhom1EditorItem {
-  // ... existing fields 1-14 ...
-  string id_nhom_dong_bo = 15;       // NhomDongBo._id, rỗng = chưa thuộc nhóm
-  bool trang_thai_dong_bo = 16;      // computed
-}
-```
-
-Phần còn lại (NhomDongBo collection, ThanhVienDongBo, FormConfig, cross-CN restriction, thanh lý giữ lịch sử) giữ nguyên như v3. Muốn implement?
+Tuc la phien ban hien tai duoc thiet ke de implement nhanh theo 1:N, nhung van co duong nang cap sau nay neu nghiep vu doi.

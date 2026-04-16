@@ -220,6 +220,18 @@ type RuntimeFormSchema = { formConfig: LocalFormConfig | null; fieldSets: LocalF
 const runtimeFormSchemaCache = new Map<string, RuntimeFormSchema>();
 const runtimeFormSchemaPending = new Map<string, Promise<RuntimeFormSchema>>();
 
+export function invalidateRuntimeFormSchemaCache(key?: string, activeMenu = ''): void {
+    if (!key) {
+        runtimeFormSchemaCache.clear();
+        runtimeFormSchemaPending.clear();
+        return;
+    }
+
+    const cacheKey = `${key}__${activeMenu}`;
+    runtimeFormSchemaCache.delete(cacheKey);
+    runtimeFormSchemaPending.delete(cacheKey);
+}
+
 const perfNow = (): number =>
     typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
@@ -637,12 +649,16 @@ const thamSoApi = {
         }
     },
 
-    async getRuntimeFormSchema(key: string, activeMenu = ''): Promise<{
+    async getRuntimeFormSchema(key: string, activeMenu = '', options?: { forceRefresh?: boolean }): Promise<{
         formConfig: LocalFormConfig | null;
         fieldSets: LocalFieldSet[];
         fields: LocalDynamicField[];
     }> {
         const cacheKey = `${key}__${activeMenu}`;
+        if (options?.forceRefresh) {
+            runtimeFormSchemaCache.delete(cacheKey);
+            runtimeFormSchemaPending.delete(cacheKey);
+        }
         const cached = runtimeFormSchemaCache.get(cacheKey);
         if (cached) return cached;
 

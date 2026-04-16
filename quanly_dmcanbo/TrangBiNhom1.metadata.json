@@ -1,1 +1,1 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"}],"uuid":"a29a0bfdfa004ba597eb31f8c3954970","collectionName":"TrangBiNhom1","type":"collection"}
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"IdNhomDongBo":{"$numberInt":"1"}},"name":"idx_id_nhom_dong_bo"}],"uuid":"a29a0bfdfa004ba597eb31f8c3954970","collectionName":"TrangBiNhom1","type":"collection"}

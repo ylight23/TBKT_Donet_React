@@ -118,6 +118,8 @@ message TrangBiNhom1EditorItem {
   google.protobuf.Timestamp ngay_sua = 10;
   google.protobuf.StringValue id_nganh = 13;
   int32 version = 14;
+  google.protobuf.StringValue id_nhom_dong_bo = 15;
+  bool trang_thai_dong_bo = 16;
 }
 
 message SaveTrangBiNhom1Request {
@@ -125,6 +127,8 @@ message SaveTrangBiNhom1Request {
   string ma_danh_muc = 2;
   map<string, string> parameters = 3;
   google.protobuf.Int32Value expected_version = 4;
+  google.protobuf.StringValue id_nhom_dong_bo = 5;
+  google.protobuf.BoolValue trang_thai_dong_bo = 6;
 }
 
 message SaveTrangBiNhom1Response {
@@ -164,6 +168,8 @@ message TrangBiNhom1GridItem {
   string ky_hieu = 19;
   string nguoi_sua = 20;
   google.protobuf.Timestamp ngay_sua = 21;
+  google.protobuf.StringValue id_nhom_dong_bo = 22;
+  bool trang_thai_dong_bo = 23;
 }
 
 message GetListTrangBiNhom1Response {
@@ -195,6 +201,8 @@ message TrangBiNhom2EditorItem {
   google.protobuf.Timestamp ngay_sua = 10;
   google.protobuf.StringValue id_nganh = 11;
   int32 version = 12;
+  google.protobuf.StringValue id_nhom_dong_bo = 13;
+  bool trang_thai_dong_bo = 14;
 }
 
 message SaveTrangBiNhom2Request {
@@ -202,6 +210,8 @@ message SaveTrangBiNhom2Request {
   string ma_danh_muc = 2;
   map<string, string> parameters = 3;
   google.protobuf.Int32Value expected_version = 4;
+  google.protobuf.StringValue id_nhom_dong_bo = 5;
+  google.protobuf.BoolValue trang_thai_dong_bo = 6;
 }
 
 message SaveTrangBiNhom2Response {
@@ -238,6 +248,8 @@ message TrangBiNhom2GridItem {
   string ky_hieu = 19;
   string nguoi_sua = 20;
   google.protobuf.Timestamp ngay_sua = 21;
+  google.protobuf.StringValue id_nhom_dong_bo = 22;
+  bool trang_thai_dong_bo = 23;
 }
 
 message GetListTrangBiNhom2Response {
@@ -256,6 +268,94 @@ message GetTrangBiNhom2Response {
   string message = 3;
 }
 
+message NhomDongBoItemRef {
+  string id = 1;
+  int32 nhom = 2;
+}
+
+message NhomDongBo {
+  string id = 1;
+  string ten_nhom = 2;
+  string id_don_vi = 3;
+  repeated NhomDongBoItemRef ds_trang_bi = 4;
+  map<string, string> parameters = 5;
+  google.protobuf.StringValue nguoi_tao = 10;
+  google.protobuf.StringValue nguoi_sua = 11;
+  google.protobuf.Timestamp ngay_tao = 12;
+  google.protobuf.Timestamp ngay_sua = 13;
+  int32 version = 14;
+}
+
+message NhomDongBoThanhVienView {
+  string id = 1;
+  int32 nhom = 2;
+  string ma_danh_muc = 3;
+  string ten_danh_muc = 4;
+  string id_cap_tren = 5;
+  string id_chuyen_nganh_kt = 6;
+  string id_nganh = 7;
+  google.protobuf.StringValue id_don_vi_quan_ly = 8;
+  string so_hieu = 9;
+  bool restricted = 10;
+}
+
+message NhomDongBoGridItem {
+  string id = 1;
+  string ten_nhom = 2;
+  string id_don_vi = 3;
+  string ten_don_vi = 4;
+  int32 so_trang_bi = 5;
+  string nguoi_sua = 6;
+  google.protobuf.Timestamp ngay_sua = 7;
+}
+
+message GetListNhomDongBoRequest {
+  google.protobuf.StringValue id_don_vi = 1;
+  google.protobuf.StringValue search_text = 2;
+  google.protobuf.StringValue id_trang_bi = 3;
+}
+
+message GetListNhomDongBoResponse {
+  repeated NhomDongBoGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetNhomDongBoRequest {
+  string id = 1;
+}
+
+message GetNhomDongBoResponse {
+  NhomDongBo item = 1;
+  repeated NhomDongBoThanhVienView thanh_vien = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+message SaveNhomDongBoRequest {
+  google.protobuf.StringValue id = 1;
+  string ten_nhom = 2;
+  string id_don_vi = 3;
+  repeated NhomDongBoItemRef ds_trang_bi = 4;
+  map<string, string> parameters = 5;
+  google.protobuf.Int32Value expected_version = 6;
+}
+
+message SaveNhomDongBoResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DeleteNhomDongBoRequest {
+  string id = 1;
+}
+
+message DeleteNhomDongBoResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 service DanhMucTrangBiService {
   rpc GetListMaDinhDanhTrangBi (GetListMaDinhDanhTrangBiRequest) returns (GetListMaDinhDanhTrangBiResponse);
   rpc GetListTree (TrangBiTreeListRequest) returns (TrangBiTreeListResponse);
@@ -269,4 +369,8 @@ service DanhMucTrangBiService {
   rpc SaveTrangBiNhom2 (SaveTrangBiNhom2Request) returns (SaveTrangBiNhom2Response);
   rpc GetListTrangBiNhom2 (GetListTrangBiNhom2Request) returns (GetListTrangBiNhom2Response);
   rpc GetTrangBiNhom2 (GetTrangBiNhom2Request) returns (GetTrangBiNhom2Response);
+  rpc GetListNhomDongBo (GetListNhomDongBoRequest) returns (GetListNhomDongBoResponse);
+  rpc GetNhomDongBo (GetNhomDongBoRequest) returns (GetNhomDongBoResponse);
+  rpc SaveNhomDongBo (SaveNhomDongBoRequest) returns (SaveNhomDongBoResponse);
+  rpc DeleteNhomDongBo (DeleteNhomDongBoRequest) returns (DeleteNhomDongBoResponse);
 }

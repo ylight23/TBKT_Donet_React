@@ -496,7 +496,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
             );
         }
 
-        if (isVirtualOptionSelect || displayType === 'dropdown' || displayType === 'tree') {
+        if (isVirtualOptionSelect || displayType === 'dropdown' || displayType === 'tree' || displayType === 'autocomplete') {
             return (
                 <VirtualOptionPicker
                     label={useMuiLabel ? getFieldLabel(field) : undefined}
