@@ -52,15 +52,4 @@ export interface EquipmentItem {
     logs: EquipmentLog[];
 }
 
-export type MainTab = 'fields' | 'datasets' | 'trangbi';
-
-/** Selection context for the TrangBi master-detail workspace */
-export interface TrangBiSelection {
-    cn: string;
-    cnLabel: string;
-    l1?: string;
-    l1Label?: string;
-    /** e.g. 'trangbi-B' or 'trangbi-B-1' */
-    configKey: string;
-    configType: 'common' | 'category';
-}
+export type MainTab = 'fields' | 'datasets';

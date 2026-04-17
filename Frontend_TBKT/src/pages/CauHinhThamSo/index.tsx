@@ -11,7 +11,6 @@ import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useDispatch, useSelector } from 'react-redux';
 import CloseIcon from '@mui/icons-material/Close';
-import InventoryIcon from '@mui/icons-material/Inventory';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 
@@ -36,7 +35,6 @@ import {
 import { MainTab, FieldSet } from './types';
 import PageFieldLibrary from './subComponents/PageFieldLibrary';
 import PageDatasets from './subComponents/PageDatasets';
-import PageTrangBiConfigs from './subComponents/PageTrangBiConfigs';
 import { OfficeProvider } from '../../context/OfficeContext';
 
 const mapStoreFieldSetToUi = (fieldSet: LocalFieldSet): FieldSet => ({
@@ -499,7 +497,6 @@ const CauHinhThamSo: React.FC = () => {
           >
             <Tab value="fields" icon={<LibraryBooksIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Quản lý trường dữ liệu" />
             <Tab value="datasets" icon={<SettingsIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Quản lý bộ dữ liệu nhập" />
-            <Tab value="trangbi" icon={<InventoryIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="DM Trang bị" />
           </Tabs>
         </CardContent>
       </Card>
@@ -568,9 +565,6 @@ const CauHinhThamSo: React.FC = () => {
             activeSetId={activeSetId}
             setActiveSetId={setActiveSetId}
           />
-        )}
-        {tab === 'trangbi' && (
-          <PageTrangBiConfigs />
         )}
       </Box>
 

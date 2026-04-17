@@ -2,7 +2,7 @@
 // TrangBiDataGrid - Bang du lieu trang bi ky thuat dung chung
 // Dung cho ca Nhom 1 va Nhom 2
 // ============================================================
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -30,8 +30,6 @@ import StatsButton from '../Stats/StatsButton';
 import AddTrangBiDialog from './AddTrangBiDialog';
 import LazyDataGrid from '../LazyDataGrid';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
-import { prefetchRuntimeFormSchema } from '../../apis/thamSoApi';
-import { getRequiredFormKeyForMenu } from '../../utils/formConfigKeys';
 
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
   [TrangThaiTrangBi.HoatDong]: 'success',
@@ -77,15 +75,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   const { canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
   const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
 
-  useEffect(() => {
-    if (!activeMenuForDialog) return;
-    const formKey = getRequiredFormKeyForMenu(activeMenuForDialog);
-    if (formKey) {
-      prefetchRuntimeFormSchema(formKey, activeMenuForDialog);
-    }
-  }, [activeMenuForDialog]);
-
-  const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
+const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
   const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
   const [openAdd, setOpenAdd] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
