@@ -115,6 +115,7 @@ export interface LocalFieldSet {
     desc?: string;
     fieldIds: string[];
     maDanhMucTrangBi?: string[];  // _id DanhMucTrangBi mà FieldSet này áp dụng
+    loaiNghiepVu?: string;         // bao_quan | bao_duong | sua_chua | niem_cat | dieu_dong | all
     fields?: LocalDynamicField[];
     audit?: LocalAuditMetadata;
 }
@@ -325,6 +326,8 @@ function protoSetToLocal(s: FieldSetProto): LocalFieldSet {
         desc: s.desc,
         fieldIds: [...s.fieldIds],
         maDanhMucTrangBi: s.maDanhMucTrangBi?.length ? [...s.maDanhMucTrangBi] : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        loaiNghiepVu: (s as any).loaiNghiepVu || undefined,
         audit: mapAuditMetadata(s),
     };
 }
@@ -338,6 +341,7 @@ function localSetToProto(s: LocalFieldSet): any {
         desc: s.desc || '',
         fieldIds: s.fieldIds,
         maDanhMucTrangBi: s.maDanhMucTrangBi ?? [],
+        loaiNghiepVu: s.loaiNghiepVu || '',
     });
 }
 

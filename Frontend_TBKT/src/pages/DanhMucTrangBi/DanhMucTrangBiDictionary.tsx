@@ -1,4 +1,5 @@
 import React, { CSSProperties, MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -25,11 +26,13 @@ interface TreeRow {
     depth: number;
     isExpanded: boolean;
     canExpand: boolean;
+    badgeCount?: number;
 }
 
 interface DanhMucTrangBiDictionaryProps {
     onSelect?: (node: DanhMucTrangBiTree) => void;
     selectedId?: string;
+    badgeCounts?: Record<string, number>;
 }
 
 interface VirtualTreeRowProps {
@@ -45,6 +48,7 @@ interface VirtualTreeRowProps {
 
 const ROOT_KEY = 'root';
 const ROW_HEIGHT = 40;
+const ROW_HEIGHT_WITH_BADGE = 48;
 
 // ── Module-level cache ─────────────────────────────────────────────────────────
 
@@ -148,11 +152,14 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
     const id = getNodeId(row.node);
     const label = getNodeLabel(row.node);
     const subtitle = normalizeText(row.node.tenDayDu);
+    const badgeCount = row.badgeCount ?? 0;
+    const rowHeight = badgeCount > 0 ? ROW_HEIGHT_WITH_BADGE : ROW_HEIGHT;
 
     return (
         <Box
             sx={{
                 ...style,
+                height: rowHeight,
                 display: 'flex',
                 alignItems: 'center',
                 pl: `${row.depth * 20}px`,
@@ -167,7 +174,7 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
             onClick={() => onSelect?.(row.node)}
         >
             <Box
-                sx={{ width: 28, height: ROW_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                sx={{ width: 28, height: rowHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                 onClick={row.canExpand ? (event: React.MouseEvent) => {
                     event.stopPropagation();
                     onToggleExpand(id);
@@ -181,21 +188,37 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
             </Box>
 
             <Tooltip title={subtitle ? `${id} - ${subtitle}` : `${id} - ${label}`} placement="right" enterDelay={500}>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
-                        noWrap
-                        variant="body1"
-                        sx={{
-                            fontSize: '0.925rem',
-                            fontWeight: isSelected ? 700 : 400,
-                            color: isSelected ? theme.palette.primary.main : 'text.primary',
-                        }}
-                    >
-                        {label}
-                    </Typography>
-                    <Typography variant="caption" noWrap color="text.secondary">
-                        {id}
-                    </Typography>
+                <Box sx={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography
+                            noWrap
+                            variant="body1"
+                            sx={{
+                                fontSize: '0.925rem',
+                                fontWeight: isSelected ? 700 : 400,
+                                color: isSelected ? theme.palette.primary.main : 'text.primary',
+                            }}
+                        >
+                            {label}
+                        </Typography>
+                        <Typography variant="caption" noWrap color="text.secondary">
+                            {id}
+                        </Typography>
+                    </Box>
+                    {badgeCount > 0 && (
+                        <Chip
+                            size="small"
+                            label={badgeCount}
+                            color="primary"
+                            sx={{
+                                height: 18,
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                flexShrink: 0,
+                                '& .MuiChip-label': { px: 0.75 },
+                            }}
+                        />
+                    )}
                 </Box>
             </Tooltip>
         </Box>
@@ -204,11 +227,15 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
 
 // ── DanhMucTrangBiDictionary ───────────────────────────────────────────────────
 
-const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onSelect, selectedId = '' }) => {
+const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onSelect, selectedId = '', badgeCounts = {} }) => {
     const theme = useTheme();
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const searchRequestIdRef = useRef(0);
+    const badgeCountsRef = useRef<Record<string, number>>(badgeCounts);
+
+    // Keep ref in sync with prop
+    React.useEffect(() => { badgeCountsRef.current = badgeCounts; }, [badgeCounts]);
 
     // Pure refs — lookup indexes, never need to trigger re-renders
     const nodesByParentRef = useRef<NodesByParent>({ [ROOT_KEY]: [] });
@@ -236,6 +263,7 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
         depth: number,
         nodesByParent: NodesByParent,
         expandedSet: Set<string>,
+        badgeCounts: Record<string, number>,
     ): void => {
         const nodes = nodesByParent[parentKey];
         if (!nodes) return;
@@ -243,16 +271,16 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
             const id = getNodeId(node);
             const isExpanded = expandedSet.has(id);
             const canExpand = hasChildren(node, nodesByParent);
-            acc.push({ node, depth, isExpanded, canExpand });
+            acc.push({ node, depth, isExpanded, canExpand, badgeCount: badgeCounts[id] ?? 0 });
             if (isExpanded) {
-                appendRows(acc, id, depth + 1, nodesByParent, expandedSet);
+                appendRows(acc, id, depth + 1, nodesByParent, expandedSet, badgeCounts);
             }
         }
     }, []);
 
     const rebuildVisibleTree = useCallback(() => {
         const rows: TreeRow[] = [];
-        appendRows(rows, ROOT_KEY, 0, nodesByParentRef.current, expandedSetRef.current);
+        appendRows(rows, ROOT_KEY, 0, nodesByParentRef.current, expandedSetRef.current, badgeCountsRef.current);
         setVisibleTreeRowsSynced(rows);
     }, [appendRows, expandedSetRef, setVisibleTreeRowsSynced]);
 
@@ -271,7 +299,7 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
             if (parentIdx === -1) {
                 // Parent not visible — rebuild from scratch
                 const acc: TreeRow[] = [];
-                appendRows(acc, ROOT_KEY, 0, nodesByParentRef.current, expandedSetRef.current);
+                appendRows(acc, ROOT_KEY, 0, nodesByParentRef.current, expandedSetRef.current, badgeCountsRef.current);
                 return acc;
             }
 
@@ -291,7 +319,7 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
             // Build new children if expanded
             const newChildren: TreeRow[] = [];
             if (isNowExpanded) {
-                appendRows(newChildren, changedKey, parentDepth + 1, nodesByParentRef.current, expandedSetRef.current);
+                appendRows(newChildren, changedKey, parentDepth + 1, nodesByParentRef.current, expandedSetRef.current, badgeCountsRef.current);
             }
 
             // Splice: replace existing children with new
@@ -326,7 +354,7 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
                 setIsLoaded(true);
 
                 const rows: TreeRow[] = [];
-                appendRows(rows, ROOT_KEY, 0, nodesByParent, new Set());
+                appendRows(rows, ROOT_KEY, 0, nodesByParent, new Set(), badgeCountsRef.current);
                 setVisibleTreeRowsSynced(rows);
 
             } catch (fetchError) {
@@ -459,6 +487,7 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
                 depth: 0,
                 isExpanded: false,
                 canExpand: false,
+                badgeCount: badgeCountsRef.current[node.id ?? ''] ?? 0,
             }));
         }
         return visibleTreeRows;
@@ -471,6 +500,7 @@ const DanhMucTrangBiDictionary: React.FC<DanhMucTrangBiDictionaryProps> = ({ onS
         getScrollElement: () => scrollContainerRef.current,
         estimateSize: () => ROW_HEIGHT,
         getItemKey: (index) => getNodeId(visibleList[index]?.node) || `node-${index}`,
+        measureElement: (el) => el.getBoundingClientRect().height,
         overscan: 10,
     });
 

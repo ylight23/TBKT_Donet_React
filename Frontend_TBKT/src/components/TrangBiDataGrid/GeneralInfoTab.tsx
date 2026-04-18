@@ -1,7 +1,7 @@
 // ============================================================
 // GeneralInfoTab – Tab thông tin chung
 // FormFieldItem và FieldSetGroup được export để TechnicalFieldsTab
-// và các tab khác có thể tái sử dụng với cùng styling.
+// và các tab khác tái sử dụng cùng styling.
 // ============================================================
 import React, { useCallback } from 'react';
 import Box from '@mui/material/Box';
@@ -27,11 +27,13 @@ export interface GeneralInfoTabProps {
   generalTabContent: GeneralFieldSetItem[];
   formData: Record<string, string>;
   onFieldChange: (fieldKey: string, value: string) => void;
-  setColors?: string[];
 }
 
+// ── Default colors ────────────────────────────────────────────
+const DEFAULT_SET_COLORS = ['#3b82f6', '#22d3ee', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'];
+
 // ── FormFieldItem ──────────────────────────────────────────────
-// Styled input row — sử dụng lại cho cả GeneralInfoTab và TechnicalFieldsTab
+// Render một input row với styled MUI OutlinedInput.
 export interface FormFieldItemProps {
   field: DynamicField;
   value: string;
@@ -130,23 +132,24 @@ export const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(
       </Grid>
     );
   },
-  (prev, next) => (
+  (prev, next) =>
     prev.field === next.field
     && prev.value === next.value
-    && prev.onFieldChange === next.onFieldChange
-  ),
+    && prev.onFieldChange === next.onFieldChange,
 );
 
 FormFieldItem.displayName = 'FormFieldItem';
 
 // ── FieldSetGroup ─────────────────────────────────────────────
-// Bật showSectionHeader để hiển thị tên nhóm (dùng cho TechnicalFieldsTab)
+// Hiển thị một nhóm field với tiêu đề tùy chọn.
 export interface FieldSetGroupProps {
   fieldSet: FieldSet;
   fields: DynamicField[];
   formData: Record<string, string>;
   onFieldChange: (fieldKey: string, value: string) => void;
-  color: string;
+  /** Màu accent cho thanh tiêu đề (mặc định: #3b82f6) */
+  color?: string;
+  /** Version để force re-render key (mặc định: 0) */
   renderVersion?: number;
   /** Hiển thị thanh tên nhóm (mặc định: false) */
   showSectionHeader?: boolean;
@@ -157,7 +160,7 @@ export const FieldSetGroup: React.FC<FieldSetGroupProps> = ({
   fields,
   formData,
   onFieldChange,
-  color,
+  color = '#3b82f6',
   renderVersion = 0,
   showSectionHeader = false,
 }) => (
@@ -202,13 +205,10 @@ export const FieldSetGroup: React.FC<FieldSetGroupProps> = ({
 );
 
 // ── Main component ─────────────────────────────────────────────
-const DEFAULT_SET_COLORS = ['#3b82f6', '#22d3ee', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'];
-
 const GeneralInfoTab: React.FC<GeneralInfoTabProps> = ({
   generalTabContent,
   formData,
   onFieldChange,
-  setColors = DEFAULT_SET_COLORS,
 }) => {
   if (generalTabContent.length === 0) {
     return (
@@ -233,7 +233,7 @@ const GeneralInfoTab: React.FC<GeneralInfoTabProps> = ({
           fields={item.fields}
           formData={formData}
           onFieldChange={onFieldChange}
-          color={item.fieldSet.color || setColors[index % setColors.length]}
+          color={item.fieldSet.color || DEFAULT_SET_COLORS[index % DEFAULT_SET_COLORS.length]}
         />
       ))}
     </>

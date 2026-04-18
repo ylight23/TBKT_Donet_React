@@ -1,0 +1,239 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.wrap{padding:1rem 0;max-width:900px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+.view-switch{display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden}
+.vs-btn{padding:6px 14px;font-size:12px;cursor:pointer;background:var(--color-background-primary);border:none;color:var(--color-text-secondary)}
+.vs-btn.active{background:#EEEDFE;color:#3C3489}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.25rem}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px}
+.stat-lbl{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.stat-val{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.stat-val.warn{color:#BA7517}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;font-size:14px;font-weight:500}
+.month-nav{display:flex;align-items:center;gap:12px}
+.nav-btn{padding:4px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary)}
+.nav-btn:hover{background:var(--color-background-secondary)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-head{font-size:11px;color:var(--color-text-secondary);text-align:center;padding:4px 0}
+.cal-day{border-radius:var(--border-radius-md);padding:6px 4px;min-height:56px;border:0.5px solid var(--color-border-tertiary);font-size:11px;background:var(--color-background-primary);cursor:pointer}
+.cal-day:hover{background:var(--color-background-secondary)}
+.cal-day.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-day.today{border-color:#AFA9EC}
+.cal-day.has-task{background:var(--color-background-secondary)}
+.day-num{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.day-tag{font-size:10px;padding:1px 5px;border-radius:99px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag-ok{background:#EAF3DE;color:#3B6D11}
+.tag-warn{background:#FAEEDA;color:#854F0B}
+.tag-plan{background:#EEEDFE;color:#3C3489}
+.gantt-wrap{overflow-x:auto}
+.gantt-table{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
+.gantt-table th{font-weight:400;color:var(--color-text-secondary);padding:6px 8px;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary)}
+.gantt-table td{padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+.gantt-bar-cell{width:55%}
+.gantt-track{background:var(--color-background-secondary);border-radius:99px;height:10px;position:relative}
+.gantt-fill{height:10px;border-radius:99px;position:absolute;top:0}
+.fill-done{background:#97C459}
+.fill-plan{background:#AFA9EC}
+.fill-over{background:#E24B4A}
+.workload{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.wl-card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px}
+.wl-name{font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px}
+.wl-bar-wrap{height:6px;background:var(--color-background-secondary);border-radius:99px;margin-bottom:4px;overflow:hidden}
+.wl-bar{height:6px;border-radius:99px;background:#7F77DD}
+.wl-meta{font-size:11px;color:var(--color-text-secondary)}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500}
+.b-plan{background:#EEEDFE;color:#3C3489}
+.b-done{background:#EAF3DE;color:#3B6D11}
+.b-over{background:#FCEBEB;color:#A32D2D}
+.btn{font-size:13px;padding:6px 16px;border-radius:var(--border-radius-md);cursor:pointer;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
+.btn:hover{background:var(--color-background-secondary)}
+.btn-primary{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Kế hoạch bảo dưỡng theo tháng và quý của đơn vị thông tin</h2>
+
+  <div class="topbar">
+    <div>
+      <div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">Kế hoạch bảo dưỡng — Q2/2026</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Tiểu đoàn Thông tin 23 · Chuyên ngành TT</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="view-switch">
+        <button class="vs-btn active" onclick="switchView(this,'month')">Tháng</button>
+        <button class="vs-btn" onclick="switchView(this,'quarter')">Quý</button>
+        <button class="vs-btn" onclick="switchView(this,'gantt')">Gantt</button>
+      </div>
+      <button class="btn btn-primary" onclick="sendPrompt('Tôi muốn thêm một nhiệm vụ bảo dưỡng mới vào kế hoạch tháng 4/2026')">+ Thêm kế hoạch</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">Kế hoạch tháng 4</div><div class="stat-val">18</div></div>
+    <div class="stat"><div class="stat-lbl">Đã hoàn thành</div><div class="stat-val" style="color:#3B6D11">11</div></div>
+    <div class="stat"><div class="stat-lbl">Còn lại trong tháng</div><div class="stat-val warn">7</div></div>
+    <div class="stat"><div class="stat-lbl">Hoàn thành Q1</div><div class="stat-val">94%</div></div>
+  </div>
+
+  <div id="viewMonth">
+    <div class="card">
+      <div class="card-head">
+        <div class="month-nav">
+          <button class="nav-btn" onclick="changeMonth(-1)">←</button>
+          <span id="monthLabel" style="font-size:14px;font-weight:500">Tháng 4 / 2026</span>
+          <button class="nav-btn" onclick="changeMonth(1)">→</button>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px;align-items:center">
+          <span style="width:8px;height:8px;border-radius:50%;background:#97C459;display:inline-block"></span>Đã BD
+          <span style="width:8px;height:8px;border-radius:50%;background:#AFA9EC;display:inline-block;margin-left:4px"></span>Kế hoạch
+          <span style="width:8px;height:8px;border-radius:50%;background:#EF9F27;display:inline-block;margin-left:4px"></span>Quá hạn
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Phân công kỹ thuật viên — tháng 4
+        <button class="btn" onclick="sendPrompt('Tôi muốn điều chỉnh phân công kỹ thuật viên bảo dưỡng tháng 4')">Điều chỉnh ↗</button>
+      </div>
+      <div class="workload">
+        <div class="wl-card"><div class="wl-name">Nguyễn Văn A</div><div class="wl-bar-wrap"><div class="wl-bar" style="width:85%"></div></div><div class="wl-meta">7 / 8 nhiệm vụ · tải <strong style="color:#A32D2D">85%</strong></div></div>
+        <div class="wl-card"><div class="wl-name">Trần Văn B</div><div class="wl-bar-wrap"><div class="wl-bar" style="width:60%"></div></div><div class="wl-meta">5 / 8 nhiệm vụ · tải <strong>60%</strong></div></div>
+        <div class="wl-card"><div class="wl-name">Lê Văn C</div><div class="wl-bar-wrap"><div class="wl-bar" style="width:40%"></div></div><div class="wl-meta">3 / 8 nhiệm vụ · tải <strong style="color:#3B6D11">40%</strong></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewQuarter" style="display:none">
+    <div class="card">
+      <div class="card-head">Tổng quan Q2/2026 (Tháng 4 — 6)
+        <button class="btn btn-primary" onclick="sendPrompt('Xuất kế hoạch bảo dưỡng quý 2/2026 ra file PDF')">Xuất PDF ↗</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:1rem">
+        <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--color-text-primary)">Tháng 4</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">18 trang bị · 11 đã BD</div>
+          <div style="height:6px;background:var(--color-background-secondary);border-radius:99px;overflow:hidden"><div style="height:6px;width:61%;background:#639922;border-radius:99px"></div></div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">61% hoàn thành</div>
+        </div>
+        <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--color-text-primary)">Tháng 5</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">14 trang bị · chưa bắt đầu</div>
+          <div style="height:6px;background:var(--color-background-secondary);border-radius:99px;overflow:hidden"><div style="height:6px;width:0%;background:#639922;border-radius:99px"></div></div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Chưa bắt đầu</div>
+        </div>
+        <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--color-text-primary)">Tháng 6</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">21 trang bị · dự kiến</div>
+          <div style="height:6px;background:var(--color-background-secondary);border-radius:99px;overflow:hidden"><div style="height:6px;width:0%;background:#639922;border-radius:99px"></div></div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Dự kiến — chưa xác nhận</div>
+        </div>
+      </div>
+      <table class="gantt-table" style="min-width:0">
+        <thead><tr><th>Trang bị</th><th>Đơn vị chủ quản</th><th>T4</th><th>T5</th><th>T6</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+          <tr><td>Máy TT R-173 (×4)</td><td>LĐ BB 201</td><td style="text-align:center"><span class="badge b-done">BD xong</span></td><td>—</td><td style="text-align:center"><span class="badge b-plan">Kế hoạch</span></td><td><span class="badge b-done">Đúng tiến độ</span></td></tr>
+          <tr><td>Máy TT R-123 (×2)</td><td>TĐ Tăng 203</td><td style="text-align:center"><span class="badge b-over">Quá hạn</span></td><td>—</td><td>—</td><td><span class="badge b-over">Trễ tiến độ</span></td></tr>
+          <tr><td>Đài VT P-159 (×1)</td><td>LĐ BB 201</td><td>—</td><td style="text-align:center"><span class="badge b-plan">Kế hoạch</span></td><td>—</td><td><span class="badge b-done">Đúng tiến độ</span></td></tr>
+          <tr><td>HF Harris RF-5800</td><td>TĐ Pháo 210</td><td style="text-align:center"><span class="badge b-plan">Kế hoạch</span></td><td>—</td><td style="text-align:center"><span class="badge b-plan">Kế hoạch</span></td><td><span class="badge b-plan">Theo dõi</span></td></tr>
+          <tr><td>Mã hóa thoại (×2)</td><td>TĐ Tăng 203</td><td>—</td><td>—</td><td style="text-align:center"><span class="badge b-plan">Kế hoạch</span></td><td><span class="badge b-done">Đúng tiến độ</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="viewGantt" style="display:none">
+    <div class="card">
+      <div class="card-head">Biểu đồ Gantt — tháng 4/2026 <span style="font-size:12px;font-weight:400;color:var(--color-text-secondary)">(theo ngày thực hiện)</span></div>
+      <div class="gantt-wrap">
+        <table class="gantt-table">
+          <thead><tr><th style="width:22%">Trang bị</th><th style="width:14%">KTV phụ trách</th><th style="width:10%">Cấp BD</th><th class="gantt-bar-cell">Tiến độ tháng 4</th><th style="width:8%">Trạng thái</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>R-173 · BTR-80 #01</td><td>Nguyễn V. A</td><td>Cấp 1</td>
+              <td><div class="gantt-track"><div class="gantt-fill fill-done" style="left:0%;width:45%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">01/4 — 03/4 · Xong</div></td>
+              <td><span class="badge b-done" style="font-size:10px">Xong</span></td>
+            </tr>
+            <tr>
+              <td>R-173 · BTR-80 #04</td><td>Trần V. B</td><td>Cấp 1</td>
+              <td><div class="gantt-track"><div class="gantt-fill fill-done" style="left:10%;width:35%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">05/4 — 07/4 · Xong</div></td>
+              <td><span class="badge b-done" style="font-size:10px">Xong</span></td>
+            </tr>
+            <tr>
+              <td>R-123 · T-72 #03</td><td>Nguyễn V. A</td><td>Cấp 2</td>
+              <td><div class="gantt-track"><div class="gantt-fill fill-over" style="left:0%;width:100%"></div></div><div style="font-size:10px;color:#A32D2D;margin-top:2px">Quá hạn — chưa thực hiện</div></td>
+              <td><span class="badge b-over" style="font-size:10px">Trễ</span></td>
+            </tr>
+            <tr>
+              <td>Harris RF-5800</td><td>Lê V. C</td><td>Cấp 1</td>
+              <td><div class="gantt-track"><div class="gantt-fill fill-plan" style="left:55%;width:30%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">18/4 — 20/4 · Kế hoạch</div></td>
+              <td><span class="badge b-plan" style="font-size:10px">KH</span></td>
+            </tr>
+            <tr>
+              <td>R-174 · BMP-2 #05</td><td>Trần V. B</td><td>Cấp 1</td>
+              <td><div class="gantt-track"><div class="gantt-fill fill-plan" style="left:65%;width:25%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">22/4 — 24/4 · Kế hoạch</div></td>
+              <td><span class="badge b-plan" style="font-size:10px">KH</span></td>
+            </tr>
+            <tr>
+              <td>Mã hóa · Ural #01</td><td>Lê V. C</td><td>Cấp 1</td>
+              <td><div class="gantt-track"><div class="gantt-fill fill-plan" style="left:75%;width:20%"></div></div><div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">25/4 — 26/4 · Kế hoạch</div></td>
+              <td><span class="badge b-plan" style="font-size:10px">KH</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:12px;font-size:11px;color:var(--color-text-secondary);align-items:center;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:16px;height:6px;border-radius:99px;background:#97C459;display:inline-block"></span>Đã hoàn thành</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:16px;height:6px;border-radius:99px;background:#AFA9EC;display:inline-block"></span>Kế hoạch</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:16px;height:6px;border-radius:99px;background:#E24B4A;display:inline-block"></span>Quá hạn</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const months=['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+let curMonth=3,curYear=2026;
+const tasks={
+  '2026-4-3':[{label:'R-173 BTR#01',type:'ok'}],
+  '2026-4-7':[{label:'R-173 BTR#04',type:'ok'},{label:'P-159',type:'ok'}],
+  '2026-4-10':[{label:'R-123 T-72',type:'warn'}],
+  '2026-4-15':[{label:'Harris RF',type:'plan'}],
+  '2026-4-18':[{label:'Harris RF',type:'plan'}],
+  '2026-4-22':[{label:'R-174 BMP',type:'plan'}],
+  '2026-4-25':[{label:'Mã hóa',type:'plan'}],
+  '2026-4-28':[{label:'R-173 BTR#02',type:'plan'}],
+};
+function renderCal(){
+  document.getElementById('monthLabel').textContent=months[curMonth]+' / '+curYear;
+  const days=['CN','T2','T3','T4','T5','T6','T7'];
+  let html=days.map(d=>`<div class="cal-head">${d}</div>`).join('');
+  const first=new Date(curYear,curMonth,1).getDay();
+  for(let i=0;i<first;i++)html+=`<div class="cal-day empty"></div>`;
+  const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+  for(let d=1;d<=daysInMonth;d++){
+    const key=curYear+'-'+(curMonth+1)+'-'+d;
+    const t=tasks[key]||[];
+    const isToday=d===15&&curMonth===3&&curYear===2026;
+    let tags=t.slice(0,2).map(x=>`<div class="day-tag tag-${x.type}">${x.label}</div>`).join('');
+    if(t.length>2)tags+=`<div style="font-size:9px;color:var(--color-text-secondary)">+${t.length-2} khác</div>`;
+    html+=`<div class="cal-day${isToday?' today':''}${t.length?' has-task':''}">
+      <div class="day-num">${d}</div>${tags}
+    </div>`;
+  }
+  document.getElementById('calGrid').innerHTML=html;
+}
+function changeMonth(d){curMonth+=d;if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}renderCal();}
+function switchView(btn,v){
+  document.querySelectorAll('.vs-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('viewMonth').style.display=v==='month'?'block':'none';
+  document.getElementById('viewQuarter').style.display=v==='quarter'?'block':'none';
+  document.getElementById('viewGantt').style.display=v==='gantt'?'block':'none';
+}
+renderCal();
+</script>

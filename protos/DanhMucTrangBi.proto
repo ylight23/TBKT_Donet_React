@@ -91,18 +91,6 @@ message DeleteTrangBiTreeResponse {
 }
 
 // ============================================================
-// GetFieldSetsByMaDanhMuc – tra cứu FieldSet theo mã danh mục trang bị
-// ============================================================
-message GetFieldSetsByMaDanhMucRequest {
-  string ma_danh_muc = 1; // _id DanhMucTrangBi đang chọn (ví dụ: "B.1.01.00.00.00.001")
-}
-
-message GetFieldSetsByMaDanhMucResponse {
-  repeated ThamSo.FieldSetDetail items = 1;
-  Base.ResponseMeta meta = 2;
-}
-
-// ============================================================
 // SaveTrangBiNhom1 – lưu bản ghi trang bị (equipment instance)
 // ============================================================
 message TrangBiNhom1EditorItem {
@@ -362,7 +350,7 @@ service DanhMucTrangBiService {
   rpc GetTree (TrangBiTreeGetRequest) returns (TrangBiTreeGetResponse);
   rpc SaveTree (SaveTrangBiTreeRequest) returns (SaveTrangBiTreeResponse);
   rpc DeleteTree (DeleteTrangBiTreeRequest) returns (DeleteTrangBiTreeResponse);
-  rpc GetFieldSetsByMaDanhMuc (GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
+  rpc GetFieldSetsByMaDanhMuc (ThamSo.GetFieldSetsByMaDanhMucRequest) returns (ThamSo.GetFieldSetsByMaDanhMucResponse);
   rpc SaveTrangBiNhom1 (SaveTrangBiNhom1Request) returns (SaveTrangBiNhom1Response);
   rpc GetListTrangBiNhom1 (GetListTrangBiNhom1Request) returns (GetListTrangBiNhom1Response);
   rpc GetTrangBiNhom1 (GetTrangBiNhom1Request) returns (GetTrangBiNhom1Response);

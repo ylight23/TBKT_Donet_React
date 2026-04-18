@@ -24,6 +24,7 @@ export interface FieldSet {
     desc?: string;
     fieldIds: string[];
     maDanhMucTrangBi?: string[];
+    loaiNghiepVu?: string; // bao_quan | bao_duong | sua_chua | niem_cat | dieu_dong | all
     fields?: LocalDynamicField[];
 }
 
@@ -52,4 +53,4 @@ export interface EquipmentItem {
     logs: EquipmentLog[];
 }
 
-export type MainTab = 'fields' | 'datasets';
+export type MainTab = 'fields' | 'datasets' | 'dm-assoc';

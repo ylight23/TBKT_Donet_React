@@ -1,0 +1,279 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.wrap{padding:1rem 0;max-width:860px}
+.breadcrumb{font-size:12px;color:var(--color-text-secondary);margin-bottom:1.25rem;display:flex;align-items:center;gap:6px}
+.breadcrumb span{color:var(--color-text-primary)}
+.stepper{display:flex;align-items:center;gap:0;margin-bottom:1.75rem}
+.step{display:flex;align-items:center;gap:8px;font-size:12px}
+.step-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0}
+.step-dot.done{background:#EAF3DE;color:#3B6D11;border:0.5px solid #97C459}
+.step-dot.active{background:#EEEDFE;color:#3C3489;border:0.5px solid #AFA9EC}
+.step-dot.idle{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.step-label{color:var(--color-text-secondary);white-space:nowrap}
+.step-label.active{color:var(--color-text-primary);font-weight:500}
+.step-line{flex:1;height:0.5px;background:var(--color-border-tertiary);margin:0 8px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:1rem;padding-bottom:10px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;margin-bottom:0}
+.info-row{display:flex;flex-direction:column;gap:2px}
+.info-lbl{font-size:11px;color:var(--color-text-secondary)}
+.info-val{color:var(--color-text-primary);font-weight:500}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.form-group.full{grid-column:1/-1}
+.form-group label{color:var(--color-text-secondary);font-size:12px}
+.form-group input,.form-group select,.form-group textarea{font-size:13px;width:100%;color:var(--color-text-primary)}
+.form-group textarea{resize:vertical;min-height:72px;padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary)}
+.checklist-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px}
+.checklist-item:last-child{border-bottom:none}
+.checklist-item input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
+.checklist-label{flex:1;color:var(--color-text-primary)}
+.checklist-result{display:flex;gap:6px}
+.rb-group{display:flex;gap:0;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden}
+.rb-opt{padding:4px 10px;font-size:11px;cursor:pointer;background:var(--color-background-primary);color:var(--color-text-secondary);border:none;border-right:0.5px solid var(--color-border-tertiary)}
+.rb-opt:last-child{border-right:none}
+.rb-opt.sel-ok{background:#EAF3DE;color:#3B6D11}
+.rb-opt.sel-warn{background:#FAEEDA;color:#854F0B}
+.rb-opt.sel-bad{background:#FCEBEB;color:#A32D2D}
+.sign-box{border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-md);padding:1.5rem;text-align:center;color:var(--color-text-secondary);font-size:12px;cursor:pointer;background:var(--color-background-secondary)}
+.sign-box:hover{background:var(--color-background-tertiary)}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem}
+.btn{font-size:13px;padding:7px 18px;border-radius:var(--border-radius-md);cursor:pointer;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
+.btn:hover{background:var(--color-background-secondary)}
+.btn-primary{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.btn-primary:hover{background:#CECBF6}
+.btn-success{background:#EAF3DE;border-color:#97C459;color:#27500A}
+.badge-overdue{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:#FCEBEB;color:#A32D2D;font-weight:500}
+.progress-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1rem}
+.ps-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;text-align:center}
+.ps-num{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.ps-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Form ghi nhận kết quả bảo dưỡng trang bị đồng bộ</h2>
+
+  <div class="breadcrumb">
+    Danh sách trang bị &rsaquo; <span>Ghi nhận bảo dưỡng</span>
+  </div>
+
+  <div class="stepper">
+    <div class="step"><div class="step-dot done">✓</div><div class="step-label">Xác nhận thông tin</div></div>
+    <div class="step-line"></div>
+    <div class="step"><div class="step-dot active" id="dot2">2</div><div class="step-label active">Kiểm tra hạng mục</div></div>
+    <div class="step-line"></div>
+    <div class="step"><div class="step-dot idle" id="dot3">3</div><div class="step-label" id="lbl3">Kết quả & ký xác nhận</div></div>
+    <div class="step-line"></div>
+    <div class="step"><div class="step-dot idle" id="dot4">4</div><div class="step-label" id="lbl4">Hoàn thành</div></div>
+  </div>
+
+  <div id="step2">
+    <div class="card">
+      <div class="card-title">Thông tin trang bị</div>
+      <div class="info-grid">
+        <div class="info-row"><span class="info-lbl">Trang bị đồng bộ</span><span class="info-val">Máy thông tin R-173</span></div>
+        <div class="info-row"><span class="info-lbl">TB kỹ thuật chính</span><span class="info-val">Xe thiết giáp BTR-80 #01</span></div>
+        <div class="info-row"><span class="info-lbl">Đơn vị chủ quản</span><span class="info-val">Lữ đoàn bộ binh 201</span></div>
+        <div class="info-row"><span class="info-lbl">Trạng thái trước BD</span><span class="info-val"><span class="badge-overdue">Quá hạn 8 ngày</span></span></div>
+        <div class="info-row"><span class="info-lbl">Chu kỳ bảo dưỡng</span><span class="info-val">90 ngày</span></div>
+        <div class="info-row"><span class="info-lbl">Cấp bảo dưỡng</span><span class="info-val">
+          <select style="font-size:12px;padding:3px 6px;width:auto">
+            <option>Cấp 1 — thường xuyên</option>
+            <option>Cấp 2 — định kỳ</option>
+            <option>Cấp 3 — trung tu</option>
+          </select>
+        </span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Hạng mục kiểm tra
+        <span style="float:right;font-size:11px;font-weight:400;color:var(--color-text-secondary)" id="ckCount">0 / 6 đã kiểm tra</span>
+      </div>
+      <div class="progress-summary">
+        <div class="ps-card"><div class="ps-num" id="cntOk" style="color:#3B6D11">0</div><div class="ps-lbl">Đạt</div></div>
+        <div class="ps-card"><div class="ps-num" id="cntWarn" style="color:#854F0B">0</div><div class="ps-lbl">Cần theo dõi</div></div>
+        <div class="ps-card"><div class="ps-num" id="cntBad" style="color:#A32D2D">0</div><div class="ps-lbl">Không đạt / thay thế</div></div>
+      </div>
+      <div id="checklist">
+        <div class="checklist-item">
+          <input type="checkbox" onchange="updateCounts()">
+          <span class="checklist-label">Kiểm tra nguồn điện và tiêu thụ điện</span>
+          <div class="rb-group">
+            <button class="rb-opt" onclick="setRb(this,'ok')">Đạt</button>
+            <button class="rb-opt" onclick="setRb(this,'warn')">Theo dõi</button>
+            <button class="rb-opt" onclick="setRb(this,'bad')">Không đạt</button>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" onchange="updateCounts()">
+          <span class="checklist-label">Vệ sinh lọc gió, làm sạch tiếp điểm</span>
+          <div class="rb-group">
+            <button class="rb-opt" onclick="setRb(this,'ok')">Đạt</button>
+            <button class="rb-opt" onclick="setRb(this,'warn')">Theo dõi</button>
+            <button class="rb-opt" onclick="setRb(this,'bad')">Không đạt</button>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" onchange="updateCounts()">
+          <span class="checklist-label">Kiểm tra ăng-ten và cáp kết nối</span>
+          <div class="rb-group">
+            <button class="rb-opt sel-warn" onclick="setRb(this,'ok')">Đạt</button>
+            <button class="rb-opt" onclick="setRb(this,'warn')">Theo dõi</button>
+            <button class="rb-opt" onclick="setRb(this,'bad')">Không đạt</button>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" onchange="updateCounts()">
+          <span class="checklist-label">Kiểm tra tần số hoạt động, điều chỉnh squelch</span>
+          <div class="rb-group">
+            <button class="rb-opt" onclick="setRb(this,'ok')">Đạt</button>
+            <button class="rb-opt" onclick="setRb(this,'warn')">Theo dõi</button>
+            <button class="rb-opt" onclick="setRb(this,'bad')">Không đạt</button>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" onchange="updateCounts()">
+          <span class="checklist-label">Kiểm tra tai nghe, micro, phụ kiện đi kèm</span>
+          <div class="rb-group">
+            <button class="rb-opt" onclick="setRb(this,'ok')">Đạt</button>
+            <button class="rb-opt" onclick="setRb(this,'warn')">Theo dõi</button>
+            <button class="rb-opt" onclick="setRb(this,'bad')">Không đạt</button>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" onchange="updateCounts()">
+          <span class="checklist-label">Kiểm tra pin dự phòng và sạc dã ngoại</span>
+          <div class="rb-group">
+            <button class="rb-opt" onclick="setRb(this,'ok')">Đạt</button>
+            <button class="rb-opt" onclick="setRb(this,'warn')">Theo dõi</button>
+            <button class="rb-opt" onclick="setRb(this,'bad')">Không đạt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Phụ tùng thay thế</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Tên phụ tùng đã thay</label><input type="text" placeholder="VD: Dây ăng-ten 3m RG-58..."></div>
+        <div class="form-group"><label>Mã phụ tùng</label><input type="text" placeholder="VD: ANT-R173-3M"></div>
+        <div class="form-group"><label>Số lượng</label><input type="number" min="0" value="0" style="width:80px"></div>
+        <div class="form-group"><label>Nguồn cấp</label><select><option>Kho đơn vị</option><option>Cấp trên cấp</option><option>Mua ngoài</option></select></div>
+        <div class="form-group full"><label>Ghi chú phụ tùng</label><textarea placeholder="Ghi chú tình trạng khi tháo ra, lý do thay thế..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn">Lưu nháp</button>
+      <button class="btn btn-primary" onclick="goStep3()">Tiếp theo: Kết quả & ký xác nhận →</button>
+    </div>
+  </div>
+
+  <div id="step3" style="display:none">
+    <div class="card">
+      <div class="card-title">Kết quả tổng hợp</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Kết luận bảo dưỡng</label>
+          <select>
+            <option>Đạt — tiếp tục sử dụng bình thường</option>
+            <option>Đạt có điều kiện — theo dõi thêm</option>
+            <option>Không đạt — cần sửa chữa cấp cao hơn</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Ngày thực hiện</label><input type="date" value="2026-04-15"></div>
+        <div class="form-group"><label>Thời gian thực hiện (giờ)</label><input type="number" min="0" step="0.5" value="3"></div>
+        <div class="form-group"><label>BD lần tiếp theo (tự tính)</label><input type="date" value="2026-07-14" style="color:var(--color-text-secondary)" readonly></div>
+        <div class="form-group full"><label>Nhận xét tổng quan</label><textarea placeholder="Ghi nhận tình trạng thiết bị, các vấn đề phát sinh cần theo dõi ở lần BD tiếp theo..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Ký xác nhận</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Kỹ thuật viên thực hiện</div>
+          <div class="sign-box" onclick="this.innerHTML='<span style=font-size:13px;color:var(--color-text-primary);font-weight:500>Nguyễn Văn A</span><br><span style=font-size:11px;color:var(--color-text-secondary)>Đã ký — 15/04/2026</span>'">Nhấn để ký xác nhận</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Trợ lý kỹ thuật kiểm tra</div>
+          <div class="sign-box">Nhấn để ký xác nhận</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Chỉ huy đơn vị duyệt</div>
+          <div class="sign-box">Nhấn để ký xác nhận</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" onclick="goStep2()">← Quay lại</button>
+      <button class="btn" onclick="sendPrompt('Tôi muốn in phiếu bảo dưỡng cho máy thông tin R-173 vừa hoàn thành')">In phiếu BD ↗</button>
+      <button class="btn btn-success" onclick="goStep4()">Xác nhận hoàn thành bảo dưỡng</button>
+    </div>
+  </div>
+
+  <div id="step4" style="display:none">
+    <div class="card" style="text-align:center;padding:2.5rem 1.25rem">
+      <div style="width:48px;height:48px;border-radius:50%;background:#EAF3DE;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:20px;color:#3B6D11;font-weight:500">✓</div>
+      <div style="font-size:16px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px">Bảo dưỡng đã được ghi nhận</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1.5rem">Máy thông tin R-173 · BTR-80 #01 · BD tiếp theo: <strong>14/07/2026</strong></div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn" onclick="sendPrompt('Xem lịch sử bảo dưỡng máy thông tin R-173')">Xem lịch sử ↗</button>
+        <button class="btn btn-primary" onclick="sendPrompt('Tôi muốn ghi nhận bảo dưỡng cho trang bị tiếp theo')">Ghi BD trang bị khác ↗</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setRb(btn,type){
+  const grp=btn.closest('.rb-group');
+  grp.querySelectorAll('.rb-opt').forEach(b=>{b.className='rb-opt'});
+  btn.classList.add('sel-'+type);
+  const cb=btn.closest('.checklist-item').querySelector('input[type=checkbox]');
+  cb.checked=true;
+  updateCounts();
+}
+function updateCounts(){
+  const items=document.querySelectorAll('.checklist-item');
+  let checked=0,ok=0,warn=0,bad=0;
+  items.forEach(item=>{
+    const cb=item.querySelector('input[type=checkbox]');
+    if(cb.checked)checked++;
+    if(item.querySelector('.sel-ok'))ok++;
+    if(item.querySelector('.sel-warn'))warn++;
+    if(item.querySelector('.sel-bad'))bad++;
+  });
+  document.getElementById('ckCount').textContent=checked+' / '+items.length+' đã kiểm tra';
+  document.getElementById('cntOk').textContent=ok;
+  document.getElementById('cntWarn').textContent=warn;
+  document.getElementById('cntBad').textContent=bad;
+}
+function goStep3(){
+  document.getElementById('step2').style.display='none';
+  document.getElementById('step3').style.display='block';
+  document.getElementById('dot2').className='step-dot done';
+  document.getElementById('dot2').textContent='✓';
+  document.getElementById('dot3').className='step-dot active';
+  document.getElementById('lbl3').style.fontWeight='500';
+  document.getElementById('lbl3').style.color='var(--color-text-primary)';
+}
+function goStep2(){
+  document.getElementById('step3').style.display='none';
+  document.getElementById('step2').style.display='block';
+  document.getElementById('dot3').className='step-dot idle';
+  document.getElementById('dot2').className='step-dot active';
+  document.getElementById('dot2').textContent='2';
+}
+function goStep4(){
+  document.getElementById('step3').style.display='none';
+  document.getElementById('step4').style.display='block';
+  document.getElementById('dot3').className='step-dot done';
+  document.getElementById('dot3').textContent='✓';
+  document.getElementById('dot4').className='step-dot done';
+  document.getElementById('dot4').textContent='✓';
+}
+</script>

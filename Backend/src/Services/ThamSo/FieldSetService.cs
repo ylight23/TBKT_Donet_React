@@ -214,6 +214,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
             Icon = OptionalStringStrict(fieldSetDoc, "Icon"),
             Color = OptionalStringStrict(fieldSetDoc, "Color"),
             Desc = OptionalStringStrict(fieldSetDoc, "Desc"),
+            LoaiNghiepVu = OptionalStringStrict(fieldSetDoc, "LoaiNghiepVu"),
         };
 
         item.FieldIds.AddRange(ReadStringArrayStrict(fieldSetDoc, "FieldIds"));

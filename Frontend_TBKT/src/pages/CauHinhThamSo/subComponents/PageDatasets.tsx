@@ -29,6 +29,10 @@ import { nameToIcon } from '../../../utils/thamSoUtils';
 import { FieldSet } from '../types';
 import { typeOf } from '../utils';
 import FieldSetEditorDialog from './FieldSetEditorDialog';
+import { LOAI_NGHIEP_VU_OPTIONS } from './FieldSetEditorDialog';
+
+const LOAI_NGHIEP_VU_DISPLAY: Record<string, string> = {};
+LOAI_NGHIEP_VU_OPTIONS.forEach(o => { LOAI_NGHIEP_VU_DISPLAY[o.value] = o.label; });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -312,6 +316,20 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                                         '& .MuiChip-label': { px: 0.75 },
                                                     }}
                                                 />
+                                                {s.loaiNghiepVu && s.loaiNghiepVu !== 'all' && (
+                                                    <Chip
+                                                        size="small"
+                                                        label={LOAI_NGHIEP_VU_DISPLAY[s.loaiNghiepVu] ?? s.loaiNghiepVu}
+                                                        color="primary"
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: 10,
+                                                            fontWeight: 700,
+                                                            flexShrink: 0,
+                                                            '& .MuiChip-label': { px: 0.75 },
+                                                        }}
+                                                    />
+                                                )}
                                                 <Stack direction="row" spacing={0.5} useFlexGap sx={{ minWidth: 0, overflow: 'hidden' }}>
                                                     {(setFieldsMap.get(s.id) ?? []).slice(0, 2).map((field) => (
                                                         <Chip

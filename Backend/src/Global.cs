@@ -194,6 +194,17 @@ public static class Global
         }
     }
 
+    private static IMongoCollection<BsonDocument>? _collectionBsonTrangBiLog;
+    public static IMongoCollection<BsonDocument>? CollectionBsonTrangBiLog
+    {
+        get
+        {
+            if (_collectionBsonTrangBiLog == null)
+                _collectionBsonTrangBiLog = MongoDB?.GetCollection<BsonDocument>("TrangBiLog");
+            return _collectionBsonTrangBiLog;
+        }
+    }
+
     // Collections quản lý quyền
 
     private static IMongoCollection<NhomNguoiDung>? _collectionNhomNguoiDung;
@@ -494,6 +505,7 @@ public static class Global
         InitThamSoIndexes();
         InitPhanQuyenIndexes();
         InitFileTransferSchema();
+        InitTrangBiLogIndexes();
         SeedSsoIdentityMappings();
         SeedDanhMucChuyenNganh();
         SeedPermissionCatalog();
@@ -511,6 +523,7 @@ public static class Global
         app.MapGrpcService<DanhMucChuyenNganhServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<LichSuPhanQuyenScopeServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<FileTransferServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<TrangBiLogServiceImpl>().EnableGrpcWeb().RequireAuthorization();
 
         app.UseStaticFiles(new StaticFileOptions
         {
@@ -841,6 +854,53 @@ public static class Global
         catch (Exception ex)
         {
             Logger?.LogError(ex, "Failed to initialize MongoDB schema and indexes for FileTransfer");
+            throw;
+        }
+    }
+
+    private static void InitTrangBiLogIndexes()
+    {
+        try
+        {
+            CreateCollectionIfNotExist("TrangBiLog");
+
+            var coll = MongoDB!.GetCollection<BsonDocument>("TrangBiLog");
+
+            CreateMongoIndex(coll,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdChuyenNganhKT").Ascending("Delete"),
+                    new CreateIndexOptions { Name = "idx_trangbilog_cn_delete" }));
+
+            CreateMongoIndex(coll,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("LogType").Ascending("Delete"),
+                    new CreateIndexOptions { Name = "idx_trangbilog_type_delete" }));
+
+            CreateMongoIndex(coll,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("IdTrangBi").Ascending("LogType"),
+                    new CreateIndexOptions { Name = "idx_trangbilog_equipment_type" }));
+
+            CreateMongoIndex(coll,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Descending("NgayDuKien"),
+                    new CreateIndexOptions { Name = "idx_trangbilog_ngaydukien" }));
+
+            CreateMongoIndex(coll,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("Status"),
+                    new CreateIndexOptions { Name = "idx_trangbilog_status" }));
+
+            CreateMongoIndex(coll,
+                new CreateIndexModel<BsonDocument>(
+                    Builders<BsonDocument>.IndexKeys.Ascending("KtvChinh"),
+                    new CreateIndexOptions { Name = "idx_trangbilog_ktv" }));
+
+            Logger?.LogInformation("Initialized MongoDB indexes for TrangBiLog");
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogError(ex, "Failed to initialize MongoDB indexes for TrangBiLog");
             throw;
         }
     }

@@ -1,0 +1,224 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.wrap{padding:1rem 0;max-width:900px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px}
+.unit-badge{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;background:#CECBF6;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#3C3489}
+.unit-name{font-size:15px;font-weight:500;color:var(--color-text-primary)}
+.unit-sub{font-size:12px;color:var(--color-text-secondary)}
+.tabs{display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:1.25rem}
+.tab{padding:8px 18px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--color-text-secondary);background:none;border-left:none;border-right:none;border-top:none}
+.tab.active{color:var(--color-text-primary);border-bottom:2px solid var(--color-text-primary);font-weight:500}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.filter-chip{font-size:12px;padding:4px 12px;border-radius:99px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-secondary)}
+.filter-chip.active{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.search-box{flex:1;min-width:160px;max-width:260px;padding:6px 12px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.25rem}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+.stat-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.stat-val.warn{color:#BA7517}
+.stat-val.danger{color:#A32D2D}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th{text-align:left;padding:8px 10px;color:var(--color-text-secondary);font-weight:400;border-bottom:0.5px solid var(--color-border-tertiary)}
+.table td{padding:9px 10px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle}
+.table tr:last-child td{border-bottom:none}
+.table tr:hover td{background:var(--color-background-secondary)}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500}
+.badge-ok{background:#EAF3DE;color:#3B6D11}
+.badge-warn{background:#FAEEDA;color:#854F0B}
+.badge-due{background:#FAECE7;color:#993C1D}
+.badge-overdue{background:#FCEBEB;color:#A32D2D}
+.btn-sm{font-size:12px;padding:4px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-primary)}
+.btn-sm:hover{background:var(--color-background-secondary)}
+.btn-primary{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.progress-bar{height:4px;border-radius:99px;background:var(--color-border-tertiary);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:6px}
+.progress-fill{height:100%;border-radius:99px}
+.detail-panel{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;background:var(--color-background-primary);margin-top:8px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px}
+.detail-row{display:flex;flex-direction:column;gap:2px}
+.detail-lbl{font-size:11px;color:var(--color-text-secondary)}
+.detail-val{color:var(--color-text-primary);font-weight:500}
+.timeline{margin-top:12px;border-top:0.5px solid var(--color-border-tertiary);padding-top:12px}
+.tl-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;font-size:12px}
+.tl-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.tl-text{color:var(--color-text-secondary)}
+.tl-text strong{color:var(--color-text-primary)}
+.empty{text-align:center;padding:2rem;color:var(--color-text-secondary);font-size:13px}
+.panel-tabs{display:none}
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Giao diện đơn vị bảo dưỡng chuyên ngành — danh sách trang bị phụ trách</h2>
+
+  <div class="topbar">
+    <div class="unit-badge">
+      <div class="avatar">TT</div>
+      <div>
+        <div class="unit-name">Tiểu đoàn Thông tin 23</div>
+        <div class="unit-sub">Chuyên ngành: Thông tin · Đảm nhiệm bảo dưỡng sửa chữa</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-sm" onclick="sendPrompt('Tôi muốn xuất báo cáo bảo dưỡng tháng cho đơn vị thông tin 23')">Xuất báo cáo ↗</button>
+      <button class="btn-sm btn-primary" onclick="sendPrompt('Hướng dẫn tôi lập kế hoạch bảo dưỡng định kỳ cho trang bị thông tin')">Lập kế hoạch ↗</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Tổng TB phụ trách</div><div class="stat-val">47</div></div>
+    <div class="stat"><div class="stat-label">Bảo dưỡng đúng hạn</div><div class="stat-val">31</div></div>
+    <div class="stat"><div class="stat-label">Sắp đến hạn (≤15 ngày)</div><div class="stat-val warn">11</div></div>
+    <div class="stat"><div class="stat-label">Quá hạn</div><div class="stat-val danger">5</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(this,'all')">Tất cả trang bị</button>
+    <button class="tab" onclick="switchTab(this,'due')">Sắp đến hạn</button>
+    <button class="tab" onclick="switchTab(this,'overdue')">Quá hạn</button>
+    <button class="tab" onclick="switchTab(this,'history')">Lịch sử bảo dưỡng</button>
+  </div>
+
+  <div class="filters">
+    <input class="search-box" type="text" placeholder="Tìm tên TB, đơn vị chủ quản..." id="searchInput" oninput="renderTable()">
+    <button class="filter-chip active" onclick="setFilter(this,'all')">Tất cả</button>
+    <button class="filter-chip" onclick="setFilter(this,'ok')">Bình thường</button>
+    <button class="filter-chip" onclick="setFilter(this,'warn')">Sắp đến hạn</button>
+    <button class="filter-chip" onclick="setFilter(this,'overdue')">Quá hạn</button>
+  </div>
+
+  <table class="table" id="mainTable">
+    <thead>
+      <tr>
+        <th>Trang bị đồng bộ</th>
+        <th>TB kỹ thuật chính</th>
+        <th>Đơn vị chủ quản</th>
+        <th>Chu kỳ BD</th>
+        <th>BD lần cuối</th>
+        <th>Trạng thái</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <div id="detailPanel" style="display:none"></div>
+</div>
+
+<script>
+const data=[
+  {id:1,name:'Máy thông tin R-173',main:'Xe thiết giáp BTR-80 #01',unit:'Lữ đoàn bộ binh 201',cycle:90,lastDays:82,status:'warn',qty:1,notes:'Kiểm tra ăng-ten trước BD'},
+  {id:2,name:'Máy thông tin R-123',main:'Xe tăng T-72 #03',unit:'Trung đoàn tăng 203',cycle:90,lastDays:95,status:'overdue',qty:2,notes:''},
+  {id:3,name:'Đài vô tuyến P-159',main:'Xe chỉ huy BTR-70 #02',unit:'Lữ đoàn bộ binh 201',cycle:180,lastDays:40,status:'ok',qty:1,notes:''},
+  {id:4,name:'Máy liên lạc nội bộ R-174',main:'Xe thiết giáp BMP-2 #05',unit:'Trung đoàn cơ giới 205',cycle:90,lastDays:88,status:'warn',qty:4,notes:''},
+  {id:5,name:'Hệ thống TT mã hóa',main:'Xe chỉ huy Ural #01',unit:'Sư đoàn bộ binh 9',cycle:60,lastDays:62,status:'overdue',qty:1,notes:'Cần kỹ thuật viên cấp cao'},
+  {id:6,name:'Máy thông tin R-173',main:'Xe thiết giáp BTR-80 #04',unit:'Lữ đoàn bộ binh 201',cycle:90,lastDays:20,status:'ok',qty:1,notes:''},
+  {id:7,name:'Đài HF Harris RF-5800',main:'Xe chỉ huy GAZ #02',unit:'Trung đoàn pháo 210',cycle:120,lastDays:110,status:'warn',qty:1,notes:'Thay thế dây ăng-ten'},
+  {id:8,name:'Bộ mã hóa thoại',main:'Xe tăng T-72 #07',unit:'Trung đoàn tăng 203',cycle:180,lastDays:5,status:'ok',qty:2,notes:''},
+];
+
+let currentFilter='all';
+let expandedId=null;
+
+function daysLeft(cycle,last){return cycle-last}
+function statusBadge(s,cycle,last){
+  const dl=daysLeft(cycle,last);
+  if(s==='overdue')return`<span class="badge badge-overdue">Quá hạn ${Math.abs(dl)} ngày</span>`;
+  if(s==='warn')return`<span class="badge badge-warn">Còn ${dl} ngày</span>`;
+  return`<span class="badge badge-ok">Còn ${dl} ngày</span>`;
+}
+function progressColor(s){
+  if(s==='overdue')return'#E24B4A';
+  if(s==='warn')return'#EF9F27';
+  return'#639922';
+}
+function progressPct(cycle,last){return Math.min(100,Math.round(last/cycle*100))}
+
+function getFiltered(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  return data.filter(d=>{
+    const matchQ=!q||d.name.toLowerCase().includes(q)||d.unit.toLowerCase().includes(q)||d.main.toLowerCase().includes(q);
+    const matchF=currentFilter==='all'||(currentFilter==='ok'&&d.status==='ok')||(currentFilter==='warn'&&d.status==='warn')||(currentFilter==='overdue'&&d.status==='overdue');
+    return matchQ&&matchF;
+  });
+}
+
+function renderTable(){
+  const rows=getFiltered();
+  const tbody=document.getElementById('tableBody');
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty">Không có trang bị phù hợp</div></td></tr>`;return}
+  tbody.innerHTML=rows.map(d=>{
+    const pct=progressPct(d.cycle,d.lastDays);
+    return`<tr onclick="toggleDetail(${d.id})" style="cursor:pointer">
+      <td><strong>${d.name}</strong>${d.qty>1?` <span style="font-size:11px;color:var(--color-text-secondary)">×${d.qty}</span>`:''}
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${progressColor(d.status)}"></div></div>
+      </td>
+      <td style="color:var(--color-text-secondary)">${d.main}</td>
+      <td style="color:var(--color-text-secondary)">${d.unit}</td>
+      <td>${d.cycle} ngày</td>
+      <td>${d.lastDays} ngày trước</td>
+      <td>${statusBadge(d.status,d.cycle,d.lastDays)}</td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();goBD(${d.id})">Ghi BD</button></td>
+    </tr>
+    ${expandedId===d.id?`<tr><td colspan="7" style="padding:0 10px 12px">${buildDetail(d)}</td></tr>`:''}`;
+  }).join('');
+}
+
+function buildDetail(d){
+  return`<div class="detail-panel">
+    <div class="detail-grid">
+      <div class="detail-row"><span class="detail-lbl">Tên trang bị đồng bộ</span><span class="detail-val">${d.name}</span></div>
+      <div class="detail-row"><span class="detail-lbl">Đơn vị chủ quản</span><span class="detail-val">${d.unit}</span></div>
+      <div class="detail-row"><span class="detail-lbl">TB kỹ thuật chính</span><span class="detail-val">${d.main}</span></div>
+      <div class="detail-row"><span class="detail-lbl">Số lượng</span><span class="detail-val">${d.qty} bộ</span></div>
+      <div class="detail-row"><span class="detail-lbl">Chu kỳ bảo dưỡng</span><span class="detail-val">${d.cycle} ngày</span></div>
+      <div class="detail-row"><span class="detail-lbl">Trạng thái</span><span class="detail-val">${statusBadge(d.status,d.cycle,d.lastDays)}</span></div>
+      ${d.notes?`<div class="detail-row" style="grid-column:1/-1"><span class="detail-lbl">Ghi chú kỹ thuật</span><span class="detail-val">${d.notes}</span></div>`:''}
+    </div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-dot" style="background:#639922"></div><div class="tl-text"><strong>Bảo dưỡng cấp 1</strong> — ${d.lastDays} ngày trước · Nguyễn Văn A</div></div>
+      <div class="tl-item"><div class="tl-dot" style="background:#639922"></div><div class="tl-text"><strong>Kiểm tra định kỳ</strong> — ${d.lastDays+d.cycle} ngày trước · Trần Văn B</div></div>
+      <div class="tl-item"><div class="tl-dot" style="background:#B4B2A9"></div><div class="tl-text">Xem đầy đủ lịch sử →</div></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn-sm btn-primary" onclick="goBD(${d.id})">Ghi bảo dưỡng ↗</button>
+      <button class="btn-sm" onclick="sendPrompt('Tôi cần hướng dẫn quy trình bảo dưỡng cho ${d.name}')">Xem quy trình ↗</button>
+      <button class="btn-sm" onclick="sendPrompt('Liên hệ đơn vị chủ quản ${d.unit} để phối hợp bảo dưỡng ${d.name} trên ${d.main}')">Phối hợp đơn vị ↗</button>
+    </div>
+  </div>`;
+}
+
+function toggleDetail(id){
+  expandedId=expandedId===id?null:id;
+  renderTable();
+}
+
+function goBD(id){
+  const d=data.find(x=>x.id===id);
+  sendPrompt(`Tôi muốn ghi nhận bảo dưỡng cho ${d.name} trên ${d.main} của ${d.unit}`);
+}
+
+function setFilter(el,f){
+  currentFilter=f;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+function switchTab(el,tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(tab==='due'){currentFilter='warn';}
+  else if(tab==='overdue'){currentFilter='overdue';}
+  else if(tab==='history'){sendPrompt('Xem lịch sử bảo dưỡng đầy đủ của đơn vị thông tin 23');return;}
+  else{currentFilter='all';}
+  document.querySelectorAll('.filter-chip').forEach(c=>{
+    c.classList.toggle('active',c.textContent.trim()==='Tất cả'&&tab==='all');
+  });
+  renderTable();
+}
+
+renderTable();
+</script>

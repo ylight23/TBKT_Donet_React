@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
 import type {
   LocalDynamicField as DynamicField,
@@ -35,11 +36,13 @@ import {
 import { MainTab, FieldSet } from './types';
 import PageFieldLibrary from './subComponents/PageFieldLibrary';
 import PageDatasets from './subComponents/PageDatasets';
+import DmFieldSetAssocPage from './subComponents/DmFieldSetAssocPage';
 import { OfficeProvider } from '../../context/OfficeContext';
 
 const mapStoreFieldSetToUi = (fieldSet: LocalFieldSet): FieldSet => ({
   ...fieldSet,
   icon: nameToIcon(fieldSet.icon),
+  loaiNghiepVu: fieldSet.loaiNghiepVu,
 });
 
 const mapUiFieldSetToStore = (fieldSet: FieldSet): LocalFieldSet => ({
@@ -50,6 +53,7 @@ const mapUiFieldSetToStore = (fieldSet: FieldSet): LocalFieldSet => ({
   desc: fieldSet.desc ?? '',
   fieldIds: fieldSet.fieldIds,
   maDanhMucTrangBi: fieldSet.maDanhMucTrangBi,
+  loaiNghiepVu: fieldSet.loaiNghiepVu,
 });
 
 const replaceFieldIdInFieldSets = (fieldSets: FieldSet[], oldId: string, nextId: string): FieldSet[] => (
@@ -497,6 +501,7 @@ const CauHinhThamSo: React.FC = () => {
           >
             <Tab value="fields" icon={<LibraryBooksIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Quản lý trường dữ liệu" />
             <Tab value="datasets" icon={<SettingsIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Quản lý bộ dữ liệu nhập" />
+            <Tab value="dm-assoc" icon={<AccountTreeIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Gán bộ dữ liệu – Danh mục" />
           </Tabs>
         </CardContent>
       </Card>
@@ -505,9 +510,9 @@ const CauHinhThamSo: React.FC = () => {
         sx={{
           height: {
             xs: 'auto',
-            md: 'calc(100vh - 300px)',
+            md: 'calc(100vh - 270px)',
           },
-          minHeight: 560,
+          minHeight: 380,
         }}
       >
         {tab === 'datasets' && deletedFieldSets.length > 0 && (
@@ -564,6 +569,13 @@ const CauHinhThamSo: React.FC = () => {
             setFieldSets={setFieldSetsAndPersist}
             activeSetId={activeSetId}
             setActiveSetId={setActiveSetId}
+          />
+        )}
+        {tab === 'dm-assoc' && (
+          <DmFieldSetAssocPage
+            fields={fields}
+            fieldSets={fieldSets}
+            setFieldSets={setFieldSetsAndPersist}
           />
         )}
       </Box>

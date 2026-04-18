@@ -1,0 +1,468 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package TrangBiLog;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "Base.proto";
+import "ThamSo.proto";
+
+// ============================================================
+// Enum: Log Types
+// ============================================================
+enum LogType {
+  LOG_TYPE_UNSPECIFIED = 0;
+  LOG_TYPE_BAO_QUAN    = 1;  // Bảo quản
+  LOG_TYPE_BAO_DUONG   = 2;  // Bảo dưỡng
+  LOG_TYPE_SUA_CHUA    = 3;  // Sửa chữa
+  LOG_TYPE_NIEM_CAT    = 4;  // Niêm cất
+  LOG_TYPE_DIEU_DONG   = 5;  // Điều động
+}
+
+// Enum: Maintenance level (cấp bảo dưỡng)
+// ============================================================
+enum CapBaoDuong {
+  CAP_BD_UNSPECIFIED = 0;
+  CAP_BD_1_THUONG_XUYEN = 1;  // Cấp 1 — thường xuyên
+  CAP_BD_2_DINH_KY   = 2;     // Cấp 2 — định kỳ
+  CAP_BD_3_TRUNG_TU   = 3;     // Cấp 3 — trung tu
+  CAP_BD_4_LON       = 4;      // Cấp 4 — đại tu
+}
+
+// Enum: Log status
+// ============================================================
+enum LogStatus {
+  LOG_STATUS_UNSPECIFIED = 0;
+  LOG_STATUS_DA_HOAN_THANH = 1;  // Hoàn thành
+  LOG_STATUS_DANG_THUC_HIEN = 2; // Đang thực hiện
+  LOG_STATUS_CHUA_THUC_HIEN = 3;  // Chưa thực hiện
+  LOG_STATUS_HUY            = 4;  // Hủy
+}
+
+// Enum: Checklist result
+// ============================================================
+enum ChecklistResult {
+  CHECKLIST_UNSPECIFIED = 0;
+  CHECKLIST_DAT         = 1;  // Đạt
+  CHECKLIST_THEO_DOI    = 2;  // Cần theo dõi
+  CHECKLIST_KHONG_DAT   = 3;  // Không đạt / thay thế
+}
+
+// Enum: Preservation condition
+// ============================================================
+enum BaoQuanCondition {
+  BAO_QUAN_UNSPECIFIED = 0;
+  BAO_QUAN_TOT         = 1;  // Tốt
+  BAO_QUAN_DAT         = 2;  // Đạt
+  BAO_QUAN_CHUA_DAT    = 3;  // Chưa đạt
+}
+
+// Enum: Repair level
+// ============================================================
+enum MucDoSuaChua {
+  SUA_CHUA_UNSPECIFIED = 0;
+  SUA_CHUA_CAP_1      = 1;  // Sửa chữa cấp 1 — đơn giản
+  SUA_CHUA_CAP_2      = 2;  // Sửa chữa cấp 2 — trung bình
+  SUA_CHUA_CAP_3      = 3;  // Sửa chữa cấp 3 — phức tạp
+  SUA_CHUA_CAP_4      = 4;  // Sửa chửa cấp 4 — đặc biệt
+}
+
+// Enum: Storage status
+// ============================================================
+enum NiemCatStatus {
+  NIEM_CAT_UNSPECIFIED = 0;
+  NIEM_CAT_DA_DONG_GOI = 1;  // Đã đóng gói
+  NIEM_CAT_CHUA_DONG_GOI = 2; // Chưa đóng gói
+  NIEM_CAT_DA_MO       = 3;   // Đã mở
+  NIEM_CAT_HUY         = 4;   // Hủy bỏ
+}
+
+// Enum: Transfer type
+// ============================================================
+enum LoaiDieuDong {
+  DIEU_DONG_UNSPECIFIED = 0;
+  DIEU_DONG_NOI_BO     = 1;  // Điều động nội bộ
+  DIEU_DONG_CHUYEN_NGANH = 2; // Chuyển chuyên ngành
+  DIEU_DONG_DON_VI_BAN  = 3;  // Điều động đơn vị bàn giao
+  DIEU_DONG_DON_VI_NHAN = 4;  // Điều động đơn vị nhận
+}
+
+// ============================================================
+// Checklist item (dùng chung cho BaoDuong, SuaChua)
+// ============================================================
+message ChecklistItem {
+  string id = 1;
+  string field_id = 2;       // DynamicField.id tương ứng
+  string label = 3;          // Tên hạng mục kiểm tra
+  bool is_checked = 4;
+  ChecklistResult result = 5;
+  google.protobuf.StringValue note = 6;
+}
+
+// ============================================================
+// Part replacement (dùng chung cho BaoDuong, SuaChua)
+// ============================================================
+message PhuTungThayThe {
+  string id = 1;
+  string ten_phu_tung = 2;
+  string ma_phu_tung = 3;
+  int32 so_luong = 4;
+  string nguon_cap = 5;       // Kho đơn vị | Cấp trên cấp | Mua ngoài
+  google.protobuf.StringValue ghi_chu = 6;
+}
+
+// ============================================================
+// Signature / approval
+// ============================================================
+message SignatureBlock {
+  string role = 1;            // "Kỹ thuật viên", "Trợ lý KT", "Chỉ huy đơn vị"
+  google.protobuf.StringValue signed_by = 2;
+  google.protobuf.Timestamp signed_at = 3;
+}
+
+// ============================================================
+// Base log record — trường chung cho tất cả 5 loại log
+// ============================================================
+message TrangBiLog {
+  string id = 1;
+
+  // ── Core identification ───────────────────────────────────
+  LogType log_type = 2;           // Loại nghiệp vụ
+  string id_trang_bi = 3;         // TrangBiNhom1.id hoặc TrangBiNhom2.id
+  string ma_danh_muc = 4;         // DanhMucTrangBi._id (loại trang bị)
+  google.protobuf.StringValue id_chuyen_nganh_kt = 5;
+
+  // ── Equipment info (denormalized for display) ───────────
+  google.protobuf.StringValue ten_trang_bi = 6;
+  google.protobuf.StringValue so_hieu_trang_bi = 7;
+  google.protobuf.StringValue don_vi_chu_quan = 8;
+  google.protobuf.StringValue don_vi_quan_ly = 9;
+  google.protobuf.StringValue id_nhom_dong_bo = 10;
+
+  // ── Scheduling ───────────────────────────────────────────
+  google.protobuf.Timestamp ngay_lap_ke_hoach = 11;
+  google.protobuf.Timestamp ngay_du_kien = 12;
+  google.protobuf.Timestamp ngay_thuc_hien = 13;
+  google.protobuf.Timestamp ngay_hoan_thanh = 14;
+  LogStatus status = 15;
+
+  // ── Technician / personnel ────────────────────────────────
+  google.protobuf.StringValue ktv_chinh = 16;     // Người thực hiện chính
+  google.protobuf.StringValue ktv_tro_ly = 17;    // Trợ lý kỹ thuật
+  google.protobuf.StringValue chi_huy_duyet = 18; // Chỉ huy đơn vị duyệt
+
+  // ── Type-specific fields ────────────────────────────────
+  oneof type_specific {
+    BaoQuanFields bao_quan = 100;
+    BaoDuongFields bao_duong = 101;
+    SuaChuaFields sua_chua = 102;
+    NiemCatFields niem_cat = 103;
+    DieuDongFields dieu_dong = 104;
+  }
+
+  // ── Common audit ─────────────────────────────────────────
+  map<string, string> parameters = 50; // Dynamic field values (key = field key)
+  google.protobuf.StringValue ghi_chu = 51;
+  google.protobuf.StringValue nguoi_tao = 60;
+  google.protobuf.StringValue nguoi_sua = 61;
+  google.protobuf.Timestamp ngay_tao = 62;
+  google.protobuf.Timestamp ngay_sua = 63;
+  int32 version = 64;
+}
+
+// ── Type-specific fields ────────────────────────────────────
+
+message BaoQuanFields {
+  BaoQuanCondition tinh_trang = 1;
+  bool canh_bao_risiko = 2;         // Cảnh báo rủi ro
+  google.protobuf.StringValue ly_do_canh_bao = 3;
+  google.protobuf.Timestamp han_khac_phuc = 4;
+}
+
+message BaoDuongFields {
+  CapBaoDuong cap_bd = 1;
+  int32 chu_ky_ngay = 2;             // Chu kỳ (số ngày)
+  repeated ChecklistItem checklist = 3;
+  repeated PhuTungThayThe phu_tung = 4;
+  google.protobuf.StringValue ket_luan = 5; // Đạt / Đạt có điều kiện / Không đạt
+  google.protobuf.Timestamp ngay_bd_lan_tiep_theo = 6;
+  double thoi_gian_thuc_hien_gio = 7;      // Giờ
+  google.protobuf.StringValue nhan_xet = 8;
+  repeated SignatureBlock signatures = 9;
+}
+
+message SuaChuaFields {
+  MucDoSuaChua muc_do = 1;
+  google.protobuf.StringValue ly_do = 2;     // Lý do sửa chữa
+  google.protobuf.StringValue mo_ta_hong = 3; // Mô tả hỏng hóc
+  repeated ChecklistItem checklist = 4;
+  repeated PhuTungThayThe phu_tung = 5;
+  google.protobuf.StringValue ket_luan = 6;
+  double thoi_gian_thuc_hien_gio = 7;
+  google.protobuf.StringValue nhan_xet = 8;
+  double chi_phi_du_kien = 9;
+  double chi_phi_thuc_te = 10;
+  repeated SignatureBlock signatures = 11;
+}
+
+message NiemCatFields {
+  NiemCatStatus tinh_trang = 1;
+  google.protobuf.StringValue vi_tri = 2;        // Vị trí niêm cất
+  google.protobuf.StringValue ly_do = 3;        // Lý do niêm cất
+  google.protobuf.Timestamp ngay_mo_du_kien = 4;
+  bool canh_bao_het_han = 5;
+  repeated SignatureBlock signatures = 6;
+}
+
+message DieuDongFields {
+  LoaiDieuDong loai = 1;
+  google.protobuf.StringValue don_vi_nhan = 2;   // Đơn vị nhận
+  google.protobuf.StringValue don_vi_bao_giao = 3; // Đơn vị bàn giao
+  google.protobuf.StringValue dia_diem = 4;
+  google.protobuf.Timestamp ngay_bat_dau = 5;
+  google.protobuf.Timestamp ngay_ket_thuc = 6;
+  google.protobuf.StringValue ly_do = 7;
+  google.protobuf.StringValue ghi_chu_ktv = 8;   // Ghi chú kỹ thuật
+  google.protobuf.StringValue bien_ban = 9;       // Số biên bản
+  repeated SignatureBlock signatures = 10;
+}
+
+// ============================================================
+// Summary / Grid item (lightweight view)
+// ============================================================
+message TrangBiLogSummary {
+  string id = 1;
+  LogType log_type = 2;
+  string id_trang_bi = 3;
+  string ten_trang_bi = 4;
+  string so_hieu_trang_bi = 5;
+  string don_vi_chu_quan = 6;
+  LogStatus status = 7;
+  google.protobuf.Timestamp ngay_du_kien = 8;
+  google.protobuf.Timestamp ngay_thuc_hien = 9;
+  google.protobuf.Timestamp ngay_hoan_thanh = 10;
+  string ktv_chinh = 11;
+  google.protobuf.Timestamp ngay_sua = 12;
+  string nguoi_sua = 13;
+}
+
+// ============================================================
+// Calendar view item (daily calendar rendering)
+// ============================================================
+message TrangBiLogCalendarItem {
+  string id = 1;
+  string ten_trang_bi = 2;
+  LogType log_type = 3;
+  LogStatus status = 4;
+  google.protobuf.Timestamp ngay = 5;
+  string ktv_chinh = 6;
+  google.protobuf.StringValue mo_ta = 7;
+}
+
+// ============================================================
+// Technician workload item
+// ============================================================
+message KTVWorkloadItem {
+  string ktv_id = 1;
+  string ten_ktv = 2;
+  int32 tong_nhiem_vu = 3;
+  int32 da_hoan_thanh = 4;
+  int32 con_lai = 5;
+  double tai_phan_cong = 6;  // 0.0 – 1.0
+}
+
+// ============================================================
+// Statistics summary
+// ============================================================
+message LogStats {
+  int32 ke_hoach_thang = 1;
+  int32 da_hoan_thanh = 2;
+  int32 con_lai = 3;
+  double ty_le_hoan_thanh = 4;  // 0.0 – 1.0
+  int32 qua_han = 5;
+  int32 sap_den_han = 6;
+}
+
+// ============================================================
+// Request / Response messages
+// ============================================================
+
+// ── List ──────────────────────────────────────────────────
+message GetListTrangBiLogRequest {
+  LogType log_type = 1;                           // Filter by type
+  google.protobuf.StringValue id_chuyen_nganh_kt = 2;
+  google.protobuf.StringValue id_trang_bi = 3;     // Filter by equipment
+  google.protobuf.StringValue id_nhom_dong_bo = 4;
+  google.protobuf.StringValue search_text = 5;
+  google.protobuf.StringValue status = 6;
+  google.protobuf.StringValue ktv_chinh = 7;
+  // Month / quarter filter
+  int32 year = 8;
+  int32 month = 9;       // 1–12, 0 = all
+  int32 quarter = 10;     // 1–4, 0 = all
+}
+
+message GetListTrangBiLogResponse {
+  repeated TrangBiLogSummary items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── Get single ───────────────────────────────────────────
+message GetTrangBiLogRequest {
+  string id = 1;
+}
+
+message GetTrangBiLogResponse {
+  TrangBiLog item = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── Save ──────────────────────────────────────────────────
+message SaveTrangBiLogRequest {
+  TrangBiLog item = 1;
+}
+
+message SaveTrangBiLogResponse {
+  TrangBiLog item = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── Delete (soft) ─────────────────────────────────────────
+message DeleteTrangBiLogRequest {
+  repeated string ids = 1;
+}
+
+message RestoreTrangBiLogRequest {
+  repeated string ids = 1;
+}
+
+// ── Calendar view ─────────────────────────────────────────
+message GetCalendarLogRequest {
+  LogType log_type = 1;
+  int32 year = 2;
+  int32 month = 3;    // 1–12
+}
+
+message GetCalendarLogResponse {
+  repeated TrangBiLogCalendarItem items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── Technician workload ───────────────────────────────────
+message GetKTVWorkloadRequest {
+  LogType log_type = 1;
+  int32 year = 2;
+  int32 month = 3;
+}
+
+message GetKTVWorkloadResponse {
+  repeated KTVWorkloadItem items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── Stats ─────────────────────────────────────────────────
+message GetLogStatsRequest {
+  LogType log_type = 1;
+  int32 year = 2;
+  int32 month = 3;   // 0 = all months (quarter view)
+  int32 quarter = 4; // 0 = all quarters
+}
+
+message GetLogStatsResponse {
+  LogStats stats = 1;
+  repeated LogStats monthly_stats = 2;  // For quarter view
+  Base.ResponseMeta meta = 3;
+}
+
+// ── Quarter Gantt summary ─────────────────────────────────
+message GanttRow {
+  string id_trang_bi = 1;
+  string ten_trang_bi = 2;
+  string don_vi = 3;
+  LogStatus status_thang_1 = 4;
+  LogStatus status_thang_2 = 5;
+  LogStatus status_thang_3 = 6;
+}
+
+message GetQuarterGanttRequest {
+  LogType log_type = 1;
+  int32 year = 2;
+  int32 quarter = 3; // 1–4
+}
+
+message GetQuarterGanttResponse {
+  repeated GanttRow rows = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── Export ───────────────────────────────────────────────
+message ExportLogRequest {
+  LogType log_type = 1;
+  int32 year = 2;
+  int32 month = 3;
+  int32 quarter = 4;
+  bool download = 5;
+  bool print_to_file = 6;
+}
+
+message ExportLogResponse {
+  Base.RptResponse rpt = 1;
+}
+
+// ── Log by equipment ──────────────────────────────────────
+message GetLogHistoryByTrangBiRequest {
+  string id_trang_bi = 1;
+  LogType log_type = 2;  // 0 = all types
+  int32 limit = 3;
+}
+
+message GetLogHistoryByTrangBiResponse {
+  repeated TrangBiLogSummary items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ── FieldSets by log type ────────────────────────────────────
+// Proxy sang ThamSo.FieldSet, lọc theo loai_nghiep_vu
+message GetFieldSetsByLogTypeRequest {
+  string loai_nghiep_vu = 1; // bao_quan | bao_duong | sua_chua | niem_cat | dieu_dong | all
+}
+
+message GetFieldSetsByLogTypeResponse {
+  repeated ThamSo.FieldSetDetail items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+// ============================================================
+// Service
+// ============================================================
+service TrangBiLogService {
+  // ── CRUD ────────────────────────────────────────────────
+  rpc GetListTrangBiLog(GetListTrangBiLogRequest) returns (GetListTrangBiLogResponse);
+  rpc GetTrangBiLog(GetTrangBiLogRequest) returns (GetTrangBiLogResponse);
+  rpc SaveTrangBiLog(SaveTrangBiLogRequest) returns (SaveTrangBiLogResponse);
+  rpc DeleteTrangBiLog(DeleteTrangBiLogRequest) returns (Base.DeleteBaseResponse);
+  rpc RestoreTrangBiLog(RestoreTrangBiLogRequest) returns (Base.StatusResponse);
+
+  // ── FieldSets by log type ────────────────────────────────
+  rpc GetFieldSetsByLogType(GetFieldSetsByLogTypeRequest) returns (GetFieldSetsByLogTypeResponse);
+
+  // ── Calendar view ───────────────────────────────────────
+  rpc GetCalendarLog(GetCalendarLogRequest) returns (GetCalendarLogResponse);
+
+  // ── Technician workload ─────────────────────────────────
+  rpc GetKTVWorkload(GetKTVWorkloadRequest) returns (GetKTVWorkloadResponse);
+
+  // ── Statistics ─────────────────────────────────────────
+  rpc GetLogStats(GetLogStatsRequest) returns (GetLogStatsResponse);
+
+  // ── Quarter Gantt ──────────────────────────────────────
+  rpc GetQuarterGantt(GetQuarterGanttRequest) returns (GetQuarterGanttResponse);
+
+  // ── Equipment log history ────────────────────────────────
+  rpc GetLogHistoryByTrangBi(GetLogHistoryByTrangBiRequest) returns (GetLogHistoryByTrangBiResponse);
+
+  // ── Export ──────────────────────────────────────────────
+  rpc ExportLog(ExportLogRequest) returns (ExportLogResponse);
+}

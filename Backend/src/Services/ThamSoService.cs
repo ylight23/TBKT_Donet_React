@@ -45,6 +45,11 @@ public class ThamSoServiceImpl(
         fieldSetService.GetListFieldSetsAsync(request);
 
     [Authorize]
+    public override Task<GetFieldSetsByMaDanhMucResponse> GetFieldSetsByMaDanhMuc(
+        GetFieldSetsByMaDanhMucRequest request, ServerCallContext context) =>
+        fieldSetService.GetFieldSetsByMaDanhMucAsync(request);
+
+    [Authorize]
     public override Task<SaveFieldSetResponse> SaveFieldSet(
         SaveFieldSetRequest request, ServerCallContext context) =>
         fieldSetService.SaveFieldSetAsync(request, context);

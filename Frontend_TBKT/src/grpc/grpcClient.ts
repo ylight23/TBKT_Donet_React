@@ -10,6 +10,8 @@ import { PhanQuyenService } from "./generated/PhanQuyen_pb";
 import { DanhMucChuyenNganhService } from "./generated/DanhMucChuyenNganh_pb";
 import { DanhMucTrangBiService } from "./generated/DanhMucTrangBi_pb";
 import { FileTransferService } from "./generated/FileTransfer_pb";
+import { TrangBiLogService } from "./generated/TrangBiLog_pb";
+
 
 // =====================
 // Auth interceptor
@@ -70,3 +72,5 @@ export const danhmucChuyenNganhClient = createClient(DanhMucChuyenNganhService, 
 export const danhMucTrangBiClient = createClient(DanhMucTrangBiService, transport);
 
 export const fileTransferClient = createClient(FileTransferService, transport);
+
+export const trangBiLogClient = createClient(TrangBiLogService, transport);

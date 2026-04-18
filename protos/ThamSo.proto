@@ -21,6 +21,7 @@ service ThamSoService {
 
   // FieldSet
   rpc GetListFieldSets(GetListFieldSetsRequest) returns (GetListFieldSetsResponse);
+  rpc GetFieldSetsByMaDanhMuc(GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
   rpc SaveFieldSet(SaveFieldSetRequest) returns (SaveFieldSetResponse);
   rpc DeleteFieldSet(DeleteFieldSetRequest) returns (Base.DeleteBaseResponse);
   rpc RestoreFieldSet(RestoreFieldSetRequest) returns (Base.StatusResponse);
@@ -140,6 +141,9 @@ message FieldSet {
   repeated string field_ids = 6;   // reference by ID, not embedded
   reserved 7; // was: delete
   repeated string ma_danh_muc_trang_bi = 8; // _id DanhMucTrangBi mà FieldSet này áp dụng (ví dụ: "B.1.00.00.00.00.000")
+  // loai_nghiep_vu: gán FieldSet cho nghiệp vụ cụ thể (bao_quan|bao_duong|sua_chua|niem_cat|dieu_dong)
+  // Nếu rỗng hoặc "all" thì áp dụng chung cho mọi nghiệp vụ
+  string loai_nghiep_vu = 9;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
   string create_by = 12;
@@ -149,6 +153,15 @@ message FieldSet {
 
 message GetListFieldSetsRequest {}
 message GetListFieldSetsResponse {
+  repeated FieldSetDetail items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+message GetFieldSetsByMaDanhMucRequest {
+  string ma_danh_muc = 1; // _id cua DanhMucTrangBi (prefix match)
+}
+
+message GetFieldSetsByMaDanhMucResponse {
   repeated FieldSetDetail items = 1;
   Base.ResponseMeta meta = 2;
 }

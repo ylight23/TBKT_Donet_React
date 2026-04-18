@@ -6,8 +6,12 @@ import {
     Button,
     Chip,
     CircularProgress,
+    FormControl,
     Grid,
+    InputLabel,
+    MenuItem,
     Paper,
+    Select,
     Stack,
     TextField,
     Tooltip,
@@ -29,6 +33,17 @@ import { SET_COLORS, HEX_COLOR_REGEX, COLOR_COMMIT_DEBOUNCE_MS } from '../consta
 import { FieldSet } from '../types';
 import IconPickerPopover from './IconPickerPopover';
 import FieldSelectionPanel from './FieldSelectionPanel';
+
+// ─── LoaiNghiepVu options ───────────────────────────────────
+export const LOAI_NGHIEP_VU_OPTIONS = [
+    { value: '', label: '(Không gán — áp dụng chung)' },
+    { value: 'bao_quan', label: 'Bảo quản' },
+    { value: 'bao_duong', label: 'Bảo dưỡng' },
+    { value: 'sua_chua', label: 'Sửa chữa' },
+    { value: 'niem_cat', label: 'Niêm cất' },
+    { value: 'dieu_dong', label: 'Điều động' },
+    { value: 'all', label: 'Tất cả nghiệp vụ' },
+] as const;
 
 interface FieldSetEditorDialogProps {
     open: boolean;
@@ -53,6 +68,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
     const [selectedIds, setSelectedIds] = useState<string[]>([...setData.fieldIds]);
     const [fieldSearch, setFieldSearch] = useState('');
     const [maDanhMucTrangBi, setMaDanhMucTrangBi] = useState<string[]>(setData.maDanhMucTrangBi ?? []);
+    const [loaiNghiepVu, setLoaiNghiepVu] = useState<string>(setData.loaiNghiepVu ?? '');
     const [danhMucLabels, setDanhMucLabels] = useState<Record<string, string>>({});
     const [loadingDanhMucLabels, setLoadingDanhMucLabels] = useState(false);
     const [generalCollapsed, setGeneralCollapsed] = useState(false);
@@ -88,6 +104,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         setSelectedIds([...setData.fieldIds]);
         setFieldSearch('');
         setMaDanhMucTrangBi(setData.maDanhMucTrangBi ?? []);
+        setLoaiNghiepVu(setData.loaiNghiepVu ?? '');
         setDanhMucLabels({});
         setGeneralCollapsed(false);
         setCategoryCollapsed(true);
@@ -219,6 +236,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
             icon: iconNode,
             fieldIds: [...new Set(selectedIds)],
             maDanhMucTrangBi: maDanhMucTrangBi.length > 0 ? [...maDanhMucTrangBi] : undefined,
+            loaiNghiepVu: loaiNghiepVu || undefined,
         });
     };
 
@@ -361,6 +379,24 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     rows={2}
                                     placeholder="Bo du lieu nay dung de lam gi..."
                                 />
+
+                                {/* Loai nghiệp vụ selector */}
+                                <FormControl fullWidth size="small">
+                                    <InputLabel id="loai-nv-label">Nghiệp vụ áp dụng</InputLabel>
+                                    <Select
+                                        labelId="loai-nv-label"
+                                        label="Nghiệp vụ áp dụng"
+                                        value={loaiNghiepVu}
+                                        onChange={(e) => setLoaiNghiepVu(e.target.value)}
+                                        sx={{ fontWeight: 600 }}
+                                    >
+                                        {LOAI_NGHIEP_VU_OPTIONS.map((opt) => (
+                                            <MenuItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
 
                                 {/* Icon picker button */}
                                 <Button

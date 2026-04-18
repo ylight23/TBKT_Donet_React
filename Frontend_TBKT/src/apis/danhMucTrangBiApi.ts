@@ -7,8 +7,8 @@ import {
     TrangBiTreeListRequestSchema,
     TrangBiTreeSchema,
     SaveTrangBiTreeRequestSchema,
-    GetFieldSetsByMaDanhMucRequestSchema,
 } from '../grpc/generated/DanhMucTrangBi_pb';
+import { GetFieldSetsByMaDanhMucRequestSchema } from '../grpc/generated/ThamSo_pb';
 import { create as createEf } from '@bufbuild/protobuf';
 import { ExtendedFieldSchema } from '../grpc/generated/ExtendedField_pb';
 import { listDanhMucChuyenNganh } from './danhmucChuyenNganhApi';
