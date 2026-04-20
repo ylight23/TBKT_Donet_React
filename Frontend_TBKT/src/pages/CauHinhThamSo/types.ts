@@ -19,12 +19,12 @@ export interface FieldValidation {
 export interface FieldSet {
     id: string;
     name: string;
+    key?: string;
     icon: React.ReactNode;
     color: string;
     desc?: string;
     fieldIds: string[];
     maDanhMucTrangBi?: string[];
-    loaiNghiepVu?: string; // bao_quan | bao_duong | sua_chua | niem_cat | dieu_dong | all
     fields?: LocalDynamicField[];
 }
 

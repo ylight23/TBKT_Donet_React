@@ -21,6 +21,7 @@ service ThamSoService {
 
   // FieldSet
   rpc GetListFieldSets(GetListFieldSetsRequest) returns (GetListFieldSetsResponse);
+  rpc GetFieldSetsByKey(GetFieldSetsByKeyRequest) returns (GetFieldSetsByKeyResponse);
   rpc GetFieldSetsByMaDanhMuc(GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
   rpc SaveFieldSet(SaveFieldSetRequest) returns (SaveFieldSetResponse);
   rpc DeleteFieldSet(DeleteFieldSetRequest) returns (Base.DeleteBaseResponse);
@@ -135,6 +136,7 @@ message RestoreDynamicFieldRequest {
 message FieldSet {
   string id = 1;
   string name = 2;
+  string key = 15;
   string icon = 3; // MUI icon name, e.g. "Assignment", "Shield"
   string color = 4;
   string desc = 5;
@@ -153,6 +155,15 @@ message FieldSet {
 
 message GetListFieldSetsRequest {}
 message GetListFieldSetsResponse {
+  repeated FieldSetDetail items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+message GetFieldSetsByKeyRequest {
+  string key = 1;
+}
+
+message GetFieldSetsByKeyResponse {
   repeated FieldSetDetail items = 1;
   Base.ResponseMeta meta = 2;
 }

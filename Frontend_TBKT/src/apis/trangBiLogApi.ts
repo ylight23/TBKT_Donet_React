@@ -134,12 +134,12 @@ export interface LocalFieldSetDetail {
     fieldSet: {
         id: string;
         name: string;
+        key?: string;
         icon: string;
         color: string;
         desc?: string;
         fieldIds: string[];
         maDanhMucTrangBi: string[];
-        loaiNghiepVu?: string;
     };
     fields: Array<{
         id: string;
@@ -415,12 +415,12 @@ export async function getFieldSetsByLogType(loaiNv: string): Promise<LocalFieldS
         fieldSet: {
             id: item.fieldSet?.id ?? '',
             name: item.fieldSet?.name ?? '',
+            key: item.fieldSet?.key || undefined,
             icon: item.fieldSet?.icon ?? '',
             color: item.fieldSet?.color ?? '',
             desc: item.fieldSet?.desc || undefined,
             fieldIds: [...(item.fieldSet?.fieldIds ?? [])],
             maDanhMucTrangBi: [...(item.fieldSet?.maDanhMucTrangBi ?? [])],
-            loaiNghiepVu: item.fieldSet?.loaiNghiepVu || undefined,
         },
         fields: (item.fields ?? []).map((f) => ({
             id: f.id,

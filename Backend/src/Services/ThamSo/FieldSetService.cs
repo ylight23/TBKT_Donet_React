@@ -13,6 +13,17 @@ namespace Backend.Services;
 public class FieldSetService(ILogger<FieldSetService> logger)
 {
     private const string PermissionCode = "thamso_fieldset";
+    private static readonly HashSet<string> AllowedFieldSetKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "trang_bi.thong_tin_chung",
+        "trang_bi.thong_so_ky_thuat",
+        "trang_bi.dong_bo",
+        "trang_bi.bao_quan",
+        "trang_bi.bao_duong",
+        "trang_bi.sua_chua",
+        "trang_bi.niem_cat",
+        "trang_bi.dieu_dong",
+    };
 
     private static string RequiredString(BsonDocument doc, string key)
     {
@@ -33,6 +44,31 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         if (!value.IsString)
             throw new FormatException($"Field '{key}' phai la string.");
         return value.AsString.Trim();
+    }
+
+    private static string NormalizeFieldSetKey(string? value)
+        => (value ?? string.Empty).Trim();
+
+    private static string MapLegacyLoaiNghiepVuToFieldSetKey(string? value)
+    {
+        return (value ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "bao_quan" => "trang_bi.bao_quan",
+            "bao_duong" => "trang_bi.bao_duong",
+            "sua_chua" => "trang_bi.sua_chua",
+            "niem_cat" => "trang_bi.niem_cat",
+            "dieu_dong" => "trang_bi.dieu_dong",
+            _ => string.Empty,
+        };
+    }
+
+    private static string ResolveFieldSetKey(BsonDocument fieldSetDoc)
+    {
+        var directKey = NormalizeFieldSetKey(OptionalStringStrict(fieldSetDoc, "Key"));
+        if (!string.IsNullOrWhiteSpace(directKey))
+            return directKey;
+
+        return MapLegacyLoaiNghiepVuToFieldSetKey(OptionalStringStrict(fieldSetDoc, "LoaiNghiepVu"));
     }
 
     private static bool OptionalBoolStrict(BsonDocument doc, string key)
@@ -211,6 +247,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         {
             Id = fieldSetDoc.IdString(),
             Name = RequiredString(fieldSetDoc, "Name"),
+            Key = ResolveFieldSetKey(fieldSetDoc),
             Icon = OptionalStringStrict(fieldSetDoc, "Icon"),
             Color = OptionalStringStrict(fieldSetDoc, "Color"),
             Desc = OptionalStringStrict(fieldSetDoc, "Desc"),
@@ -319,6 +356,46 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         return response;
     }
 
+    public async Task<GetFieldSetsByKeyResponse> GetFieldSetsByKeyAsync(GetFieldSetsByKeyRequest request)
+    {
+        var response = new GetFieldSetsByKeyResponse();
+        try
+        {
+            var normalizedKey = NormalizeFieldSetKey(request.Key);
+            if (string.IsNullOrWhiteSpace(normalizedKey))
+            {
+                response.Meta = ThamSoResponseFactory.Ok("Khong co key nao duoc truyen");
+                return response;
+            }
+
+            var allResponse = await GetListFieldSetsAsync(new GetListFieldSetsRequest());
+            if (!(allResponse.Meta?.Success ?? false))
+            {
+                response.Meta = allResponse.Meta;
+                return response;
+            }
+
+            foreach (var item in allResponse.Items)
+            {
+                var fieldSetKey = NormalizeFieldSetKey(item.FieldSet?.Key);
+                if (!string.Equals(fieldSetKey, normalizedKey, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                response.Items.Add(item);
+            }
+
+            response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} field set(s) matched by key");
+            logger.LogInformation("GetFieldSetsByKey: {Count} matched for key='{Key}'", response.Items.Count, normalizedKey);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GetFieldSetsByKey error");
+            response.Meta = ThamSoResponseFactory.Fail("Loi khi tra cuu bo du lieu theo key", ex.Message);
+        }
+
+        return response;
+    }
+
     public async Task<SaveFieldSetResponse> SaveFieldSetAsync(SaveFieldSetRequest request, ServerCallContext? context)
     {
         var response = new SaveFieldSetResponse();
@@ -357,6 +434,14 @@ public class FieldSetService(ILogger<FieldSetService> logger)
             }
 
             var isNew = string.IsNullOrWhiteSpace(item.Id);
+            item.Key = NormalizeFieldSetKey(item.Key);
+            item.LoaiNghiepVu = string.Empty;
+            if (!string.IsNullOrWhiteSpace(item.Key) && !AllowedFieldSetKeys.Contains(item.Key))
+            {
+                response.Meta = ThamSoResponseFactory.Fail($"FieldSet.Key khong hop le: {item.Key}");
+                return response;
+            }
+
             if (isNew)
             {
                 item.Id = Guid.NewGuid().ToString();

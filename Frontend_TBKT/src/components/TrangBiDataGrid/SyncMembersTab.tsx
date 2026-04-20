@@ -16,6 +16,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { LocalDynamicField as DynamicField, LocalFieldSet as FieldSet } from '../../types/thamSo';
+import { FieldSetGroup } from './GeneralInfoTab';
 
 import AddIcon from '@mui/icons-material/Add';
 import AddLinkIcon from '@mui/icons-material/AddLink';
@@ -65,6 +67,9 @@ export interface SyncMembersTabProps {
   onRemove: (item: SyncEquipmentItem) => void;
   canAttachToCurrentGroup: (item: SyncEquipmentItem) => boolean;
   buildKey: (item: Pick<SyncEquipmentItem, 'id' | 'nhom'>) => string;
+  dynamicFieldSets?: Array<{ fieldSet: FieldSet; fields: DynamicField[] }>;
+  formData?: Record<string, string>;
+  onFieldChange?: (fieldKey: string, value: string) => void;
 }
 
 // ── Chip màu theo Nhóm ────────────────────────────────────────
@@ -119,6 +124,9 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
   onRemove,
   canAttachToCurrentGroup,
   buildKey,
+  dynamicFieldSets = [],
+  formData = {},
+  onFieldChange,
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -183,6 +191,38 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
 
   return (
     <Stack spacing={1.75}>
+      {dynamicFieldSets.length > 0 && onFieldChange && (
+        <Box
+          sx={{
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : alpha(militaryColors.navy, 0.16)}`,
+            borderRadius: 2,
+            px: 1.5,
+            py: 1.25,
+            bgcolor: isDark ? 'rgba(255,255,255,0.02)' : alpha(militaryColors.navy, 0.012),
+          }}
+        >
+          <Stack spacing={0.4} sx={{ mb: 0.9 }}>
+            <Typography variant="body2" fontWeight={700}>
+              Cấu hình đồng bộ
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Render field động từ FieldSet key `trang_bi.dong_bo`.
+            </Typography>
+          </Stack>
+
+          {dynamicFieldSets.map((item, index) => (
+            <FieldSetGroup
+              key={`${item.fieldSet.id}-${index}`}
+              fieldSet={item.fieldSet}
+              fields={item.fields}
+              formData={formData}
+              onFieldChange={onFieldChange}
+              color={item.fieldSet.color || militaryColors.navy}
+              showSectionHeader
+            />
+          ))}
+        </Box>
+      )}
       {/* ── Header bar ─────────────────────────────────────── */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" spacing={1} useFlexGap>
         <Stack direction="row" alignItems="center" spacing={1}>

@@ -234,6 +234,7 @@ const GeneralInfoTab: React.FC<GeneralInfoTabProps> = ({
           formData={formData}
           onFieldChange={onFieldChange}
           color={item.fieldSet.color || DEFAULT_SET_COLORS[index % DEFAULT_SET_COLORS.length]}
+          showSectionHeader
         />
       ))}
     </>

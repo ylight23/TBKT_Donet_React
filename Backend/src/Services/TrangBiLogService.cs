@@ -16,6 +16,16 @@ public sealed class TrangBiLogServiceImpl(
     : TrangBiLogService.TrangBiLogServiceBase
 {
     private const string CollectionName = "TrangBiLog";
+    private static string MapLoaiNghiepVuToFieldSetKey(string? value)
+        => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "bao_quan" => "trang_bi.bao_quan",
+            "bao_duong" => "trang_bi.bao_duong",
+            "sua_chua" => "trang_bi.sua_chua",
+            "niem_cat" => "trang_bi.niem_cat",
+            "dieu_dong" => "trang_bi.dieu_dong",
+            _ => string.Empty,
+        };
 
     private static IMongoCollection<BsonDocument>? GetCollection()
         => Global.MongoDB?.GetCollection<BsonDocument>(CollectionName);
@@ -327,7 +337,7 @@ public sealed class TrangBiLogServiceImpl(
     }
 
     // ── FieldSets by log type ─────────────────────────────────────────────────
-    // Proxy sang FieldSetService, loc them theo loai_nghiep_vu
+    // Proxy sang FieldSetService, loc theo FieldSet.Key runtime
     public override async Task<GetFieldSetsByLogTypeResponse> GetFieldSetsByLogType(
         GetFieldSetsByLogTypeRequest request, ServerCallContext context)
     {
@@ -342,21 +352,19 @@ public sealed class TrangBiLogServiceImpl(
                 return response;
             }
 
-            var loaiNv = (request.LoaiNghiepVu ?? "").Trim().ToLowerInvariant();
+            var runtimeKey = MapLoaiNghiepVuToFieldSetKey(request.LoaiNghiepVu);
             foreach (var item in allResponse.Items)
             {
-                // Neu loai_nghiep_vu rong hoac "all" → tra ve tat ca
-                // Nguoc lai chi tra ve FieldSet co loai_nghiep_vu khop
-                var fsLoaiNv = (item.FieldSet.LoaiNghiepVu ?? "").Trim().ToLowerInvariant();
-                if (!string.IsNullOrEmpty(loaiNv) && loaiNv != "all" && fsLoaiNv != loaiNv)
+                var fieldSetKey = (item.FieldSet.Key ?? string.Empty).Trim();
+                if (!string.IsNullOrEmpty(runtimeKey) && !string.Equals(fieldSetKey, runtimeKey, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 response.Items.Add(item);
             }
 
             response.Meta = new ResponseMeta { Success = true };
-            logger.LogInformation("GetFieldSetsByLogType: {Count} items for loaiNv='{LoaiNv}'",
-                response.Items.Count, request.LoaiNghiepVu);
+            logger.LogInformation("GetFieldSetsByLogType: {Count} items for key='{FieldSetKey}'",
+                response.Items.Count, runtimeKey);
         }
         catch (Exception ex)
         {

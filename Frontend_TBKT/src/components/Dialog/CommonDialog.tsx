@@ -273,6 +273,7 @@ export const DialogShell: React.FC<DialogShellProps> = ({
                     borderTop: '1px solid',
                     borderColor: 'divider',
                     gap: 1.5,
+                    flexShrink: 0,
                 }}>
                     {actions}
                 </DialogActions>

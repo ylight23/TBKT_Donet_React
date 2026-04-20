@@ -16,10 +16,10 @@ import { militaryColors } from '../theme';
 //  DIALOG PAPER SIZE PRESETS
 // ─────────────────────────────────────────────────────────────────────
 
-/** Dialog form tiêu chuẩn – rộng tối đa 820px */
+/** Dialog form tiêu chuẩn – rộng tối đa 960px, đủ cho form + side panel */
 export const dialogPaperSx = {
   '& .MuiDialog-paper': {
-    width: 'min(820px, calc(100vw - 32px))',
+    width: 'min(960px, calc(100vw - 32px))',
     maxHeight: '90vh',
     height: 'auto',
   },

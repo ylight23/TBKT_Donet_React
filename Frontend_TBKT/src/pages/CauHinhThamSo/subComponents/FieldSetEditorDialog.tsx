@@ -6,12 +6,8 @@ import {
     Button,
     Chip,
     CircularProgress,
-    FormControl,
     Grid,
-    InputLabel,
-    MenuItem,
     Paper,
-    Select,
     Stack,
     TextField,
     Tooltip,
@@ -20,6 +16,7 @@ import {
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { TRANG_BI_FIELD_SET_KEY_OPTIONS } from '../../../constants/fieldSetKeys';
 import type { DanhMucTrangBiTree } from '../../../apis/danhMucTrangBiApi';
 import danhMucTrangBiApi from '../../../apis/danhMucTrangBiApi';
 import DanhMucTrangBiDictionary from '../../DanhMucTrangBi/DanhMucTrangBiDictionary';
@@ -34,17 +31,7 @@ import { FieldSet } from '../types';
 import IconPickerPopover from './IconPickerPopover';
 import FieldSelectionPanel from './FieldSelectionPanel';
 
-// ─── LoaiNghiepVu options ───────────────────────────────────
-export const LOAI_NGHIEP_VU_OPTIONS = [
-    { value: '', label: '(Không gán — áp dụng chung)' },
-    { value: 'bao_quan', label: 'Bảo quản' },
-    { value: 'bao_duong', label: 'Bảo dưỡng' },
-    { value: 'sua_chua', label: 'Sửa chữa' },
-    { value: 'niem_cat', label: 'Niêm cất' },
-    { value: 'dieu_dong', label: 'Điều động' },
-    { value: 'all', label: 'Tất cả nghiệp vụ' },
-] as const;
-
+// FieldSet editor
 interface FieldSetEditorDialogProps {
     open: boolean;
     setData: FieldSet;
@@ -54,6 +41,16 @@ interface FieldSetEditorDialogProps {
 }
 
 const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setData, allFields, onSave, onClose }) => {
+    const normalizeFieldSetSlug = useCallback((value: string): string => (
+        value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .replace(/_+/g, '_')
+    ), []);
+
     const [name, setName] = useState(setData.name);
     const [desc, setDesc] = useState(setData.desc ?? '');
     const [color, setColor] = useState((setData.color || '#3b82f6').toLowerCase());
@@ -67,8 +64,9 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
     });
     const [selectedIds, setSelectedIds] = useState<string[]>([...setData.fieldIds]);
     const [fieldSearch, setFieldSearch] = useState('');
+    const [fieldSetKey, setFieldSetKey] = useState<string>(setData.key ?? '');
+    const [keyManuallyEdited, setKeyManuallyEdited] = useState(Boolean(setData.key));
     const [maDanhMucTrangBi, setMaDanhMucTrangBi] = useState<string[]>(setData.maDanhMucTrangBi ?? []);
-    const [loaiNghiepVu, setLoaiNghiepVu] = useState<string>(setData.loaiNghiepVu ?? '');
     const [danhMucLabels, setDanhMucLabels] = useState<Record<string, string>>({});
     const [loadingDanhMucLabels, setLoadingDanhMucLabels] = useState(false);
     const [generalCollapsed, setGeneralCollapsed] = useState(false);
@@ -103,8 +101,9 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         setIconPickerAnchorEl(null);
         setSelectedIds([...setData.fieldIds]);
         setFieldSearch('');
+        setFieldSetKey(setData.key ?? '');
+        setKeyManuallyEdited(Boolean(setData.key));
         setMaDanhMucTrangBi(setData.maDanhMucTrangBi ?? []);
-        setLoaiNghiepVu(setData.loaiNghiepVu ?? '');
         setDanhMucLabels({});
         setGeneralCollapsed(false);
         setCategoryCollapsed(true);
@@ -183,6 +182,19 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         });
     }, [danhMucLabels, maDanhMucTrangBi, selectedDanhMucSearch]);
 
+    const autoMatchedRuntimeKey = useMemo(() => {
+        const normalizedName = normalizeFieldSetSlug(name);
+        if (!normalizedName) return '';
+
+        return TRANG_BI_FIELD_SET_KEY_OPTIONS.find((option) =>
+            normalizeFieldSetSlug(option.label) === normalizedName)?.value ?? '';
+    }, [name, normalizeFieldSetSlug]);
+
+    useEffect(() => {
+        if (keyManuallyEdited) return;
+        setFieldSetKey(autoMatchedRuntimeKey);
+    }, [autoMatchedRuntimeKey, keyManuallyEdited]);
+
     const toggle = useCallback((fieldId: string) => {
         setSelectedIds((prev) =>
             prev.includes(fieldId) ? prev.filter((id) => id !== fieldId) : [...prev, fieldId],
@@ -231,12 +243,12 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
         onSave({
             ...setData,
             name: name.trim() || '(chua dat ten)',
+            key: fieldSetKey.trim() || undefined,
             desc,
             color: finalColor,
             icon: iconNode,
             fieldIds: [...new Set(selectedIds)],
             maDanhMucTrangBi: maDanhMucTrangBi.length > 0 ? [...maDanhMucTrangBi] : undefined,
-            loaiNghiepVu: loaiNghiepVu || undefined,
         });
     };
 
@@ -291,7 +303,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
             icon={currentIconNode}
             maxWidth="xl"
             sx={{ width: 'min(98vw, 1880px)' }}
-            confirmText={setData.id ? 'Cap nhat ngay' : 'Them bo du lieu'}
+            confirmText={setData.id ? 'Lưu' : 'Thêm'}
             onConfirm={handleSave}
             disabled={!name.trim()}
         >
@@ -380,23 +392,25 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     placeholder="Bo du lieu nay dung de lam gi..."
                                 />
 
-                                {/* Loai nghiệp vụ selector */}
-                                <FormControl fullWidth size="small">
-                                    <InputLabel id="loai-nv-label">Nghiệp vụ áp dụng</InputLabel>
-                                    <Select
-                                        labelId="loai-nv-label"
-                                        label="Nghiệp vụ áp dụng"
-                                        value={loaiNghiepVu}
-                                        onChange={(e) => setLoaiNghiepVu(e.target.value)}
-                                        sx={{ fontWeight: 600 }}
-                                    >
-                                        {LOAI_NGHIEP_VU_OPTIONS.map((opt) => (
-                                            <MenuItem key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Key"
+                                    value={fieldSetKey}
+                                    onChange={(e) => {
+                                        setFieldSetKey(e.target.value);
+                                        setKeyManuallyEdited(true);
+                                    }}
+                                    placeholder="Vi du: trang_bi.thong_tin_chung"
+                                    helperText={autoMatchedRuntimeKey && !keyManuallyEdited
+                                        ? `Tu dong chon theo ten: ${autoMatchedRuntimeKey}`
+                                        : 'FieldSet se duoc truy van theo key nay.'}
+                                    slotProps={{
+                                        htmlInput: {
+                                            spellCheck: 'false',
+                                        },
+                                    }}
+                                />
 
                                 {/* Icon picker button */}
                                 <Button
@@ -696,3 +710,4 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
 };
 
 export default FieldSetEditorDialog;
+

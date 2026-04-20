@@ -11,6 +11,7 @@ import React, {
   useRef,
   lazy,
   Suspense,
+  startTransition,
 } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -22,7 +23,6 @@ import Skeleton from '@mui/material/Skeleton';
 import Tab from '@mui/material/Tab';
 import TabContext from '@mui/lab/TabContext';
 import TabList from '@mui/lab/TabList';
-import TabPanel from '@mui/lab/TabPanel';
 import { useTheme } from '@mui/material/styles';
 
 // Icons
@@ -38,16 +38,16 @@ import HandymanIcon from '@mui/icons-material/Handyman';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
-import { FormDialog } from '../Dialog';
+import { FormDialog, TrangBiLogSidePanel } from '../Dialog';
 import type {
   LocalDynamicField as DynamicField,
   LocalFieldSet as FieldSet,
 } from '../../types/thamSo';
+import { LogType } from '../../types/trangBiLog';
 import {
   createDialogTabsSx,
   dialogActionBtnSx,
   dialogCancelBtnSx,
-  dialogPaperSx,
   dialogPrimaryBtnSx,
   dialogSaveBtnSx,
   dialogTabContentSx,
@@ -60,6 +60,7 @@ import trangBiKiThuatApi, {
 } from '../../apis/trangBiKiThuatApi';
 import thamSoApi from '../../apis/thamSoApi';
 import nhomDongBoApi from '../../apis/nhomDongBoApi';
+import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 
 // ── Lazy-loaded tab components ───────────────────────────────
 const GeneralInfoTab = lazy(() => import('./GeneralInfoTab'));
@@ -93,6 +94,18 @@ const TAB_META = [
 ] as const;
 
 // ── Props ───────────────────────────────────────────────────
+const PRELOADED_FIELDSET_KEYS = [
+  TRANG_BI_FIELD_SET_KEYS.THONG_TIN_CHUNG,
+  TRANG_BI_FIELD_SET_KEYS.DONG_BO,
+  TRANG_BI_FIELD_SET_KEYS.BAO_QUAN,
+  TRANG_BI_FIELD_SET_KEYS.BAO_DUONG,
+  TRANG_BI_FIELD_SET_KEYS.SUA_CHUA,
+  TRANG_BI_FIELD_SET_KEYS.NIEM_CAT,
+  TRANG_BI_FIELD_SET_KEYS.DIEU_DONG,
+] as const;
+
+type FieldSetsByKeyMap = Partial<Record<(typeof PRELOADED_FIELDSET_KEYS)[number], FieldSet[]>>;
+
 interface AddTrangBiDialogProps {
   open: boolean;
   onClose: () => void;
@@ -171,7 +184,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [danhMucError] = useState('');
 
   // Schema nạp từ ThamSo API trực tiếp
-  const [allFieldSets, setAllFieldSets] = useState<FieldSet[]>([]);
+  const [fieldSetsByKey, setFieldSetsByKey] = useState<FieldSetsByKeyMap>({});
   const [allFields, setAllFields] = useState<DynamicField[]>([]);
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState('');
@@ -180,13 +193,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [technicalFieldSets, setTechnicalFieldSets] = useState<FieldSet[]>([]);
   const [technicalLoading, setTechnicalLoading] = useState(false);
   const [technicalError, setTechnicalError] = useState('');
-
-  // FieldSets cho 5 nghiệp vụ log (lọc theo loai_nghiep_vu)
-  const [baoQuanFieldSets, setBaoQuanFieldSets] = useState<FieldSet[]>([]);
-  const [baoDuongFieldSets, setBaoDuongFieldSets] = useState<FieldSet[]>([]);
-  const [suaChuaFieldSets, setSuaChuaFieldSets] = useState<FieldSet[]>([]);
-  const [niemCatFieldSets, setNiemCatFieldSets] = useState<FieldSet[]>([]);
-  const [dieuDongFieldSets, setDieuDongFieldSets] = useState<FieldSet[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -207,6 +213,16 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const categoryFieldKey = 'ma_danh_muc';
   const categoryNameFieldKey = 'ten_danh_muc';
 
+  // ── Log side panel state ────────────────────────────────────
+  const [logPanel, setLogPanel] = useState<{
+    open: boolean;
+    logType: LogType;
+    editingLogId: string | null;
+  }>({ open: false, logType: LogType.BaoQuan, editingLogId: null });
+
+  // Increment this to force tabs to reload their log history
+  const [logHistoryRefreshKey, setLogHistoryRefreshKey] = useState(0);
+
   // TrangBi editor record (extract name for log tabs)
   const trangBiNameForLogs = useMemo(() => {
     const nameField = allFields.find(f =>
@@ -222,26 +238,47 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     return editingRecordId ?? (editorRecord as unknown as { id?: string })?.id ?? '';
   }, [editingRecordId, editorRecord]);
 
-  // ── Derive log-specific FieldSets from allFieldSets ───────────
+  // ── Reset log panel state khi dialog đóng ──────────────────
   useEffect(() => {
-    const filterByLoaiNv = (loaiNv: string): FieldSet[] =>
-      allFieldSets
-        .filter(fs => {
-          const fsLoaiNv = (fs as { loaiNghiepVu?: string }).loaiNghiepVu ?? '';
-          const norm = fsLoaiNv.trim().toLowerCase();
-          if (!norm || norm === 'all') return false; // chỉ lấy FieldSet có gán nghiệp vụ
-          return norm === loaiNv.toLowerCase();
-        });
-
-    setBaoQuanFieldSets(filterByLoaiNv('bao_quan'));
-    setBaoDuongFieldSets(filterByLoaiNv('bao_duong'));
-    setSuaChuaFieldSets(filterByLoaiNv('sua_chua'));
-    setNiemCatFieldSets(filterByLoaiNv('niem_cat'));
-    setDieuDongFieldSets(filterByLoaiNv('dieu_dong'));
-  }, [allFieldSets]);
+    if (open) return;
+    setLogPanel(prev => prev.open ? { ...prev, open: false } : prev);
+  }, [open]);
 
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+
+  const loadPreloadedSchemas = useCallback(async () => {
+    const [fieldsetEntries, fields] = await Promise.all([
+      Promise.all(
+        PRELOADED_FIELDSET_KEYS.map(async (key) => {
+          const sets = await thamSoApi.getFieldSetsByKey(key, { forceRefresh: true });
+          return [key, sets] as const;
+        }),
+      ),
+      thamSoApi.getListDynamicFields({ forceRefresh: true }),
+    ]);
+
+    return {
+      fieldSetsByKey: Object.fromEntries(fieldsetEntries) as FieldSetsByKeyMap,
+      fields,
+    };
+  }, []);
+
+  const loadTechnicalSchemas = useCallback(async (maDanhMuc: string, fetchId: number) => {
+    try {
+      const fieldSets = await danhMucTrangBiApi.getFieldSetsByMaDanhMuc(maDanhMuc);
+      if (technicalFetchRef.current !== fetchId) return;
+      setTechnicalFieldSets(fieldSets);
+    } catch (err) {
+      if (technicalFetchRef.current !== fetchId) return;
+      console.error('[AddTrangBiDialog] fetchTechnicalFieldSets error', err);
+      setTechnicalError(String((err as Error)?.message || 'KhÃ´ng táº£i Ä‘Æ°á»£c thÃ´ng sá»‘ ká»¹ thuáº­t'));
+    } finally {
+      if (technicalFetchRef.current === fetchId) {
+        setTechnicalLoading(false);
+      }
+    }
+  }, []);
 
   // ── Nạp FieldSet và DynamicField khi dialog mở ──────────────
   useEffect(() => {
@@ -249,13 +286,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     let cancelled = false;
     setSchemaLoading(true);
     setSchemaError('');
-    Promise.all([
-      thamSoApi.getListFieldSets(),
-      thamSoApi.getListDynamicFields(),
-    ])
-      .then(([fieldSets, fields]) => {
+    loadPreloadedSchemas()
+      .then(({ fieldSetsByKey: nextFieldSetsByKey, fields }) => {
         if (cancelled) return;
-        setAllFieldSets(fieldSets);
+        setFieldSetsByKey(nextFieldSetsByKey);
         setAllFields(fields);
       })
       .catch((err) => {
@@ -266,13 +300,14 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         if (!cancelled) setSchemaLoading(false);
       });
     return () => { cancelled = true; };
-  }, [open]);
+  }, [loadPreloadedSchemas, open]);
 
   // ── Reset form khi dialog mở ─────────────────────────────────
   useEffect(() => {
     if (open) {
       setActiveTab(TAB_GENERAL);
       setFormData({});
+      setFieldSetsByKey({});
       setTechnicalFieldSets([]);
       setTechnicalLoading(false);
       setTechnicalError('');
@@ -331,7 +366,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   // ── Nạp record để sửa ───────────────────────────────────────
   useEffect(() => {
-    if (!open || !isEditMode || !editingRecordId || !activeMenu || schemaLoading) return;
+    if (!open || !isEditMode || !editingRecordId || !activeMenu) return;
 
     let cancelled = false;
     setRecordLoading(true);
@@ -395,10 +430,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   // ── Nạp FieldSet kỹ thuật khi đổi mã danh mục ──────────────
   useEffect(() => {
+    if (!open) return;
+
     const maDanhMuc = String(selectedCategoryCode ?? '').trim();
     if (!maDanhMuc) {
       setTechnicalFieldSets([]);
       setTechnicalError('');
+      setTechnicalLoading(false);
       return;
     }
 
@@ -406,22 +444,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     setTechnicalLoading(true);
     setTechnicalError('');
 
-    danhMucTrangBiApi.getFieldSetsByMaDanhMuc(maDanhMuc)
-      .then((fieldSets) => {
-        if (technicalFetchRef.current !== fetchId) return;
-        setTechnicalFieldSets(fieldSets);
-      })
-      .catch((err) => {
-        if (technicalFetchRef.current !== fetchId) return;
-        console.error('[AddTrangBiDialog] fetchTechnicalFieldSets error', err);
-        setTechnicalError(String(err?.message || 'Không tải được thông số kỹ thuật'));
-      })
-      .finally(() => {
-        if (technicalFetchRef.current === fetchId) {
-          setTechnicalLoading(false);
-        }
-      });
-  }, [selectedCategoryCode]);
+    void loadTechnicalSchemas(maDanhMuc, fetchId);
+  }, [loadTechnicalSchemas, open, selectedCategoryCode]);
 
   // ── Memoized derived data ────────────────────────────────────
   const applyFieldOverrides = useCallback((fields: DynamicField[]): DynamicField[] => {
@@ -450,15 +474,25 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     });
   }, [categoryFieldKey, resolvedCategoryNameKey, parentFieldKey, specializationFieldKey, nganhFieldKey]);
 
+  const getRuntimeFieldSets = useCallback((key: keyof FieldSetsByKeyMap): FieldSet[] => {
+    return fieldSetsByKey[key] ?? [];
+  }, [fieldSetsByKey]);
+
+  const mapFieldSetsToContent = useCallback((fieldSets: FieldSet[]) => (
+    fieldSets.map((fs) => ({ fieldSet: fs, fields: applyFieldOverrides(fs.fields ?? []) }))
+  ), [applyFieldOverrides]);
+
   const generalTabContent = useMemo(() => (
-    allFieldSets
-      .filter((fs) => !fs.maDanhMucTrangBi?.length)
-      .map((fs) => ({ fieldSet: fs, fields: applyFieldOverrides(fs.fields ?? []) }))
-  ), [allFieldSets, applyFieldOverrides]);
+    mapFieldSetsToContent(getRuntimeFieldSets(TRANG_BI_FIELD_SET_KEYS.THONG_TIN_CHUNG))
+  ), [getRuntimeFieldSets, mapFieldSetsToContent]);
 
   const technicalTabContent = useMemo(() => (
-    technicalFieldSets.map((fs) => ({ fieldSet: fs, fields: applyFieldOverrides(fs.fields ?? []) }))
-  ), [technicalFieldSets, applyFieldOverrides]);
+    mapFieldSetsToContent(technicalFieldSets)
+  ), [technicalFieldSets, mapFieldSetsToContent]);
+
+  const syncTabContent = useMemo(() => (
+    mapFieldSetsToContent(getRuntimeFieldSets(TRANG_BI_FIELD_SET_KEYS.DONG_BO))
+  ), [getRuntimeFieldSets, mapFieldSetsToContent]);
 
   const hasParentField = useMemo(
     () => allFields.some((field) => field.key === parentFieldKey),
@@ -507,6 +541,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
   // ── Sync members loading ─────────────────────────────────────
   useEffect(() => {
+    if (activeTab !== TAB_SYNC) return;
     if (!open || !syncGroupFieldKey) return;
 
     if (!selectedSyncGroupId) {
@@ -554,7 +589,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       });
 
     return () => { cancelled = true; };
-  }, [currentEquipmentId, open, selectedSyncGroupId, syncGroupFieldKey]);
+  }, [activeTab, currentEquipmentId, open, selectedSyncGroupId, syncGroupFieldKey]);
 
   useEffect(() => {
     if (!open || activeTab !== TAB_SYNC) return;
@@ -693,6 +728,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     });
 
     if (fieldKey === categoryFieldKey) {
+      setTechnicalFieldSets([]);
+      setTechnicalError('');
+      setTechnicalLoading(false);
       void syncParentCategoryFields(value);
     }
     if (syncStatusFieldKey && fieldKey === syncStatusFieldKey && value !== 'true') {
@@ -702,7 +740,9 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }, [categoryFieldKey, syncGroupFieldKey, syncParentCategoryFields, syncStatusFieldKey]);
 
   const handleTabChange = useCallback((_event: React.SyntheticEvent, newValue: string) => {
-    setActiveTab(newValue);
+    startTransition(() => {
+      setActiveTab(newValue);
+    });
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -848,6 +888,15 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     onClose,
   ]);
 
+  // ── Log panel helpers ────────────────────────────────────────
+  const openLogPanel = useCallback((logType: LogType, editingLogId: string | null = null) => {
+    setLogPanel({ open: true, logType, editingLogId });
+  }, []);
+
+  const closeLogPanel = useCallback(() => {
+    setLogPanel(prev => ({ ...prev, open: false }));
+  }, []);
+
   // ── Navigation helpers ──────────────────────────────────────
   const isFirstTab = activeTab === TAB_GENERAL;
   const isLastTab = activeTab === TAB_SYNC;
@@ -855,21 +904,27 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const handlePreviousTab = useCallback(() => {
     if (!isFirstTab) {
       const currentIdx = TAB_META.findIndex((t) => t.value === activeTab);
-      setActiveTab(TAB_META[currentIdx - 1].value);
+      startTransition(() => {
+        setActiveTab(TAB_META[currentIdx - 1].value);
+      });
     }
   }, [activeTab, isFirstTab]);
 
   const handleNextTab = useCallback(() => {
     if (!isLastTab) {
       const currentIdx = TAB_META.findIndex((t) => t.value === activeTab);
-      setActiveTab(TAB_META[currentIdx + 1].value);
+      startTransition(() => {
+        setActiveTab(TAB_META[currentIdx + 1].value);
+      });
     }
   }, [activeTab, isLastTab]);
 
   const setColorAccent = '#1a6ab0';
 
   // ── Loading state ───────────────────────────────────────────
-  if (schemaLoading || (isEditMode && (recordLoading || !editorRecord))) {
+  const isBaseFormLoading = schemaLoading || (isEditMode && (recordLoading || !editorRecord));
+
+  if (false) {
     return (
       <FormDialog
         open={open}
@@ -893,19 +948,43 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     );
   }
 
+  const FORM_WIDTH = 520;
+  const LOG_PANEL_WIDTH = 360;
+
+  const dialogWidth = logPanel.open
+    ? FORM_WIDTH + LOG_PANEL_WIDTH
+    : FORM_WIDTH;
+
   return (
     <FormDialog
       open={open}
       onClose={onClose}
       mode={dialogMode}
-      maxWidth="md"
+      maxWidth={false}
+      fullWidth={false}
       title={dialogTitle}
       icon={dialogIcon}
       onConfirm={handleSave}
       confirmText={saveButtonLabel}
       contentPadding={0}
-      sx={dialogPaperSx}
-      contentSx={{ overflow: 'hidden' }}
+      sx={{
+        '& .MuiDialog-paper': {
+          width: dialogWidth,
+          maxWidth: dialogWidth,
+          maxHeight: '90vh',
+          minHeight: 0,
+          height: 'auto',
+          transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+        },
+      }}
+      contentSx={{
+        overflow: 'hidden',
+        p: 0,
+        m: 0,
+        display: 'flex',
+        flex: '1 1 auto',
+        minHeight: 0,
+      }}
       showConfirm={false}
       showCancel={false}
       customActions={(
@@ -913,7 +992,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           <Button
             variant="outlined"
             onClick={handlePreviousTab}
-            disabled={isFirstTab}
+            disabled={isFirstTab || isBaseFormLoading}
             sx={dialogActionBtnSx}
           >
             ← Quay lại
@@ -925,6 +1004,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
             <Button
               variant="outlined"
               onClick={onClose}
+              disabled={saving}
               sx={dialogCancelBtnSx}
             >
               Hủy
@@ -934,6 +1014,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
               <Button
                 variant="contained"
                 onClick={handleNextTab}
+                disabled={isBaseFormLoading}
                 sx={dialogPrimaryBtnSx(setColorAccent)}
               >
                 Tiếp tục →
@@ -942,7 +1023,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
               <Button
                 variant="contained"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || isBaseFormLoading}
                 startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                 sx={dialogSaveBtnSx}
               >
@@ -953,189 +1034,209 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         </>
       )}
     >
-      {/* Error alerts */}
-      {(schemaError || recordError || danhMucError || technicalError || saveError) && (
-        <Box sx={{ px: 2.5, pt: 2, pb: 1.5, display: 'grid', gap: 1 }}>
-          {schemaError && (
-            <Alert severity="warning">{schemaError}</Alert>
-          )}
-          {recordError && (
-            <Alert severity="error" onClose={() => setRecordError('')}>{recordError}</Alert>
-          )}
-          {danhMucError && (
-            <Alert severity="warning">Không tải được danh mục trang bị: {danhMucError}</Alert>
-          )}
-          {technicalError && (
-            <Alert severity="warning">Không tải được thông số kỹ thuật: {technicalError}</Alert>
-          )}
-          {saveError && (
-            <Alert severity="error" onClose={() => setSaveError('')}>{saveError}</Alert>
-          )}
-        </Box>
-      )}
+      {/* ── Flex wrapper: form area + side panel ─────────────── */}
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', width: '100%' }}>
 
-      {/* Tab bar */}
-      <Box sx={dialogTabHeaderSx(isDark)}>
-        <TabContext value={activeTab}>
-          <Box sx={{ borderBottom: 0, display: 'flex', alignItems: 'stretch' }}>
-            <TabList
-              onChange={handleTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={createDialogTabsSx(isDark, setColorAccent)}
-            >
-              {TAB_META.map(({ value, label, Icon }) => {
-                const badgeCount = value === TAB_SYNC ? syncMembers.length : 0;
+        {/* ── Main form area ─────────────────────────────────── */}
+        <Box sx={{ width: FORM_WIDTH, flexShrink: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          {(schemaError || recordError || danhMucError || technicalError || saveError) && (
+            <Box sx={{ px: 2.5, pt: 2, pb: 1.5, display: 'grid', gap: 1 }}>
+              {schemaError && (
+                <Alert severity="warning">{schemaError}</Alert>
+              )}
+              {recordError && (
+                <Alert severity="error" onClose={() => setRecordError('')}>{recordError}</Alert>
+              )}
+              {danhMucError && (
+                <Alert severity="warning">Không tải được danh mục trang bị: {danhMucError}</Alert>
+              )}
+              {technicalError && (
+                <Alert severity="warning">Không tải được thông số kỹ thuật: {technicalError}</Alert>
+              )}
+              {saveError && (
+                <Alert severity="error" onClose={() => setSaveError('')}>{saveError}</Alert>
+              )}
+            </Box>
+          )}
 
-                return (
-                  <Tab
-                    key={value}
-                    value={value}
-                    label={(
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Icon sx={{ fontSize: 15 }} />
-                        <Typography
-                          variant="inherit"
-                          sx={{ fontSize: '0.82rem' }}
-                        >
-                          {label}
-                        </Typography>
-                        {value === TAB_SYNC && badgeCount > 0 && (
-                          <Box
-                            component="span"
-                            sx={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minWidth: 18,
-                              height: 18,
-                              px: 0.6,
-                              borderRadius: '9px',
-                              bgcolor: 'success.main',
-                              color: '#fff',
-                              fontSize: '0.65rem',
-                              fontWeight: 700,
-                              lineHeight: 1,
-                            }}
-                          >
-                            {badgeCount}
+          {/* Tab bar */}
+          <Box sx={dialogTabHeaderSx(isDark)}>
+            <TabContext value={activeTab}>
+              <Box sx={{ borderBottom: 0, display: 'flex', alignItems: 'stretch' }}>
+                <TabList
+                  onChange={handleTabChange}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  sx={createDialogTabsSx(isDark, setColorAccent)}
+                >
+                  {TAB_META.map(({ value, label, Icon }) => {
+                    const badgeCount = value === TAB_SYNC ? syncMembers.length : 0;
+
+                    return (
+                      <Tab
+                        key={value}
+                        value={value}
+                        label={(
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Icon sx={{ fontSize: 15 }} />
+                            <Typography
+                              variant="inherit"
+                              sx={{ fontSize: '0.82rem' }}
+                            >
+                              {label}
+                            </Typography>
+                            {value === TAB_SYNC && badgeCount > 0 && (
+                              <Box
+                                component="span"
+                                sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  minWidth: 18,
+                                  height: 18,
+                                  px: 0.6,
+                                  borderRadius: '9px',
+                                  bgcolor: 'success.main',
+                                  color: '#fff',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  lineHeight: 1,
+                                }}
+                              >
+                                {badgeCount}
+                              </Box>
+                            )}
                           </Box>
                         )}
-                      </Box>
-                    )}
-                  />
-                );
-              })}
-            </TabList>
+                      />
+                    );
+                  })}
+                </TabList>
+              </Box>
+
+              {/* Tab Content area */}
+              <Box sx={dialogTabContentSx(isDark)}>
+                {isBaseFormLoading && <TabSkeleton />}
+
+                {!isBaseFormLoading && activeTab === TAB_GENERAL && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <GeneralInfoTab
+                      generalTabContent={generalTabContent}
+                      formData={formData}
+                      onFieldChange={handleFieldChange}
+                    />
+                  </Suspense>
+                )}
+
+                {!isBaseFormLoading && activeTab === TAB_TECHNICAL && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <TechnicalFieldsTab
+                      technicalTabContent={technicalTabContent}
+                      technicalLoading={technicalLoading}
+                      technicalError={technicalError}
+                      selectedCategoryCode={selectedCategoryCode}
+                      formData={formData}
+                      onFieldChange={handleFieldChange}
+                    />
+                  </Suspense>
+                )}
+
+                {!isBaseFormLoading && activeTab === TAB_SYNC && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <SyncMembersTab
+                      syncSearchText={syncSearchText}
+                      onSearchTextChange={setSyncSearchText}
+                      syncSearchResults={syncSearchResults}
+                      syncSearchLoading={syncSearchLoading}
+                      syncSearchError={syncSearchError}
+                      onClearSearchError={() => setSyncSearchError('')}
+                      syncGroupLoading={syncGroupLoading}
+                      syncGroupMeta={syncGroupMeta}
+                      syncMembers={syncMembers}
+                      selectedSyncMemberKeys={selectedSyncMemberKeys}
+                      onAdd={handleAddSyncMember}
+                      onRemove={handleRemoveSyncMember}
+                      canAttachToCurrentGroup={canAttachToCurrentGroup}
+                      buildKey={buildSyncEquipmentKey}
+                      dynamicFieldSets={syncTabContent}
+                      formData={formData}
+                      onFieldChange={handleFieldChange}
+                    />
+                  </Suspense>
+                )}
+
+                {activeTab === TAB_BAO_QUAN && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <BaoQuanTab
+                      trangBiId={trangBiIdForLogs}
+                      trangBiName={trangBiNameForLogs}
+                      onOpenLogPanel={(editingId) => openLogPanel(LogType.BaoQuan, editingId)}
+                      refreshKey={logHistoryRefreshKey}
+                    />
+                  </Suspense>
+                )}
+
+                {activeTab === TAB_BAO_DUONG && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <BaoDuongTab
+                      trangBiId={trangBiIdForLogs}
+                      trangBiName={trangBiNameForLogs}
+                      onOpenLogPanel={(editingId) => openLogPanel(LogType.BaoDuong, editingId)}
+                      refreshKey={logHistoryRefreshKey}
+                    />
+                  </Suspense>
+                )}
+
+                {activeTab === TAB_SUA_CHUA && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <SuaChuaTab
+                      trangBiId={trangBiIdForLogs}
+                      trangBiName={trangBiNameForLogs}
+                      onOpenLogPanel={(editingId) => openLogPanel(LogType.SuaChua, editingId)}
+                      refreshKey={logHistoryRefreshKey}
+                    />
+                  </Suspense>
+                )}
+
+                {activeTab === TAB_NIEM_CAT && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <NiemCatTab
+                      trangBiId={trangBiIdForLogs}
+                      trangBiName={trangBiNameForLogs}
+                      onOpenLogPanel={(editingId) => openLogPanel(LogType.NiemCat, editingId)}
+                      refreshKey={logHistoryRefreshKey}
+                    />
+                  </Suspense>
+                )}
+
+                {activeTab === TAB_DIEU_DONG && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <DieuDongTab
+                      trangBiId={trangBiIdForLogs}
+                      trangBiName={trangBiNameForLogs}
+                      onOpenLogPanel={(editingId) => openLogPanel(LogType.DieuDong, editingId)}
+                      refreshKey={logHistoryRefreshKey}
+                    />
+                  </Suspense>
+                )}
+              </Box>
+            </TabContext>
           </Box>
+        </Box>
 
-          {/* Tab Content area */}
-          <Box sx={dialogTabContentSx(isDark)}>
-            <TabPanel value={TAB_GENERAL} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <GeneralInfoTab
-                  generalTabContent={generalTabContent}
-                  formData={formData}
-                  onFieldChange={handleFieldChange}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_TECHNICAL} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <TechnicalFieldsTab
-                  technicalTabContent={technicalTabContent}
-                  technicalLoading={technicalLoading}
-                  technicalError={technicalError}
-                  selectedCategoryCode={selectedCategoryCode}
-                  formData={formData}
-                  onFieldChange={handleFieldChange}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_SYNC} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <SyncMembersTab
-                  syncSearchText={syncSearchText}
-                  onSearchTextChange={setSyncSearchText}
-                  syncSearchResults={syncSearchResults}
-                  syncSearchLoading={syncSearchLoading}
-                  syncSearchError={syncSearchError}
-                  onClearSearchError={() => setSyncSearchError('')}
-                  syncGroupLoading={syncGroupLoading}
-                  syncGroupMeta={syncGroupMeta}
-                  syncMembers={syncMembers}
-                  selectedSyncMemberKeys={selectedSyncMemberKeys}
-                  onAdd={handleAddSyncMember}
-                  onRemove={handleRemoveSyncMember}
-                  canAttachToCurrentGroup={canAttachToCurrentGroup}
-                  buildKey={buildSyncEquipmentKey}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_BAO_QUAN} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <BaoQuanTab
-                  trangBiId={trangBiIdForLogs}
-                  trangBiName={trangBiNameForLogs}
-                  fieldSets={baoQuanFieldSets}
-                  formData={formData}
-                  onFieldChange={(key, value) => setFormData(prev => ({ ...prev, [key]: value }))}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_BAO_DUONG} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <BaoDuongTab
-                  trangBiId={trangBiIdForLogs}
-                  trangBiName={trangBiNameForLogs}
-                  fieldSets={baoDuongFieldSets}
-                  formData={formData}
-                  onFieldChange={(key, value) => setFormData(prev => ({ ...prev, [key]: value }))}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_SUA_CHUA} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <SuaChuaTab
-                  trangBiId={trangBiIdForLogs}
-                  trangBiName={trangBiNameForLogs}
-                  fieldSets={suaChuaFieldSets}
-                  formData={formData}
-                  onFieldChange={(key, value) => setFormData(prev => ({ ...prev, [key]: value }))}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_NIEM_CAT} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <NiemCatTab
-                  trangBiId={trangBiIdForLogs}
-                  trangBiName={trangBiNameForLogs}
-                  fieldSets={niemCatFieldSets}
-                  formData={formData}
-                  onFieldChange={(key, value) => setFormData(prev => ({ ...prev, [key]: value }))}
-                />
-              </Suspense>
-            </TabPanel>
-
-            <TabPanel value={TAB_DIEU_DONG} sx={{ p: 0 }}>
-              <Suspense fallback={<TabSkeleton />}>
-                <DieuDongTab
-                  trangBiId={trangBiIdForLogs}
-                  trangBiName={trangBiNameForLogs}
-                  fieldSets={dieuDongFieldSets}
-                  formData={formData}
-                  onFieldChange={(key, value) => setFormData(prev => ({ ...prev, [key]: value }))}
-                />
-              </Suspense>
-            </TabPanel>
-          </Box>
-        </TabContext>
+        {/* ── Side panel (only mounted when open) ───────────────── */}
+        {logPanel.open && (
+          <TrangBiLogSidePanel
+            open={logPanel.open}
+            onClose={closeLogPanel}
+            logType={logPanel.logType}
+            trangBiId={trangBiIdForLogs}
+            trangBiName={trangBiNameForLogs}
+            editingLogId={logPanel.editingLogId}
+            onSaved={() => setLogHistoryRefreshKey(k => k + 1)}
+            width={LOG_PANEL_WIDTH}
+          />
+        )}
       </Box>
     </FormDialog>
   );

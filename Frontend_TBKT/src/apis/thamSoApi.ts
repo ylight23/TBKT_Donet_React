@@ -10,6 +10,7 @@ import {
     FieldValidationSchema,
 
     GetListFieldSetsRequestSchema,
+    GetFieldSetsByKeyRequestSchema,
     SaveFieldSetRequestSchema,
     DeleteFieldSetRequestSchema,
     RestoreFieldSetRequestSchema,
@@ -110,12 +111,12 @@ export interface LocalDynamicField {
 export interface LocalFieldSet {
     id: string;
     name: string;
+    key?: string;
     icon: string;        // MUI icon name, e.g. "Shield"
     color: string;
     desc?: string;
     fieldIds: string[];
     maDanhMucTrangBi?: string[];  // _id DanhMucTrangBi mà FieldSet này áp dụng
-    loaiNghiepVu?: string;         // bao_quan | bao_duong | sua_chua | niem_cat | dieu_dong | all
     fields?: LocalDynamicField[];
     audit?: LocalAuditMetadata;
 }
@@ -221,6 +222,19 @@ type RuntimeFormSchema = { formConfig: LocalFormConfig | null; fieldSets: LocalF
 const runtimeFormSchemaCache = new Map<string, RuntimeFormSchema>();
 const runtimeFormSchemaPending = new Map<string, Promise<RuntimeFormSchema>>();
 
+// ── Global caches for heavy list operations ──────────────────
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+interface CacheEntry<T> { data: T; timestamp: number; }
+function isCacheValid<T>(entry: CacheEntry<T> | null): boolean {
+    return entry !== null && (Date.now() - entry.timestamp) < CACHE_TTL_MS;
+}
+let fieldSetsCache: CacheEntry<LocalFieldSet[]> | null = null;
+let fieldsCache: CacheEntry<LocalDynamicField[]> | null = null;
+const fieldSetsPending: Map<string, Promise<LocalFieldSet[]>> = new Map();
+const fieldsPending: Map<string, Promise<LocalDynamicField[]>> = new Map();
+const fieldSetsByKeyCache = new Map<string, CacheEntry<LocalFieldSet[]>>();
+const fieldSetsByKeyPending = new Map<string, Promise<LocalFieldSet[]>>();
+
 export function invalidateRuntimeFormSchemaCache(key?: string, activeMenu = ''): void {
     if (!key) {
         runtimeFormSchemaCache.clear();
@@ -321,13 +335,12 @@ function protoSetToLocal(s: FieldSetProto): LocalFieldSet {
     return {
         id: s.id,
         name: s.name,
+        key: s.key || undefined,
         icon: s.icon,
         color: s.color,
         desc: s.desc,
         fieldIds: [...s.fieldIds],
         maDanhMucTrangBi: s.maDanhMucTrangBi?.length ? [...s.maDanhMucTrangBi] : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        loaiNghiepVu: (s as any).loaiNghiepVu || undefined,
         audit: mapAuditMetadata(s),
     };
 }
@@ -336,12 +349,12 @@ function localSetToProto(s: LocalFieldSet): any {
     return create(FieldSetSchema, {
         id: s.id,
         name: s.name,
+        key: s.key || '',
         icon: s.icon,
         color: s.color,
         desc: s.desc || '',
         fieldIds: s.fieldIds,
         maDanhMucTrangBi: s.maDanhMucTrangBi ?? [],
-        loaiNghiepVu: s.loaiNghiepVu || '',
     });
 }
 
@@ -509,16 +522,32 @@ function localDynamicMenuDataSourceToProto(item: DataSourceConfig): any {
 // ============================================================
 const thamSoApi = {
     // ── DynamicField ──────────────────────────────────────────
-    async getListDynamicFields(): Promise<LocalDynamicField[]> {
-        try {
-            const request = create(GetListDynamicFieldsRequestSchema, {});
-            const res = await thamSoClient.getListDynamicFields(request);
-            console.log('[thamSoApi] getListDynamicFields:', res.items.length);
-            return res.items.map(protoFieldToLocal);
-        } catch (err) {
-            console.error('[thamSoApi] getListDynamicFields error:', err);
-            throw err;
+    async getListDynamicFields(options?: { forceRefresh?: boolean }): Promise<LocalDynamicField[]> {
+        const cacheKey = 'all';
+        if (!options?.forceRefresh && isCacheValid(fieldsCache)) {
+            return fieldsCache.data;
         }
+        const pending = fieldsPending.get(cacheKey);
+        if (pending) return pending;
+
+        const fetchPromise = (async () => {
+            try {
+                const request = create(GetListDynamicFieldsRequestSchema, {});
+                const res = await thamSoClient.getListDynamicFields(request);
+                console.log('[thamSoApi] getListDynamicFields:', res.items.length);
+                const mapped = res.items.map(protoFieldToLocal);
+                fieldsCache = { data: mapped, timestamp: Date.now() };
+                return mapped;
+            } catch (err) {
+                console.error('[thamSoApi] getListDynamicFields error:', err);
+                throw err;
+            } finally {
+                fieldsPending.delete(cacheKey);
+            }
+        })();
+
+        fieldsPending.set(cacheKey, fetchPromise);
+        return fetchPromise;
     },
 
     async saveDynamicField(field: LocalDynamicField, isNew: boolean): Promise<LocalDynamicField> {
@@ -531,6 +560,7 @@ const thamSoApi = {
             const res = await thamSoClient.saveDynamicField(request);
             if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu trường thất bại');
             console.log('[thamSoApi] saveDynamicField:', res.item.id);
+            fieldsCache = null;
             return protoFieldToLocal(res.item);
         } catch (err) {
             console.error('[thamSoApi] saveDynamicField error:', err);
@@ -543,6 +573,7 @@ const thamSoApi = {
             const request = create(DeleteDynamicFieldRequestSchema, { ids: [id] });
             const res = await thamSoClient.deleteDynamicField(request);
             console.log('[thamSoApi] deleteDynamicField:', res.success);
+            fieldsCache = null;
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteDynamicField error:', err);
@@ -555,6 +586,7 @@ const thamSoApi = {
             const request = create(RestoreDynamicFieldRequestSchema, { ids: [id] });
             const res = await thamSoClient.restoreDynamicField(request);
             console.log('[thamSoApi] restoreDynamicField:', res.success);
+            fieldsCache = null;
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreDynamicField error:', err);
@@ -570,6 +602,7 @@ const thamSoApi = {
                 throw new Error(res.message || 'Xoa vinh vien truong that bai');
             }
             console.log('[thamSoApi] hardDeleteDynamicField:', res.success);
+            fieldsCache = null;
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] hardDeleteDynamicField error:', err);
@@ -578,18 +611,67 @@ const thamSoApi = {
     },
 
     // ── FieldSet ──────────────────────────────────────────────
-    async getListFieldSets(): Promise<LocalFieldSet[]> {
-        try {
-            const request = create(GetListFieldSetsRequestSchema, {});
-            const res = await thamSoClient.getListFieldSets(request);
-            console.log('[thamSoApi] getListFieldSets:', res.items.length);
-            const mapped = res.items.map(protoSetDetailToLocal);
-            assertHydratedFieldSets(mapped, 'getListFieldSets');
-            return mapped;
-        } catch (err) {
-            console.error('[thamSoApi] getListFieldSets error:', err);
-            throw err;
+    async getListFieldSets(options?: { forceRefresh?: boolean }): Promise<LocalFieldSet[]> {
+        const cacheKey = 'all';
+        if (!options?.forceRefresh && isCacheValid(fieldSetsCache)) {
+            return fieldSetsCache.data;
         }
+        const pending = fieldSetsPending.get(cacheKey);
+        if (pending) return pending;
+
+        const fetchPromise = (async () => {
+            try {
+                const request = create(GetListFieldSetsRequestSchema, {});
+                const res = await thamSoClient.getListFieldSets(request);
+                console.log('[thamSoApi] getListFieldSets:', res.items.length);
+                const mapped = res.items.map(protoSetDetailToLocal);
+                assertHydratedFieldSets(mapped, 'getListFieldSets');
+                fieldSetsCache = { data: mapped, timestamp: Date.now() };
+                return mapped;
+            } catch (err) {
+                console.error('[thamSoApi] getListFieldSets error:', err);
+                throw err;
+            } finally {
+                fieldSetsPending.delete(cacheKey);
+            }
+        })();
+
+        fieldSetsPending.set(cacheKey, fetchPromise);
+        return fetchPromise;
+    },
+
+    async getFieldSetsByKey(key: string, options?: { forceRefresh?: boolean }): Promise<LocalFieldSet[]> {
+        const normalizedKey = String(key ?? '').trim();
+        if (!normalizedKey) return [];
+
+        const cacheKey = normalizedKey.toLowerCase();
+        const cached = fieldSetsByKeyCache.get(cacheKey) ?? null;
+        if (!options?.forceRefresh && isCacheValid(cached)) {
+            return cached.data;
+        }
+
+        const pending = fieldSetsByKeyPending.get(cacheKey);
+        if (pending) return pending;
+
+        const fetchPromise = (async () => {
+            try {
+                const request = create(GetFieldSetsByKeyRequestSchema, { key: normalizedKey });
+                const res = await thamSoClient.getFieldSetsByKey(request);
+                console.log('[thamSoApi] getFieldSetsByKey:', normalizedKey, res.items.length);
+                const mapped = res.items.map(protoSetDetailToLocal);
+                assertHydratedFieldSets(mapped, `getFieldSetsByKey:${normalizedKey}`);
+                fieldSetsByKeyCache.set(cacheKey, { data: mapped, timestamp: Date.now() });
+                return mapped;
+            } catch (err) {
+                console.error('[thamSoApi] getFieldSetsByKey error:', err);
+                throw err;
+            } finally {
+                fieldSetsByKeyPending.delete(cacheKey);
+            }
+        })();
+
+        fieldSetsByKeyPending.set(cacheKey, fetchPromise);
+        return fetchPromise;
     },
 
     async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean): Promise<LocalFieldSet> {
@@ -603,6 +685,7 @@ const thamSoApi = {
             if (!res.meta?.success || !res.item) throw new Error(res.meta?.message || 'Lưu bộ dữ liệu thất bại');
             console.log('[thamSoApi] saveFieldSet:', res.item.id);
             runtimeFormSchemaCache.clear();
+            fieldSetsCache = null;
             const hydrated = (await this.getListFieldSets()).find((set) => set.id === res.item!.id);
             if (!hydrated) {
                 throw new Error(`Khong tim thay FieldSet da luu: ${res.item.id}`);
@@ -620,6 +703,7 @@ const thamSoApi = {
             const res = await thamSoClient.deleteFieldSet(request);
             console.log('[thamSoApi] deleteFieldSet:', res.success);
             runtimeFormSchemaCache.clear();
+            fieldSetsCache = null;
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteFieldSet error:', err);
@@ -633,6 +717,7 @@ const thamSoApi = {
             const res = await thamSoClient.restoreFieldSet(request);
             console.log('[thamSoApi] restoreFieldSet:', res.success);
             runtimeFormSchemaCache.clear();
+            fieldSetsCache = null;
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreFieldSet error:', err);
@@ -1109,6 +1194,17 @@ const thamSoApi = {
             };
         } catch (err) {
             console.error('[thamSoApi] discoverCollectionFields error:', err);
+            throw err;
+        }
+    },
+
+    // ── TrangBiLog FieldSets by log type ───────────────────────
+    async getFieldSetsByLogType(loaiNghiepVu: string): Promise<LocalFieldSetDetail[]> {
+        try {
+            const { getFieldSetsByLogType } = await import('../apis/trangBiLogApi');
+            return await getFieldSetsByLogType(loaiNghiepVu);
+        } catch (err) {
+            console.error('[thamSoApi] getFieldSetsByLogType error:', err);
             throw err;
         }
     },

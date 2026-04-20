@@ -23,16 +23,13 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
 
+import { getTrangBiFieldSetLabel } from '../../../constants/fieldSetKeys';
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 import { nameToIcon } from '../../../utils/thamSoUtils';
 import { FieldSet } from '../types';
 import { typeOf } from '../utils';
 import FieldSetEditorDialog from './FieldSetEditorDialog';
-import { LOAI_NGHIEP_VU_OPTIONS } from './FieldSetEditorDialog';
-
-const LOAI_NGHIEP_VU_DISPLAY: Record<string, string> = {};
-LOAI_NGHIEP_VU_OPTIONS.forEach(o => { LOAI_NGHIEP_VU_DISPLAY[o.value] = o.label; });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -75,7 +72,10 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
         () => {
             const lower = deferredSearch.toLowerCase().trim();
             if (!lower) return fieldSets;
-            return fieldSets.filter((s) => s.name.toLowerCase().includes(lower) || (s.desc ?? '').toLowerCase().includes(lower));
+            return fieldSets.filter((s) =>
+                s.name.toLowerCase().includes(lower)
+                || (s.key ?? '').toLowerCase().includes(lower)
+                || (s.desc ?? '').toLowerCase().includes(lower));
         },
         [fieldSets, deferredSearch],
     );
@@ -316,10 +316,10 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                                         '& .MuiChip-label': { px: 0.75 },
                                                     }}
                                                 />
-                                                {s.loaiNghiepVu && s.loaiNghiepVu !== 'all' && (
+                                                {s.key && (
                                                     <Chip
                                                         size="small"
-                                                        label={LOAI_NGHIEP_VU_DISPLAY[s.loaiNghiepVu] ?? s.loaiNghiepVu}
+                                                        label={getTrangBiFieldSetLabel(s.key)}
                                                         color="primary"
                                                         sx={{
                                                             height: 20,

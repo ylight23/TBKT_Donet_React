@@ -1,9 +1,7 @@
 // ============================================================
-// Component Tab: NiemCatTab
-// Displays storage/sealing log history + DynamicFields for the equipment.
-// Fields are loaded via FieldSet filtered by loai_nghiep_vu = "niem_cat".
+// NiemCatTab — Nhật ký niêm cất, mở log panel qua callback
 // ============================================================
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     Alert,
     Box,
@@ -12,38 +10,28 @@ import {
     CardContent,
     Chip,
     CircularProgress,
-    Divider,
     IconButton,
     Stack,
     Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { useTheme } from '@mui/material/styles';
 
 import {
     getLogHistoryByTrangBi,
+    deleteTrangBiLog,
     type TrangBiLogSummary,
 } from '../../../apis/trangBiLogApi';
-import {
-    LOG_STATUS_LABELS,
-    LOG_TYPE_LABELS,
-    LogType,
-} from '../../../types/trangBiLog';
-import type { LocalFieldSet as FieldSet } from '../../../types/thamSo';
-import { FieldSetGroup } from '../GeneralInfoTab';
+import { LogType, LOG_STATUS_LABELS, LOG_TYPE_LABELS } from '../../../types/trangBiLog';
 
-interface LogTabProps {
+interface NiemCatTabProps {
     trangBiId: string;
     trangBiName?: string;
-    fieldSets: FieldSet[];
-    formData: Record<string, string>;
-    onFieldChange: (fieldKey: string, value: string) => void;
+    onOpenLogPanel: (editingLogId: string | null) => void;
+    refreshKey?: number;
 }
-
-const DEFAULT_SET_COLORS = ['#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95'];
 
 const STATUS_CHIP_COLORS: Record<number, { bg: string; color: string }> = {
     0: { bg: '#f5f5f5', color: '#757575' },
@@ -53,28 +41,46 @@ const STATUS_CHIP_COLORS: Record<number, { bg: string; color: string }> = {
     4: { bg: '#FCEBEB', color: '#A32D2D' },
 };
 
-const NiemCatTab: React.FC<LogTabProps> = ({
+const NiemCatTab: React.FC<NiemCatTabProps> = ({
     trangBiId,
     trangBiName,
-    fieldSets,
-    formData,
-    onFieldChange,
+    onOpenLogPanel,
+    refreshKey = 0,
 }) => {
     const [items, setItems] = useState<TrangBiLogSummary[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [fieldsExpanded, setFieldsExpanded] = useState(false);
-    const theme = useTheme();
-    const isDark = theme.palette.mode === 'dark';
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    useEffect(() => {
+    const loadHistory = useCallback(() => {
         if (!trangBiId) return;
         setLoading(true);
-        getLogHistoryByTrangBi({ idTrangBi: trangBiId, logType: LogType.NiemCat, limit: 20 })
+        setError(null);
+        getLogHistoryByTrangBi({ idTrangBi: trangBiId, logType: LogType.NiemCat, limit: 50 })
             .then(setItems)
-            .catch(err => setError((err as Error).message))
+            .catch((err) => setError((err as Error).message))
             .finally(() => setLoading(false));
     }, [trangBiId]);
+
+    useEffect(() => {
+        loadHistory();
+    }, [loadHistory, refreshKey]);
+
+    const handleAdd = () => onOpenLogPanel(null);
+    const handleEdit = (logId: string) => onOpenLogPanel(logId);
+
+    const handleDelete = async (logId: string) => {
+        if (!window.confirm('Bạn có chắc muốn xóa nhật ký niêm cất này?')) return;
+        setDeletingId(logId);
+        try {
+            await deleteTrangBiLog([logId]);
+            setItems((prev) => prev.filter((item) => item.id !== logId));
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     const renderStatusBadge = (status: number) => {
         const sc = STATUS_CHIP_COLORS[status] ?? STATUS_CHIP_COLORS[0];
@@ -89,87 +95,7 @@ const NiemCatTab: React.FC<LogTabProps> = ({
 
     return (
         <Box sx={{ p: 1.5 }}>
-            {/* ── DynamicFields section ──────────────────────────── */}
-            {fieldSets.length > 0 && (
-                <Box sx={{ mb: 1.5 }}>
-                    <Box
-                        onClick={() => setFieldsExpanded(prev => !prev)}
-                        sx={{
-                            display: 'flex', alignItems: 'center', gap: 1,
-                            px: 1.5, py: 0.75, cursor: 'pointer', borderRadius: 1.5,
-                            bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                            userSelect: 'none', mb: 1,
-                            border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : theme.palette.divider}`,
-                            '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' },
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                display: 'flex', alignItems: 'center', color: 'text.secondary',
-                                transition: 'transform 0.2s',
-                                transform: fieldsExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                            }}
-                        >
-                            <ChevronRightIcon sx={{ fontSize: 18 }} />
-                        </Box>
-                        <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
-                            Biểu mẫu niêm cất ({fieldSets.length} bộ dữ liệu)
-                        </Typography>
-                        <Chip
-                            label={`${fieldSets.reduce((a, fs) => a + (fs.fields?.length ?? 0), 0)} trường`}
-                            size="small"
-                            sx={{ fontSize: '0.65rem', height: 18 }}
-                        />
-                    </Box>
-
-                    {fieldsExpanded && fieldSets.map((fs, idx) => (
-                        <Box
-                            key={fs.id ?? `niem-cat-fs-${idx}`}
-                            sx={{
-                                mb: 1.5,
-                                border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : theme.palette.divider}`,
-                                borderRadius: 2, overflow: 'hidden',
-                            }}
-                        >
-                            {fs.name && (
-                                <Box
-                                    sx={{
-                                        px: 1.5, py: 0.75,
-                                        bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
-                                        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : theme.palette.divider}`,
-                                    }}
-                                >
-                                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                                        <Box
-                                            sx={{
-                                                width: 3, height: 14, borderRadius: '2px',
-                                                bgcolor: fs.color || DEFAULT_SET_COLORS[idx % DEFAULT_SET_COLORS.length],
-                                            }}
-                                        />
-                                        <Typography variant="caption" fontWeight={700} color="text.secondary">
-                                            {fs.name}
-                                        </Typography>
-                                    </Stack>
-                                </Box>
-                            )}
-                            <Box sx={{ px: 1.5, py: 1 }}>
-                                <FieldSetGroup
-                                    fieldSet={fs}
-                                    fields={fs.fields ?? []}
-                                    formData={formData}
-                                    onFieldChange={onFieldChange}
-                                    color={fs.color || DEFAULT_SET_COLORS[idx % DEFAULT_SET_COLORS.length]}
-                                />
-                            </Box>
-                        </Box>
-                    ))}
-                </Box>
-            )}
-
-            <Divider sx={{ my: 1 }} />
-
-            {/* ── Log history ─────────────────────────────────── */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
                 <Stack direction="row" spacing={1} alignItems="center">
                     <InfoIcon sx={{ fontSize: 16, color: '#7c3aed' }} />
                     <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#7c3aed' }}>
@@ -178,22 +104,50 @@ const NiemCatTab: React.FC<LogTabProps> = ({
                     {trangBiName && (
                         <Typography variant="caption" color="text.secondary">— {trangBiName}</Typography>
                     )}
+                    {items.length > 0 && (
+                        <Chip label={items.length} size="small"
+                            sx={{ fontSize: '0.65rem', height: 18, bgcolor: '#ede9fe', color: '#6d28d9' }} />
+                    )}
                 </Stack>
-                <Button size="small" startIcon={<AddIcon sx={{ fontSize: 14 }} />} variant="outlined"
-                    sx={{ fontSize: '0.72rem', textTransform: 'none' }}>
-                    Thêm niêm cất
-                </Button>
+                {trangBiId && (
+                    <Button
+                        size="small"
+                        startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                        variant="contained"
+                        onClick={handleAdd}
+                        sx={{
+                            fontSize: '0.72rem',
+                            textTransform: 'none',
+                            bgcolor: '#8b5cf6',
+                            '&:hover': { bgcolor: '#7c3aed' },
+                        }}
+                    >
+                        Thêm niêm cất
+                    </Button>
+                )}
             </Stack>
 
-            {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+            {error && (
+                <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError(null)}>
+                    {error}
+                </Alert>
+            )}
+
+            {!trangBiId && (
+                <Alert severity="info" sx={{ mb: 1 }}>
+                    Vui lòng lưu trang bị trước để ghi nhật ký niêm cất.
+                </Alert>
+            )}
 
             {loading ? (
-                <Box sx={{ textAlign: 'center', py: 3 }}><CircularProgress size={24} /></Box>
-            ) : items.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <CircularProgress size={24} />
+                </Box>
+            ) : items.length === 0 && trangBiId ? (
                 <Alert severity="info">Chưa có nhật ký niêm cất cho trang bị này.</Alert>
             ) : (
                 <Stack spacing={0.75}>
-                    {items.map(item => (
+                    {items.map((item) => (
                         <Card key={item.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
                             <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
@@ -218,8 +172,28 @@ const NiemCatTab: React.FC<LogTabProps> = ({
                                         )}
                                     </Box>
                                     <Stack direction="row" spacing={0.5}>
-                                        <IconButton size="small" sx={{ p: 0.25 }}><InfoIcon sx={{ fontSize: 14 }} /></IconButton>
-                                        <IconButton size="small" color="error" sx={{ p: 0.25 }}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton>
+                                        <IconButton
+                                            size="small"
+                                            sx={{ p: 0.25 }}
+                                            onClick={() => handleEdit(item.id)}
+                                            title="Chỉnh sửa"
+                                        >
+                                            <EditIcon sx={{ fontSize: 14 }} />
+                                        </IconButton>
+                                        <IconButton
+                                            size="small"
+                                            color="error"
+                                            sx={{ p: 0.25 }}
+                                            onClick={() => handleDelete(item.id)}
+                                            disabled={deletingId === item.id}
+                                            title="Xóa"
+                                        >
+                                            {deletingId === item.id ? (
+                                                <CircularProgress size={14} />
+                                            ) : (
+                                                <DeleteIcon sx={{ fontSize: 14 }} />
+                                            )}
+                                        </IconButton>
                                     </Stack>
                                 </Stack>
                             </CardContent>

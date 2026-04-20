@@ -42,18 +42,17 @@ import { OfficeProvider } from '../../context/OfficeContext';
 const mapStoreFieldSetToUi = (fieldSet: LocalFieldSet): FieldSet => ({
   ...fieldSet,
   icon: nameToIcon(fieldSet.icon),
-  loaiNghiepVu: fieldSet.loaiNghiepVu,
 });
 
 const mapUiFieldSetToStore = (fieldSet: FieldSet): LocalFieldSet => ({
   id: fieldSet.id,
   name: fieldSet.name,
+  key: fieldSet.key,
   icon: iconToName(fieldSet.icon),
   color: fieldSet.color,
   desc: fieldSet.desc ?? '',
   fieldIds: fieldSet.fieldIds,
   maDanhMucTrangBi: fieldSet.maDanhMucTrangBi,
-  loaiNghiepVu: fieldSet.loaiNghiepVu,
 });
 
 const replaceFieldIdInFieldSets = (fieldSets: FieldSet[], oldId: string, nextId: string): FieldSet[] => (
