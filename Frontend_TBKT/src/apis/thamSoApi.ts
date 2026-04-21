@@ -11,6 +11,7 @@ import {
 
     GetListFieldSetsRequestSchema,
     GetFieldSetsByKeyRequestSchema,
+    GetFieldSetsByKeysRequestSchema,
     SaveFieldSetRequestSchema,
     DeleteFieldSetRequestSchema,
     RestoreFieldSetRequestSchema,
@@ -96,6 +97,22 @@ export interface LocalAuditMetadata {
     version?: number;
 }
 
+export type LocalGridRenderType = 'text' | 'badge' | 'date' | 'currency' | 'boolean';
+export type LocalGridWidthPreset = 'narrow' | 'medium' | 'wide' | 'xwide';
+
+export interface LocalGridUserConfig {
+    showInGrid?: boolean;
+    displayOrder?: number;
+    displayLabel?: string;
+}
+
+export interface LocalGridTechConfig {
+    renderType?: LocalGridRenderType;
+    widthPreset?: LocalGridWidthPreset;
+    sortable?: boolean;
+    filterable?: boolean;
+}
+
 export interface LocalDynamicField {
     id: string;
     key: string;
@@ -105,6 +122,8 @@ export interface LocalDynamicField {
     disabled?: boolean;
     validation: LocalFieldValidation;
     cnIds?: string[];
+    gridUserConfig?: LocalGridUserConfig;
+    gridTechConfig?: LocalGridTechConfig;
     audit?: LocalAuditMetadata;
 }
 
@@ -234,6 +253,8 @@ const fieldSetsPending: Map<string, Promise<LocalFieldSet[]>> = new Map();
 const fieldsPending: Map<string, Promise<LocalDynamicField[]>> = new Map();
 const fieldSetsByKeyCache = new Map<string, CacheEntry<LocalFieldSet[]>>();
 const fieldSetsByKeyPending = new Map<string, Promise<LocalFieldSet[]>>();
+const fieldSetsByKeysCache = new Map<string, CacheEntry<Record<string, LocalFieldSet[]>>>();
+const fieldSetsByKeysPending = new Map<string, Promise<Record<string, LocalFieldSet[]>>>();
 
 export function invalidateRuntimeFormSchemaCache(key?: string, activeMenu = ''): void {
     if (!key) {
@@ -281,6 +302,40 @@ const mapAuditMetadata = (item: {
     version: item.version || undefined,
 });
 
+const gridRenderTypeFromProto = (value: number | undefined): LocalGridRenderType => {
+    const enumMap = (ThamSoPb as any).GridRenderType;
+    if (value === enumMap?.GRID_RENDER_BADGE) return 'badge';
+    if (value === enumMap?.GRID_RENDER_DATE) return 'date';
+    if (value === enumMap?.GRID_RENDER_CURRENCY) return 'currency';
+    if (value === enumMap?.GRID_RENDER_BOOLEAN) return 'boolean';
+    return 'text';
+};
+
+const gridRenderTypeToProto = (value: LocalGridRenderType | undefined): number => {
+    const enumMap = (ThamSoPb as any).GridRenderType;
+    if (value === 'badge') return enumMap?.GRID_RENDER_BADGE ?? 2;
+    if (value === 'date') return enumMap?.GRID_RENDER_DATE ?? 3;
+    if (value === 'currency') return enumMap?.GRID_RENDER_CURRENCY ?? 4;
+    if (value === 'boolean') return enumMap?.GRID_RENDER_BOOLEAN ?? 5;
+    return enumMap?.GRID_RENDER_TEXT ?? 1;
+};
+
+const gridWidthPresetFromProto = (value: number | undefined): LocalGridWidthPreset => {
+    const enumMap = (ThamSoPb as any).GridWidthPreset;
+    if (value === enumMap?.GRID_WIDTH_NARROW) return 'narrow';
+    if (value === enumMap?.GRID_WIDTH_WIDE) return 'wide';
+    if (value === enumMap?.GRID_WIDTH_XWIDE) return 'xwide';
+    return 'medium';
+};
+
+const gridWidthPresetToProto = (value: LocalGridWidthPreset | undefined): number => {
+    const enumMap = (ThamSoPb as any).GridWidthPreset;
+    if (value === 'narrow') return enumMap?.GRID_WIDTH_NARROW ?? 1;
+    if (value === 'wide') return enumMap?.GRID_WIDTH_WIDE ?? 3;
+    if (value === 'xwide') return enumMap?.GRID_WIDTH_XWIDE ?? 4;
+    return enumMap?.GRID_WIDTH_MEDIUM ?? 2;
+};
+
 // ============================================================
 // Mappers: Proto <-> Local
 // ============================================================
@@ -304,6 +359,17 @@ function protoFieldToLocal(f: DynamicFieldProto): LocalDynamicField {
             displayType: f.validation?.displayType || undefined,
         },
         cnIds: f.cnIds?.length ? [...f.cnIds] : undefined,
+        gridUserConfig: {
+            showInGrid: Boolean(f.gridUserConfig?.showInGrid),
+            displayOrder: f.gridUserConfig?.displayOrder ?? 9999,
+            displayLabel: f.gridUserConfig?.displayLabel || undefined,
+        },
+        gridTechConfig: {
+            renderType: gridRenderTypeFromProto(f.gridTechConfig?.renderType),
+            widthPreset: gridWidthPresetFromProto(f.gridTechConfig?.widthPreset),
+            sortable: f.gridTechConfig?.sortable ?? true,
+            filterable: f.gridTechConfig?.filterable ?? true,
+        },
         audit: mapAuditMetadata(f),
     };
 }
@@ -328,6 +394,17 @@ function localFieldToProto(f: LocalDynamicField): any {
             displayType: f.validation?.displayType ?? '',
         }),
         cnIds: f.cnIds ?? [],
+        gridUserConfig: {
+            showInGrid: Boolean(f.gridUserConfig?.showInGrid),
+            displayOrder: f.gridUserConfig?.displayOrder ?? 9999,
+            displayLabel: f.gridUserConfig?.displayLabel ?? '',
+        },
+        gridTechConfig: {
+            renderType: gridRenderTypeToProto(f.gridTechConfig?.renderType),
+            widthPreset: gridWidthPresetToProto(f.gridTechConfig?.widthPreset),
+            sortable: f.gridTechConfig?.sortable ?? true,
+            filterable: f.gridTechConfig?.filterable ?? true,
+        },
     });
 }
 
@@ -674,6 +751,62 @@ const thamSoApi = {
         return fetchPromise;
     },
 
+    async getFieldSetsByKeys(keys: string[], options?: { forceRefresh?: boolean }): Promise<Record<string, LocalFieldSet[]>> {
+        const normalizedKeys = Array.from(new Set(
+            keys
+                .map((key) => String(key ?? '').trim())
+                .filter(Boolean),
+        ));
+        if (normalizedKeys.length === 0) return {};
+
+        const cacheKey = normalizedKeys
+            .map((key) => key.toLowerCase())
+            .sort()
+            .join('|');
+        const cached = fieldSetsByKeysCache.get(cacheKey) ?? null;
+        if (!options?.forceRefresh && isCacheValid(cached)) {
+            return cached.data;
+        }
+
+        const pending = fieldSetsByKeysPending.get(cacheKey);
+        if (pending) return pending;
+
+        const fetchPromise = (async () => {
+            try {
+                const request = create(GetFieldSetsByKeysRequestSchema, { keys: normalizedKeys });
+                const res = await thamSoClient.getFieldSetsByKeys(request);
+                console.log('[thamSoApi] getFieldSetsByKeys:', normalizedKeys, res.items.length);
+                const mapped: Record<string, LocalFieldSet[]> = {};
+                res.items.forEach((entry) => {
+                    const normalizedEntryKey = String(entry.key ?? '').trim();
+                    if (!normalizedEntryKey) return;
+                    const sets = entry.items.map(protoSetDetailToLocal);
+                    assertHydratedFieldSets(sets, `getFieldSetsByKeys:${normalizedEntryKey}`);
+                    mapped[normalizedEntryKey] = sets;
+                    fieldSetsByKeyCache.set(normalizedEntryKey.toLowerCase(), {
+                        data: sets,
+                        timestamp: Date.now(),
+                    });
+                });
+                normalizedKeys.forEach((key) => {
+                    if (!mapped[key]) {
+                        mapped[key] = [];
+                    }
+                });
+                fieldSetsByKeysCache.set(cacheKey, { data: mapped, timestamp: Date.now() });
+                return mapped;
+            } catch (err) {
+                console.error('[thamSoApi] getFieldSetsByKeys error:', err);
+                throw err;
+            } finally {
+                fieldSetsByKeysPending.delete(cacheKey);
+            }
+        })();
+
+        fieldSetsByKeysPending.set(cacheKey, fetchPromise);
+        return fetchPromise;
+    },
+
     async saveFieldSet(fieldSet: LocalFieldSet, isNew: boolean): Promise<LocalFieldSet> {
         try {
             const proto = localSetToProto(fieldSet);
@@ -686,6 +819,8 @@ const thamSoApi = {
             console.log('[thamSoApi] saveFieldSet:', res.item.id);
             runtimeFormSchemaCache.clear();
             fieldSetsCache = null;
+            fieldSetsByKeyCache.clear();
+            fieldSetsByKeysCache.clear();
             const hydrated = (await this.getListFieldSets()).find((set) => set.id === res.item!.id);
             if (!hydrated) {
                 throw new Error(`Khong tim thay FieldSet da luu: ${res.item.id}`);
@@ -704,6 +839,8 @@ const thamSoApi = {
             console.log('[thamSoApi] deleteFieldSet:', res.success);
             runtimeFormSchemaCache.clear();
             fieldSetsCache = null;
+            fieldSetsByKeyCache.clear();
+            fieldSetsByKeysCache.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] deleteFieldSet error:', err);
@@ -718,6 +855,8 @@ const thamSoApi = {
             console.log('[thamSoApi] restoreFieldSet:', res.success);
             runtimeFormSchemaCache.clear();
             fieldSetsCache = null;
+            fieldSetsByKeyCache.clear();
+            fieldSetsByKeysCache.clear();
             return res.success;
         } catch (err) {
             console.error('[thamSoApi] restoreFieldSet error:', err);

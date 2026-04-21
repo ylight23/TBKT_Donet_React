@@ -10,21 +10,17 @@ import {
     CardContent,
     Chip,
     CircularProgress,
-    IconButton,
     Stack,
     Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { useNavigate } from 'react-router-dom';
 
 import {
-    getLogHistoryByTrangBi,
-    deleteTrangBiLog,
-    type TrangBiLogSummary,
-} from '../../../apis/trangBiLogApi';
-import { LogType, LOG_STATUS_LABELS, LOG_TYPE_LABELS } from '../../../types/trangBiLog';
+    getBaoDuongSchedulesByTrangBi,
+    type LocalBaoDuongScheduleByTrangBiItem,
+} from '../../../apis/baoDuongScheduleApi';
 
 interface BaoDuongTabProps {
     trangBiId: string;
@@ -33,30 +29,22 @@ interface BaoDuongTabProps {
     refreshKey?: number;
 }
 
-const STATUS_CHIP_COLORS: Record<number, { bg: string; color: string }> = {
-    0: { bg: '#f5f5f5', color: '#757575' },
-    1: { bg: '#EAF3DE', color: '#3B6D11' },
-    2: { bg: '#FAEEDA', color: '#854F0B' },
-    3: { bg: '#EEEDFE', color: '#3C3489' },
-    4: { bg: '#FCEBEB', color: '#A32D2D' },
-};
-
 const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
     trangBiId,
     trangBiName,
-    onOpenLogPanel,
+    onOpenLogPanel: _onOpenLogPanel,
     refreshKey = 0,
 }) => {
-    const [items, setItems] = useState<TrangBiLogSummary[]>([]);
+    const navigate = useNavigate();
+    const [items, setItems] = useState<LocalBaoDuongScheduleByTrangBiItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const loadHistory = useCallback(() => {
         if (!trangBiId) return;
         setLoading(true);
         setError(null);
-        getLogHistoryByTrangBi({ idTrangBi: trangBiId, logType: LogType.BaoDuong, limit: 50 })
+        getBaoDuongSchedulesByTrangBi(trangBiId)
             .then(setItems)
             .catch((err) => setError((err as Error).message))
             .finally(() => setLoading(false));
@@ -66,28 +54,34 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
         loadHistory();
     }, [loadHistory, refreshKey]);
 
-    const handleAdd = () => onOpenLogPanel(null);
-    const handleEdit = (logId: string) => onOpenLogPanel(logId);
-
-    const handleDelete = async (logId: string) => {
-        if (!window.confirm('Bạn có chắc muốn xóa nhật ký bảo dưỡng này?')) return;
-        setDeletingId(logId);
-        try {
-            await deleteTrangBiLog([logId]);
-            setItems((prev) => prev.filter((item) => item.id !== logId));
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setDeletingId(null);
-        }
+    const handleOpenMaintenanceMenu = () => {
+        const query = trangBiId ? `?idTrangBi=${encodeURIComponent(trangBiId)}` : '';
+        navigate(`/bao-duong${query}`);
     };
 
-    const renderStatusBadge = (status: number) => {
-        const sc = STATUS_CHIP_COLORS[status] ?? STATUS_CHIP_COLORS[0];
+    const resolveScheduleStatus = (item: LocalBaoDuongScheduleByTrangBiItem): {
+        label: string;
+        bg: string;
+        color: string;
+    } => {
+        const now = Date.now();
+        const start = item.thoiGianThucHien ? new Date(item.thoiGianThucHien).getTime() : NaN;
+        const end = item.thoiGianKetThuc ? new Date(item.thoiGianKetThuc).getTime() : NaN;
+        if (Number.isFinite(end) && end < now) {
+            return { label: 'Qua han', bg: '#FCEBEB', color: '#A32D2D' };
+        }
+        if (Number.isFinite(start) && (!Number.isFinite(end) || end >= now) && start <= now) {
+            return { label: 'Dang thuc hien', bg: '#FAEEDA', color: '#854F0B' };
+        }
+        return { label: 'Sap dien ra', bg: '#EEEDFE', color: '#3C3489' };
+    };
+
+    const renderStatusBadge = (item: LocalBaoDuongScheduleByTrangBiItem) => {
+        const sc = resolveScheduleStatus(item);
         return (
             <Chip
                 size="small"
-                label={LOG_STATUS_LABELS[status as keyof typeof LOG_STATUS_LABELS] ?? ''}
+                label={sc.label}
                 sx={{ bgcolor: sc.bg, color: sc.color, fontWeight: 600, fontSize: '0.65rem', height: 18 }}
             />
         );
@@ -112,9 +106,9 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
                 {trangBiId && (
                     <Button
                         size="small"
-                        startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                        startIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
                         variant="contained"
-                        onClick={handleAdd}
+                        onClick={handleOpenMaintenanceMenu}
                         sx={{
                             fontSize: '0.72rem',
                             textTransform: 'none',
@@ -122,7 +116,7 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
                             '&:hover': { bgcolor: '#2563eb' },
                         }}
                     >
-                        Thêm bảo dưỡng
+                        Mở menu Bảo dưỡng
                     </Button>
                 )}
             </Stack>
@@ -154,47 +148,23 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
                                             <Typography variant="caption" fontWeight={700} color="text.secondary">
-                                                {item.ngayThucHien
-                                                    ? new Date(item.ngayThucHien).toLocaleDateString('vi-VN')
-                                                    : item.ngayDuKien
-                                                        ? new Date(item.ngayDuKien).toLocaleDateString('vi-VN')
+                                                {item.thoiGianThucHien
+                                                    ? new Date(item.thoiGianThucHien).toLocaleDateString('vi-VN')
+                                                    : item.thoiGianLap
+                                                        ? new Date(item.thoiGianLap).toLocaleDateString('vi-VN')
                                                         : '—'}
                                             </Typography>
-                                            {renderStatusBadge(item.status)}
+                                            {renderStatusBadge(item)}
                                         </Stack>
                                         <Typography variant="body2" fontWeight={600} noWrap>
-                                            {LOG_TYPE_LABELS[LogType.BaoDuong]}
+                                            {item.tenLichBaoDuong || 'Lich bao duong'}
                                         </Typography>
-                                        {item.ktvChinh && (
+                                        {item.nguoiPhuTrach && (
                                             <Typography variant="caption" color="text.secondary">
-                                                KTV: {item.ktvChinh}
+                                                Nguoi phu trach: {item.nguoiPhuTrach}
                                             </Typography>
                                         )}
                                     </Box>
-                                    <Stack direction="row" spacing={0.5}>
-                                        <IconButton
-                                            size="small"
-                                            sx={{ p: 0.25 }}
-                                            onClick={() => handleEdit(item.id)}
-                                            title="Chỉnh sửa"
-                                        >
-                                            <EditIcon sx={{ fontSize: 14 }} />
-                                        </IconButton>
-                                        <IconButton
-                                            size="small"
-                                            color="error"
-                                            sx={{ p: 0.25 }}
-                                            onClick={() => handleDelete(item.id)}
-                                            disabled={deletingId === item.id}
-                                            title="Xóa"
-                                        >
-                                            {deletingId === item.id ? (
-                                                <CircularProgress size={14} />
-                                            ) : (
-                                                <DeleteIcon sx={{ fontSize: 14 }} />
-                                            )}
-                                        </IconButton>
-                                    </Stack>
                                 </Stack>
                             </CardContent>
                         </Card>

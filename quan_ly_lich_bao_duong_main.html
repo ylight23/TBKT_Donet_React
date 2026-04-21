@@ -1,0 +1,322 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.page{background:var(--color-background-tertiary);padding:16px;min-height:700px;border-radius:var(--border-radius-lg)}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.topbar-title{font-size:15px;font-weight:500;color:var(--color-text-primary);flex:1}
+.topbar-sub{font-size:12px;color:var(--color-text-secondary)}
+.tbtn{font-size:12px;padding:6px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-primary);display:flex;align-items:center;gap:5px}
+.tbtn:hover{background:var(--color-background-secondary)}
+.tbtn.primary{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.tbtn.primary:hover{background:#CECBF6}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 14px;display:flex;align-items:center;gap:10px}
+.stat-icon{width:32px;height:32px;border-radius:var(--border-radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stat-icon svg{width:15px;height:15px;stroke-width:1.8;fill:none}
+.stat-num{font-size:20px;font-weight:500;color:var(--color-text-primary);line-height:1}
+.stat-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.main-grid{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:12px;align-items:start}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.card-hd{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.card-hd-title{font-size:13px;font-weight:500;color:var(--color-text-primary);flex:1}
+.view-tabs{display:flex;gap:2px}
+.vtab{font-size:11px;padding:4px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-secondary)}
+.vtab.active{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.gantt-wrap{overflow-x:auto;padding:0}
+.gantt-hd{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.gantt-name-col{width:160px;flex-shrink:0;font-size:10px;font-weight:500;color:var(--color-text-secondary);padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary)}
+.gantt-days{display:flex;flex:1;min-width:0}
+.gantt-day-lbl{font-size:9px;color:var(--color-text-secondary);text-align:center;padding:6px 0;border-right:0.5px solid var(--color-border-tertiary)}
+.gantt-row{display:flex;border-bottom:0.5px solid var(--color-border-tertiary)}
+.gantt-row:last-child{border-bottom:none}
+.gantt-row:hover{background:var(--color-background-secondary)}
+.gantt-name{width:160px;flex-shrink:0;padding:8px 10px;border-right:0.5px solid var(--color-border-tertiary)}
+.gantt-name-main{font-size:12px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt-name-sub{font-size:10px;color:var(--color-text-secondary);margin-top:1px}
+.gantt-bar-area{flex:1;position:relative;min-height:44px;min-width:0}
+.gantt-bar{position:absolute;height:20px;top:12px;border-radius:3px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:500;overflow:hidden;white-space:nowrap;cursor:pointer}
+.gantt-bar:hover{filter:brightness(0.92)}
+.bar-purple{background:#EEEDFE;color:#3C3489;border:0.5px solid #AFA9EC}
+.bar-green{background:#EAF3DE;color:#3B6D11;border:0.5px solid #97C459}
+.bar-amber{background:#FAEEDA;color:#854F0B;border:0.5px solid #EF9F27}
+.bar-red{background:#FCEBEB;color:#A32D2D;border:0.5px solid #F09595}
+.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:99px;font-weight:500;white-space:nowrap}
+.b-purple{background:#EEEDFE;color:#3C3489}
+.b-green{background:#EAF3DE;color:#3B6D11}
+.b-amber{background:#FAEEDA;color:#854F0B}
+.b-red{background:#FCEBEB;color:#A32D2D}
+.b-gray{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.tbl th{font-size:10px;font-weight:500;color:var(--color-text-secondary);text-align:left;padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);white-space:nowrap;overflow:hidden}
+.tbl td{padding:8px 10px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--color-background-secondary);cursor:pointer}
+.mini-cal{padding:12px 14px}
+.mc-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mc-nav-btn{width:22px;height:22px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);cursor:pointer;font-size:13px;color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center}
+.mc-month{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.mc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:10px}
+.mc-dow{font-size:9px;color:var(--color-text-secondary);text-align:center;padding:2px 0;font-weight:500}
+.mc-day{font-size:11px;text-align:center;padding:3px 1px;border-radius:var(--border-radius-md);cursor:pointer;color:var(--color-text-primary);line-height:16px}
+.mc-day:hover{background:var(--color-background-secondary)}
+.mc-day.today{background:#EEEDFE;color:#3C3489;font-weight:500}
+.mc-day.has-event::after{content:'';display:block;width:3px;height:3px;border-radius:50%;background:#3C3489;margin:1px auto 0}
+.mc-day.other{opacity:0.3}
+.upcoming-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)}
+.upcoming-item{padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);cursor:pointer}
+.upcoming-item:last-child{border-bottom:none}
+.upcoming-item:hover .up-name{color:#3C3489}
+.up-date{font-size:10px;color:var(--color-text-secondary);margin-bottom:2px}
+.up-name{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.up-meta{font-size:10px;color:var(--color-text-secondary);margin-top:1px}
+.filter-bar{display:flex;align-items:center;gap:6px;padding:8px 14px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.fsearch{font-size:12px;padding:4px 8px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);width:140px}
+.fsel{font-size:11px;padding:4px 7px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.fcount{font-size:11px;color:var(--color-text-secondary);margin-left:auto}
+.side-stack{display:flex;flex-direction:column;gap:12px}
+</style>
+
+<h2 class="sr-only">Trang quản lý lịch bảo dưỡng trang bị kỹ thuật</h2>
+
+<div class="page">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Quản lý lịch bảo dưỡng</div>
+      <div class="topbar-sub">Lữ đoàn bộ binh 201 · Tháng 5, 2026</div>
+    </div>
+    <button class="tbtn" onclick="switchView()">
+      <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span id="view-lbl">Xem dạng bảng</span>
+    </button>
+    <button class="tbtn primary" onclick="sendPrompt('Tôi muốn thêm kế hoạch bảo dưỡng mới cho tháng 5/2026')">
+      <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Thêm kế hoạch ↗
+    </button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-icon" style="background:#EEEDFE">
+        <svg style="stroke:#3C3489" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div><div class="stat-num">12</div><div class="stat-lbl">Tổng kế hoạch</div></div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon" style="background:#EAF3DE">
+        <svg style="stroke:#3B6D11" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div><div class="stat-num" style="color:#3B6D11">5</div><div class="stat-lbl">Đã hoàn thành</div></div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon" style="background:#FAEEDA">
+        <svg style="stroke:#854F0B" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div><div class="stat-num" style="color:#854F0B">4</div><div class="stat-lbl">Đang thực hiện</div></div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon" style="background:#FCEBEB">
+        <svg style="stroke:#A32D2D" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div><div class="stat-num" style="color:#A32D2D">3</div><div class="stat-lbl">Quá hạn</div></div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div>
+      <div class="card" id="gantt-card">
+        <div class="card-hd">
+          <span class="card-hd-title" id="card-title">Lịch Gantt — tháng 5/2026</span>
+          <div class="view-tabs">
+            <button class="vtab active" onclick="setGanttView(this,'month')">Tháng</button>
+            <button class="vtab" onclick="setGanttView(this,'week')">Tuần</button>
+          </div>
+        </div>
+        <div id="gantt-view">
+          <div class="gantt-wrap">
+            <div class="gantt-hd">
+              <div class="gantt-name-col">Kế hoạch</div>
+              <div class="gantt-days" id="gantt-days-hd"></div>
+            </div>
+            <div id="gantt-rows"></div>
+          </div>
+        </div>
+        <div id="table-view" style="display:none">
+          <div class="filter-bar">
+            <input class="fsearch" type="text" placeholder="Tìm kế hoạch...">
+            <select class="fsel"><option>Tất cả trạng thái</option><option>Hoàn thành</option><option>Đang thực hiện</option><option>Quá hạn</option><option>Chưa bắt đầu</option></select>
+            <select class="fsel"><option>Tất cả loại</option><option>Bảo dưỡng cấp 1</option><option>Bảo dưỡng cấp 2</option></select>
+            <span class="fcount">12 kế hoạch</span>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th style="width:180px">Tên kế hoạch</th>
+              <th style="width:90px">Bắt đầu</th>
+              <th style="width:90px">Kết thúc</th>
+              <th style="width:70px">Số TB</th>
+              <th style="width:110px">Người phụ trách</th>
+              <th style="width:100px">Trạng thái</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>BD định kỳ quý 2/2026</td><td>01/05/2026</td><td>15/05/2026</td><td>8</td><td>Nguyễn Văn A</td><td><span class="badge b-amber">Đang thực hiện</span></td></tr>
+              <tr><td>BD xe thiết giáp BTR-80</td><td>05/05/2026</td><td>07/05/2026</td><td>3</td><td>Trần Văn B</td><td><span class="badge b-green">Hoàn thành</span></td></tr>
+              <tr><td>BD máy thông tin R-173</td><td>10/05/2026</td><td>12/05/2026</td><td>5</td><td>Lê Văn C</td><td><span class="badge b-purple">Chưa bắt đầu</span></td></tr>
+              <tr><td>BD pháo phòng không ZU-23</td><td>15/04/2026</td><td>20/04/2026</td><td>2</td><td>Phạm Văn D</td><td><span class="badge b-red">Quá hạn</span></td></tr>
+              <tr><td>BD xe tăng T-72 quý 1</td><td>01/04/2026</td><td>05/04/2026</td><td>4</td><td>Nguyễn Văn A</td><td><span class="badge b-green">Hoàn thành</span></td></tr>
+              <tr><td>BD tổng hợp tháng 4</td><td>20/04/2026</td><td>25/04/2026</td><td>12</td><td>Trần Văn B</td><td><span class="badge b-green">Hoàn thành</span></td></tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-stack">
+      <div class="card">
+        <div class="mini-cal">
+          <div class="mc-nav">
+            <button class="mc-nav-btn" onclick="mcMonth(-1)">‹</button>
+            <span class="mc-month" id="mc-label">Tháng 5, 2026</span>
+            <button class="mc-nav-btn" onclick="mcMonth(1)">›</button>
+          </div>
+          <div class="mc-grid" id="mc-grid"></div>
+          <div class="upcoming-title">Sắp diễn ra</div>
+          <div class="upcoming-item" onclick="sendPrompt('Xem chi tiết kế hoạch BD định kỳ quý 2/2026')">
+            <div class="up-date">01 – 15 tháng 5</div>
+            <div class="up-name">BD định kỳ quý 2</div>
+            <div class="up-meta">8 trang bị · Nguyễn Văn A</div>
+          </div>
+          <div class="upcoming-item" onclick="sendPrompt('Xem chi tiết kế hoạch BD máy thông tin R-173')">
+            <div class="up-date">10 – 12 tháng 5</div>
+            <div class="up-name">BD máy thông tin R-173</div>
+            <div class="up-meta">5 trang bị · Lê Văn C</div>
+          </div>
+          <div class="upcoming-item" onclick="sendPrompt('Xem chi tiết kế hoạch BD xe tăng T-72 tháng 6')">
+            <div class="up-date">01 – 05 tháng 6</div>
+            <div class="up-name">BD xe tăng T-72</div>
+            <div class="up-meta">4 trang bị · Phạm Văn D</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-title">Cần xử lý</span></div>
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+            <span class="badge b-red" style="margin-top:1px;flex-shrink:0">Quá hạn</span>
+            <div>
+              <div style="font-size:12px;font-weight:500;color:var(--color-text-primary)">BD pháo ZU-23</div>
+              <div style="font-size:10px;color:#A32D2D;margin-top:1px">Quá hạn 15 ngày</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+            <span class="badge b-red" style="margin-top:1px;flex-shrink:0">Quá hạn</span>
+            <div>
+              <div style="font-size:12px;font-weight:500;color:var(--color-text-primary)">BD R-159 #02</div>
+              <div style="font-size:10px;color:#A32D2D;margin-top:1px">Quá hạn 8 ngày</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0">
+            <span class="badge b-amber" style="margin-top:1px;flex-shrink:0">Sắp hạn</span>
+            <div>
+              <div style="font-size:12px;font-weight:500;color:var(--color-text-primary)">BD BTR-80 #03</div>
+              <div style="font-size:10px;color:#854F0B;margin-top:1px">Còn 3 ngày</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PLANS = [
+  {name:'BD định kỳ Q2/2026',sub:'8 trang bị',start:1,end:15,cls:'bar-amber'},
+  {name:'BD xe BTR-80',sub:'3 trang bị',start:5,end:7,cls:'bar-green'},
+  {name:'BD R-173',sub:'5 trang bị',start:10,end:12,cls:'bar-purple'},
+  {name:'BD pháo ZU-23',sub:'2 trang bị',start:18,end:22,cls:'bar-red'},
+  {name:'BD xe tăng T-72',sub:'4 trang bị',start:20,end:28,cls:'bar-purple'},
+];
+
+const DAYS_IN_MAY = 31;
+
+function renderGantt(){
+  const hd = document.getElementById('gantt-days-hd');
+  hd.innerHTML='';
+  const dayW = Math.floor(400/DAYS_IN_MAY);
+  for(let d=1;d<=DAYS_IN_MAY;d++){
+    const el=document.createElement('div');
+    el.className='gantt-day-lbl';
+    el.style.width=dayW+'px';
+    el.style.minWidth=dayW+'px';
+    el.style.flexShrink='0';
+    el.textContent = d%5===0||d===1?d:'';
+    hd.appendChild(el);
+  }
+  const rows = document.getElementById('gantt-rows');
+  rows.innerHTML='';
+  PLANS.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='gantt-row';
+    const nameDiv=document.createElement('div');
+    nameDiv.className='gantt-name';
+    nameDiv.innerHTML=`<div class="gantt-name-main">${p.name}</div><div class="gantt-name-sub">${p.sub}</div>`;
+    const barArea=document.createElement('div');
+    barArea.className='gantt-bar-area';
+    barArea.style.width=(dayW*DAYS_IN_MAY)+'px';
+    const bar=document.createElement('div');
+    bar.className='gantt-bar '+p.cls;
+    bar.style.left=((p.start-1)*dayW)+'px';
+    bar.style.width=((p.end-p.start+1)*dayW-2)+'px';
+    bar.textContent=p.name;
+    barArea.appendChild(bar);
+    row.appendChild(nameDiv);
+    row.appendChild(barArea);
+    rows.appendChild(row);
+  });
+}
+
+let showTable=false;
+function switchView(){
+  showTable=!showTable;
+  document.getElementById('gantt-view').style.display=showTable?'none':'block';
+  document.getElementById('table-view').style.display=showTable?'block':'none';
+  document.getElementById('view-lbl').textContent=showTable?'Xem dạng Gantt':'Xem dạng bảng';
+  document.getElementById('card-title').textContent=showTable?'Danh sách kế hoạch':'Lịch Gantt — tháng 5/2026';
+}
+
+function setGanttView(btn,type){
+  document.querySelectorAll('.vtab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+let mcYear=2026,mcMonth=4;
+const MONTHS=['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+const DOWS=['T2','T3','T4','T5','T6','T7','CN'];
+const EVENT_DAYS=[1,5,10,15,18,20];
+
+function renderMiniCal(){
+  document.getElementById('mc-label').textContent=MONTHS[mcMonth]+', '+mcYear;
+  const grid=document.getElementById('mc-grid');
+  grid.innerHTML=DOWS.map(d=>`<div class="mc-dow">${d}</div>`).join('');
+  const first=new Date(mcYear,mcMonth,1);
+  let dow=first.getDay();dow=dow===0?6:dow-1;
+  const days=new Date(mcYear,mcMonth+1,0).getDate();
+  const prev=new Date(mcYear,mcMonth,0).getDate();
+  for(let i=0;i<dow;i++) grid.innerHTML+=`<div class="mc-day other">${prev-dow+i+1}</div>`;
+  const today=new Date();
+  for(let d=1;d<=days;d++){
+    let cls='mc-day';
+    if(today.getFullYear()===mcYear&&today.getMonth()===mcMonth&&today.getDate()===d) cls+=' today';
+    const hasEv=EVENT_DAYS.includes(d);
+    grid.innerHTML+=`<div class="${cls}${hasEv?' has-event':''}">${d}</div>`;
+  }
+  const rem=7-((dow+days)%7||7);
+  for(let i=1;i<=rem&&rem<7;i++) grid.innerHTML+=`<div class="mc-day other">${i}</div>`;
+}
+
+function mcMonth(dir){mcMonth+=dir;if(mcMonth>11){mcMonth=0;mcYear++;}else if(mcMonth<0){mcMonth=11;mcYear--;}renderMiniCal();}
+
+renderGantt();
+renderMiniCal();
+</script>

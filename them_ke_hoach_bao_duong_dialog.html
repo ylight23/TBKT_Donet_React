@@ -1,0 +1,290 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.overlay{min-height:700px;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;justify-content:center;padding:24px 0;border-radius:var(--border-radius-lg)}
+.dialog{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-secondary);width:860px;max-width:100%;display:flex;flex-direction:column;overflow:hidden}
+.dlg-header{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);background:linear-gradient(135deg,rgba(174,169,236,0.14),rgba(174,169,236,0.06));display:flex;align-items:center;gap:10px}
+.dlg-icon{width:32px;height:32px;border-radius:var(--border-radius-md);background:#EEEDFE;border:0.5px solid #AFA9EC;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dlg-icon svg{width:16px;height:16px;stroke:#3C3489;fill:none;stroke-width:1.8}
+.dlg-title{font-size:14px;font-weight:500;color:var(--color-text-primary);flex:1}
+.dlg-close{width:28px;height:28px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--color-text-secondary);font-size:16px}
+.dlg-body{display:flex;flex:1;min-height:0;overflow:hidden}
+.col-left{width:320px;flex-shrink:0;border-right:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;overflow:hidden}
+.col-right{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.section-hd{font-size:11px;font-weight:500;color:var(--color-text-secondary);padding:10px 14px 6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.form-scroll{overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;flex:1}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;color:var(--color-text-secondary)}
+.fg input,.fg select,.fg textarea{font-size:12px;width:100%;color:var(--color-text-primary);padding:6px 8px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary)}
+.fg textarea{resize:vertical;min-height:56px}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cal-wrap{padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-nav-btn{width:24px;height:24px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);cursor:pointer;font-size:14px;color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center}
+.cal-month{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow{font-size:10px;color:var(--color-text-secondary);text-align:center;padding:2px 0;font-weight:500}
+.cal-day{font-size:11px;text-align:center;padding:3px 2px;border-radius:var(--border-radius-md);cursor:pointer;color:var(--color-text-primary);min-height:22px;line-height:16px}
+.cal-day:hover{background:var(--color-background-secondary)}
+.cal-day.other{color:var(--color-text-secondary);opacity:0.4}
+.cal-day.today{background:#EEEDFE;color:#3C3489;font-weight:500}
+.cal-day.range-start,.cal-day.range-end{background:#3C3489;color:#fff;font-weight:500}
+.cal-day.in-range{background:#EEEDFE;color:#3C3489}
+.cal-day.has-dot::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:#97C459;margin:1px auto 0}
+.range-labels{display:flex;gap:6px;margin-top:6px}
+.range-label{flex:1;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:5px 8px;font-size:11px}
+.range-label-key{color:var(--color-text-secondary)}
+.range-label-val{font-size:12px;font-weight:500;color:var(--color-text-primary);margin-top:1px}
+.grid-wrap{flex:1;overflow-y:auto;padding:10px 14px}
+.grid-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.grid-search{flex:1;font-size:12px;padding:5px 8px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.grid-btn{font-size:11px;padding:5px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-primary);white-space:nowrap}
+.grid-btn:hover{background:var(--color-background-secondary)}
+.grid-btn.sel{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-size:10px;font-weight:500;color:var(--color-text-secondary);text-align:left;padding:5px 6px;border-bottom:0.5px solid var(--color-border-tertiary);white-space:nowrap;position:sticky;top:0;background:var(--color-background-primary)}
+.tbl td{padding:6px 6px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--color-background-secondary)}
+.tbl tr.checked td{background:#EEEDFE}
+.cb-col{width:28px;text-align:center}
+.cb-col input{width:13px;height:13px;cursor:pointer}
+.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:99px;font-weight:500}
+.badge-ok{background:#EAF3DE;color:#3B6D11}
+.badge-warn{background:#FAEEDA;color:#854F0B}
+.badge-new{background:#EEEDFE;color:#3C3489}
+.sel-count{font-size:11px;color:var(--color-text-secondary);padding:6px 14px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.sel-count strong{color:var(--color-text-primary)}
+.dlg-footer{padding:10px 16px;border-top:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:8px;background:var(--color-background-secondary)}
+.footer-info{flex:1;font-size:11px;color:var(--color-text-secondary)}
+.btn-cancel{font-size:12px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;color:var(--color-text-primary)}
+.btn-save{font-size:12px;padding:6px 16px;border-radius:var(--border-radius-md);border:0.5px solid #AFA9EC;background:#EEEDFE;cursor:pointer;color:#3C3489;font-weight:500}
+.btn-save:hover{background:#CECBF6}
+</style>
+
+<div class="overlay">
+<div class="dialog">
+
+  <div class="dlg-header">
+    <div class="dlg-icon">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </div>
+    <span class="dlg-title">Thêm kế hoạch bảo dưỡng</span>
+    <button class="dlg-close">✕</button>
+  </div>
+
+  <div class="dlg-body">
+
+    <div class="col-left">
+      <div class="section-hd">Thông tin kế hoạch</div>
+      <div class="form-scroll">
+        <div class="fg"><label>Tên lịch bảo dưỡng *</label><input type="text" placeholder="VD: Bảo dưỡng định kỳ quý 2/2026"></div>
+        <div class="fg"><label>Căn cứ</label><textarea placeholder="Căn cứ lệnh, quyết định, quy trình..."></textarea></div>
+        <div class="fg-row">
+          <div class="fg"><label>Đơn vị</label><input type="text" placeholder="Lữ đoàn 201"></div>
+          <div class="fg"><label>Người phụ trách</label><input type="text" placeholder="Nguyễn Văn A"></div>
+        </div>
+        <div class="fg"><label>Thời gian lập</label><input type="date" value="2026-04-21"></div>
+        <div class="fg-row">
+          <div class="fg"><label>Bắt đầu thực hiện</label><input type="date" id="inp-start" value="2026-05-01" onchange="syncRange()"></div>
+          <div class="fg"><label>Kết thúc</label><input type="date" id="inp-end" value="2026-05-15" onchange="syncRange()"></div>
+        </div>
+        <div class="fg"><label>Nội dung công việc</label><textarea placeholder="Mô tả nội dung bảo dưỡng cần thực hiện..."></textarea></div>
+        <div class="fg"><label>Vật chất bảo đảm</label><input type="text" placeholder="Phụ tùng, vật tư cần chuẩn bị..."></div>
+        <div class="fg"><label>Kết quả dự kiến</label><input type="text" placeholder="Tất cả trang bị đạt trạng thái sẵn sàng chiến đấu"></div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="cal-wrap">
+        <div class="section-hd" style="padding:0 0 6px;border:none;background:transparent;font-size:11px">Thời gian thực hiện</div>
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+          <span class="cal-month" id="cal-label">Tháng 5, 2026</span>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="range-labels">
+          <div class="range-label"><div class="range-label-key">Bắt đầu</div><div class="range-label-val" id="lbl-start">01/05/2026</div></div>
+          <div class="range-label"><div class="range-label-key">Kết thúc</div><div class="range-label-val" id="lbl-end">15/05/2026</div></div>
+          <div class="range-label"><div class="range-label-key">Thời lượng</div><div class="range-label-val" id="lbl-dur">15 ngày</div></div>
+        </div>
+      </div>
+
+      <div class="section-hd">Trang bị áp dụng <span id="grid-count" style="font-weight:400;color:var(--color-text-secondary)"></span></div>
+      <div class="grid-wrap">
+        <div class="grid-toolbar">
+          <input class="grid-search" type="text" placeholder="Tìm trang bị..." oninput="filterGrid(this.value)">
+          <button class="grid-btn sel" onclick="filterBtn(this,'all')">Tất cả</button>
+          <button class="grid-btn" onclick="filterBtn(this,'nhom1')">Nhóm 1</button>
+          <button class="grid-btn" onclick="filterBtn(this,'nhom2')">Nhóm 2</button>
+        </div>
+        <table class="tbl" id="eq-table">
+          <thead><tr>
+            <th class="cb-col"><input type="checkbox" id="cb-all" onchange="toggleAll(this)" style="width:13px;height:13px;cursor:pointer"></th>
+            <th>Số hiệu</th>
+            <th>Tên trang bị</th>
+            <th>Nhóm</th>
+            <th>Trạng thái</th>
+          </tr></thead>
+          <tbody id="eq-tbody"></tbody>
+        </table>
+      </div>
+      <div class="sel-count" id="sel-count">Chưa chọn trang bị nào</div>
+    </div>
+
+  </div>
+
+  <div class="dlg-footer">
+    <div class="footer-info" id="footer-info">Điền đầy đủ thông tin và chọn ít nhất 1 trang bị</div>
+    <button class="btn-cancel">Hủy</button>
+    <button class="btn-save">Lưu kế hoạch</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+const EQ_DATA = [
+  {id:'TB001',soHieu:'R-173 #01',ten:'Máy thông tin R-173',nhom:'Nhóm 2',status:'ok'},
+  {id:'TB002',soHieu:'BTR-80 #01',ten:'Xe thiết giáp BTR-80',nhom:'Nhóm 1',status:'ok'},
+  {id:'TB003',soHieu:'R-173 #02',ten:'Máy thông tin R-173',nhom:'Nhóm 2',status:'warn'},
+  {id:'TB004',soHieu:'T-72 #01',ten:'Xe tăng T-72',nhom:'Nhóm 1',status:'ok'},
+  {id:'TB005',soHieu:'R-159 #01',ten:'Máy thông tin R-159',nhom:'Nhóm 2',status:'warn'},
+  {id:'TB006',soHieu:'BTR-80 #02',ten:'Xe thiết giáp BTR-80',nhom:'Nhóm 1',status:'ok'},
+  {id:'TB007',soHieu:'ZU-23 #01',ten:'Pháo phòng không ZU-23',nhom:'Nhóm 1',status:'ok'},
+  {id:'TB008',soHieu:'R-173 #03',ten:'Máy thông tin R-173',nhom:'Nhóm 2',status:'ok'},
+];
+
+let selected = new Set();
+let filterNhom = 'all';
+let filterText = '';
+let calYear = 2026, calMonth = 4;
+let rangeStart = new Date(2026,4,1), rangeEnd = new Date(2026,4,15);
+
+function renderGrid(){
+  const filtered = EQ_DATA.filter(e=>{
+    const matchNhom = filterNhom==='all'||(filterNhom==='nhom1'&&e.nhom==='Nhóm 1')||(filterNhom==='nhom2'&&e.nhom==='Nhóm 2');
+    const matchText = !filterText||e.soHieu.toLowerCase().includes(filterText)||e.ten.toLowerCase().includes(filterText);
+    return matchNhom&&matchText;
+  });
+  const tbody = document.getElementById('eq-tbody');
+  tbody.innerHTML = filtered.map(e=>`
+    <tr class="${selected.has(e.id)?'checked':''}" onclick="toggleRow('${e.id}',event)">
+      <td class="cb-col"><input type="checkbox" ${selected.has(e.id)?'checked':''} onclick="toggleRow('${e.id}',event)"></td>
+      <td style="font-weight:500">${e.soHieu}</td>
+      <td style="color:var(--color-text-secondary)">${e.ten}</td>
+      <td><span class="badge badge-new">${e.nhom}</span></td>
+      <td><span class="badge ${e.status==='ok'?'badge-ok':'badge-warn'}">${e.status==='ok'?'Sẵn sàng':'Cần theo dõi'}</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('grid-count').textContent = `(${EQ_DATA.length} trang bị)`;
+  updateSelCount();
+}
+
+function toggleRow(id, e){
+  if(e.target.tagName==='INPUT') return;
+  if(selected.has(id)) selected.delete(id); else selected.add(id);
+  renderGrid();
+}
+
+function toggleAll(cb){
+  if(cb.checked) EQ_DATA.forEach(e=>selected.add(e.id));
+  else selected.clear();
+  renderGrid();
+}
+
+function updateSelCount(){
+  const n = selected.size;
+  document.getElementById('sel-count').innerHTML = n===0
+    ? 'Chưa chọn trang bị nào'
+    : `Đã chọn <strong>${n}</strong> trang bị · ${EQ_DATA.filter(e=>selected.has(e.id)).map(e=>e.soHieu).join(', ')}`;
+  document.getElementById('footer-info').textContent = n>0
+    ? `Kế hoạch áp dụng cho ${n} trang bị`
+    : 'Điền đầy đủ thông tin và chọn ít nhất 1 trang bị';
+}
+
+function filterBtn(btn, nhom){
+  document.querySelectorAll('.grid-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  filterNhom = nhom;
+  renderGrid();
+}
+
+function filterGrid(v){
+  filterText = v.toLowerCase();
+  renderGrid();
+}
+
+const MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+const DOWS = ['T2','T3','T4','T5','T6','T7','CN'];
+
+function renderCal(){
+  document.getElementById('cal-label').textContent = MONTHS[calMonth]+', '+calYear;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = DOWS.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const first = new Date(calYear,calMonth,1);
+  let dow = first.getDay(); dow = dow===0?6:dow-1;
+  const days = new Date(calYear,calMonth+1,0).getDate();
+  const prevDays = new Date(calYear,calMonth,0).getDate();
+  for(let i=0;i<dow;i++){
+    grid.innerHTML += `<div class="cal-day other">${prevDays-dow+i+1}</div>`;
+  }
+  for(let d=1;d<=days;d++){
+    const dt = new Date(calYear,calMonth,d);
+    let cls = 'cal-day';
+    if(dt.toDateString()===new Date().toDateString()) cls+=' today';
+    if(rangeStart&&dt.toDateString()===rangeStart.toDateString()) cls+=' range-start';
+    else if(rangeEnd&&dt.toDateString()===rangeEnd.toDateString()) cls+=' range-end';
+    else if(rangeStart&&rangeEnd&&dt>rangeStart&&dt<rangeEnd) cls+=' in-range';
+    const hasDot = [3,8,12].includes(d);
+    grid.innerHTML += `<div class="${cls}${hasDot?' has-dot':''}" onclick="pickDay(${d})">${d}</div>`;
+  }
+  const remaining = 7 - ((dow+days)%7||7);
+  for(let i=1;i<=remaining&&remaining<7;i++) grid.innerHTML+=`<div class="cal-day other">${i}</div>`;
+  updateRangeLabels();
+}
+
+function pickDay(d){
+  const dt = new Date(calYear,calMonth,d);
+  if(!rangeStart||(rangeStart&&rangeEnd)){
+    rangeStart=dt; rangeEnd=null;
+  } else {
+    if(dt<rangeStart){rangeEnd=rangeStart;rangeStart=dt;}
+    else rangeEnd=dt;
+    syncInputs();
+  }
+  renderCal();
+}
+
+function changeMonth(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;}renderCal();}
+
+function updateRangeLabels(){
+  const fmt = dt => dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'—';
+  document.getElementById('lbl-start').textContent = fmt(rangeStart);
+  document.getElementById('lbl-end').textContent = fmt(rangeEnd);
+  if(rangeStart&&rangeEnd){
+    const dur = Math.round((rangeEnd-rangeStart)/(1000*60*60*24))+1;
+    document.getElementById('lbl-dur').textContent = dur+' ngày';
+  } else {
+    document.getElementById('lbl-dur').textContent = '—';
+  }
+}
+
+function syncInputs(){
+  const pad = n=>String(n).padStart(2,'0');
+  if(rangeStart) document.getElementById('inp-start').value=`${rangeStart.getFullYear()}-${pad(rangeStart.getMonth()+1)}-${pad(rangeStart.getDate())}`;
+  if(rangeEnd) document.getElementById('inp-end').value=`${rangeEnd.getFullYear()}-${pad(rangeEnd.getMonth()+1)}-${pad(rangeEnd.getDate())}`;
+}
+
+function syncRange(){
+  const s=document.getElementById('inp-start').value;
+  const e=document.getElementById('inp-end').value;
+  if(s) rangeStart=new Date(s+'T00:00:00');
+  if(e) rangeEnd=new Date(e+'T00:00:00');
+  renderCal();
+}
+
+renderGrid();
+renderCal();
+</script>

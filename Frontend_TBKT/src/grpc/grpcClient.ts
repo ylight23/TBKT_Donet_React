@@ -11,6 +11,7 @@ import { DanhMucChuyenNganhService } from "./generated/DanhMucChuyenNganh_pb";
 import { DanhMucTrangBiService } from "./generated/DanhMucTrangBi_pb";
 import { FileTransferService } from "./generated/FileTransfer_pb";
 import { TrangBiLogService } from "./generated/TrangBiLog_pb";
+import { BaoDuongScheduleService } from "./generated/BaoDuongSchedule_pb";
 
 
 // =====================
@@ -74,3 +75,5 @@ export const danhMucTrangBiClient = createClient(DanhMucTrangBiService, transpor
 export const fileTransferClient = createClient(FileTransferService, transport);
 
 export const trangBiLogClient = createClient(TrangBiLogService, transport);
+
+export const baoDuongScheduleClient = createClient(BaoDuongScheduleService, transport);

@@ -8,7 +8,6 @@ import React, {
   useMemo,
   useCallback,
   useEffect,
-  useRef,
   lazy,
   Suspense,
   startTransition,
@@ -39,10 +38,6 @@ import WarehouseIcon from '@mui/icons-material/Warehouse';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
 import { FormDialog, TrangBiLogSidePanel } from '../Dialog';
-import type {
-  LocalDynamicField as DynamicField,
-  LocalFieldSet as FieldSet,
-} from '../../types/thamSo';
 import { LogType } from '../../types/trangBiLog';
 import {
   createDialogTabsSx,
@@ -53,14 +48,14 @@ import {
   dialogTabContentSx,
   dialogTabHeaderSx,
 } from '../../styles/dialogTabStyles';
-import danhMucTrangBiApi, { DANH_MUC_TRANG_BI_TREE_ENDPOINT } from '../../apis/danhMucTrangBiApi';
+import danhMucTrangBiApi from '../../apis/danhMucTrangBiApi';
 import trangBiKiThuatApi, {
   type TrangBiNhom1EditorItem,
   type TrangBiNhom2EditorItem,
 } from '../../apis/trangBiKiThuatApi';
-import thamSoApi from '../../apis/thamSoApi';
 import nhomDongBoApi from '../../apis/nhomDongBoApi';
-import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
+import useTrangBiDialogSchema from '../../hooks/useTrangBiDialogSchema';
+import useTrangBiDialogFieldSetContent from '../../hooks/useTrangBiDialogFieldSetContent';
 
 // ── Lazy-loaded tab components ───────────────────────────────
 const GeneralInfoTab = lazy(() => import('./GeneralInfoTab'));
@@ -94,18 +89,6 @@ const TAB_META = [
 ] as const;
 
 // ── Props ───────────────────────────────────────────────────
-const PRELOADED_FIELDSET_KEYS = [
-  TRANG_BI_FIELD_SET_KEYS.THONG_TIN_CHUNG,
-  TRANG_BI_FIELD_SET_KEYS.DONG_BO,
-  TRANG_BI_FIELD_SET_KEYS.BAO_QUAN,
-  TRANG_BI_FIELD_SET_KEYS.BAO_DUONG,
-  TRANG_BI_FIELD_SET_KEYS.SUA_CHUA,
-  TRANG_BI_FIELD_SET_KEYS.NIEM_CAT,
-  TRANG_BI_FIELD_SET_KEYS.DIEU_DONG,
-] as const;
-
-type FieldSetsByKeyMap = Partial<Record<(typeof PRELOADED_FIELDSET_KEYS)[number], FieldSet[]>>;
-
 interface AddTrangBiDialogProps {
   open: boolean;
   onClose: () => void;
@@ -181,18 +164,12 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [activeTab, setActiveTab] = useState<string>(TAB_GENERAL);
 
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const selectedCategoryCode = useMemo(
+    () => formData.ma_danh_muc ?? '',
+    [formData],
+  );
   const [danhMucError] = useState('');
 
-  // Schema nạp từ ThamSo API trực tiếp
-  const [fieldSetsByKey, setFieldSetsByKey] = useState<FieldSetsByKeyMap>({});
-  const [allFields, setAllFields] = useState<DynamicField[]>([]);
-  const [schemaLoading, setSchemaLoading] = useState(false);
-  const [schemaError, setSchemaError] = useState('');
-
-  // Thông số kỹ thuật theo danh mục
-  const [technicalFieldSets, setTechnicalFieldSets] = useState<FieldSet[]>([]);
-  const [technicalLoading, setTechnicalLoading] = useState(false);
-  const [technicalError, setTechnicalError] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -209,9 +186,21 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const [syncGroupLoading, setSyncGroupLoading] = useState(false);
   const [syncGroupMeta, setSyncGroupMeta] = useState<SyncGroupMeta | null>(null);
 
-  const technicalFetchRef = useRef(0);
   const categoryFieldKey = 'ma_danh_muc';
   const categoryNameFieldKey = 'ten_danh_muc';
+
+  const {
+    fieldSetsByKey,
+    allFields,
+    schemaLoading,
+    schemaError,
+    technicalFieldSets,
+    technicalLoading,
+    technicalError,
+  } = useTrangBiDialogSchema({
+    open,
+    selectedCategoryCode,
+  });
 
   // ── Log side panel state ────────────────────────────────────
   const [logPanel, setLogPanel] = useState<{
@@ -247,70 +236,12 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
-  const loadPreloadedSchemas = useCallback(async () => {
-    const [fieldsetEntries, fields] = await Promise.all([
-      Promise.all(
-        PRELOADED_FIELDSET_KEYS.map(async (key) => {
-          const sets = await thamSoApi.getFieldSetsByKey(key, { forceRefresh: true });
-          return [key, sets] as const;
-        }),
-      ),
-      thamSoApi.getListDynamicFields({ forceRefresh: true }),
-    ]);
-
-    return {
-      fieldSetsByKey: Object.fromEntries(fieldsetEntries) as FieldSetsByKeyMap,
-      fields,
-    };
-  }, []);
-
-  const loadTechnicalSchemas = useCallback(async (maDanhMuc: string, fetchId: number) => {
-    try {
-      const fieldSets = await danhMucTrangBiApi.getFieldSetsByMaDanhMuc(maDanhMuc);
-      if (technicalFetchRef.current !== fetchId) return;
-      setTechnicalFieldSets(fieldSets);
-    } catch (err) {
-      if (technicalFetchRef.current !== fetchId) return;
-      console.error('[AddTrangBiDialog] fetchTechnicalFieldSets error', err);
-      setTechnicalError(String((err as Error)?.message || 'KhÃ´ng táº£i Ä‘Æ°á»£c thÃ´ng sá»‘ ká»¹ thuáº­t'));
-    } finally {
-      if (technicalFetchRef.current === fetchId) {
-        setTechnicalLoading(false);
-      }
-    }
-  }, []);
-
-  // ── Nạp FieldSet và DynamicField khi dialog mở ──────────────
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setSchemaLoading(true);
-    setSchemaError('');
-    loadPreloadedSchemas()
-      .then(({ fieldSetsByKey: nextFieldSetsByKey, fields }) => {
-        if (cancelled) return;
-        setFieldSetsByKey(nextFieldSetsByKey);
-        setAllFields(fields);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setSchemaError((err as Error)?.message || 'Không thể tải cấu hình trường dữ liệu.');
-      })
-      .finally(() => {
-        if (!cancelled) setSchemaLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [loadPreloadedSchemas, open]);
 
   // ── Reset form khi dialog mở ─────────────────────────────────
   useEffect(() => {
     if (open) {
       setActiveTab(TAB_GENERAL);
       setFormData({});
-      setFieldSetsByKey({});
-      setTechnicalFieldSets([]);
-      setTechnicalLoading(false);
-      setTechnicalError('');
       setSaving(false);
       setSaveError('');
       setRecordLoading(false);
@@ -323,7 +254,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       setSyncSearchError('');
       setSyncGroupLoading(false);
       setSyncGroupMeta(null);
-      technicalFetchRef.current += 1;
     }
   }, [open]);
 
@@ -423,76 +353,21 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     resolvedCategoryNameKey,
   ]);
 
-  const selectedCategoryCode = useMemo(
-    () => formData[categoryFieldKey] ?? '',
-    [categoryFieldKey, formData],
-  );
 
-  // ── Nạp FieldSet kỹ thuật khi đổi mã danh mục ──────────────
-  useEffect(() => {
-    if (!open) return;
 
-    const maDanhMuc = String(selectedCategoryCode ?? '').trim();
-    if (!maDanhMuc) {
-      setTechnicalFieldSets([]);
-      setTechnicalError('');
-      setTechnicalLoading(false);
-      return;
-    }
-
-    const fetchId = ++technicalFetchRef.current;
-    setTechnicalLoading(true);
-    setTechnicalError('');
-
-    void loadTechnicalSchemas(maDanhMuc, fetchId);
-  }, [loadTechnicalSchemas, open, selectedCategoryCode]);
-
-  // ── Memoized derived data ────────────────────────────────────
-  const applyFieldOverrides = useCallback((fields: DynamicField[]): DynamicField[] => {
-    return fields.map((field) => {
-      if (
-        field.key === parentFieldKey
-        || field.key === specializationFieldKey
-        || field.key === nganhFieldKey
-        || field.key === resolvedCategoryNameKey
-      ) {
-        return { ...field, disabled: true };
-      }
-      if (field.key === categoryFieldKey) {
-        return {
-          ...field,
-          type: 'select',
-          validation: {
-            ...field.validation,
-            dataSource: 'api',
-            apiUrl: DANH_MUC_TRANG_BI_TREE_ENDPOINT,
-            displayType: 'tree',
-          },
-        };
-      }
-      return { ...field };
-    });
-  }, [categoryFieldKey, resolvedCategoryNameKey, parentFieldKey, specializationFieldKey, nganhFieldKey]);
-
-  const getRuntimeFieldSets = useCallback((key: keyof FieldSetsByKeyMap): FieldSet[] => {
-    return fieldSetsByKey[key] ?? [];
-  }, [fieldSetsByKey]);
-
-  const mapFieldSetsToContent = useCallback((fieldSets: FieldSet[]) => (
-    fieldSets.map((fs) => ({ fieldSet: fs, fields: applyFieldOverrides(fs.fields ?? []) }))
-  ), [applyFieldOverrides]);
-
-  const generalTabContent = useMemo(() => (
-    mapFieldSetsToContent(getRuntimeFieldSets(TRANG_BI_FIELD_SET_KEYS.THONG_TIN_CHUNG))
-  ), [getRuntimeFieldSets, mapFieldSetsToContent]);
-
-  const technicalTabContent = useMemo(() => (
-    mapFieldSetsToContent(technicalFieldSets)
-  ), [technicalFieldSets, mapFieldSetsToContent]);
-
-  const syncTabContent = useMemo(() => (
-    mapFieldSetsToContent(getRuntimeFieldSets(TRANG_BI_FIELD_SET_KEYS.DONG_BO))
-  ), [getRuntimeFieldSets, mapFieldSetsToContent]);
+  const {
+    generalTabContent,
+    technicalTabContent,
+    syncTabContent,
+  } = useTrangBiDialogFieldSetContent({
+    fieldSetsByKey,
+    technicalFieldSets,
+    categoryFieldKey,
+    resolvedCategoryNameKey,
+    parentFieldKey,
+    specializationFieldKey,
+    nganhFieldKey,
+  });
 
   const hasParentField = useMemo(
     () => allFields.some((field) => field.key === parentFieldKey),
@@ -728,9 +603,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     });
 
     if (fieldKey === categoryFieldKey) {
-      setTechnicalFieldSets([]);
-      setTechnicalError('');
-      setTechnicalLoading(false);
       void syncParentCategoryFields(value);
     }
     if (syncStatusFieldKey && fieldKey === syncStatusFieldKey && value !== 'true') {
@@ -948,12 +820,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     );
   }
 
-  const FORM_WIDTH = 520;
-  const LOG_PANEL_WIDTH = 360;
+  const FORM_WIDTH = 720;
+  const LOG_PANEL_WIDTH = 520;
 
   const dialogWidth = logPanel.open
     ? FORM_WIDTH + LOG_PANEL_WIDTH
     : FORM_WIDTH;
+  const dialogWidthCss = `min(${dialogWidth}px, calc(100vw - 32px))`;
 
   return (
     <FormDialog
@@ -969,8 +842,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       contentPadding={0}
       sx={{
         '& .MuiDialog-paper': {
-          width: dialogWidth,
-          maxWidth: dialogWidth,
+          width: dialogWidthCss,
+          maxWidth: dialogWidthCss,
           maxHeight: '90vh',
           minHeight: 0,
           height: 'auto',
@@ -1038,7 +911,16 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', width: '100%' }}>
 
         {/* ── Main form area ─────────────────────────────────── */}
-        <Box sx={{ width: FORM_WIDTH, flexShrink: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+        <Box
+          sx={{
+            width: logPanel.open ? `calc(100% - ${LOG_PANEL_WIDTH}px)` : '100%',
+            maxWidth: FORM_WIDTH,
+            minWidth: 0,
+            flexShrink: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
           {(schemaError || recordError || danhMucError || technicalError || saveError) && (
             <Box sx={{ px: 2.5, pt: 2, pb: 1.5, display: 'grid', gap: 1 }}>
               {schemaError && (

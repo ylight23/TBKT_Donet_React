@@ -22,6 +22,7 @@ service ThamSoService {
   // FieldSet
   rpc GetListFieldSets(GetListFieldSetsRequest) returns (GetListFieldSetsResponse);
   rpc GetFieldSetsByKey(GetFieldSetsByKeyRequest) returns (GetFieldSetsByKeyResponse);
+  rpc GetFieldSetsByKeys(GetFieldSetsByKeysRequest) returns (GetFieldSetsByKeysResponse);
   rpc GetFieldSetsByMaDanhMuc(GetFieldSetsByMaDanhMucRequest) returns (GetFieldSetsByMaDanhMucResponse);
   rpc SaveFieldSet(SaveFieldSetRequest) returns (SaveFieldSetResponse);
   rpc DeleteFieldSet(DeleteFieldSetRequest) returns (Base.DeleteBaseResponse);
@@ -90,6 +91,36 @@ message FieldValidation {
   string display_type = 9;
 }
 
+enum GridRenderType {
+  GRID_RENDER_TYPE_UNSPECIFIED = 0;
+  GRID_RENDER_TEXT = 1;
+  GRID_RENDER_BADGE = 2;
+  GRID_RENDER_DATE = 3;
+  GRID_RENDER_CURRENCY = 4;
+  GRID_RENDER_BOOLEAN = 5;
+}
+
+enum GridWidthPreset {
+  GRID_WIDTH_UNSPECIFIED = 0;
+  GRID_WIDTH_NARROW = 1;
+  GRID_WIDTH_MEDIUM = 2;
+  GRID_WIDTH_WIDE = 3;
+  GRID_WIDTH_XWIDE = 4;
+}
+
+message GridUserConfig {
+  bool show_in_grid = 1;
+  int32 display_order = 2;
+  string display_label = 3;
+}
+
+message GridTechConfig {
+  GridRenderType render_type = 1;
+  GridWidthPreset width_preset = 2;
+  bool sortable = 3;
+  bool filterable = 4;
+}
+
 message DynamicField {
   string id = 1;
   string key = 2;
@@ -100,6 +131,8 @@ message DynamicField {
   reserved 7; // was: delete (internal DB flag)
   repeated string cn_ids = 15; // Chuyên ngành IDs gán lên field
   bool disabled = 16;
+  GridUserConfig grid_user_config = 30;
+  GridTechConfig grid_tech_config = 31;
   google.protobuf.Timestamp create_date = 10;
   google.protobuf.Timestamp modify_date = 11;
   string create_by = 12;
@@ -165,6 +198,20 @@ message GetFieldSetsByKeyRequest {
 
 message GetFieldSetsByKeyResponse {
   repeated FieldSetDetail items = 1;
+  Base.ResponseMeta meta = 2;
+}
+
+message GetFieldSetsByKeysRequest {
+  repeated string keys = 1;
+}
+
+message FieldSetsByKeyEntry {
+  string key = 1;
+  repeated FieldSetDetail items = 2;
+}
+
+message GetFieldSetsByKeysResponse {
+  repeated FieldSetsByKeyEntry items = 1;
   Base.ResponseMeta meta = 2;
 }
 

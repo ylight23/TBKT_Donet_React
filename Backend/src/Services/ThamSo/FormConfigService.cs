@@ -231,6 +231,24 @@ public class FormConfigService(ILogger<FormConfigService> logger)
         throw new FormatException($"Field '{key}' khong phai so hop le.");
     }
 
+    private static GridRenderType ParseGridRenderType(BsonDocument? doc, string key, GridRenderType fallback)
+    {
+        if (doc == null || !doc.TryGetValue(key, out var value) || value.IsBsonNull) return fallback;
+        if (value.IsInt32) return Enum.IsDefined(typeof(GridRenderType), value.AsInt32) ? (GridRenderType)value.AsInt32 : fallback;
+        if (value.IsInt64) return Enum.IsDefined(typeof(GridRenderType), (int)value.AsInt64) ? (GridRenderType)(int)value.AsInt64 : fallback;
+        if (value.IsString && Enum.TryParse<GridRenderType>(value.AsString, true, out var parsed)) return parsed;
+        return fallback;
+    }
+
+    private static GridWidthPreset ParseGridWidthPreset(BsonDocument? doc, string key, GridWidthPreset fallback)
+    {
+        if (doc == null || !doc.TryGetValue(key, out var value) || value.IsBsonNull) return fallback;
+        if (value.IsInt32) return Enum.IsDefined(typeof(GridWidthPreset), value.AsInt32) ? (GridWidthPreset)value.AsInt32 : fallback;
+        if (value.IsInt64) return Enum.IsDefined(typeof(GridWidthPreset), (int)value.AsInt64) ? (GridWidthPreset)(int)value.AsInt64 : fallback;
+        if (value.IsString && Enum.TryParse<GridWidthPreset>(value.AsString, true, out var parsed)) return parsed;
+        return fallback;
+    }
+
     private static async Task<bool> HasActiveFormKeyConflictAsync(string formId, string formKey)
     {
         if (string.IsNullOrWhiteSpace(formKey))
@@ -260,6 +278,19 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             Required = itemBson.BoolOr("Required"),
             Disabled = itemBson.BoolOr("Disabled"),
             Validation = new FieldValidation(),
+            GridUserConfig = new GridUserConfig
+            {
+                ShowInGrid = false,
+                DisplayOrder = 9999,
+                DisplayLabel = string.Empty,
+            },
+            GridTechConfig = new GridTechConfig
+            {
+                RenderType = GridRenderType.GridRenderText,
+                WidthPreset = GridWidthPreset.GridWidthMedium,
+                Sortable = true,
+                Filterable = true,
+            },
         };
 
         item.CnIds.AddRange(ReadStringArrayStrict(itemBson, "CnIds"));
@@ -275,6 +306,23 @@ public class FormConfigService(ILogger<FormConfigService> logger)
             item.Validation.ApiUrl = ReadOptionalStringStrict(validationBson, "ApiUrl");
             item.Validation.DisplayType = ReadOptionalStringStrict(validationBson, "DisplayType");
             item.Validation.Options.AddRange(ReadStringArrayStrict(validationBson, "Options"));
+        }
+
+        var gridUserConfigBson = itemBson.DocOr("GridUserConfig");
+        if (gridUserConfigBson != null)
+        {
+            item.GridUserConfig.ShowInGrid = gridUserConfigBson.BoolOr("ShowInGrid");
+            item.GridUserConfig.DisplayOrder = gridUserConfigBson.IntOr("DisplayOrder", 9999);
+            item.GridUserConfig.DisplayLabel = ReadOptionalStringStrict(gridUserConfigBson, "DisplayLabel");
+        }
+
+        var gridTechConfigBson = itemBson.DocOr("GridTechConfig");
+        if (gridTechConfigBson != null)
+        {
+            item.GridTechConfig.RenderType = ParseGridRenderType(gridTechConfigBson, "RenderType", GridRenderType.GridRenderText);
+            item.GridTechConfig.WidthPreset = ParseGridWidthPreset(gridTechConfigBson, "WidthPreset", GridWidthPreset.GridWidthMedium);
+            item.GridTechConfig.Sortable = gridTechConfigBson.BoolOr("Sortable", true);
+            item.GridTechConfig.Filterable = gridTechConfigBson.BoolOr("Filterable", true);
         }
 
         ApplyAuditMetadata(item, itemBson);

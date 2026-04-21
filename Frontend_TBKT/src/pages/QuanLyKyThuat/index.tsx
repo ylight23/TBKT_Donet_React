@@ -1,22 +1,20 @@
 // ============================================================
-// QuanLyKyThuat — Unified page for BaoQuan, BaoDuong, SuaChua, NiemCat, DieuDong
+// QuanLyKyThuat — Unified page for BaoQuan, SuaChua, NiemCat, DieuDong
 //
 // Routes:
-//   /quan-ly-ky-thuat/bao-quan       → LogType = 1
-//   /quan-ly-ky-thuat/bao-duong      → LogType = 2
-//   /quan-ly-ky-thuat/sua-chua      → LogType = 3
-//   /quan-ly-ky-thuat/niem-cat      → LogType = 4
-//   /quan-ly-ky-thuat/dieu-dong     → LogType = 5
-//
-// Usage:
-//   <Route path="/quan-ly-ky-thuat/bao-duong" element={<QuanLyKyThuat />} />
+//   /bao-duong → redirected to /bao-duong which now uses BaoDuong component
+//   /quan-ly-ky-thuat/bao-duong → legacy redirect to /bao-duong
+//   /quan-ly-ky-thuat/bao-quan → LogType = 1
+//   /quan-ly-ky-thuat/sua-chua → LogType = 3
+//   /quan-ly-ky-thuat/niem-cat → LogType = 4
+//   /quan-ly-ky-thuat/dieu-dong → LogType = 5
 //
 // Layout: Calendar view (default) | Quarter view | Gantt view
 // Stats bar: ke_hoach_thang | da_hoan_thanh | con_lai | ty_le
-// Technician workload cards (for BaoDuong only)
+// Technician workload cards
 // ============================================================
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Alert,
     Box,
@@ -89,6 +87,11 @@ const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Th�
     'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 
 const ROUTE_TO_LOGTYPE: Record<string, number> = {
+    '/bao-quan': 1,
+    '/bao-duong': 2,
+    '/sua-chua': 3,
+    '/niem-cat': 4,
+    '/dieu-dong': 5,
     '/quan-ly-ky-thuat/bao-quan': 1,
     '/quan-ly-ky-thuat/bao-duong': 2,
     '/quan-ly-ky-thuat/sua-chua': 3,
@@ -244,6 +247,7 @@ const WorkloadCard: React.FC<{ item: KTVWorkloadItem; color: string }> = ({ item
 // ── Main Component ────────────────────────────────────────
 const QuanLyKyThuat: React.FC = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const pathname = location.pathname.replace(/\?.*/, '');
 
     const logType = (ROUTE_TO_LOGTYPE[pathname] ?? 2) as number;
@@ -406,7 +410,14 @@ const QuanLyKyThuat: React.FC = () => {
                         variant="contained"
                         size="small"
                         startIcon={<AddIcon />}
-                        onClick={() => { setEditingItem(null); setEditorOpen(true); }}
+                        onClick={() => {
+                            if (logType === 2) {
+                                navigate('/bao-duong');
+                                return;
+                            }
+                            setEditingItem(null);
+                            setEditorOpen(true);
+                        }}
                         sx={{
                             bgcolor: pageColor,
                             textTransform: 'none',

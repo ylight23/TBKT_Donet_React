@@ -21,7 +21,6 @@ const TrangBiNhom1 = React.lazy(() => import('../pages/TrangBiNhom1'));
 const TrangBiNhom2 = React.lazy(() => import('../pages/TrangBiNhom2'));
 const NhomDongBo = React.lazy(() => import('../pages/NhomDongBo'));
 const TinhTrangKyThuat = React.lazy(() => import('../pages/TinhTrangKyThuat'));
-const QuanLyKyThuat = React.lazy(() => import('../pages/QuanLyKyThuat'));
 const BaoQuan = React.lazy(() => import('../pages/BaoQuan'));
 const BaoDuong = React.lazy(() => import('../pages/BaoDuong'));
 const SuaChua = React.lazy(() => import('../pages/SuaChua'));
@@ -176,12 +175,17 @@ const MainRoute: RouteObject = {
         { path: '/trang-bi-nhom-2', element: routeElement(TrangBiNhom2) },
         { path: '/nhom-dong-bo', element: routeElement(NhomDongBo) },
         { path: '/tinh-trang-ky-thuat', element: routeElement(TinhTrangKyThuat) },
-        { path: '/quan-ly-ky-thuat', element: routeElement(QuanLyKyThuat) },
-        { path: '/quan-ly-ky-thuat/bao-quan', element: routeElement(QuanLyKyThuat, { staticCodes: ['trangbilog.bao_quan'] }) },
-        { path: '/quan-ly-ky-thuat/bao-duong', element: routeElement(QuanLyKyThuat, { staticCodes: ['trangbilog.bao_duong'] }) },
-        { path: '/quan-ly-ky-thuat/sua-chua', element: routeElement(QuanLyKyThuat, { staticCodes: ['trangbilog.sua_chua'] }) },
-        { path: '/quan-ly-ky-thuat/niem-cat', element: routeElement(QuanLyKyThuat, { staticCodes: ['trangbilog.niem_cat'] }) },
-        { path: '/quan-ly-ky-thuat/dieu-dong', element: routeElement(QuanLyKyThuat, { staticCodes: ['trangbilog.dieu_dong'] }) },
+        { path: '/quan-ly-ky-thuat', element: <Navigate to="/bao-duong" replace /> },
+        { path: '/quan-ly-ky-thuat/bao-quan', element: <Navigate to="/bao-quan" replace /> },
+        { path: '/quan-ly-ky-thuat/bao-duong', element: <Navigate to="/bao-duong" replace /> },
+        { path: '/quan-ly-ky-thuat/sua-chua', element: <Navigate to="/sua-chua" replace /> },
+        { path: '/quan-ly-ky-thuat/niem-cat', element: <Navigate to="/niem-cat" replace /> },
+        { path: '/quan-ly-ky-thuat/dieu-dong', element: <Navigate to="/dieu-dong" replace /> },
+        { path: '/bao-quan', element: routeElement(BaoQuan, { staticCodes: ['trangbilog.bao_quan'] }) },
+        { path: '/bao-duong', element: routeElement(BaoDuong, { staticCodes: ['trangbilog.bao_duong'] }) },
+        { path: '/sua-chua', element: routeElement(SuaChua, { staticCodes: ['trangbilog.sua_chua'] }) },
+        { path: '/niem-cat', element: routeElement(NiemCat, { staticCodes: ['trangbilog.niem_cat'] }) },
+        { path: '/dieu-dong', element: routeElement(DieuDong, { staticCodes: ['trangbilog.dieu_dong'] }) },
         { path: '/chuyen-cap-chat-luong', element: routeElement(ChuyenCapChatLuong) },
         { path: '/thong-ke-bao-cao', element: routeElement(ThongKeBaoCao) },
         { path: '/cau-hinh-tham-so', element: routeElement(CauHinhThamSo, { staticCodes: staticRoutePermissionMap.get('/cau-hinh-tham-so') }) },

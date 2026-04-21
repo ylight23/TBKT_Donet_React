@@ -88,6 +88,7 @@ const parseMultiValue = (rawValue: string | undefined): string[] => {
 
     return [];
 };
+const STANDARD_CONTROL_HEIGHT = 42;
 
 const getFieldLabel = (field: DynamicField): string => field.label;
 const toManualOptionItems = (options: string[] | undefined): DynamicOptionItem[] =>
@@ -267,6 +268,20 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
             },
             '& .MuiFormLabel-asterisk': {
                 color: 'error.main',
+            },
+            '& .MuiOutlinedInput-root': {
+                minHeight: `${STANDARD_CONTROL_HEIGHT}px`,
+            },
+            '& .MuiInputBase-input': {
+                paddingTop: '10px',
+                paddingBottom: '10px',
+                boxSizing: 'border-box',
+            },
+            '& .MuiSelect-select': {
+                minHeight: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                boxSizing: 'border-box',
             },
         },
     };

@@ -62,7 +62,12 @@ const BaoQuan: React.FC = () => {
         { field: 'soHieu', headerName: 'So hieu', width: 140 },
         { field: 'donVi', headerName: 'Don vi', minWidth: 180, flex: 1 },
         { field: 'donViQuanLy', headerName: 'Don vi quan ly', width: 180 },
-        { field: 'tenDanhMuc', headerName: 'Danh muc', width: 180 },
+        {
+            field: 'danhMuc',
+            headerName: 'Danh muc',
+            width: 180,
+            valueGetter: (_, row: TrangBiGridItem) => row.tenDanhMuc,
+        },
         {
             field: 'trangThai',
             headerName: 'Trang thai',

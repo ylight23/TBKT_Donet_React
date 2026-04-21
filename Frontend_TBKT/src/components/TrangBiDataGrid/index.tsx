@@ -2,7 +2,7 @@
 // TrangBiDataGrid - Bang du lieu trang bi ky thuat dung chung
 // Dung cho ca Nhom 1 va Nhom 2
 // ============================================================
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -12,6 +12,7 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import type { GridValidRowModel } from '@mui/x-data-grid';
 
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -21,6 +22,7 @@ import PrintIcon from '@mui/icons-material/Print';
 import AddIcon from '@mui/icons-material/Add';
 
 import type { TrangBiNhom1GridItem, TrangBiNhom2GridItem } from '../../grpc/generated/DanhMucTrangBi_pb';
+import thamSoApi, { type LocalDynamicField } from '../../apis/thamSoApi';
 import { TrangThaiTrangBi, ChatLuong } from '../../data/mockTBData';
 import { militaryColors } from '../../theme';
 import FilterTrangBi, { type FilterTrangBiValues } from './FilterTrangBi';
@@ -45,6 +47,37 @@ const chatLuongColor: Record<string, string> = {
   [ChatLuong.TrungBinh]: '#ef6c00',
   [ChatLuong.Xau]: '#c62828',
   [ChatLuong.HỏngHoc]: '#6a1b9a',
+};
+
+const GRID_WIDTH_PRESET_MAP: Record<string, number> = {
+  narrow: 96,
+  medium: 150,
+  wide: 220,
+  xwide: 300,
+};
+
+const normalizeRowFieldKey = (rawKey: string): string => {
+  if (!rawKey) return '';
+  if (!rawKey.includes('_')) return rawKey;
+  return rawKey.replace(/_([a-z])/g, (_, chr: string) => chr.toUpperCase());
+};
+
+const formatDateCell = (value: unknown): string => {
+  if (value == null || value === '') return '';
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('vi-VN');
+};
+
+const dedupeGridColumns = <R extends GridValidRowModel>(columns: GridColDef<R>[]): GridColDef<R>[] => {
+  const seen = new Set<string>();
+  return columns.filter((col) => {
+    const field = String(col.field ?? '').trim();
+    if (!field) return false;
+    if (seen.has(field)) return false;
+    seen.add(field);
+    return true;
+  });
 };
 
 interface TrangBiDataGridProps {
@@ -75,10 +108,27 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   const { canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
   const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
 
-const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
+  const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
   const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
   const [openAdd, setOpenAdd] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [gridFieldConfigs, setGridFieldConfigs] = useState<LocalDynamicField[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadGridFieldConfigs = async () => {
+      try {
+        const fields = await thamSoApi.getListDynamicFields();
+        if (cancelled) return;
+        setGridFieldConfigs(fields);
+      } catch (err) {
+        console.error('[TrangBiDataGrid] loadGridFieldConfigs error', err);
+      }
+    };
+
+    void loadGridFieldConfigs();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleClearFilter = useCallback(() => {
     setFilterValues(null);
@@ -196,7 +246,7 @@ const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(nul
     alert(`Sua: ${row.maDanhMuc}`);
   }, [activeMenuForDialog]);
 
-  const columns = useMemo<GridColDef<TrangBiGridRow>[]>(() => [
+  const fallbackColumns = useMemo<GridColDef<TrangBiGridRow>[]>(() => [
     {
       field: 'stt',
       headerName: 'STT',
@@ -365,6 +415,197 @@ const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(nul
       ),
     },
   ], [handleEditRow, isRowActionDisabled]);
+
+  const dynamicColumns = useMemo<GridColDef<TrangBiGridRow>[]>(() => {
+    const enabledFields = gridFieldConfigs
+      .filter((field) => field.gridUserConfig?.showInGrid)
+      .map((field) => {
+        const resolvedKey = normalizeRowFieldKey(field.key || '');
+        return {
+          field,
+          resolvedKey,
+          order: field.gridUserConfig?.displayOrder ?? 9999,
+          label: (field.gridUserConfig?.displayLabel || '').trim() || field.label || resolvedKey,
+        };
+      })
+      .filter((item) => Boolean(item.resolvedKey))
+      .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, 'vi'));
+
+    if (enabledFields.length === 0) return [];
+
+    const rowKeySet = new Set<string>();
+    data.forEach((row) => {
+      Object.keys(row as Record<string, unknown>).forEach((key) => rowKeySet.add(key));
+    });
+
+    const usedKeys = new Set<string>();
+    const runtimeFields = enabledFields.filter((item) => {
+      if (item.resolvedKey === 'stt' || item.resolvedKey === 'actions') return false;
+      if (data.length > 0 && !rowKeySet.has(item.resolvedKey)) return false;
+      if (usedKeys.has(item.resolvedKey)) return false;
+      usedKeys.add(item.resolvedKey);
+      return true;
+    });
+
+    if (runtimeFields.length === 0) return [];
+
+    const sttColumn: GridColDef<TrangBiGridRow> = {
+      field: 'stt',
+      headerName: 'STT',
+      width: 60,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const index = params.api.getSortedRowIds().indexOf(params.id);
+        return <Typography variant="body2">{index + 1}</Typography>;
+      },
+    };
+
+    const runtimeGridColumns: GridColDef<TrangBiGridRow>[] = runtimeFields.map(({ field, resolvedKey, label }) => {
+      const renderType = field.gridTechConfig?.renderType ?? 'text';
+      const widthPreset = field.gridTechConfig?.widthPreset ?? 'medium';
+      const width = GRID_WIDTH_PRESET_MAP[widthPreset] ?? GRID_WIDTH_PRESET_MAP.medium;
+      const sortable = field.gridTechConfig?.sortable ?? true;
+      const filterable = field.gridTechConfig?.filterable ?? true;
+
+      const column: GridColDef<TrangBiGridRow> = {
+        field: resolvedKey,
+        headerName: label,
+        width,
+        sortable,
+        filterable,
+        renderCell: (params: GridRenderCellParams<TrangBiGridRow>) => {
+          const rowValue = (params.row as Record<string, unknown>)[resolvedKey];
+
+          if (renderType === 'badge') {
+            if (resolvedKey === 'trangThai') {
+              return (
+                <Chip
+                  label={String(rowValue ?? '')}
+                  color={trangThaiColor[String(rowValue ?? '')] ?? 'default'}
+                  size="small"
+                  sx={{ fontWeight: 600, fontSize: 11 }}
+                />
+              );
+            }
+            if (resolvedKey === 'chatLuong') {
+              const color = chatLuongColor[String(rowValue ?? '')] ?? '#6b7280';
+              return (
+                <Chip
+                  label={String(rowValue ?? '')}
+                  size="small"
+                  sx={{
+                    bgcolor: `${color}22`,
+                    color,
+                    fontWeight: 600,
+                    fontSize: 11,
+                    border: `1px solid ${color}44`,
+                  }}
+                />
+              );
+            }
+
+            return <Chip label={String(rowValue ?? '')} size="small" color="default" />;
+          }
+
+          if (renderType === 'date') {
+            return formatDateCell(rowValue);
+          }
+
+          if (renderType === 'currency') {
+            const numeric = Number(rowValue);
+            if (!Number.isFinite(numeric)) return String(rowValue ?? '');
+            return `${numeric.toLocaleString('vi-VN')} đ`;
+          }
+
+          if (renderType === 'boolean') {
+            const truthy = rowValue === true || String(rowValue).toLowerCase() === 'true' || String(rowValue) === '1';
+            return (
+              <Chip
+                label={truthy ? 'Có' : 'Không'}
+                size="small"
+                color={truthy ? 'success' : 'default'}
+              />
+            );
+          }
+
+          if (resolvedKey === 'maDanhMuc') {
+            return (
+              <Typography variant="body2" fontWeight={600} sx={{ color: 'var(--mil-text-primary)' }}>
+                {String(rowValue ?? '')}
+              </Typography>
+            );
+          }
+
+          return String(rowValue ?? '');
+        },
+      };
+
+      return column;
+    });
+
+    const actionColumn: GridColDef<TrangBiGridRow> = {
+      field: 'actions',
+      headerName: 'Thao tác',
+      width: 160,
+      sortable: false,
+      filterable: false,
+      renderCell: (params: GridRenderCellParams<TrangBiGridRow>) => (
+        <Stack direction="row" spacing={0.5} justifyContent="center" width="100%">
+          <Tooltip title="Xem chi tiết">
+            <IconButton
+              size="small"
+              onClick={() => alert(`Xem: ${params.row.maDanhMuc}`)}
+              disabled={isRowActionDisabled('view', params.row)}
+              sx={{ color: militaryColors.navy }}
+            >
+              <VisibilityIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Chỉnh sửa">
+            <IconButton
+              size="small"
+              onClick={() => handleEditRow(params.row)}
+              disabled={isRowActionDisabled('edit', params.row)}
+              sx={{ color: militaryColors.warning }}
+            >
+              <EditIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="In chi tiết">
+            <IconButton
+              size="small"
+              onClick={() => alert(`In: ${params.row.maDanhMuc}`)}
+              disabled={isRowActionDisabled('print', params.row)}
+              sx={{ color: militaryColors.success }}
+            >
+              <PrintIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Xóa trang bị">
+            <IconButton
+              size="small"
+              onClick={() => alert(`Xoa: ${params.row.maDanhMuc}`)}
+              disabled={isRowActionDisabled('delete', params.row)}
+              sx={{ color: militaryColors.error }}
+            >
+              <DeleteIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    };
+
+    return [sttColumn, ...runtimeGridColumns, actionColumn];
+  }, [data, gridFieldConfigs, handleEditRow, isRowActionDisabled]);
+
+  const columns = useMemo<GridColDef<TrangBiGridRow>[]>(() => {
+    const preferred = dynamicColumns.length > 0 ? dynamicColumns : fallbackColumns;
+    return dedupeGridColumns(preferred);
+  }, [dynamicColumns, fallbackColumns]);
 
   return (
     <OfficeProvider>

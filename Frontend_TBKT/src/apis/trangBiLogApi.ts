@@ -163,6 +163,42 @@ export interface LocalFieldSetDetail {
     }>;
 }
 
+const normalizeFieldKey = (value: string): string => value.trim().toLowerCase();
+
+const mergeFieldSetDetailsForLogType = (
+    items: LocalFieldSetDetail[],
+    loaiNv: string,
+): LocalFieldSetDetail[] => {
+    if (items.length <= 1) return items;
+
+    const first = items[0];
+    const seenFieldKeys = new Set<string>();
+    const mergedFields: LocalFieldSetDetail['fields'] = [];
+    const mergedFieldIds = new Set<string>();
+    const mergedMaDanhMuc = new Set<string>();
+
+    items.forEach((item) => {
+        item.fieldSet.fieldIds.forEach((id) => mergedFieldIds.add(id));
+        item.fieldSet.maDanhMucTrangBi.forEach((id) => mergedMaDanhMuc.add(id));
+        item.fields.forEach((field) => {
+            const normalized = normalizeFieldKey(field.key);
+            if (!normalized || seenFieldKeys.has(normalized)) return;
+            seenFieldKeys.add(normalized);
+            mergedFields.push(field);
+        });
+    });
+
+    return [{
+        fieldSet: {
+            ...first.fieldSet,
+            id: first.fieldSet.id || `merged_${loaiNv}`,
+            fieldIds: Array.from(mergedFieldIds),
+            maDanhMucTrangBi: Array.from(mergedMaDanhMuc),
+        },
+        fields: mergedFields,
+    }];
+};
+
 // ============================================================
 // Mappers: Proto → Local
 // ============================================================
@@ -411,7 +447,7 @@ export async function getFieldSetsByLogType(loaiNv: string): Promise<LocalFieldS
     const req = create(GetFieldSetsByLogTypeRequestSchema, { loaiNghiepVu: loaiNv });
     const res = await trangBiLogClient.getFieldSetsByLogType(req);
     if (!res.meta?.success) throw new Error(res.meta?.message ?? 'Lỗi tải bộ dữ liệu');
-    return (res.items ?? []).map((item) => ({
+    const mapped = (res.items ?? []).map((item) => ({
         fieldSet: {
             id: item.fieldSet?.id ?? '',
             name: item.fieldSet?.name ?? '',
@@ -445,6 +481,7 @@ export async function getFieldSetsByLogType(loaiNv: string): Promise<LocalFieldS
             cnIds: f.cnIds?.length ? [...f.cnIds] : undefined,
         })),
     }));
+    return mergeFieldSetDetailsForLogType(mapped, loaiNv);
 }
 
 // ── Legacy type aliases for backward compatibility ───────────

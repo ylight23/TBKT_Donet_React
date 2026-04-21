@@ -278,7 +278,16 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({ fields, deletedFiel
 
     const handleAddField = useCallback(() => {
         const id = `field_${Math.random().toString(36).slice(2, 9)}`;
-        setFields((prev) => [...prev, { id, key: '', label: 'Truong moi', type: 'text', required: false, validation: {} }]);
+        setFields((prev) => [...prev, {
+            id,
+            key: '',
+            label: 'Truong moi',
+            type: 'text',
+            required: false,
+            validation: {},
+            gridUserConfig: { showInGrid: false, displayOrder: 9999 },
+            gridTechConfig: { renderType: 'text', widthPreset: 'medium', sortable: true, filterable: true },
+        }]);
         setEditableKeyIds((prev) => { const next = new Set(prev); next.add(id); return next; });
         setEditingFieldId(id);
     }, [setFields]);

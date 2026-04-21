@@ -50,6 +50,11 @@ public class ThamSoServiceImpl(
         fieldSetService.GetFieldSetsByKeyAsync(request);
 
     [Authorize]
+    public override Task<GetFieldSetsByKeysResponse> GetFieldSetsByKeys(
+        GetFieldSetsByKeysRequest request, ServerCallContext context) =>
+        fieldSetService.GetFieldSetsByKeysAsync(request);
+
+    [Authorize]
     public override Task<GetFieldSetsByMaDanhMucResponse> GetFieldSetsByMaDanhMuc(
         GetFieldSetsByMaDanhMucRequest request, ServerCallContext context) =>
         fieldSetService.GetFieldSetsByMaDanhMucAsync(request);

@@ -24,6 +24,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
 import StorageIcon from '@mui/icons-material/Storage';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
 import { FIELD_TYPES } from '../constants';
@@ -31,6 +32,21 @@ import { FieldType, FieldValidation } from '../types';
 import type { DanhMucChuyenNganhOption } from '../../../apis/danhmucChuyenNganhApi';
 import { DYNAMIC_OPTION_API_HINTS } from '../../../apis/dynamicOptionApi';
 import type { RootState } from '../../../store';
+
+const GRID_RENDER_OPTIONS = [
+    { value: 'text', label: 'Văn bản thường' },
+    { value: 'badge', label: 'Nhãn màu (badge)' },
+    { value: 'date', label: 'Ngày tháng' },
+    { value: 'currency', label: 'Số tiền' },
+    { value: 'boolean', label: 'Có / Không' },
+] as const;
+
+const GRID_WIDTH_OPTIONS = [
+    { value: 'narrow', label: 'Hẹp' },
+    { value: 'medium', label: 'Vừa' },
+    { value: 'wide', label: 'Rộng' },
+    { value: 'xwide', label: 'Rất rộng' },
+] as const;
 
 const FIELD_KEY_PRESETS = [
     {
@@ -106,6 +122,31 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
         setDraft((prev) => ({
             ...prev,
             validation: { ...(prev.validation || {}), [key]: value },
+        }));
+    }, []);
+
+    const updateGridUserConfig = useCallback((nextPartial: Partial<NonNullable<DynamicField['gridUserConfig']>>) => {
+        setDraft((prev) => ({
+            ...prev,
+            gridUserConfig: {
+                showInGrid: prev.gridUserConfig?.showInGrid ?? false,
+                displayOrder: prev.gridUserConfig?.displayOrder ?? 9999,
+                displayLabel: prev.gridUserConfig?.displayLabel ?? '',
+                ...nextPartial,
+            },
+        }));
+    }, []);
+
+    const updateGridTechConfig = useCallback((nextPartial: Partial<NonNullable<DynamicField['gridTechConfig']>>) => {
+        setDraft((prev) => ({
+            ...prev,
+            gridTechConfig: {
+                renderType: prev.gridTechConfig?.renderType ?? 'text',
+                widthPreset: prev.gridTechConfig?.widthPreset ?? 'medium',
+                sortable: prev.gridTechConfig?.sortable ?? true,
+                filterable: prev.gridTechConfig?.filterable ?? true,
+                ...nextPartial,
+            },
         }));
     }, []);
 
@@ -213,6 +254,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                     sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
                 >
                     <Tab icon={<InfoIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Cấu hình" />
+                    <Tab icon={<ViewWeekIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Hiển thị bảng" />
                     <Tab
                         icon={<StorageIcon sx={{ fontSize: 18 }} />}
                         iconPosition="start"
@@ -468,7 +510,100 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                     </Stack>
                 )}
 
-                {activePanel === 1 && supportsOptionSource && (
+                {activePanel === 1 && (
+                    <Stack spacing={2}>
+                        <FormControlLabel
+                            control={(
+                                <Checkbox
+                                    checked={Boolean(draft.gridUserConfig?.showInGrid)}
+                                    onChange={(_, checked) => updateGridUserConfig({ showInGrid: checked })}
+                                />
+                            )}
+                            label="Hiển thị cột trong DataGrid"
+                        />
+
+                        <TextField
+                            label="Thứ tự hiển thị"
+                            type="number"
+                            size="small"
+                            value={draft.gridUserConfig?.displayOrder ?? 9999}
+                            onChange={(event) => {
+                                const nextValue = Number(event.target.value);
+                                updateGridUserConfig({
+                                    displayOrder: Number.isFinite(nextValue) && nextValue >= 0 ? nextValue : 9999,
+                                });
+                            }}
+                            helperText="Số nhỏ hơn sẽ hiển thị trước."
+                        />
+
+                        <TextField
+                            label="Nhãn cột hiển thị (tùy chọn)"
+                            size="small"
+                            value={draft.gridUserConfig?.displayLabel ?? ''}
+                            onChange={(event) => updateGridUserConfig({ displayLabel: event.target.value })}
+                            helperText="Để trống để dùng nhãn gốc của trường."
+                        />
+
+                        <TextField
+                            select
+                            label="Kiểu hiển thị"
+                            size="small"
+                            value={draft.gridTechConfig?.renderType ?? 'text'}
+                            onChange={(event) =>
+                                updateGridTechConfig({
+                                    renderType: event.target.value as any,
+                                })
+                            }
+                        >
+                            {GRID_RENDER_OPTIONS.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+
+                        <TextField
+                            select
+                            label="Độ rộng cột"
+                            size="small"
+                            value={draft.gridTechConfig?.widthPreset ?? 'medium'}
+                            onChange={(event) =>
+                                updateGridTechConfig({
+                                    widthPreset: event.target.value as any,
+                                })
+                            }
+                        >
+                            {GRID_WIDTH_OPTIONS.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+                            <FormControlLabel
+                                control={(
+                                    <Checkbox
+                                        checked={draft.gridTechConfig?.sortable ?? true}
+                                        onChange={(_, checked) => updateGridTechConfig({ sortable: checked })}
+                                    />
+                                )}
+                                label="Cho phép sắp xếp"
+                            />
+                            <FormControlLabel
+                                control={(
+                                    <Checkbox
+                                        checked={draft.gridTechConfig?.filterable ?? true}
+                                        onChange={(_, checked) => updateGridTechConfig({ filterable: checked })}
+                                    />
+                                )}
+                                label="Cho phép lọc"
+                            />
+                        </Stack>
+                    </Stack>
+                )}
+
+                {activePanel === 2 && supportsOptionSource && (
                         <Stack spacing={2}>
                             <TextField
                                 select

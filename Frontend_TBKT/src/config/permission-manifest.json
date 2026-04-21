@@ -95,49 +95,11 @@
     { "title": "Trang bi nhom 2", "path": "/trang-bi-nhom-2", "icon": "DevicesOther", "active": "tbNhom2", "permissionCodes": ["equipment.view"] },
     { "title": "Nhom dong bo", "path": "/nhom-dong-bo", "icon": "Build", "active": "nhomDongBo", "permissionCodes": ["equipment.view"] },
     { "title": "Tinh trang ky thuat", "path": "/tinh-trang-ky-thuat", "icon": "Shield", "active": "tinhTrangKT", "permissionCodes": ["tinhtrangkt.view"] },
-    {
-      "title": "Quan ly ky thuat",
-      "icon": "MiscellaneousServices",
-      "active": "quanLyKyThuat",
-      "permissionCodes": ["trangbilog.view"],
-      "children": [
-        {
-          "title": "Bao quan",
-          "path": "/quan-ly-ky-thuat/bao-quan",
-          "icon": "Inventory",
-          "active": "trangbilog_bao_quan",
-          "permissionCodes": ["trangbilog.bao_quan"]
-        },
-        {
-          "title": "Bao duong",
-          "path": "/quan-ly-ky-thuat/bao-duong",
-          "icon": "Build",
-          "active": "trangbilog_bao_duong",
-          "permissionCodes": ["trangbilog.bao_duong"]
-        },
-        {
-          "title": "Sua chua",
-          "path": "/quan-ly-ky-thuat/sua-chua",
-          "icon": "Handyman",
-          "active": "trangbilog_sua_chua",
-          "permissionCodes": ["trangbilog.sua_chua"]
-        },
-        {
-          "title": "Niem cat",
-          "path": "/quan-ly-ky-thuat/niem-cat",
-          "icon": "Warehouse",
-          "active": "trangbilog_niem_cat",
-          "permissionCodes": ["trangbilog.niem_cat"]
-        },
-        {
-          "title": "Dieu dong",
-          "path": "/quan-ly-ky-thuat/dieu-dong",
-          "icon": "LocalShipping",
-          "active": "trangbilog_dieu_dong",
-          "permissionCodes": ["trangbilog.dieu_dong"]
-        }
-      ]
-    },
+    { "title": "Bao quan", "path": "/bao-quan", "icon": "Inventory", "active": "trangbilog_bao_quan", "permissionCodes": ["trangbilog.bao_quan"] },
+    { "title": "Bao duong", "path": "/bao-duong", "icon": "Build", "active": "trangbilog_bao_duong", "permissionCodes": ["trangbilog.bao_duong"] },
+    { "title": "Sua chua", "path": "/sua-chua", "icon": "Handyman", "active": "trangbilog_sua_chua", "permissionCodes": ["trangbilog.sua_chua"] },
+    { "title": "Niem cat", "path": "/niem-cat", "icon": "Warehouse", "active": "trangbilog_niem_cat", "permissionCodes": ["trangbilog.niem_cat"] },
+    { "title": "Dieu dong", "path": "/dieu-dong", "icon": "LocalShipping", "active": "trangbilog_dieu_dong", "permissionCodes": ["trangbilog.dieu_dong"] },
     { "title": "Chuyen cap chat luong", "path": "/chuyen-cap-chat-luong", "icon": "StarRate", "active": "chuyenCap", "permissionCodes": ["chuyencap.view"] },
     { "title": "Thong ke bao cao", "path": "/thong-ke-bao-cao", "icon": "BarChart", "active": "thongKe", "permissionCodes": ["thongke.view"] },
     { "title": "Cau hinh tham so", "path": "/cau-hinh-tham-so", "icon": "Settings", "active": "cauHinhThamSo", "permissionCodes": ["thamso_dynamicfield", "thamso_fieldset", "thamso_formconfig"] },

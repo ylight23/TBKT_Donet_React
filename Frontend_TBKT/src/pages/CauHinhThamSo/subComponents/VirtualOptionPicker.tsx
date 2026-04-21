@@ -36,6 +36,7 @@ interface VirtualOptionPickerProps {
 
 const ROW_HEIGHT = 44;
 const VIRTUALIZE_THRESHOLD = 80;
+const STANDARD_CONTROL_HEIGHT = 42;
 
 const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
     label,
@@ -135,6 +136,15 @@ const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
                         </InputAdornment>
                     ),
                     sx: { cursor: disabled ? 'default' : 'pointer', '& input': { cursor: disabled ? 'default' : 'pointer' } },
+                }}
+                sx={{
+                    '& .MuiOutlinedInput-root': {
+                        minHeight: `${STANDARD_CONTROL_HEIGHT}px`,
+                    },
+                    '& .MuiInputBase-input': {
+                        paddingTop: '10px',
+                        paddingBottom: '10px',
+                    },
                 }}
             />
 

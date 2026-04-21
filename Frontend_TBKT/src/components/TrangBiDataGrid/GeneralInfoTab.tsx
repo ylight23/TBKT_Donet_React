@@ -63,7 +63,7 @@ export const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(
 
     return (
       <Grid size={{ xs: 12, md: isWideField ? 12 : 6 }}>
-        <Box sx={{ mb: 1 }}>
+        <Box sx={{ mb: 1.25 }}>
           {!shouldUseMuiLabel && (
             <Typography
               variant="body2"
@@ -74,7 +74,7 @@ export const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(
                 alignItems: 'center',
                 gap: 0.5,
                 color: 'text.primary',
-                fontSize: '0.8rem',
+                fontSize: '0.82rem',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 opacity: 0.85,
@@ -112,12 +112,12 @@ export const FormFieldItem: React.FC<FormFieldItemProps> = React.memo(
               },
             },
             '& .MuiInputBase-input': {
-              py: 0.85,
+              py: 1,
               px: 1.5,
-              fontSize: '0.875rem',
+              fontSize: '0.9rem',
             },
             '& .MuiSelect-select': {
-              py: 0.85,
+              py: 1,
               px: 1.5,
             },
           }}>
@@ -191,7 +191,7 @@ export const FieldSetGroup: React.FC<FieldSetGroupProps> = ({
         </Typography>
       </Stack>
     )}
-    <Grid container spacing={1.5}>
+    <Grid container spacing={2}>
       {fields.map((field) => (
         <FormFieldItem
           key={`${field.id}-${renderVersion}`}

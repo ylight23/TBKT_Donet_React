@@ -53,7 +53,7 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
     trangBiName,
     editingLogId,
     onSaved,
-    width = 480,
+    width = 520,
 }) => {
     const isEditMode = Boolean(editingLogId);
     const accentColor = LOG_TYPE_COLORS[logType] ?? '#3b82f6';
@@ -165,18 +165,19 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
             sx={{
                 width,
                 flexShrink: 0,
-                borderLeft: `3px solid ${accentColor}`,
+                borderLeft: `1px solid ${accentColor}40`,
                 display: 'flex',
                 flexDirection: 'column',
                 bgcolor: 'background.paper',
                 overflow: 'hidden',
+                boxShadow: '-10px 0 24px rgba(15, 23, 42, 0.08)',
             }}
         >
             {/* ── Header ─────────────────────────────────────────── */}
             <Box
                 sx={{
-                    px: 2,
-                    py: 1.5,
+                    px: 2.5,
+                    py: 1.75,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
                     bgcolor: accentColor,
@@ -220,7 +221,7 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
 
             {/* ── Loading skeleton ───────────────────────────────── */}
             {isLoading && (
-                <Box sx={{ px: 2, pt: 1, pb: 2, flex: 1, overflowY: 'auto' }}>
+                <Box sx={{ px: 2.5, pt: 1.25, pb: 2.5, flex: 1, overflowY: 'auto' }}>
                     <Stack spacing={1.5}>
                         {[1, 2, 3].map(i => (
                             <Skeleton key={i} variant="rectangular" height={i === 1 ? 72 : 52} sx={{ borderRadius: 2 }} />
@@ -231,7 +232,7 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
 
             {/* ── Field sets ─────────────────────────────────────── */}
             {!isLoading && fieldSets.length === 0 && !fieldSetsError && (
-                <Box sx={{ px: 2, pt: 1, pb: 2, flex: 1, overflowY: 'auto' }}>
+                <Box sx={{ px: 2.5, pt: 1.25, pb: 2.5, flex: 1, overflowY: 'auto' }}>
                     <Alert severity="info">
                         Chưa có biểu mẫu cấu hình cho nghiệp vụ {logLabel.toLowerCase()}.
                         Vui lòng cấu hình bộ dữ liệu trong phần "Cấu hình tham số".
@@ -240,7 +241,7 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
             )}
 
             {!isLoading && fieldSets.length > 0 && (
-                <Box sx={{ px: 2, pt: 1, pb: 2, flex: 1, overflowY: 'auto' }}>
+                <Box sx={{ px: 2.5, pt: 1.25, pb: 2.5, flex: 1, overflowY: 'auto' }}>
                     {fieldSets.map((fs, idx) => {
                         const hydratedFields: LocalDynamicField[] = (fs.fields ?? []).map((field) => ({
                             ...field,
@@ -251,10 +252,10 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
                         return (
                             <Box
                                 key={fsMeta.id ?? `fs-${idx}`}
-                                sx={{ mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}
+                                sx={{ mb: 2.25, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, overflow: 'hidden' }}
                             >
                                 {fsMeta.name && (
-                                    <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+                                    <Box sx={{ px: 2, py: 0.9, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
                                         <Stack direction="row" alignItems="center" spacing={0.75}>
                                             <Box
                                                 sx={{
@@ -268,7 +269,7 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
                                         </Stack>
                                     </Box>
                                 )}
-                                <Box sx={{ px: 1.5, py: 1 }}>
+                                <Box sx={{ px: 2, py: 1.25 }}>
                                     {hydratedFields.length === 0 ? (
                                         <Typography variant="body2" color="text.disabled" sx={{ py: 0.5 }}>
                                             Chưa có trường dữ liệu cho bộ này.
@@ -293,8 +294,8 @@ const TrangBiLogSidePanel: React.FC<TrangBiLogSidePanelProps> = ({
             {/* ── Footer actions ─────────────────────────────────── */}
             <Box
                 sx={{
-                    px: 2,
-                    py: 1.5,
+                    px: 2.5,
+                    py: 1.75,
                     borderTop: '1px solid',
                     borderColor: 'divider',
                     flexShrink: 0,

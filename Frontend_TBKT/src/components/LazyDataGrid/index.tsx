@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import Box from '@mui/material/Box';
 import { GridSkeleton } from '../Skeletons';
 import type { DataGridProps } from '@mui/x-data-grid';
+import type { GridValidRowModel } from '@mui/x-data-grid';
 import createDataGridActionColumn, {
     type DataGridActionKey,
     type DataGridRowAction,
@@ -33,6 +34,18 @@ export interface LazyDataGridProps extends DataGridProps<any> {
 const DataGridLoader = React.lazy(async () => {
     const mod = await import('@mui/x-data-grid');
 
+    const dedupeColumnsByField = <T extends GridValidRowModel>(input: DataGridProps<T>['columns']) => {
+        const columns = Array.isArray(input) ? input : [];
+        const seen = new Set<string>();
+        return columns.filter((col) => {
+            const field = String(col.field ?? '').trim();
+            if (!field) return false;
+            if (seen.has(field)) return false;
+            seen.add(field);
+            return true;
+        });
+    };
+
     const LazyDataGridInner: React.FC<LazyDataGridProps> = ({
         includeToolbar = false,
         slots,
@@ -62,7 +75,7 @@ const DataGridLoader = React.lazy(async () => {
         }, [pageSizeOptions]);
 
         const resolvedColumns = React.useMemo(() => {
-            const baseColumns = Array.isArray(columns) ? columns : [];
+            const baseColumns = dedupeColumnsByField(columns);
             if (!rowActions) return baseColumns;
 
             const actionKeys: DataGridActionKey[] = ['view', 'edit', 'delete', 'print', 'export'];
@@ -86,7 +99,7 @@ const DataGridLoader = React.lazy(async () => {
                 width: rowActions.width,
                 actions: builtActions,
             });
-            return [...normalizedBase, actionColumn];
+            return dedupeColumnsByField([...normalizedBase, actionColumn]);
         }, [columns, rowActions]);
 
         return (

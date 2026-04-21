@@ -91,6 +91,24 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         throw new FormatException($"Field '{key}' khong phai so hop le.");
     }
 
+    private static GridRenderType ParseGridRenderType(BsonDocument? doc, string key, GridRenderType fallback)
+    {
+        if (doc == null || !doc.TryGetValue(key, out var value) || value.IsBsonNull) return fallback;
+        if (value.IsInt32) return Enum.IsDefined(typeof(GridRenderType), value.AsInt32) ? (GridRenderType)value.AsInt32 : fallback;
+        if (value.IsInt64) return Enum.IsDefined(typeof(GridRenderType), (int)value.AsInt64) ? (GridRenderType)(int)value.AsInt64 : fallback;
+        if (value.IsString && Enum.TryParse<GridRenderType>(value.AsString, true, out var parsed)) return parsed;
+        return fallback;
+    }
+
+    private static GridWidthPreset ParseGridWidthPreset(BsonDocument? doc, string key, GridWidthPreset fallback)
+    {
+        if (doc == null || !doc.TryGetValue(key, out var value) || value.IsBsonNull) return fallback;
+        if (value.IsInt32) return Enum.IsDefined(typeof(GridWidthPreset), value.AsInt32) ? (GridWidthPreset)value.AsInt32 : fallback;
+        if (value.IsInt64) return Enum.IsDefined(typeof(GridWidthPreset), (int)value.AsInt64) ? (GridWidthPreset)(int)value.AsInt64 : fallback;
+        if (value.IsString && Enum.TryParse<GridWidthPreset>(value.AsString, true, out var parsed)) return parsed;
+        return fallback;
+    }
+
     private static IEnumerable<string> ReadStringArrayStrict(BsonDocument doc, string key)
     {
         var array = doc.ArrayOr(key);
@@ -197,6 +215,19 @@ public class FieldSetService(ILogger<FieldSetService> logger)
             Type = RequiredString(itemBson, "Type"),
             Required = OptionalBoolStrict(itemBson, "Required"),
             Validation = new FieldValidation(),
+            GridUserConfig = new GridUserConfig
+            {
+                ShowInGrid = false,
+                DisplayOrder = 9999,
+                DisplayLabel = string.Empty,
+            },
+            GridTechConfig = new GridTechConfig
+            {
+                RenderType = GridRenderType.GridRenderText,
+                WidthPreset = GridWidthPreset.GridWidthMedium,
+                Sortable = true,
+                Filterable = true,
+            },
         };
 
         var cnIds = itemBson.ArrayOr("CnIds");
@@ -236,6 +267,23 @@ public class FieldSetService(ILogger<FieldSetService> logger)
                             return value.AsString.Trim();
                         }));
             }
+        }
+
+        var gridUserConfigBson = itemBson.DocOr("GridUserConfig");
+        if (gridUserConfigBson != null)
+        {
+            item.GridUserConfig.ShowInGrid = gridUserConfigBson.BoolOr("ShowInGrid");
+            item.GridUserConfig.DisplayOrder = gridUserConfigBson.IntOr("DisplayOrder", 9999);
+            item.GridUserConfig.DisplayLabel = OptionalStringStrict(gridUserConfigBson, "DisplayLabel");
+        }
+
+        var gridTechConfigBson = itemBson.DocOr("GridTechConfig");
+        if (gridTechConfigBson != null)
+        {
+            item.GridTechConfig.RenderType = ParseGridRenderType(gridTechConfigBson, "RenderType", GridRenderType.GridRenderText);
+            item.GridTechConfig.WidthPreset = ParseGridWidthPreset(gridTechConfigBson, "WidthPreset", GridWidthPreset.GridWidthMedium);
+            item.GridTechConfig.Sortable = gridTechConfigBson.BoolOr("Sortable", true);
+            item.GridTechConfig.Filterable = gridTechConfigBson.BoolOr("Filterable", true);
         }
 
         return item;
@@ -391,6 +439,68 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         {
             logger.LogError(ex, "GetFieldSetsByKey error");
             response.Meta = ThamSoResponseFactory.Fail("Loi khi tra cuu bo du lieu theo key", ex.Message);
+        }
+
+        return response;
+    }
+
+    public async Task<GetFieldSetsByKeysResponse> GetFieldSetsByKeysAsync(GetFieldSetsByKeysRequest request)
+    {
+        var response = new GetFieldSetsByKeysResponse();
+        try
+        {
+            var normalizedKeys = request.Keys
+                .Select(NormalizeFieldSetKey)
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (normalizedKeys.Count == 0)
+            {
+                response.Meta = ThamSoResponseFactory.Ok("Khong co key nao duoc truyen");
+                return response;
+            }
+
+            var allResponse = await GetListFieldSetsAsync(new GetListFieldSetsRequest());
+            if (!(allResponse.Meta?.Success ?? false))
+            {
+                response.Meta = allResponse.Meta;
+                return response;
+            }
+
+            var groups = normalizedKeys.ToDictionary(
+                key => key,
+                _ => new List<FieldSetDetail>(),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var item in allResponse.Items)
+            {
+                var fieldSetKey = NormalizeFieldSetKey(item.FieldSet?.Key);
+                if (string.IsNullOrWhiteSpace(fieldSetKey))
+                    continue;
+                if (!groups.TryGetValue(fieldSetKey, out var bucket))
+                    continue;
+
+                bucket.Add(item);
+            }
+
+            foreach (var key in normalizedKeys)
+            {
+                var entry = new FieldSetsByKeyEntry { Key = key };
+                if (groups.TryGetValue(key, out var items))
+                {
+                    entry.Items.AddRange(items);
+                }
+                response.Items.Add(entry);
+            }
+
+            response.Meta = ThamSoResponseFactory.Ok($"{response.Items.Count} key group(s) matched");
+            logger.LogInformation("GetFieldSetsByKeys: {Count} keys requested", normalizedKeys.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "GetFieldSetsByKeys error");
+            response.Meta = ThamSoResponseFactory.Fail("Loi khi tra cuu bo du lieu theo danh sach key", ex.Message);
         }
 
         return response;
