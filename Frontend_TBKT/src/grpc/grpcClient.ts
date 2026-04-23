@@ -12,6 +12,11 @@ import { DanhMucTrangBiService } from "./generated/DanhMucTrangBi_pb";
 import { FileTransferService } from "./generated/FileTransfer_pb";
 import { TrangBiLogService } from "./generated/TrangBiLog_pb";
 import { BaoDuongScheduleService } from "./generated/BaoDuongSchedule_pb";
+import { BaoQuanScheduleService } from "./generated/BaoQuanSchedule_pb";
+import { SuaChuaScheduleService } from "./generated/SuaChuaSchedule_pb";
+import { NiemCatScheduleService } from "./generated/NiemCatSchedule_pb";
+import { DieuDongScheduleService } from "./generated/DieuDongSchedule_pb";
+import { ChuyenCapChatLuongScheduleService } from "./generated/ChuyenCapChatLuongSchedule_pb";
 
 
 // =====================
@@ -77,3 +82,8 @@ export const fileTransferClient = createClient(FileTransferService, transport);
 export const trangBiLogClient = createClient(TrangBiLogService, transport);
 
 export const baoDuongScheduleClient = createClient(BaoDuongScheduleService, transport);
+export const baoQuanScheduleClient = createClient(BaoQuanScheduleService, transport);
+export const suaChuaScheduleClient = createClient(SuaChuaScheduleService, transport);
+export const niemCatScheduleClient = createClient(NiemCatScheduleService, transport);
+export const dieuDongScheduleClient = createClient(DieuDongScheduleService, transport);
+export const chuyenCapChatLuongScheduleClient = createClient(ChuyenCapChatLuongScheduleService, transport);

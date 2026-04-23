@@ -1,6 +1,3 @@
-// ============================================================
-// BaoQuanTab — Nhật ký bảo quản, mở log panel qua callback
-// ============================================================
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     Alert,
@@ -10,21 +7,17 @@ import {
     CardContent,
     Chip,
     CircularProgress,
-    IconButton,
     Stack,
     Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { useNavigate } from 'react-router-dom';
 
 import {
-    getLogHistoryByTrangBi,
-    deleteTrangBiLog,
-    type TrangBiLogSummary,
-} from '../../../apis/trangBiLogApi';
-import { LogType, LOG_STATUS_LABELS, LOG_TYPE_LABELS } from '../../../types/trangBiLog';
+    getBaoQuanSchedulesByTrangBi,
+    type LocalBaoQuanScheduleByTrangBiItem,
+} from '../../../apis/baoQuanScheduleApi';
 
 interface BaoQuanTabProps {
     trangBiId: string;
@@ -33,30 +26,22 @@ interface BaoQuanTabProps {
     refreshKey?: number;
 }
 
-const STATUS_CHIP_COLORS: Record<number, { bg: string; color: string }> = {
-    0: { bg: '#f5f5f5', color: '#757575' },
-    1: { bg: '#EAF3DE', color: '#3B6D11' },
-    2: { bg: '#FAEEDA', color: '#854F0B' },
-    3: { bg: '#EEEDFE', color: '#3C3489' },
-    4: { bg: '#FCEBEB', color: '#A32D2D' },
-};
-
 const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
     trangBiId,
     trangBiName,
-    onOpenLogPanel,
+    onOpenLogPanel: _onOpenLogPanel,
     refreshKey = 0,
 }) => {
-    const [items, setItems] = useState<TrangBiLogSummary[]>([]);
+    const navigate = useNavigate();
+    const [items, setItems] = useState<LocalBaoQuanScheduleByTrangBiItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const loadHistory = useCallback(() => {
         if (!trangBiId) return;
         setLoading(true);
         setError(null);
-        getLogHistoryByTrangBi({ idTrangBi: trangBiId, logType: LogType.BaoQuan, limit: 50 })
+        getBaoQuanSchedulesByTrangBi(trangBiId)
             .then(setItems)
             .catch((err) => setError((err as Error).message))
             .finally(() => setLoading(false));
@@ -66,28 +51,34 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
         loadHistory();
     }, [loadHistory, refreshKey]);
 
-    const handleAdd = () => onOpenLogPanel(null);
-    const handleEdit = (logId: string) => onOpenLogPanel(logId);
-
-    const handleDelete = async (logId: string) => {
-        if (!window.confirm('Bạn có chắc muốn xóa nhật ký bảo quản này?')) return;
-        setDeletingId(logId);
-        try {
-            await deleteTrangBiLog([logId]);
-            setItems((prev) => prev.filter((item) => item.id !== logId));
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setDeletingId(null);
-        }
+    const handleOpenPreservationMenu = () => {
+        const query = trangBiId ? `?idTrangBi=${encodeURIComponent(trangBiId)}` : '';
+        navigate(`/bao-quan${query}`);
     };
 
-    const renderStatusBadge = (status: number) => {
-        const sc = STATUS_CHIP_COLORS[status] ?? STATUS_CHIP_COLORS[0];
+    const resolveScheduleStatus = (item: LocalBaoQuanScheduleByTrangBiItem): {
+        label: string;
+        bg: string;
+        color: string;
+    } => {
+        const now = Date.now();
+        const start = item.thoiGianThucHien ? new Date(item.thoiGianThucHien).getTime() : NaN;
+        const end = item.thoiGianKetThuc ? new Date(item.thoiGianKetThuc).getTime() : NaN;
+        if (Number.isFinite(end) && end < now) {
+            return { label: 'Qua han', bg: '#FCEBEB', color: '#A32D2D' };
+        }
+        if (Number.isFinite(start) && (!Number.isFinite(end) || end >= now) && start <= now) {
+            return { label: 'Dang thuc hien', bg: '#FAEEDA', color: '#854F0B' };
+        }
+        return { label: 'Sap dien ra', bg: '#EEEDFE', color: '#3C3489' };
+    };
+
+    const renderStatusBadge = (item: LocalBaoQuanScheduleByTrangBiItem) => {
+        const sc = resolveScheduleStatus(item);
         return (
             <Chip
                 size="small"
-                label={LOG_STATUS_LABELS[status as keyof typeof LOG_STATUS_LABELS] ?? ''}
+                label={sc.label}
                 sx={{ bgcolor: sc.bg, color: sc.color, fontWeight: 600, fontSize: '0.65rem', height: 18 }}
             />
         );
@@ -97,34 +88,32 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
         <Box sx={{ p: 1.5 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                    <InfoIcon sx={{ fontSize: 16, color: '#639922' }} />
-                    <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#639922' }}>
-                        Nhật ký bảo quản
+                    <InfoIcon sx={{ fontSize: 16, color: '#16a34a' }} />
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#16a34a' }}>
+                        Nhat ky bao quan
                     </Typography>
                     {trangBiName && (
-                        <Typography variant="caption" color="text.secondary">
-                            — {trangBiName}
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary">- {trangBiName}</Typography>
                     )}
                     {items.length > 0 && (
                         <Chip label={items.length} size="small"
-                            sx={{ fontSize: '0.65rem', height: 18, bgcolor: '#EAF3DE', color: '#3B6D11' }} />
+                            sx={{ fontSize: '0.65rem', height: 18, bgcolor: '#dcfce7', color: '#15803d' }} />
                     )}
                 </Stack>
                 {trangBiId && (
                     <Button
                         size="small"
-                        startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                        startIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
                         variant="contained"
-                        onClick={handleAdd}
+                        onClick={handleOpenPreservationMenu}
                         sx={{
                             fontSize: '0.72rem',
                             textTransform: 'none',
-                            bgcolor: '#22c55e',
-                            '&:hover': { bgcolor: '#16a34a' },
+                            bgcolor: '#16a34a',
+                            '&:hover': { bgcolor: '#15803d' },
                         }}
                     >
-                        Thêm bảo quản
+                        Mo menu Bao quan
                     </Button>
                 )}
             </Stack>
@@ -137,7 +126,7 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
 
             {!trangBiId && (
                 <Alert severity="info" sx={{ mb: 1 }}>
-                    Vui lòng lưu trang bị trước để ghi nhật ký bảo quản.
+                    Vui long luu trang bi truoc de ghi nhat ky bao quan.
                 </Alert>
             )}
 
@@ -146,9 +135,7 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
                     <CircularProgress size={24} />
                 </Box>
             ) : items.length === 0 && trangBiId ? (
-                <Alert severity="info">
-                    Chưa có nhật ký bảo quản cho trang bị này.
-                </Alert>
+                <Alert severity="info">Chua co nhat ky bao quan cho trang bi nay.</Alert>
             ) : (
                 <Stack spacing={0.75}>
                     {items.map((item) => (
@@ -158,47 +145,23 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
                                             <Typography variant="caption" fontWeight={700} color="text.secondary">
-                                                {item.ngayThucHien
-                                                    ? new Date(item.ngayThucHien).toLocaleDateString('vi-VN')
-                                                    : item.ngayDuKien
-                                                        ? new Date(item.ngayDuKien).toLocaleDateString('vi-VN')
-                                                        : '—'}
+                                                {item.thoiGianThucHien
+                                                    ? new Date(item.thoiGianThucHien).toLocaleDateString('vi-VN')
+                                                    : item.thoiGianLap
+                                                        ? new Date(item.thoiGianLap).toLocaleDateString('vi-VN')
+                                                        : '-'}
                                             </Typography>
-                                            {renderStatusBadge(item.status)}
+                                            {renderStatusBadge(item)}
                                         </Stack>
                                         <Typography variant="body2" fontWeight={600} noWrap>
-                                            {LOG_TYPE_LABELS[LogType.BaoQuan]}
+                                            {item.tenLichBaoQuan || 'Lich bao quan'}
                                         </Typography>
-                                        {item.ktvChinh && (
+                                        {item.nguoiPhuTrach && (
                                             <Typography variant="caption" color="text.secondary">
-                                                KTV: {item.ktvChinh}
+                                                Nguoi phu trach: {item.nguoiPhuTrach}
                                             </Typography>
                                         )}
                                     </Box>
-                                    <Stack direction="row" spacing={0.5}>
-                                        <IconButton
-                                            size="small"
-                                            sx={{ p: 0.25 }}
-                                            onClick={() => handleEdit(item.id)}
-                                            title="Chỉnh sửa"
-                                        >
-                                            <EditIcon sx={{ fontSize: 14 }} />
-                                        </IconButton>
-                                        <IconButton
-                                            size="small"
-                                            color="error"
-                                            sx={{ p: 0.25 }}
-                                            onClick={() => handleDelete(item.id)}
-                                            disabled={deletingId === item.id}
-                                            title="Xóa"
-                                        >
-                                            {deletingId === item.id ? (
-                                                <CircularProgress size={14} />
-                                            ) : (
-                                                <DeleteIcon sx={{ fontSize: 14 }} />
-                                            )}
-                                        </IconButton>
-                                    </Stack>
                                 </Stack>
                             </CardContent>
                         </Card>

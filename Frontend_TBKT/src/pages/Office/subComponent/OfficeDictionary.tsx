@@ -200,7 +200,7 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 pl: `${depth * 20}px`,
                 pr: 1,
                 cursor: 'pointer',
-                borderRadius: 2.5,
+                borderRadius: 1,
                 ...getStripedRowSx(theme, rowIndex, isSelected),
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 userSelect: 'none',
@@ -869,7 +869,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
         <Box sx={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'background.paper', height: '100%', overflow: 'hidden' }}>
 
             {/* Search bar */}
-            <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #e0e0e0', flexShrink: 0 }}>
+            <Box sx={{ p: 1, pb: 1, borderBottom: '1px solid #e0e0e0', flexShrink: 0 }}>
                 <TextField
                     size="small" fullWidth
                     placeholder="Tìm kiếm đơn vị (nhấn Enter)…"
@@ -901,7 +901,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
                     sx={{
                         mb: 1,
                         '& .MuiOutlinedInput-root': {
-                            borderRadius: 2.5,
+                            borderRadius: 1,
                             bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.01)',
                             '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.03)' },
                         }

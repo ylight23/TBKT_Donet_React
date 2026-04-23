@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package BaoQuanSchedule;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "Base.proto";
+
+// ============================================================
+// Schedule-first contract for preservation (Bao quan)
+// 1 schedule -> N equipment records
+// ============================================================
+
+message BaoQuanScheduleTrangBiItem {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2; // 1 | 2
+  string ma_danh_muc = 3;
+  string ten_danh_muc = 4;
+  string so_hieu = 5;
+  string id_chuyen_nganh_kt = 6;
+  string id_nganh = 7;
+  map<string, string> parameters = 20;
+}
+
+message BaoQuanScheduleItem {
+  string id = 1; // GUID
+  string ten_lich_bao_quan = 2;
+  string can_cu = 3;
+  string id_don_vi = 4;
+  string ten_don_vi = 5;
+  string nguoi_phu_trach = 6;
+  google.protobuf.Timestamp thoi_gian_lap = 7;
+  google.protobuf.Timestamp thoi_gian_thuc_hien = 8;
+  google.protobuf.Timestamp thoi_gian_ket_thuc = 9;
+  string noi_dung_cong_viec = 10;
+  string vat_chat_bao_dam = 11;
+  string ket_qua = 12;
+  repeated BaoQuanScheduleTrangBiItem ds_trang_bi = 13;
+  map<string, string> parameters = 14;
+  google.protobuf.StringValue nguoi_tao = 15;
+  google.protobuf.StringValue nguoi_sua = 16;
+  google.protobuf.Timestamp ngay_tao = 17;
+  google.protobuf.Timestamp ngay_sua = 18;
+  int32 version = 19;
+}
+
+message BaoQuanScheduleGridItem {
+  string id = 1;
+  string ten_lich_bao_quan = 2;
+  string can_cu = 3;
+  string id_don_vi = 4;
+  string ten_don_vi = 5;
+  string nguoi_phu_trach = 6;
+  google.protobuf.Timestamp thoi_gian_lap = 7;
+  google.protobuf.Timestamp thoi_gian_thuc_hien = 8;
+  google.protobuf.Timestamp thoi_gian_ket_thuc = 9;
+  int32 so_trang_bi = 10;
+  string nguoi_sua = 11;
+  google.protobuf.Timestamp ngay_sua = 12;
+}
+
+message GetListBaoQuanScheduleRequest {
+  google.protobuf.StringValue id_don_vi = 1;
+  google.protobuf.StringValue id_chuyen_nganh_kt = 2;
+  google.protobuf.StringValue search_text = 3;
+  google.protobuf.Timestamp from_date = 4;
+  google.protobuf.Timestamp to_date = 5;
+}
+
+message GetListBaoQuanScheduleResponse {
+  repeated BaoQuanScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetBaoQuanScheduleRequest {
+  string id = 1;
+}
+
+message GetBaoQuanScheduleResponse {
+  BaoQuanScheduleItem item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message SaveBaoQuanScheduleRequest {
+  BaoQuanScheduleItem item = 1;
+  google.protobuf.Int32Value expected_version = 2;
+}
+
+message SaveBaoQuanScheduleResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DeleteBaoQuanScheduleRequest {
+  string id = 1;
+}
+
+message GetListBaoQuanScheduleByTrangBiRequest {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2; // 1 | 2
+}
+
+message GetListBaoQuanScheduleByTrangBiResponse {
+  repeated BaoQuanScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+service BaoQuanScheduleService {
+  rpc GetListBaoQuanSchedule(GetListBaoQuanScheduleRequest) returns (GetListBaoQuanScheduleResponse);
+  rpc GetBaoQuanSchedule(GetBaoQuanScheduleRequest) returns (GetBaoQuanScheduleResponse);
+  rpc SaveBaoQuanSchedule(SaveBaoQuanScheduleRequest) returns (SaveBaoQuanScheduleResponse);
+  rpc DeleteBaoQuanSchedule(DeleteBaoQuanScheduleRequest) returns (Base.DeleteBaseResponse);
+  rpc GetListBaoQuanScheduleByTrangBi(GetListBaoQuanScheduleByTrangBiRequest) returns (GetListBaoQuanScheduleByTrangBiResponse);
+}

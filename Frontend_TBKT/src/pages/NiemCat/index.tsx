@@ -1,320 +1,440 @@
-// ============================================================
-// Niêm cất – Equipment Storage/Archive Management
-// Gồm: Trang bị KT niêm cất + Kết quả niêm cất
-// ============================================================
-import React, { useState, useMemo, useEffect } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import FormControl from '@mui/material/FormControl';
-import Grid from '@mui/material/GridLegacy';
-import InputAdornment from '@mui/material/InputAdornment';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import Popover from '@mui/material/Popover';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
-import PrintIcon from '@mui/icons-material/Print';
-import DeleteIcon from '@mui/icons-material/Delete';
-import StatsButton from '../../components/Stats/StatsButton';
-import { useTheme } from '@mui/material/styles';
-import { useSearchParams } from 'react-router-dom';
-import CommonFilter from "../../components/Filter/CommonFilter";
-
-import SearchIcon from '@mui/icons-material/Search';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import LockIcon from '@mui/icons-material/Lock';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Stack,
+    Tab,
+    Tabs,
+    Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
-import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
-import ClearIcon from '@mui/icons-material/Clear';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import Stack from '@mui/material/Stack';
-import Collapse from '@mui/material/Collapse';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
+import TextField from '@mui/material/TextField';
+import { useLocation } from 'react-router-dom';
+import OfficeDictionary, { type OfficeNode } from '../Office/subComponent/OfficeDictionary';
+import { OfficeProvider } from '../../context/OfficeContext';
 
-import { mockNiemCat, INiemCat } from '../../data/mockTBData';
-import { militaryColors } from '../../theme';
+import GanttView from '../../components/BaoDuong/GanttView';
+import GanttChartSidebar from '../../components/BaoDuong/GanttChartSidebar';
+import GenericScheduleDialog, { type EquipmentOption } from '../../components/Schedule/GenericScheduleDialog';
+import {
+    getNiemCatSchedule,
+    getListNiemCatSchedule,
+    saveNiemCatSchedule,
+    type LocalNiemCatScheduleItem,
+} from '../../apis/niemCatScheduleApi';
+import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
+import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 
-// ── Màu kết quả niêm cất ──────────────────────────────────────
-const ketQuaColor: Record<string, 'success' | 'warning' | 'info'> = {
-  'Đạt yêu cầu': 'success',
-  'Cần bổ sung': 'warning',
-  'Đang thực hiện': 'info',
+type NiemCatTab = 'theo_doi_trang_bi' | 'ket_qua_niem_cat';
+
+type PreserveSchedule = {
+    id: string;
+    tenLich: string;
+    canCu: string;
+    thoiGianLap: string;
+    donVi: string;
+    nguoiPhuTrach: string;
+    thoiGianThucHien: string;
+    thoiGianKetThuc: string;
+    noiDungCongViec: string;
+    vatChatBaoDam: string;
+    ketQua: string;
+    parameters: Record<string, string>;
+    equipmentKeys: string[];
+    soTrangBi: number;
+    version?: number;
 };
 
-// ── Mở rộng dữ liệu niêm cất (mock) ──────────────────────────
-const niemCatRows = mockNiemCat.map((r, i) => ({
-  ...r,
-  stt: i + 1,
-  ten: r.tenDanhMuc,
-  loaiDeNghi: i % 2 === 0 ? 'Niêm cất dài hạn' : 'Niêm cất ngắn hạn',
-  loaiNiemCat: i % 2 === 0 ? 'Niêm cất khô' : 'Niêm cất ẩm',
-  donViThucHien: r.donVi,
-  nguoiThucHien: `Trung úy Lê Quang ${String.fromCharCode(72 + (i % 18))}`,
-  canCu: `Quyết định ${300 + i}/QĐ-KT`,
-  ketQua: i % 3 === 0 ? 'Đạt yêu cầu' : i % 3 === 1 ? 'Cần bổ sung' : 'Đang thực hiện',
-}));
+const buildEquipmentKey = (id: string, nhom: number): string => `${nhom}:${id}`;
+const normalizeForSearch = (value: string): string => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-// ── Columns ──────────────────────────────────────────────────
-const columns: GridColDef[] = [
-  { field: 'stt', headerName: 'STT', width: 70 },
-  { field: 'ten', headerName: 'Tên', width: 220 },
-  { field: 'loaiDeNghi', headerName: 'Loại đề nghị Niêm cất', width: 200 },
-  { field: 'loaiNiemCat', headerName: 'Loại niêm cất', width: 160 },
-  { field: 'donViThucHien', headerName: 'Đơn vị thực hiện', width: 180 },
-  { field: 'nguoiThucHien', headerName: 'Người thực hiện', width: 180 },
-  { field: 'ngayNiemCat', headerName: 'Ngày niêm cất', width: 140 },
-  { field: 'canCu', headerName: 'Căn cứ', width: 180 },
-  {
-    field: 'ketQua', headerName: 'Kết quả', width: 160,
-    renderCell: (p: GridRenderCellParams) => (
-      <Chip
-        label={p.value}
-        color={ketQuaColor[p.value as string] ?? 'default'}
-        size="small"
-        sx={{ fontWeight: 600 }}
-      />
-    ),
-  },
-  {
-    field: 'actions', headerName: 'Thao tác', width: 160, sortable: false, filterable: false,
-    renderCell: (p: GridRenderCellParams) => (
-      <Box display="flex" gap={0.5} justifyContent="center" width="100%">
-        <Tooltip title="Xem chi tiết">
-          <IconButton size="small" sx={{ color: militaryColors.navy }}><VisibilityIcon fontSize="inherit" /></IconButton>
-        </Tooltip>
-        <Tooltip title="Chỉnh sửa">
-          <IconButton size="small" sx={{ color: militaryColors.warning }}><EditIcon fontSize="inherit" /></IconButton>
-        </Tooltip>
-        <Tooltip title="In chi tiết">
-          <IconButton size="small" sx={{ color: militaryColors.success }}><PrintIcon fontSize="inherit" /></IconButton>
-        </Tooltip>
-        <Tooltip title="Xóa">
-          <IconButton size="small" sx={{ color: militaryColors.error }}><DeleteIcon fontSize="inherit" /></IconButton>
-        </Tooltip>
-      </Box>
-    ),
-  },
-];
+const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none'): number => {
+    switch (status) {
+        case 'inprogress': return 5;
+        case 'upcoming': return 4;
+        case 'overdue': return 3;
+        case 'completed': return 2;
+        default: return 1;
+    }
+};
 
-// ── NiemCat main ─────────────────────────────────────────────
 const NiemCat: React.FC = () => {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = Number(searchParams.get('tab') || 1);
-  const [tab, setTab] = useState(initialTab);
-  const [search, setSearch] = useState('');
-  const [filterLoai, setFilterLoai] = useState('');
-  const [filterKQ, setFilterKQ] = useState('');
-  const [expanded, setExpanded] = useState(false);
+    const location = useLocation();
+    const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
-  // Đồng bộ tab khi URL thay đổi (click từ sidebar)
-  useEffect(() => {
-    const urlTab = Number(searchParams.get('tab') || 1);
-    if (urlTab !== tab) setTab(urlTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [schedules, setSchedules] = useState<PreserveSchedule[]>([]);
+    const [equipmentLoading, setEquipmentLoading] = useState(false);
+    const [equipmentPool, setEquipmentPool] = useState<EquipmentOption[]>([]);
+    const [search, setSearch] = useState('');
+    const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+    const [activeTab, setActiveTab] = useState<NiemCatTab>('theo_doi_trang_bi');
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [editingSchedule, setEditingSchedule] = useState<PreserveSchedule | null>(null);
 
-  const handleTabChange = (_: unknown, newTab: number) => {
-    setTab(newTab);
-    setSearchParams({ tab: String(newTab) }, { replace: true });
-  };
+    const loadEquipmentPool = useCallback(async () => {
+        setEquipmentLoading(true);
+        try {
+            const [n1, n2] = await Promise.all([
+                trangBiKiThuatApi.getListTrangBiNhom1({}),
+                trangBiKiThuatApi.getListTrangBiNhom2({}),
+            ]);
+            setEquipmentPool([
+                ...n1.map((item) => ({
+                    key: buildEquipmentKey(item.id, 1),
+                    id: item.id,
+                    nhom: 1 as const,
+                    maDanhMuc: item.maDanhMuc,
+                    tenDanhMuc: item.tenDanhMuc,
+                    soHieu: item.soHieu,
+                    donVi: item.donViQuanLy || item.donVi || '',
+                    idChuyenNganhKt: item.idChuyenNganhKt || '',
+                    idNganh: item.idNganh || '',
+                })),
+                ...n2.map((item) => ({
+                    key: buildEquipmentKey(item.id, 2),
+                    id: item.id,
+                    nhom: 2 as const,
+                    maDanhMuc: item.maDanhMuc,
+                    tenDanhMuc: item.tenDanhMuc,
+                    soHieu: item.soHieu,
+                    donVi: item.donViQuanLy || item.donVi || '',
+                    idChuyenNganhKt: item.idChuyenNganhKt || '',
+                    idNganh: item.idNganh || '',
+                })),
+            ]);
+        } finally {
+            setEquipmentLoading(false);
+        }
+    }, []);
 
-  const loaiList = useMemo(() => Array.from(new Set(niemCatRows.map(d => d.loaiNiemCat))), []);
-  const ketQuaOptions = ['Đạt yêu cầu', 'Cần bổ sung', 'Đang thực hiện'];
+    const loadSchedules = useCallback(async () => {
+        setLoading(true);
+        setErrorMessage('');
+        try {
+            const rows = await getListNiemCatSchedule({});
+            const details = await Promise.all(rows.map(async (row) => {
+                try { return await getNiemCatSchedule(row.id); } catch { return null; }
+            }));
+            const detailMap = new Map<string, LocalNiemCatScheduleItem>();
+            details.forEach((detail) => { if (detail) detailMap.set(detail.id, detail); });
 
-  // Tab 1: Trang bị KT niêm cất (tất cả)
-  // Tab 2: Kết quả niêm cất (tất cả hồ sơ)
-  const sourceData = useMemo(() => {
-    return niemCatRows;
-  }, []);
+            const mapped: PreserveSchedule[] = rows.map((row) => {
+                const detail = detailMap.get(row.id);
+                const start = detail?.ngayNiemCat || '';
+                const end = detail?.parameters?.thoi_gian_ket_thuc || start;
+                return {
+                    id: row.id,
+                    tenLich: row.tenNiemCat || '',
+                    canCu: row.canCu || '',
+                    thoiGianLap: row.ngayNiemCat || '',
+                    donVi: row.donViThucHien || '',
+                    nguoiPhuTrach: row.nguoiThucHien || '',
+                    thoiGianThucHien: start,
+                    thoiGianKetThuc: end,
+                    noiDungCongViec: detail?.parameters?.noi_dung_cong_viec || '',
+                    vatChatBaoDam: detail?.parameters?.vat_chat_bao_dam || '',
+                    ketQua: row.ketQuaThucHien || '',
+                    parameters: detail?.parameters || {},
+                    equipmentKeys: (detail?.dsTrangBi || []).map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)),
+                    soTrangBi: row.soTrangBi || 0,
+                    version: detail?.version || 0,
+                };
+            });
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return sourceData.filter(r => {
-      const matchSearch = !q
-        || [r.ten, r.loaiDeNghi, r.donViThucHien, r.nguoiThucHien, r.canCu].some(v => v?.toLowerCase().includes(q));
-      const matchLoai = !filterLoai || r.loaiNiemCat === filterLoai;
-      const matchKQ = !filterKQ || r.ketQua === filterKQ;
-      return matchSearch && matchLoai && matchKQ;
-    });
-  }, [search, filterLoai, filterKQ, sourceData]);
+            mapped.sort((a, b) => new Date(b.thoiGianLap || '1970-01-01').getTime() - new Date(a.thoiGianLap || '1970-01-01').getTime());
+            setSchedules(mapped);
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Khong tai duoc danh sach niem cat.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  const activeFilters = useMemo(() => {
-    const chips: any[] = [];
-    if (filterLoai)
-      chips.push({
-        key: "loai",
-        label: `Loại: ${filterLoai}`,
-        icon: <InventoryIcon fontSize="small" />,
-      });
-    if (filterKQ)
-      chips.push({
-        key: "kq",
-        label: `Kết quả: ${filterKQ}`,
-        icon: <AssignmentTurnedInIcon fontSize="small" />,
-      });
-    return chips;
-  }, [filterLoai, filterKQ]);
+    useEffect(() => {
+        void Promise.all([loadEquipmentPool()]).then(() => { void loadSchedules(); });
+    }, [loadEquipmentPool, loadSchedules]);
 
-  const handleRemoveFilter = (key: string) => {
-    if (key === "loai") setFilterLoai("");
-    if (key === "kq") setFilterKQ("");
-  };
+    const resolveStatus = useCallback((schedule: PreserveSchedule): 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none' => {
+        if (schedule.ketQua && schedule.ketQua.trim() !== '') return 'completed';
+        const now = Date.now();
+        const start = schedule.thoiGianThucHien ? new Date(schedule.thoiGianThucHien).getTime() : null;
+        const end = schedule.thoiGianKetThuc ? new Date(schedule.thoiGianKetThuc).getTime() : null;
+        if (!start) return 'none';
+        if (end && end < now) return 'overdue';
+        if (start <= now && (!end || end >= now)) return 'inprogress';
+        return 'upcoming';
+    }, []);
 
+    const stats = useMemo(() => {
+        let overdue = 0; let inprogress = 0; let completed = 0;
+        schedules.forEach((s) => {
+            const st = resolveStatus(s);
+            if (st === 'overdue') overdue += 1;
+            else if (st === 'inprogress') inprogress += 1;
+            else if (st === 'completed') completed += 1;
+        });
+        return { total: schedules.length, completed, inprogress, overdue };
+    }, [resolveStatus, schedules]);
 
-  const handleClear = () => {
-    setSearch('');
-    setFilterLoai('');
-    setFilterKQ('');
-  };
+    const filteredSchedules = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        const rows = !q ? schedules : schedules.filter((row) =>
+            [row.tenLich, row.canCu, row.donVi, row.nguoiPhuTrach].some((x) => x.toLowerCase().includes(q)),
+        );
+        const selectedOfficeId = String(selectedOffice?.id || '').trim();
+        const selectedOfficeTokens = [
+            String(selectedOffice?.ten || '').trim(),
+            String(selectedOffice?.tenDayDu || '').trim(),
+            String(selectedOffice?.vietTat || '').trim(),
+            String(selectedOffice?.code || '').trim(),
+        ].filter(Boolean).map(normalizeForSearch);
 
-  const activeFilterCount = activeFilters.length;
+        const rowsByUnit = selectedOfficeId
+            ? rows.filter((s) => {
+                const donViValue = String(s.donVi || '').trim();
+                if (!donViValue) return false;
+                if (donViValue === selectedOfficeId) return true;
+                if (donViValue.startsWith(`${selectedOfficeId}.`)) return true;
+                const normalizedDonVi = normalizeForSearch(donViValue);
+                return selectedOfficeTokens.some((token) => token && normalizedDonVi.includes(token));
+            })
+            : rows;
 
-  const stats = useMemo(() => ({
-    datYeuCau: niemCatRows.filter(r => r.ketQua === 'Đạt yêu cầu').length,
-    canBoSung: niemCatRows.filter(r => r.ketQua === 'Cần bổ sung').length,
-    dangThucHien: niemCatRows.filter(r => r.ketQua === 'Đang thực hiện').length,
-    total: niemCatRows.length,
-  }), []);
+        if (!selectedTrangBiId) return rowsByUnit;
+        const selectedKeys = new Set([buildEquipmentKey(selectedTrangBiId, 1), buildEquipmentKey(selectedTrangBiId, 2)]);
+        return rowsByUnit.filter((s) => s.equipmentKeys.some((k) => selectedKeys.has(k)));
+    }, [search, schedules, selectedOffice, selectedTrangBiId]);
 
+    const ganttByEquipment = useMemo<PreserveSchedule[]>(() => {
+        const poolByKey = new Map(equipmentPool.map((item) => [item.key, item]));
+        const chosenByEquipment = new Map<string, PreserveSchedule>();
+        filteredSchedules.forEach((schedule) => {
+            const currentStatus = resolveStatus(schedule);
+            const currentPriority = getStatusPriority(currentStatus);
+            const currentStart = new Date(schedule.thoiGianThucHien || schedule.thoiGianLap || '1970-01-01').getTime();
+            schedule.equipmentKeys.forEach((equipmentKey) => {
+                const existing = chosenByEquipment.get(equipmentKey);
+                if (!existing) { chosenByEquipment.set(equipmentKey, schedule); return; }
+                const existingStatus = resolveStatus(existing);
+                const existingPriority = getStatusPriority(existingStatus);
+                const existingStart = new Date(existing.thoiGianThucHien || existing.thoiGianLap || '1970-01-01').getTime();
+                if (currentPriority > existingPriority || (currentPriority === existingPriority && currentStart > existingStart)) {
+                    chosenByEquipment.set(equipmentKey, schedule);
+                }
+            });
+        });
+        return Array.from(chosenByEquipment.entries()).map(([equipmentKey, schedule]) => {
+            const equipment = poolByKey.get(equipmentKey);
+            return {
+                ...schedule,
+                id: `eq-${equipmentKey}`,
+                tenLich: equipment ? `${equipment.tenDanhMuc}${equipment.soHieu ? ` - ${equipment.soHieu}` : ''}` : schedule.tenLich,
+                donVi: equipment?.donVi || schedule.donVi,
+                soTrangBi: 1,
+                equipmentKeys: [equipmentKey],
+                parameters: { ...schedule.parameters, __schedule_id: schedule.id },
+            };
+        });
+    }, [equipmentPool, filteredSchedules, resolveStatus]);
 
-  return (
-    <Box sx={{ p: 1.5 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-        <Box>
-          <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
-            NIÊM CẤT TRANG BỊ
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Hệ thống giám sát và quản lý trạng thái niêm cất bảo quản trang bị kỹ thuật thông tin toàn quân
-          </Typography>
-        </Box>
-        <StatsButton activeMenu="niemCat" />
-      </Stack>
+    const openCreateDialog = useCallback(() => {
+        setEditingSchedule(null);
+        setDialogOpen(true);
+    }, []);
 
+    const openEditDialog = useCallback(async (schedule: PreserveSchedule) => {
+        setSaving(true);
+        try {
+            const detail = await getNiemCatSchedule(schedule.id);
+            setEditingSchedule({
+                id: detail.id,
+                tenLich: detail.tenNiemCat || '',
+                canCu: detail.canCu || '',
+                thoiGianLap: detail.ngayNiemCat || '',
+                donVi: detail.donViThucHien || '',
+                nguoiPhuTrach: detail.nguoiThucHien || '',
+                thoiGianThucHien: detail.ngayNiemCat || '',
+                thoiGianKetThuc: detail.parameters?.thoi_gian_ket_thuc || detail.ngayNiemCat || '',
+                noiDungCongViec: detail.parameters?.noi_dung_cong_viec || '',
+                vatChatBaoDam: detail.parameters?.vat_chat_bao_dam || '',
+                ketQua: detail.ketQuaThucHien || '',
+                parameters: detail.parameters || {},
+                equipmentKeys: detail.dsTrangBi.map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)),
+                soTrangBi: detail.dsTrangBi.length,
+                version: detail.version || 0,
+            });
+            setDialogOpen(true);
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Khong tai duoc chi tiet niem cat.');
+        } finally {
+            setSaving(false);
+        }
+    }, []);
 
+    const handleEquipmentGanttClick = useCallback((row: PreserveSchedule) => {
+        const sourceScheduleId = row.parameters?.__schedule_id;
+        if (!sourceScheduleId) return;
+        const schedule = filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId);
+        if (schedule) void openEditDialog(schedule);
+    }, [filteredSchedules, openEditDialog, schedules]);
 
-      {/* Tabs */}
-      <Box sx={{
-        mb: 1.5,
-        p: 0.5,
-        bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-        borderRadius: 2.5,
-        display: 'inline-flex'
-      }}>
-        <Tabs
-          value={tab}
-          onChange={handleTabChange}
-          sx={{
-            minHeight: 40,
-            '& .MuiTabs-indicator': { display: 'none' },
-            '& .MuiTab-root': {
-              fontWeight: 700,
-              textTransform: 'none',
-              minHeight: 40,
-              borderRadius: 2.5,
-              px: 3,
-              color: 'text.secondary',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              '&.Mui-selected': {
-                color: '#fff',
-                bgcolor: 'primary.main',
-                boxShadow: '0 4px 12px rgba(46,125,50,0.25)',
-              },
-              '&:hover': {
-                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-              }
-            }
-          }}
-        >
-          <Tab
-            value={1}
-            icon={<LockIcon sx={{ fontSize: 18 }} />}
-            iconPosition="start"
-            label={`Trang bị KT niêm cất (${stats.total})`}
-          />
-          <Tab
-            value={2}
-            icon={<AssignmentTurnedInIcon sx={{ fontSize: 18 }} />}
-            iconPosition="start"
-            label={`Kết quả niêm cất (${stats.datYeuCau})`}
-          />
-        </Tabs>
-      </Box>
+    const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
+        const payload: LocalNiemCatScheduleItem = {
+            id: editingSchedule?.id || '',
+            tenNiemCat: formData.ten_niem_cat || '',
+            canCu: formData.can_cu || '',
+            loaiDeNghi: formData.loai_de_nghi || '',
+            loaiNiemCat: formData.loai_niem_cat || '',
+            donViThucHien: formData.don_vi_thuc_hien || '',
+            nguoiThucHien: formData.nguoi_thuc_hien || '',
+            ngayNiemCat: formData.ngay_niem_cat || '',
+            ketQuaThucHien: formData.ket_qua_thuc_hien || '',
+            dsTrangBi: selectedEquipment.map((equipment) => ({
+                idTrangBi: equipment.id,
+                nhomTrangBi: equipment.nhom,
+                maDanhMuc: equipment.maDanhMuc,
+                tenDanhMuc: equipment.tenDanhMuc,
+                soHieu: equipment.soHieu,
+                idChuyenNganhKt: equipment.idChuyenNganhKt,
+                idNganh: equipment.idNganh,
+                parameters: {},
+            })),
+            parameters: formData,
+            version: editingSchedule?.version || 0,
+        };
+        await saveNiemCatSchedule({ item: payload, expectedVersion: editingSchedule?.version });
+        setDialogOpen(false);
+        await loadSchedules();
+    }, [editingSchedule, loadSchedules]);
 
-      <CommonFilter
-        search={search}
-        onSearchChange={setSearch}
-        placeholder="Tìm kiếm mã, tên trang bị, đơn vị, kho niêm cất…"
-        onExport={() => alert("[Giả lập] Xuất Excel niêm cất")}
-        activeFilters={activeFilters}
-        onRemoveFilter={handleRemoveFilter}
-        onClearAll={handleClear}
-      >
-        <Grid container spacing={2.5}>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: "block", mb: 0.5, ml: 0.5, textTransform: "uppercase", fontSize: "0.65rem", letterSpacing: "0.05em" }}>
-              LOẠI NIÊM CẤT
-            </Typography>
-            <TextField
-              select fullWidth size="small"
-              variant="outlined"
-              value={filterLoai}
-              onChange={(e) => setFilterLoai(e.target.value)}
-            >
-              <MenuItem value=""><em>-- Tất cả loại --</em></MenuItem>
-              {loaiList.map((l) => <MenuItem key={l} value={l}>{l}</MenuItem>)}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: "block", mb: 0.5, ml: 0.5, textTransform: "uppercase", fontSize: "0.65rem", letterSpacing: "0.05em" }}>
-              KẾT QUẢ NIÊM CẤT
-            </Typography>
-            <TextField
-              select fullWidth size="small"
-              variant="outlined"
-              value={filterKQ}
-              onChange={(e) => setFilterKQ(e.target.value)}
-            >
-              <MenuItem value=""><em>-- Tất cả kết quả --</em></MenuItem>
-              {ketQuaOptions.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-            </TextField>
-          </Grid>
-        </Grid>
-      </CommonFilter>
+    const dialogInitialData = useMemo<Record<string, string>>(() => {
+        if (!editingSchedule) return {};
+        return {
+            ten_niem_cat: editingSchedule.tenLich,
+            can_cu: editingSchedule.canCu,
+            loai_de_nghi: editingSchedule.parameters?.loai_de_nghi || '',
+            loai_niem_cat: editingSchedule.parameters?.loai_niem_cat || '',
+            don_vi_thuc_hien: editingSchedule.donVi,
+            nguoi_thuc_hien: editingSchedule.nguoiPhuTrach,
+            ngay_niem_cat: editingSchedule.thoiGianThucHien,
+            ket_qua_thuc_hien: editingSchedule.ketQua,
+            thoi_gian_ket_thuc: editingSchedule.thoiGianKetThuc,
+            ...editingSchedule.parameters,
+        };
+    }, [editingSchedule]);
 
+    const dialogInitialEquipment = useMemo<EquipmentOption[]>(() => {
+        if (!editingSchedule) return [];
+        return equipmentPool.filter((item) => editingSchedule.equipmentKeys.includes(item.key));
+    }, [editingSchedule, equipmentPool]);
 
-      <DataGrid
-        rows={filtered}
-        columns={columns}
-        getRowId={(r) => r.id}
-        sx={{
-          height: {
-            xs: 500,
-            sm: 550,
-            md: "calc(100vh - 350px)",
-          },
-          minHeight: 450,
-          width: "100%",
-          mt: 1,
-        }}
-      />
-    </Box>
-  );
+    return (
+        <OfficeProvider>
+            <Box sx={{ p: 1.5, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+                    <Box>
+                        <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
+                            NIEM CAT TRANG BI
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">Quan ly theo doi va ket qua niem cat trang bi.</Typography>
+                    </Box>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Them ke hoach</Button>
+                </Stack>
+
+                {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+                    {[
+                        { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
+                        { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
+                        { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
+                        { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
+                    ].map((item) => (
+                        <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
+                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <WarehouseIcon sx={{ fontSize: 16, color: item.color }} />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="h5" fontWeight={800} sx={{ color: item.color, lineHeight: 1.1 }}>{item.value}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                                    </Box>
+                                </Stack>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+                        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
+                            <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
+                                <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
+                            </Box>
+                        </CardContent>
+                    </Card>
+
+                    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                            <TextField
+                                size="small"
+                                placeholder="Tim ten ke hoach, can cu, don vi..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                            />
+                            <Tabs value={activeTab} onChange={(_, value: NiemCatTab) => setActiveTab(value)}>
+                                <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
+                                <Tab value="ket_qua_niem_cat" label="Ket qua niem cat" />
+                            </Tabs>
+                        </Stack>
+                        <Box sx={{ flex: 1, minHeight: 0 }}>
+                            {activeTab === 'theo_doi_trang_bi'
+                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" />
+                                : <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />}
+                        </Box>
+                    </Box>
+                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                </Box>
+
+                <GenericScheduleDialog
+                    open={dialogOpen}
+                    onClose={() => setDialogOpen(false)}
+                    onSave={handleSave}
+                    initialData={dialogInitialData}
+                    initialEquipment={dialogInitialEquipment}
+                    editingId={editingSchedule?.id}
+                    equipmentPool={equipmentPool}
+                    equipmentLoading={equipmentLoading}
+                    title={editingSchedule?.id ? 'Cap nhat ke hoach niem cat' : 'Them ke hoach niem cat'}
+                    icon={WarehouseIcon}
+                    fieldSetKey={TRANG_BI_FIELD_SET_KEYS.NIEM_CAT}
+                    nameFieldKey="ten_niem_cat"
+                    nameFieldLabel="Ten niem cat"
+                    requiredNameError="Vui long nhap ten niem cat."
+                    startDateFieldKey="ngay_niem_cat"
+                    endDateFieldKey="thoi_gian_ket_thuc"
+                />
+            </Box>
+        </OfficeProvider>
+    );
 };
 
 export default NiemCat;

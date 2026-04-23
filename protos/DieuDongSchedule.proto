@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package DieuDongSchedule;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "Base.proto";
+
+message DieuDongScheduleTrangBiItem {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+  string ma_danh_muc = 3;
+  string ten_danh_muc = 4;
+  string so_hieu = 5;
+  string id_chuyen_nganh_kt = 6;
+  string id_nganh = 7;
+  map<string, string> parameters = 20;
+}
+
+message DieuDongScheduleItem {
+  string id = 1;
+  string ten_dieu_dong = 2;
+  string can_cu = 3;
+  string don_vi_giao = 4;
+  string don_vi_nhan = 5;
+  string nguoi_phu_trach = 6;
+  google.protobuf.Timestamp thoi_gian_thuc_hien = 7;
+  google.protobuf.Timestamp thoi_gian_ket_thuc = 8;
+  string ghi_chu = 9;
+  repeated DieuDongScheduleTrangBiItem ds_trang_bi = 10;
+  map<string, string> parameters = 11;
+  google.protobuf.StringValue nguoi_tao = 12;
+  google.protobuf.StringValue nguoi_sua = 13;
+  google.protobuf.Timestamp ngay_tao = 14;
+  google.protobuf.Timestamp ngay_sua = 15;
+  int32 version = 16;
+}
+
+message DieuDongScheduleGridItem {
+  string id = 1;
+  string ten_dieu_dong = 2;
+  string can_cu = 3;
+  string don_vi_giao = 4;
+  string don_vi_nhan = 5;
+  string nguoi_phu_trach = 6;
+  google.protobuf.Timestamp thoi_gian_thuc_hien = 7;
+  google.protobuf.Timestamp thoi_gian_ket_thuc = 8;
+  int32 so_trang_bi = 9;
+  string nguoi_sua = 10;
+  google.protobuf.Timestamp ngay_sua = 11;
+}
+
+message GetListDieuDongScheduleRequest {
+  google.protobuf.StringValue don_vi = 1;
+  google.protobuf.StringValue id_chuyen_nganh_kt = 2;
+  google.protobuf.StringValue search_text = 3;
+  google.protobuf.Timestamp from_date = 4;
+  google.protobuf.Timestamp to_date = 5;
+}
+
+message GetListDieuDongScheduleResponse {
+  repeated DieuDongScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetDieuDongScheduleRequest {
+  string id = 1;
+}
+
+message GetDieuDongScheduleResponse {
+  DieuDongScheduleItem item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message SaveDieuDongScheduleRequest {
+  DieuDongScheduleItem item = 1;
+  google.protobuf.Int32Value expected_version = 2;
+}
+
+message SaveDieuDongScheduleResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DeleteDieuDongScheduleRequest {
+  string id = 1;
+}
+
+message GetListDieuDongScheduleByTrangBiRequest {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+}
+
+message GetListDieuDongScheduleByTrangBiResponse {
+  repeated DieuDongScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+service DieuDongScheduleService {
+  rpc GetListDieuDongSchedule(GetListDieuDongScheduleRequest) returns (GetListDieuDongScheduleResponse);
+  rpc GetDieuDongSchedule(GetDieuDongScheduleRequest) returns (GetDieuDongScheduleResponse);
+  rpc SaveDieuDongSchedule(SaveDieuDongScheduleRequest) returns (SaveDieuDongScheduleResponse);
+  rpc DeleteDieuDongSchedule(DeleteDieuDongScheduleRequest) returns (Base.DeleteBaseResponse);
+  rpc GetListDieuDongScheduleByTrangBi(GetListDieuDongScheduleByTrangBiRequest) returns (GetListDieuDongScheduleByTrangBiResponse);
+}

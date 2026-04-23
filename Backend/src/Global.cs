@@ -525,6 +525,11 @@ public static class Global
         app.MapGrpcService<FileTransferServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<TrangBiLogServiceImpl>().EnableGrpcWeb().RequireAuthorization();
         app.MapGrpcService<BaoDuongScheduleServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<BaoQuanScheduleServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<SuaChuaScheduleServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<NiemCatScheduleServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<DieuDongScheduleServiceImpl>().EnableGrpcWeb().RequireAuthorization();
+        app.MapGrpcService<ChuyenCapChatLuongScheduleServiceImpl>().EnableGrpcWeb().RequireAuthorization();
 
         app.UseStaticFiles(new StaticFileOptions
         {

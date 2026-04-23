@@ -37,8 +37,7 @@ import HandymanIcon from '@mui/icons-material/Handyman';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
-import { FormDialog, TrangBiLogSidePanel } from '../Dialog';
-import { LogType } from '../../types/trangBiLog';
+import { FormDialog } from '../Dialog';
 import {
   createDialogTabsSx,
   dialogActionBtnSx,
@@ -203,15 +202,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   });
 
   // ── Log side panel state ────────────────────────────────────
-  const [logPanel, setLogPanel] = useState<{
-    open: boolean;
-    logType: LogType;
-    editingLogId: string | null;
-  }>({ open: false, logType: LogType.BaoQuan, editingLogId: null });
-
-  // Increment this to force tabs to reload their log history
-  const [logHistoryRefreshKey, setLogHistoryRefreshKey] = useState(0);
-
   // TrangBi editor record (extract name for log tabs)
   const trangBiNameForLogs = useMemo(() => {
     const nameField = allFields.find(f =>
@@ -228,11 +218,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }, [editingRecordId, editorRecord]);
 
   // ── Reset log panel state khi dialog đóng ──────────────────
-  useEffect(() => {
-    if (open) return;
-    setLogPanel(prev => prev.open ? { ...prev, open: false } : prev);
-  }, [open]);
-
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
@@ -761,14 +746,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   ]);
 
   // ── Log panel helpers ────────────────────────────────────────
-  const openLogPanel = useCallback((logType: LogType, editingLogId: string | null = null) => {
-    setLogPanel({ open: true, logType, editingLogId });
-  }, []);
-
-  const closeLogPanel = useCallback(() => {
-    setLogPanel(prev => ({ ...prev, open: false }));
-  }, []);
-
   // ── Navigation helpers ──────────────────────────────────────
   const isFirstTab = activeTab === TAB_GENERAL;
   const isLastTab = activeTab === TAB_SYNC;
@@ -821,11 +798,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }
 
   const FORM_WIDTH = 720;
-  const LOG_PANEL_WIDTH = 520;
-
-  const dialogWidth = logPanel.open
-    ? FORM_WIDTH + LOG_PANEL_WIDTH
-    : FORM_WIDTH;
+  const dialogWidth = FORM_WIDTH;
   const dialogWidthCss = `min(${dialogWidth}px, calc(100vw - 32px))`;
 
   return (
@@ -913,7 +886,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         {/* ── Main form area ─────────────────────────────────── */}
         <Box
           sx={{
-            width: logPanel.open ? `calc(100% - ${LOG_PANEL_WIDTH}px)` : '100%',
+            width: '100%',
             maxWidth: FORM_WIDTH,
             minWidth: 0,
             flexShrink: 0,
@@ -1052,8 +1025,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                     <BaoQuanTab
                       trangBiId={trangBiIdForLogs}
                       trangBiName={trangBiNameForLogs}
-                      onOpenLogPanel={(editingId) => openLogPanel(LogType.BaoQuan, editingId)}
-                      refreshKey={logHistoryRefreshKey}
+                      onOpenLogPanel={() => {}}
+                      refreshKey={0}
                     />
                   </Suspense>
                 )}
@@ -1063,8 +1036,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                     <BaoDuongTab
                       trangBiId={trangBiIdForLogs}
                       trangBiName={trangBiNameForLogs}
-                      onOpenLogPanel={(editingId) => openLogPanel(LogType.BaoDuong, editingId)}
-                      refreshKey={logHistoryRefreshKey}
+                      onOpenLogPanel={() => {}}
+                      refreshKey={0}
                     />
                   </Suspense>
                 )}
@@ -1074,8 +1047,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                     <SuaChuaTab
                       trangBiId={trangBiIdForLogs}
                       trangBiName={trangBiNameForLogs}
-                      onOpenLogPanel={(editingId) => openLogPanel(LogType.SuaChua, editingId)}
-                      refreshKey={logHistoryRefreshKey}
+                      onOpenLogPanel={() => {}}
+                      refreshKey={0}
                     />
                   </Suspense>
                 )}
@@ -1085,8 +1058,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                     <NiemCatTab
                       trangBiId={trangBiIdForLogs}
                       trangBiName={trangBiNameForLogs}
-                      onOpenLogPanel={(editingId) => openLogPanel(LogType.NiemCat, editingId)}
-                      refreshKey={logHistoryRefreshKey}
+                      onOpenLogPanel={() => {}}
+                      refreshKey={0}
                     />
                   </Suspense>
                 )}
@@ -1096,8 +1069,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                     <DieuDongTab
                       trangBiId={trangBiIdForLogs}
                       trangBiName={trangBiNameForLogs}
-                      onOpenLogPanel={(editingId) => openLogPanel(LogType.DieuDong, editingId)}
-                      refreshKey={logHistoryRefreshKey}
+                      onOpenLogPanel={() => {}}
+                      refreshKey={0}
                     />
                   </Suspense>
                 )}
@@ -1107,18 +1080,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         </Box>
 
         {/* ── Side panel (only mounted when open) ───────────────── */}
-        {logPanel.open && (
-          <TrangBiLogSidePanel
-            open={logPanel.open}
-            onClose={closeLogPanel}
-            logType={logPanel.logType}
-            trangBiId={trangBiIdForLogs}
-            trangBiName={trangBiNameForLogs}
-            editingLogId={logPanel.editingLogId}
-            onSaved={() => setLogHistoryRefreshKey(k => k + 1)}
-            width={LOG_PANEL_WIDTH}
-          />
-        )}
       </Box>
     </FormDialog>
   );

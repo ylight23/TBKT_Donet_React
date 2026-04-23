@@ -16,7 +16,6 @@ import {
     GetCalendarLogRequestSchema,
     GetKTVWorkloadRequestSchema,
     GetLogStatsRequestSchema,
-    GetQuarterGanttRequestSchema,
     GetLogHistoryByTrangBiRequestSchema,
     GetFieldSetsByLogTypeRequestSchema,
 
@@ -34,7 +33,6 @@ import type {
     TrangBiLogCalendarItem as TrangBiLogCalendarItemProto,
     KTVWorkloadItem as KTVWorkloadItemProto,
     LogStats as LogStatsProto,
-    GanttRow as GanttRowProto,
 } from '../grpc/generated/TrangBiLog_pb';
 
 import { trangBiLogClient } from '../grpc/grpcClient';
@@ -119,15 +117,6 @@ export interface LocalLogStats {
     tyLeHoanThanh: number;
     quaHan: number;
     sapDenHan: number;
-}
-
-export interface LocalGanttRow {
-    idTrangBi: string;
-    tenTrangBi: string;
-    soHieu: string;
-    m1Status: LogStatus;
-    m2Status: LogStatus;
-    m3Status: LogStatus;
 }
 
 export interface LocalFieldSetDetail {
@@ -250,17 +239,6 @@ function mapLogStats(p: LogStatsProto): LocalLogStats {
         tyLeHoanThanh: p.tyLeHoanThanh,
         quaHan: p.quaHan,
         sapDenHan: p.sapDenHan,
-    };
-}
-
-function mapGanttRow(p: GanttRowProto): LocalGanttRow {
-    return {
-        idTrangBi: p.idTrangBi,
-        tenTrangBi: p.tenTrangBi,
-        soHieu: p.soHieu,
-        m1Status: p.m1Status,
-        m2Status: p.m2Status,
-        m3Status: p.m3Status,
     };
 }
 
@@ -413,21 +391,6 @@ export async function getLogStats(params: {
     return mapLogStats(res.stats);
 }
 
-export async function getQuarterGantt(params: {
-    logType: LogType;
-    year: number;
-    quarter: number;
-}): Promise<LocalGanttRow[]> {
-    const req = create(GetQuarterGanttRequestSchema, {
-        logType: params.logType,
-        year: params.year,
-        quarter: params.quarter,
-    });
-    const res = await trangBiLogClient.getQuarterGantt(req);
-    if (!res.meta?.success) throw new Error(res.meta?.message ?? 'Lỗi tải Gantt');
-    return (res.rows ?? []).map(mapGanttRow);
-}
-
 export async function getLogHistoryByTrangBi(params: {
     idTrangBi: string;
     logType?: LogType;
@@ -491,5 +454,4 @@ export type { LocalTrangBiLog as TrangBiLog };
 export type { LocalCalendarItem as TrangBiLogCalendarItem };
 export type { LocalKTVWorkloadItem as KTVWorkloadItem };
 export type { LocalLogStats as LogStats };
-export type { LocalGanttRow as GanttRow };
 export type { LocalFieldSetDetail as FieldSetDetailUI };

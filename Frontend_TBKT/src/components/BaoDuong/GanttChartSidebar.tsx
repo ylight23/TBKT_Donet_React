@@ -11,11 +11,12 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import type { MaintenanceSchedule } from '../../pages/BaoDuong';
+import type { ScheduleGanttItem } from './GanttView';
 
 interface GanttChartSidebarProps {
-    schedules: MaintenanceSchedule[];
-    onScheduleClick?: (schedule: MaintenanceSchedule) => void;
+    schedules: ScheduleGanttItem[];
+    onScheduleClick?: (schedule: ScheduleGanttItem) => void;
+    panelHeight?: number | string;
 }
 
 const DOWS_VI = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -25,7 +26,7 @@ const MONTHS_VI = [
     'Thang 9', 'Thang 10', 'Thang 11', 'Thang 12',
 ];
 
-const resolveStatus = (schedule: MaintenanceSchedule): 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none' => {
+const resolveStatus = (schedule: ScheduleGanttItem): 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none' => {
     if (schedule.ketQua && schedule.ketQua.trim() !== '') return 'completed';
     const now = Date.now();
     const start = schedule.thoiGianThucHien ? new Date(schedule.thoiGianThucHien).getTime() : null;
@@ -84,7 +85,7 @@ const MiniCalendar: React.FC<{
     );
 };
 
-const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onScheduleClick }) => {
+const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onScheduleClick, panelHeight }) => {
     const today = new Date();
     const [viewYear, setViewYear] = useState(today.getFullYear());
     const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -134,7 +135,7 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
 
     const actionItems = useMemo(() => {
         const now = Date.now();
-        const items: Array<{ schedule: MaintenanceSchedule; type: 'overdue' | 'duesoon'; days: number }> = [];
+        const items: Array<{ schedule: ScheduleGanttItem; type: 'overdue' | 'duesoon'; days: number }> = [];
 
         schedules.forEach((s) => {
             const st = resolveStatus(s);
@@ -154,10 +155,14 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
         return items.sort((a, b) => a.days - b.days).slice(0, 6);
     }, [schedules]);
 
+    const resolvedHeight = typeof panelHeight === 'number'
+        ? `${panelHeight}px`
+        : (panelHeight || '100%');
+
     return (
-        <Stack spacing={1.5}>
-            <Card variant="outlined" sx={{ borderRadius: 2 }}>
-                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Stack spacing={1.5} sx={{ height: resolvedHeight, minHeight: 0 }}>
+            <Card variant="outlined" sx={{ borderRadius: 2, flex: 1, minHeight: 0 }}>
+                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, height: '100%', overflow: 'auto' }}>
                     <MiniCalendar
                         year={viewYear}
                         month={viewMonth}
@@ -187,7 +192,7 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                 </CardContent>
             </Card>
 
-            <Card variant="outlined" sx={{ borderRadius: 2 }}>
+            <Card variant="outlined" sx={{ borderRadius: 2, flex: 1, minHeight: 0 }}>
                 <CardHeader
                     title={(
                         <Stack direction="row" alignItems="center" spacing={0.75}>
@@ -197,7 +202,7 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                     )}
                     sx={{ p: 1.5, pb: 0.5 }}
                 />
-                <CardContent sx={{ p: 1.5, pt: 0.75, '&:last-child': { pb: 1.5 } }}>
+                <CardContent sx={{ p: 1.5, pt: 0.75, '&:last-child': { pb: 1.5 }, height: '100%', overflow: 'auto' }}>
                     {actionItems.length === 0 ? (
                         <Stack alignItems="center" spacing={0.5} py={1}>
                             <ScheduleIcon sx={{ fontSize: 28, color: 'text.disabled' }} />

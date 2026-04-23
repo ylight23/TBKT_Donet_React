@@ -6,6 +6,8 @@ import {
     Card,
     CardContent,
     Stack,
+    Tab,
+    Tabs,
     Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -13,10 +15,13 @@ import BuildCircleIcon from '@mui/icons-material/BuildCircle';
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
+import { useLocation } from 'react-router-dom';
+import OfficeDictionary, { type OfficeNode } from '../Office/subComponent/OfficeDictionary';
+import { OfficeProvider } from '../../context/OfficeContext';
 
 import GanttView from '../../components/BaoDuong/GanttView';
 import GanttChartSidebar from '../../components/BaoDuong/GanttChartSidebar';
-import ThanhPhanBaoDuongDialog from '../../components/BaoDuong/ThanhPhanBaoDuongDialog';
+import GenericScheduleDialog, { type EquipmentOption } from '../../components/Schedule/GenericScheduleDialog';
 import {
     getBaoDuongSchedule,
     getListBaoDuongSchedule,
@@ -24,20 +29,9 @@ import {
     type LocalBaoDuongScheduleItem,
 } from '../../apis/baoDuongScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
+import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 
-type EquipmentOption = {
-    key: string;
-    id: string;
-    nhom: 1 | 2;
-    maDanhMuc: string;
-    tenDanhMuc: string;
-    soHieu: string;
-    donVi: string;
-    idChuyenNganhKt: string;
-    idNganh: string;
-};
-
-export type MaintenanceSchedule = {
+type MaintenanceSchedule = {
     id: string;
     tenLich: string;
     canCu: string;
@@ -55,17 +49,38 @@ export type MaintenanceSchedule = {
     version?: number;
 };
 
+type BaoDuongTab = 'theo_doi_trang_bi' | 'lich_bao_duong';
+
 const buildEquipmentKey = (id: string, nhom: number): string => `${nhom}:${id}`;
+const normalizeForSearch = (value: string): string =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none'): number => {
+    switch (status) {
+        case 'inprogress': return 5;
+        case 'upcoming': return 4;
+        case 'overdue': return 3;
+        case 'completed': return 2;
+        default: return 1;
+    }
+};
 
 const BaoDuong: React.FC = () => {
+    const location = useLocation();
+    const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
+
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
-
     const [equipmentLoading, setEquipmentLoading] = useState(false);
     const [equipmentPool, setEquipmentPool] = useState<EquipmentOption[]>([]);
     const [search, setSearch] = useState('');
-
+    const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+    const [activeTab, setActiveTab] = useState<BaoDuongTab>('theo_doi_trang_bi');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<MaintenanceSchedule | null>(null);
@@ -122,9 +137,7 @@ const BaoDuong: React.FC = () => {
             }));
 
             const detailMap = new Map<string, LocalBaoDuongScheduleItem>();
-            details.forEach((detail) => {
-                if (detail) detailMap.set(detail.id, detail);
-            });
+            details.forEach((detail) => { if (detail) detailMap.set(detail.id, detail); });
 
             const mapped: MaintenanceSchedule[] = rows.map((row) => {
                 const detail = detailMap.get(row.id);
@@ -147,11 +160,7 @@ const BaoDuong: React.FC = () => {
                 };
             });
 
-            mapped.sort((a, b) => {
-                const d1 = new Date(a.thoiGianLap || '1970-01-01').getTime();
-                const d2 = new Date(b.thoiGianLap || '1970-01-01').getTime();
-                return d2 - d1;
-            });
+            mapped.sort((a, b) => new Date(b.thoiGianLap || '1970-01-01').getTime() - new Date(a.thoiGianLap || '1970-01-01').getTime());
             setSchedules(mapped);
         } catch (error) {
             setErrorMessage((error as Error).message || 'Khong tai duoc danh sach lich bao duong.');
@@ -161,9 +170,7 @@ const BaoDuong: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        void Promise.all([loadEquipmentPool()]).then(() => {
-            void loadSchedules();
-        });
+        void Promise.all([loadEquipmentPool()]).then(() => { void loadSchedules(); });
     }, [loadEquipmentPool, loadSchedules]);
 
     const resolveStatus = useCallback((schedule: MaintenanceSchedule): 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none' => {
@@ -178,9 +185,7 @@ const BaoDuong: React.FC = () => {
     }, []);
 
     const stats = useMemo(() => {
-        let overdue = 0;
-        let inprogress = 0;
-        let completed = 0;
+        let overdue = 0; let inprogress = 0; let completed = 0;
         schedules.forEach((s) => {
             const st = resolveStatus(s);
             if (st === 'overdue') overdue += 1;
@@ -192,10 +197,67 @@ const BaoDuong: React.FC = () => {
 
     const filteredSchedules = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return schedules;
-        return schedules.filter((row) => [row.tenLich, row.canCu, row.donVi, row.nguoiPhuTrach, row.noiDungCongViec]
-            .some((x) => x.toLowerCase().includes(q)));
-    }, [search, schedules]);
+        const rows = !q ? schedules : schedules.filter((row) =>
+            [row.tenLich, row.canCu, row.donVi, row.nguoiPhuTrach, row.noiDungCongViec].some((x) => x.toLowerCase().includes(q)),
+        );
+        const selectedOfficeId = String(selectedOffice?.id || '').trim();
+        const selectedOfficeTokens = [
+            String(selectedOffice?.ten || '').trim(),
+            String(selectedOffice?.tenDayDu || '').trim(),
+            String(selectedOffice?.vietTat || '').trim(),
+            String(selectedOffice?.code || '').trim(),
+        ].filter(Boolean).map(normalizeForSearch);
+
+        const rowsByUnit = selectedOfficeId
+            ? rows.filter((s) => {
+                const donViValue = String(s.donVi || '').trim();
+                if (!donViValue) return false;
+                if (donViValue === selectedOfficeId) return true;
+                if (donViValue.startsWith(`${selectedOfficeId}.`)) return true;
+                const normalizedDonVi = normalizeForSearch(donViValue);
+                return selectedOfficeTokens.some((token) => token && normalizedDonVi.includes(token));
+            })
+            : rows;
+
+        if (!selectedTrangBiId) return rowsByUnit;
+        const selectedKeys = new Set([buildEquipmentKey(selectedTrangBiId, 1), buildEquipmentKey(selectedTrangBiId, 2)]);
+        return rowsByUnit.filter((s) => s.equipmentKeys.some((k) => selectedKeys.has(k)));
+    }, [search, schedules, selectedOffice, selectedTrangBiId]);
+
+    const ganttByEquipment = useMemo<MaintenanceSchedule[]>(() => {
+        const poolByKey = new Map(equipmentPool.map((item) => [item.key, item]));
+        const chosenByEquipment = new Map<string, MaintenanceSchedule>();
+
+        filteredSchedules.forEach((schedule) => {
+            const currentStatus = resolveStatus(schedule);
+            const currentPriority = getStatusPriority(currentStatus);
+            const currentStart = new Date(schedule.thoiGianThucHien || schedule.thoiGianLap || '1970-01-01').getTime();
+            schedule.equipmentKeys.forEach((equipmentKey) => {
+                const existing = chosenByEquipment.get(equipmentKey);
+                if (!existing) { chosenByEquipment.set(equipmentKey, schedule); return; }
+                const existingStatus = resolveStatus(existing);
+                const existingPriority = getStatusPriority(existingStatus);
+                const existingStart = new Date(existing.thoiGianThucHien || existing.thoiGianLap || '1970-01-01').getTime();
+                if (currentPriority > existingPriority || (currentPriority === existingPriority && currentStart > existingStart)) {
+                    chosenByEquipment.set(equipmentKey, schedule);
+                }
+            });
+        });
+
+        return Array.from(chosenByEquipment.entries()).map(([equipmentKey, schedule]) => {
+            const equipment = poolByKey.get(equipmentKey);
+            const title = equipment ? `${equipment.tenDanhMuc}${equipment.soHieu ? ` - ${equipment.soHieu}` : ''}` : schedule.tenLich;
+            return {
+                ...schedule,
+                id: `eq-${equipmentKey}`,
+                tenLich: title,
+                donVi: equipment?.donVi || schedule.donVi,
+                soTrangBi: 1,
+                equipmentKeys: [equipmentKey],
+                parameters: { ...schedule.parameters, __schedule_id: schedule.id },
+            };
+        });
+    }, [equipmentPool, filteredSchedules, resolveStatus]);
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
@@ -231,6 +293,13 @@ const BaoDuong: React.FC = () => {
             setSaving(false);
         }
     }, []);
+
+    const handleEquipmentGanttClick = useCallback((row: MaintenanceSchedule) => {
+        const sourceScheduleId = row.parameters?.__schedule_id;
+        if (!sourceScheduleId) return;
+        const schedule = filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId);
+        if (schedule) void openEditDialog(schedule);
+    }, [filteredSchedules, openEditDialog, schedules]);
 
     const handleSaveSchedule = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payloadItem: LocalBaoDuongScheduleItem = {
@@ -288,82 +357,109 @@ const BaoDuong: React.FC = () => {
     }, [editingSchedule, equipmentPool]);
 
     return (
-        <Box sx={{ p: 1.5 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
-                <Box>
-                    <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
-                        BAO DUONG TRANG BI
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Quan ly ke hoach bao duong theo mo hinh schedule-first.
-                    </Typography>
+        <OfficeProvider>
+            <Box sx={{ p: 1.5, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+                    <Box>
+                        <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
+                            BAO DUONG TRANG BI
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Quan ly lich bao duong theo mo hinh schedule-first.
+                        </Typography>
+                    </Box>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
+                        Them ke hoach
+                    </Button>
+                </Stack>
+
+                {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+                    {[
+                        { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
+                        { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
+                        { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
+                        { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
+                    ].map((item) => (
+                        <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
+                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <BuildCircleIcon sx={{ fontSize: 16, color: item.color }} />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="h5" fontWeight={800} sx={{ color: item.color, lineHeight: 1.1 }}>{item.value}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                                    </Box>
+                                </Stack>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </Box>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
-                    Them ke hoach
-                </Button>
-            </Stack>
 
-            {errorMessage && (
-                <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>
-            )}
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5 }}>
-                {[
-                    { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
-                    { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
-                    { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
-                    { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
-                ].map((item) => (
-                    <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <BuildCircleIcon sx={{ fontSize: 16, color: item.color }} />
-                                </Box>
-                                <Box>
-                                    <Typography variant="h5" fontWeight={800} sx={{ color: item.color, lineHeight: 1.1 }}>{item.value}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-                                </Box>
-                            </Stack>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+                        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
+                            <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
+                                <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
+                            </Box>
                         </CardContent>
                     </Card>
-                ))}
-            </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 1.5, alignItems: 'start' }}>
-                <Box>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-                        <TextField
-                            size="small"
-                            placeholder="Tim ten ke hoach, can cu, don vi..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
-                        />
-                    </Stack>
-                    <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} />
+                    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                            <TextField
+                                size="small"
+                                placeholder="Tim ten ke hoach, can cu, don vi..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                            />
+                            <Tabs value={activeTab} onChange={(_, value: BaoDuongTab) => setActiveTab(value)}>
+                                <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
+                                <Tab value="lich_bao_duong" label="Lich bao duong" />
+                            </Tabs>
+                        </Stack>
+                        <Box sx={{ flex: 1, minHeight: 0 }}>
+                            {activeTab === 'theo_doi_trang_bi' ? (
+                                <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" />
+                            ) : (
+                                <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />
+                            )}
+                        </Box>
+                    </Box>
+                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
                 </Box>
-                <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} />
-            </Box>
 
-            <ThanhPhanBaoDuongDialog
-                open={dialogOpen}
-                onClose={() => setDialogOpen(false)}
-                onSave={handleSaveSchedule}
-                initialData={dialogInitialData}
-                initialEquipment={dialogInitialEquipment}
-                editingId={editingSchedule?.id}
-                equipmentPool={equipmentPool}
-                equipmentLoading={equipmentLoading}
-            />
-        </Box>
+                <GenericScheduleDialog
+                    open={dialogOpen}
+                    onClose={() => setDialogOpen(false)}
+                    onSave={handleSaveSchedule}
+                    initialData={dialogInitialData}
+                    initialEquipment={dialogInitialEquipment}
+                    editingId={editingSchedule?.id}
+                    equipmentPool={equipmentPool}
+                    equipmentLoading={equipmentLoading}
+                    title={editingSchedule?.id ? 'Cap nhat ke hoach bao duong' : 'Them ke hoach bao duong'}
+                    icon={BuildCircleIcon}
+                    color="#2563eb"
+                    fieldSetKey={TRANG_BI_FIELD_SET_KEYS.BAO_DUONG}
+                    nameFieldKey="ten_lich_bao_duong"
+                    nameFieldLabel="Ten bao duong"
+                    requiredNameError="Vui long nhap ten lich bao duong."
+                    startDateFieldKey="thoi_gian_thuc_hien"
+                    endDateFieldKey="thoi_gian_ket_thuc"
+                />
+            </Box>
+        </OfficeProvider>
     );
 };
 

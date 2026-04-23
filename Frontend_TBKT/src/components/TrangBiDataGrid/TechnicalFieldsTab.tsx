@@ -1,10 +1,9 @@
 // ============================================================
 // TechnicalFieldsTab – Tab thông số kỹ thuật
 // Hiển thị các FieldSet được nạp động theo mã danh mục trang bị.
-// Mỗi FieldSet collapsed mặc định, expand on-demand — giảm DOM
-// render khi có nhiều bộ dữ liệu.
+// Mỗi FieldSet luôn mở mặc định trong tab thông số kỹ thuật.
 // ============================================================
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -14,7 +13,6 @@ import Collapse from '@mui/material/Collapse';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import CategoryIcon from '@mui/icons-material/Category';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTheme } from '@mui/material/styles';
 
 import type {
@@ -95,12 +93,14 @@ const EmptyStateNoFields: React.FC<{ categoryCode: string }> = ({ categoryCode }
 );
 
 // ── CollapsibleFieldSet ────────────────────────────────────────
-// Một FieldSet có thể collapsed/expanded. Mặc định collapsed.
+// Một FieldSet luôn hiển thị (không thu gọn) trong tab thông số kỹ thuật.
 interface CollapsibleFieldSetProps {
   item: TechnicalFieldSetItem;
   index: number;
   formData: Record<string, string>;
   onFieldChange: (fieldKey: string, value: string) => void;
+  open: boolean;
+  onToggle: () => void;
 }
 
 const CollapsibleFieldSet: React.FC<CollapsibleFieldSetProps> = ({
@@ -108,8 +108,9 @@ const CollapsibleFieldSet: React.FC<CollapsibleFieldSetProps> = ({
   index,
   formData,
   onFieldChange,
+  open,
+  onToggle,
 }) => {
-  const [expanded, setExpanded] = useState(false);
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const color = item.fieldSet.color || DEFAULT_SET_COLORS[index % DEFAULT_SET_COLORS.length];
@@ -131,7 +132,7 @@ const CollapsibleFieldSet: React.FC<CollapsibleFieldSetProps> = ({
     >
       {/* Header – click để expand/collapse */}
       <Box
-        onClick={() => setExpanded((prev) => !prev)}
+        onClick={onToggle}
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -142,9 +143,6 @@ const CollapsibleFieldSet: React.FC<CollapsibleFieldSetProps> = ({
           bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
           userSelect: 'none',
           transition: 'background-color 0.15s',
-          '&:hover': {
-            bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)',
-          },
         }}
       >
         {/* Color accent bar */}
@@ -164,15 +162,16 @@ const CollapsibleFieldSet: React.FC<CollapsibleFieldSetProps> = ({
             display: 'flex',
             alignItems: 'center',
             color: 'text.secondary',
-            transition: 'transform 0.2s',
-            transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
             flexShrink: 0,
           }}
         >
-          {expanded
-            ? <ExpandMoreIcon sx={{ fontSize: 18 }} />
-            : <ChevronRightIcon sx={{ fontSize: 18 }} />
-          }
+          <ExpandMoreIcon
+            sx={{
+              fontSize: 18,
+              transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.15s ease',
+            }}
+          />
         </Box>
 
         {/* Title */}
@@ -229,8 +228,8 @@ const CollapsibleFieldSet: React.FC<CollapsibleFieldSetProps> = ({
         </Stack>
       </Box>
 
-      {/* Content – lazy render khi expanded */}
-      <Collapse in={expanded} timeout={250}>
+      {/* Content */}
+      <Collapse in={open} timeout={0}>
         <Box sx={{ px: 2, py: 1.5 }}>
           {item.fields && item.fields.length > 0 ? (
             <FieldSetGroup
@@ -270,6 +269,21 @@ const TechnicalFieldsTab: React.FC<TechnicalFieldsTabProps> = ({
   onFieldChange,
 }) => {
   const hasContent = technicalTabContent.length > 0;
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+
+  const fieldSetIds = useMemo(
+    () => technicalTabContent.map((item, index) => item.fieldSet.id || `fallback-${index}`),
+    [technicalTabContent],
+  );
+
+  useEffect(() => {
+    const next: Record<string, boolean> = {};
+    fieldSetIds.forEach((id) => {
+      next[id] = openMap[id] ?? true;
+    });
+    setOpenMap(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldSetIds.join('|')]);
 
   // Loading ban đầu (chưa có content)
   if (technicalLoading && !hasContent) {
@@ -291,25 +305,31 @@ const TechnicalFieldsTab: React.FC<TechnicalFieldsTabProps> = ({
     return <EmptyStateNoFields categoryCode={selectedCategoryCode} />;
   }
 
-  // Có content — collapsible FieldSets
+  // Có content — hiển thị phẳng, không lồng thêm section/tab phụ
   return (
     <Stack spacing={0}>
-      {/* Summary header */}
       <Box sx={{ px: 0.5, pb: 1 }}>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.74rem' }}>
-          Nhấn vào nhóm để mở rộng/thu gọn. {technicalTabContent.length} nhóm thông số.
+          {technicalTabContent.length} nhóm thông số.
         </Typography>
       </Box>
 
-      {technicalTabContent.map((item, index) => (
-        <CollapsibleFieldSet
-          key={item.fieldSet.id ?? `fallback-${index}`}
-          item={item}
-          index={index}
-          formData={formData}
-          onFieldChange={onFieldChange}
-        />
-      ))}
+      {technicalTabContent.map((item, index) => {
+        const id = item.fieldSet.id || `fallback-${index}`;
+        return (
+          <CollapsibleFieldSet
+            key={id}
+            item={item}
+            index={index}
+            formData={formData}
+            onFieldChange={onFieldChange}
+            open={openMap[id] ?? true}
+            onToggle={() => {
+              setOpenMap((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
+            }}
+          />
+        );
+      })}
 
       {/* Loading spinner khi đang nạp thêm (đã có content trước đó) */}
       {technicalLoading && (

@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package SuaChuaSchedule;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "Base.proto";
+
+message SuaChuaScheduleTrangBiItem {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+  string ma_danh_muc = 3;
+  string ten_danh_muc = 4;
+  string so_hieu = 5;
+  string id_chuyen_nganh_kt = 6;
+  string id_nganh = 7;
+  map<string, string> parameters = 20;
+}
+
+message SuaChuaScheduleItem {
+  string id = 1;
+  string ten_sua_chua = 2;
+  string can_cu = 3;
+  string muc_sua_chua = 4;
+  string cap_sua_chua = 5;
+  string don_vi_sua_chua = 6;
+  string don_vi_de_nghi = 7;
+  google.protobuf.Timestamp ngay_de_nghi = 8;
+  string ghi_chu = 9;
+  repeated SuaChuaScheduleTrangBiItem ds_trang_bi = 10;
+  map<string, string> parameters = 11;
+  google.protobuf.StringValue nguoi_tao = 12;
+  google.protobuf.StringValue nguoi_sua = 13;
+  google.protobuf.Timestamp ngay_tao = 14;
+  google.protobuf.Timestamp ngay_sua = 15;
+  int32 version = 16;
+}
+
+message SuaChuaScheduleGridItem {
+  string id = 1;
+  string ten_sua_chua = 2;
+  string can_cu = 3;
+  string muc_sua_chua = 4;
+  string cap_sua_chua = 5;
+  string don_vi_sua_chua = 6;
+  string don_vi_de_nghi = 7;
+  google.protobuf.Timestamp ngay_de_nghi = 8;
+  int32 so_trang_bi = 9;
+  string nguoi_sua = 10;
+  google.protobuf.Timestamp ngay_sua = 11;
+}
+
+message GetListSuaChuaScheduleRequest {
+  google.protobuf.StringValue don_vi_sua_chua = 1;
+  google.protobuf.StringValue id_chuyen_nganh_kt = 2;
+  google.protobuf.StringValue search_text = 3;
+  google.protobuf.Timestamp from_date = 4;
+  google.protobuf.Timestamp to_date = 5;
+}
+
+message GetListSuaChuaScheduleResponse {
+  repeated SuaChuaScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetSuaChuaScheduleRequest {
+  string id = 1;
+}
+
+message GetSuaChuaScheduleResponse {
+  SuaChuaScheduleItem item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message SaveSuaChuaScheduleRequest {
+  SuaChuaScheduleItem item = 1;
+  google.protobuf.Int32Value expected_version = 2;
+}
+
+message SaveSuaChuaScheduleResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DeleteSuaChuaScheduleRequest {
+  string id = 1;
+}
+
+message GetListSuaChuaScheduleByTrangBiRequest {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+}
+
+message GetListSuaChuaScheduleByTrangBiResponse {
+  repeated SuaChuaScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+service SuaChuaScheduleService {
+  rpc GetListSuaChuaSchedule(GetListSuaChuaScheduleRequest) returns (GetListSuaChuaScheduleResponse);
+  rpc GetSuaChuaSchedule(GetSuaChuaScheduleRequest) returns (GetSuaChuaScheduleResponse);
+  rpc SaveSuaChuaSchedule(SaveSuaChuaScheduleRequest) returns (SaveSuaChuaScheduleResponse);
+  rpc DeleteSuaChuaSchedule(DeleteSuaChuaScheduleRequest) returns (Base.DeleteBaseResponse);
+  rpc GetListSuaChuaScheduleByTrangBi(GetListSuaChuaScheduleByTrangBiRequest) returns (GetListSuaChuaScheduleByTrangBiResponse);
+}

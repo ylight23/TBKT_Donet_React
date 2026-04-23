@@ -1,241 +1,435 @@
-// ============================================================
-// Điều động – Equipment Transfer/Mobilization Management
-// ============================================================
-import React, { useState, useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import FormControl from '@mui/material/FormControl';
-import Grid from '@mui/material/GridLegacy';
-import InputAdornment from '@mui/material/InputAdornment';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import Popover from '@mui/material/Popover';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { useTheme } from '@mui/material/styles';
-import CommonFilter from "../../components/Filter/CommonFilter";
-
-import SearchIcon from '@mui/icons-material/Search';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Stack,
+    Tab,
+    Tabs,
+    Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PendingActionsIcon from '@mui/icons-material/PendingActions';
-import DoneAllIcon from '@mui/icons-material/DoneAll';
-import CancelIcon from '@mui/icons-material/Cancel';
-import ClearIcon from '@mui/icons-material/Clear';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import Stack from '@mui/material/Stack';
-import Collapse from '@mui/material/Collapse';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
+import TextField from '@mui/material/TextField';
+import { useLocation } from 'react-router-dom';
+import OfficeDictionary, { type OfficeNode } from '../Office/subComponent/OfficeDictionary';
+import { OfficeProvider } from '../../context/OfficeContext';
 
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
-import PrintIcon from '@mui/icons-material/Print';
-import DeleteIcon from '@mui/icons-material/Delete';
-import StatsButton from '../../components/Stats/StatsButton';
+import GanttView from '../../components/BaoDuong/GanttView';
+import GanttChartSidebar from '../../components/BaoDuong/GanttChartSidebar';
+import GenericScheduleDialog, { type EquipmentOption } from '../../components/Schedule/GenericScheduleDialog';
+import {
+    getDieuDongSchedule,
+    getListDieuDongSchedule,
+    saveDieuDongSchedule,
+    type LocalDieuDongScheduleItem,
+} from '../../apis/dieuDongScheduleApi';
+import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
+import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 
-import { mockDieuDong, IDieuDong } from '../../data/mockTBData';
-import { militaryColors } from '../../theme';
+type DieuDongTab = 'theo_doi_trang_bi' | 'lich_dieu_dong';
 
-// ── Màu trạng thái điều động ─────────────────────────────────
-const ttColor: Record<string, 'info' | 'success' | 'warning' | 'error' | 'default'> = {
-  'Đã duyệt': 'info',
-  'Chờ duyệt': 'warning',
-  'Đã thực hiện': 'success',
-  'Hủy': 'error',
+type TransferSchedule = {
+    id: string;
+    tenLich: string;
+    canCu: string;
+    thoiGianLap: string;
+    donVi: string;
+    nguoiPhuTrach: string;
+    thoiGianThucHien: string;
+    thoiGianKetThuc: string;
+    noiDungCongViec: string;
+    vatChatBaoDam: string;
+    ketQua: string;
+    parameters: Record<string, string>;
+    equipmentKeys: string[];
+    soTrangBi: number;
+    version?: number;
 };
 
-// ── Mở rộng dữ liệu điều động (mock) ────────────────────────
-const dieuDongRows = mockDieuDong.map((r, i) => ({
-  ...r,
-  stt: i + 1,
-  tieuDe: `Điều động ${r.tenDanhMuc}`,
-  canCu: `Lệnh ${400 + i}/L-ĐĐ`,
-  thoiGian: r.ngayDieuDong,
-  thuTruong: r.nguoiDuyet,
-  donViGiao: r.donViCu,
-  nguoiGiao: `Thượng tá Nguyễn Văn ${String.fromCharCode(65 + (i % 26))}`,
-  donViNhan: r.donViMoi,
-  nguoiNhan: `Thiếu tá Trần Minh ${String.fromCharCode(88 - (i % 26))}`,
-  ghiChu: "Điều động phục vụ nhiệm vụ đột xuất",
-}));
+const buildEquipmentKey = (id: string, nhom: number): string => `${nhom}:${id}`;
+const normalizeForSearch = (value: string): string => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none'): number => {
+    switch (status) {
+        case 'inprogress': return 5;
+        case 'upcoming': return 4;
+        case 'overdue': return 3;
+        case 'completed': return 2;
+        default: return 1;
+    }
+};
 
 const DieuDong: React.FC = () => {
-  const theme = useTheme();
-  const [search, setSearch] = useState('');
-  const [filterTT, setFilterTT] = useState('');
+    const location = useLocation();
+    const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
-  const ttList = useMemo(() => Array.from(new Set(dieuDongRows.map(d => d.trangThai))), []);
+    const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [schedules, setSchedules] = useState<TransferSchedule[]>([]);
+    const [equipmentLoading, setEquipmentLoading] = useState(false);
+    const [equipmentPool, setEquipmentPool] = useState<EquipmentOption[]>([]);
+    const [search, setSearch] = useState('');
+    const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+    const [activeTab, setActiveTab] = useState<DieuDongTab>('theo_doi_trang_bi');
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [editingSchedule, setEditingSchedule] = useState<TransferSchedule | null>(null);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return dieuDongRows.filter(r => {
-      const matchSearch = !q || [r.maDanhMuc, r.tenDanhMuc, r.donViGiao, r.donViNhan, r.lyDo, r.tieuDe, r.canCu].some(v => v?.toLowerCase().includes(q));
-      const matchTT = !filterTT || r.trangThai === filterTT;
-      return matchSearch && matchTT;
-    });
-  }, [search, filterTT]);
+    const loadEquipmentPool = useCallback(async () => {
+        setEquipmentLoading(true);
+        try {
+            const [n1, n2] = await Promise.all([
+                trangBiKiThuatApi.getListTrangBiNhom1({}),
+                trangBiKiThuatApi.getListTrangBiNhom2({}),
+            ]);
+            setEquipmentPool([
+                ...n1.map((item) => ({
+                    key: buildEquipmentKey(item.id, 1),
+                    id: item.id,
+                    nhom: 1 as const,
+                    maDanhMuc: item.maDanhMuc,
+                    tenDanhMuc: item.tenDanhMuc,
+                    soHieu: item.soHieu,
+                    donVi: item.donViQuanLy || item.donVi || '',
+                    idChuyenNganhKt: item.idChuyenNganhKt || '',
+                    idNganh: item.idNganh || '',
+                })),
+                ...n2.map((item) => ({
+                    key: buildEquipmentKey(item.id, 2),
+                    id: item.id,
+                    nhom: 2 as const,
+                    maDanhMuc: item.maDanhMuc,
+                    tenDanhMuc: item.tenDanhMuc,
+                    soHieu: item.soHieu,
+                    donVi: item.donViQuanLy || item.donVi || '',
+                    idChuyenNganhKt: item.idChuyenNganhKt || '',
+                    idNganh: item.idNganh || '',
+                })),
+            ]);
+        } finally {
+            setEquipmentLoading(false);
+        }
+    }, []);
 
-  const handleClear = () => {
-    setSearch('');
-    setFilterTT('');
-  };
+    const loadSchedules = useCallback(async () => {
+        setLoading(true);
+        setErrorMessage('');
+        try {
+            const rows = await getListDieuDongSchedule({});
+            const details = await Promise.all(rows.map(async (row) => {
+                try { return await getDieuDongSchedule(row.id); } catch { return null; }
+            }));
+            const detailMap = new Map<string, LocalDieuDongScheduleItem>();
+            details.forEach((detail) => { if (detail) detailMap.set(detail.id, detail); });
 
-  const activeFilters = useMemo(() => {
-    const chips: any[] = [];
-    if (filterTT)
-      chips.push({
-        key: "tt",
-        label: `Trạng thái: ${filterTT}`,
-        icon: <PendingActionsIcon fontSize="small" />,
-      });
-    return chips;
-  }, [filterTT]);
+            const mapped: TransferSchedule[] = rows.map((row) => {
+                const detail = detailMap.get(row.id);
+                return {
+                    id: row.id,
+                    tenLich: row.tenDieuDong || '',
+                    canCu: row.canCu || '',
+                    thoiGianLap: row.thoiGianThucHien || '',
+                    donVi: row.donViGiao || '',
+                    nguoiPhuTrach: row.nguoiPhuTrach || '',
+                    thoiGianThucHien: row.thoiGianThucHien || '',
+                    thoiGianKetThuc: row.thoiGianKetThuc || row.thoiGianThucHien || '',
+                    noiDungCongViec: detail?.ghiChu || '',
+                    vatChatBaoDam: detail?.parameters?.vat_chat_bao_dam || '',
+                    ketQua: detail?.parameters?.ket_qua || '',
+                    parameters: detail?.parameters || {},
+                    equipmentKeys: (detail?.dsTrangBi || []).map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)),
+                    soTrangBi: row.soTrangBi || 0,
+                    version: detail?.version || 0,
+                };
+            });
 
-  const handleRemoveFilter = (key: string) => {
-    if (key === "tt") setFilterTT("");
-  };
+            mapped.sort((a, b) => new Date(b.thoiGianLap || '1970-01-01').getTime() - new Date(a.thoiGianLap || '1970-01-01').getTime());
+            setSchedules(mapped);
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Khong tai duoc danh sach dieu dong.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  const activeFilterCount = activeFilters.length;
+    useEffect(() => {
+        void Promise.all([loadEquipmentPool()]).then(() => { void loadSchedules(); });
+    }, [loadEquipmentPool, loadSchedules]);
 
-  const stats = useMemo(
-    () => ({
-      total: dieuDongRows.length,
-      daDuyet: dieuDongRows.filter((r) => r.trangThai === "Đã duyệt").length,
-      choDuyet: dieuDongRows.filter((r) => r.trangThai === "Chờ duyệt").length,
-      daThucHien: dieuDongRows.filter((r) => r.trangThai === "Đã thực hiện")
-        .length,
-      huy: dieuDongRows.filter((r) => r.trangThai === "Hủy").length,
-    }),
-    []
-  );
+    const resolveStatus = useCallback((schedule: TransferSchedule): 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none' => {
+        if (schedule.ketQua && schedule.ketQua.trim() !== '') return 'completed';
+        const now = Date.now();
+        const start = schedule.thoiGianThucHien ? new Date(schedule.thoiGianThucHien).getTime() : null;
+        const end = schedule.thoiGianKetThuc ? new Date(schedule.thoiGianKetThuc).getTime() : null;
+        if (!start) return 'none';
+        if (end && end < now) return 'overdue';
+        if (start <= now && (!end || end >= now)) return 'inprogress';
+        return 'upcoming';
+    }, []);
 
-  const columns: GridColDef[] = [
-    { field: 'stt', headerName: 'STT', width: 70 },
-    { field: 'tieuDe', headerName: 'Tiêu đề', width: 250 },
-    { field: 'canCu', headerName: 'Căn cứ', width: 180 },
-    {
-      field: 'trangThai', headerName: 'Trạng thái điều động', width: 180,
-      renderCell: (p: GridRenderCellParams) => (
-        <Chip label={p.value} color={ttColor[p.value] ?? 'default'} size="small" sx={{ fontWeight: 600 }} />
-      ),
-    },
-    { field: 'thoiGian', headerName: 'Thời gian', width: 140 },
-    { field: 'thuTruong', headerName: 'Thủ trưởng', width: 180 },
-    { field: 'donViGiao', headerName: 'Đơn vị giao', width: 180 },
-    { field: 'nguoiGiao', headerName: 'Người giao', width: 180 },
-    { field: 'donViNhan', headerName: 'Đơn vị nhận', width: 180 },
-    { field: 'nguoiNhan', headerName: 'Người nhận', width: 180 },
-    { field: 'ghiChu', headerName: 'Ghi chú', flex: 1, minWidth: 200 },
-    {
-      field: 'actions', headerName: 'Thao tác', width: 160, sortable: false, filterable: false,
-      renderCell: (p: GridRenderCellParams) => (
-        <Box display="flex" gap={0.5} justifyContent="center" width="100%">
-          <Tooltip title="Xem chi tiết">
-            <IconButton size="small" sx={{ color: militaryColors.navy }}><VisibilityIcon fontSize="inherit" /></IconButton>
-          </Tooltip>
-          <Tooltip title="Chỉnh sửa">
-            <IconButton size="small" sx={{ color: militaryColors.warning }}><EditIcon fontSize="inherit" /></IconButton>
-          </Tooltip>
-          <Tooltip title="In chi tiết">
-            <IconButton size="small" sx={{ color: militaryColors.success }}><PrintIcon fontSize="inherit" /></IconButton>
-          </Tooltip>
-          <Tooltip title="Xóa">
-            <IconButton size="small" sx={{ color: militaryColors.error }}><DeleteIcon fontSize="inherit" /></IconButton>
-          </Tooltip>
-        </Box>
-      ),
-    },
-  ];
+    const stats = useMemo(() => {
+        let overdue = 0; let inprogress = 0; let completed = 0;
+        schedules.forEach((s) => {
+            const st = resolveStatus(s);
+            if (st === 'overdue') overdue += 1;
+            else if (st === 'inprogress') inprogress += 1;
+            else if (st === 'completed') completed += 1;
+        });
+        return { total: schedules.length, completed, inprogress, overdue };
+    }, [resolveStatus, schedules]);
 
-  return (
-    <Box sx={{ p: 1.5 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-        <Box>
-          <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
-            ĐIỀU ĐỘNG TRANG BỊ
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Quản lý điều chuyển và điều động trang bị kỹ thuật thông tin giữa các đơn vị toàn quân
-          </Typography>
-        </Box>
-        <StatsButton activeMenu="dieuDong" />
-      </Stack>
+    const filteredSchedules = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        const rows = !q ? schedules : schedules.filter((row) =>
+            [row.tenLich, row.canCu, row.donVi, row.nguoiPhuTrach].some((x) => x.toLowerCase().includes(q)),
+        );
+        const selectedOfficeId = String(selectedOffice?.id || '').trim();
+        const selectedOfficeTokens = [
+            String(selectedOffice?.ten || '').trim(),
+            String(selectedOffice?.tenDayDu || '').trim(),
+            String(selectedOffice?.vietTat || '').trim(),
+            String(selectedOffice?.code || '').trim(),
+        ].filter(Boolean).map(normalizeForSearch);
+        const rowsByUnit = selectedOfficeId
+            ? rows.filter((s) => {
+                const donViValue = String(s.donVi || '').trim();
+                if (!donViValue) return false;
+                if (donViValue === selectedOfficeId) return true;
+                if (donViValue.startsWith(`${selectedOfficeId}.`)) return true;
+                const normalizedDonVi = normalizeForSearch(donViValue);
+                return selectedOfficeTokens.some((token) => token && normalizedDonVi.includes(token));
+            })
+            : rows;
+        if (!selectedTrangBiId) return rowsByUnit;
+        const selectedKeys = new Set([buildEquipmentKey(selectedTrangBiId, 1), buildEquipmentKey(selectedTrangBiId, 2)]);
+        return rowsByUnit.filter((s) => s.equipmentKeys.some((k) => selectedKeys.has(k)));
+    }, [search, schedules, selectedOffice, selectedTrangBiId]);
 
+    const ganttByEquipment = useMemo<TransferSchedule[]>(() => {
+        const poolByKey = new Map(equipmentPool.map((item) => [item.key, item]));
+        const chosenByEquipment = new Map<string, TransferSchedule>();
+        filteredSchedules.forEach((schedule) => {
+            const currentStatus = resolveStatus(schedule);
+            const currentPriority = getStatusPriority(currentStatus);
+            const currentStart = new Date(schedule.thoiGianThucHien || schedule.thoiGianLap || '1970-01-01').getTime();
+            schedule.equipmentKeys.forEach((equipmentKey) => {
+                const existing = chosenByEquipment.get(equipmentKey);
+                if (!existing) { chosenByEquipment.set(equipmentKey, schedule); return; }
+                const existingStatus = resolveStatus(existing);
+                const existingPriority = getStatusPriority(existingStatus);
+                const existingStart = new Date(existing.thoiGianThucHien || existing.thoiGianLap || '1970-01-01').getTime();
+                if (currentPriority > existingPriority || (currentPriority === existingPriority && currentStart > existingStart)) {
+                    chosenByEquipment.set(equipmentKey, schedule);
+                }
+            });
+        });
+        return Array.from(chosenByEquipment.entries()).map(([equipmentKey, schedule]) => {
+            const equipment = poolByKey.get(equipmentKey);
+            return {
+                ...schedule,
+                id: `eq-${equipmentKey}`,
+                tenLich: equipment ? `${equipment.tenDanhMuc}${equipment.soHieu ? ` - ${equipment.soHieu}` : ''}` : schedule.tenLich,
+                donVi: equipment?.donVi || schedule.donVi,
+                soTrangBi: 1,
+                equipmentKeys: [equipmentKey],
+                parameters: { ...schedule.parameters, __schedule_id: schedule.id },
+            };
+        });
+    }, [equipmentPool, filteredSchedules, resolveStatus]);
 
+    const openCreateDialog = useCallback(() => {
+        setEditingSchedule(null);
+        setDialogOpen(true);
+    }, []);
 
-      <CommonFilter
-        search={search}
-        onSearchChange={setSearch}
-        placeholder="Tìm kiếm mã, tên, đơn vị, lý do..."
-        onExport={() => alert("[Giả lập] Xuất Excel điều động")}
-        activeFilters={activeFilters}
-        onRemoveFilter={handleRemoveFilter}
-        onClearAll={handleClear}
-      >
-        <Grid container spacing={2.5}>
-          <Grid item xs={12}>
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              color="text.secondary"
-              sx={{
-                display: "block",
-                mb: 0.5,
-                ml: 0.5,
-                textTransform: "uppercase",
-                fontSize: "0.65rem",
-                letterSpacing: "0.05em",
-              }}
-            >
-              TRẠNG THÁI HỒ SƠ
-            </Typography>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              variant="outlined"
-              value={filterTT}
-              onChange={(e) => setFilterTT(e.target.value)}
-            >
-              <MenuItem value="">
-                <em>-- Tất cả trạng thái --</em>
-              </MenuItem>
-              {ttList.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-        </Grid>
-      </CommonFilter>
+    const openEditDialog = useCallback(async (schedule: TransferSchedule) => {
+        setSaving(true);
+        try {
+            const detail = await getDieuDongSchedule(schedule.id);
+            setEditingSchedule({
+                id: detail.id,
+                tenLich: detail.tenDieuDong || '',
+                canCu: detail.canCu || '',
+                thoiGianLap: detail.thoiGianThucHien || '',
+                donVi: detail.donViGiao || '',
+                nguoiPhuTrach: detail.nguoiPhuTrach || '',
+                thoiGianThucHien: detail.thoiGianThucHien || '',
+                thoiGianKetThuc: detail.thoiGianKetThuc || detail.thoiGianThucHien || '',
+                noiDungCongViec: detail.ghiChu || '',
+                vatChatBaoDam: detail.parameters?.vat_chat_bao_dam || '',
+                ketQua: detail.parameters?.ket_qua || '',
+                parameters: detail.parameters || {},
+                equipmentKeys: detail.dsTrangBi.map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)),
+                soTrangBi: detail.dsTrangBi.length,
+                version: detail.version || 0,
+            });
+            setDialogOpen(true);
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Khong tai duoc chi tiet dieu dong.');
+        } finally {
+            setSaving(false);
+        }
+    }, []);
 
+    const handleEquipmentGanttClick = useCallback((row: TransferSchedule) => {
+        const sourceScheduleId = row.parameters?.__schedule_id;
+        if (!sourceScheduleId) return;
+        const schedule = filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId);
+        if (schedule) void openEditDialog(schedule);
+    }, [filteredSchedules, openEditDialog, schedules]);
 
-      <DataGrid
-        rows={filtered}
-        columns={columns}
-        getRowId={(r) => r.id}
-        sx={{
-          height: {
-            xs: 500,
-            sm: 550,
-            md: "calc(100vh - 350px)",
-          },
-          minHeight: 450,
-          width: "100%",
-        }}
-      />
-    </Box>
-  );
+    const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
+        const payload: LocalDieuDongScheduleItem = {
+            id: editingSchedule?.id || '',
+            tenDieuDong: formData.ten_dieu_dong || '',
+            canCu: formData.can_cu || '',
+            donViGiao: formData.don_vi_giao || '',
+            donViNhan: formData.don_vi_nhan || '',
+            nguoiPhuTrach: formData.nguoi_phu_trach || '',
+            thoiGianThucHien: formData.thoi_gian_thuc_hien || '',
+            thoiGianKetThuc: formData.thoi_gian_ket_thuc || '',
+            ghiChu: formData.ghi_chu || '',
+            dsTrangBi: selectedEquipment.map((equipment) => ({
+                idTrangBi: equipment.id,
+                nhomTrangBi: equipment.nhom,
+                maDanhMuc: equipment.maDanhMuc,
+                tenDanhMuc: equipment.tenDanhMuc,
+                soHieu: equipment.soHieu,
+                idChuyenNganhKt: equipment.idChuyenNganhKt,
+                idNganh: equipment.idNganh,
+                parameters: {},
+            })),
+            parameters: formData,
+            version: editingSchedule?.version || 0,
+        };
+        await saveDieuDongSchedule({ item: payload, expectedVersion: editingSchedule?.version });
+        setDialogOpen(false);
+        await loadSchedules();
+    }, [editingSchedule, loadSchedules]);
+
+    const dialogInitialData = useMemo<Record<string, string>>(() => {
+        if (!editingSchedule) return {};
+        return {
+            ten_dieu_dong: editingSchedule.tenLich,
+            can_cu: editingSchedule.canCu,
+            don_vi_giao: editingSchedule.donVi,
+            don_vi_nhan: editingSchedule.parameters?.don_vi_nhan || '',
+            nguoi_phu_trach: editingSchedule.nguoiPhuTrach,
+            thoi_gian_thuc_hien: editingSchedule.thoiGianThucHien,
+            thoi_gian_ket_thuc: editingSchedule.thoiGianKetThuc,
+            ghi_chu: editingSchedule.noiDungCongViec,
+            ...editingSchedule.parameters,
+        };
+    }, [editingSchedule]);
+
+    const dialogInitialEquipment = useMemo<EquipmentOption[]>(() => {
+        if (!editingSchedule) return [];
+        return equipmentPool.filter((item) => editingSchedule.equipmentKeys.includes(item.key));
+    }, [editingSchedule, equipmentPool]);
+
+    return (
+        <OfficeProvider>
+            <Box sx={{ p: 1.5, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+                    <Box>
+                        <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
+                            DIEU DONG TRANG BI
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">Quan ly theo doi trang bi va lich dieu dong.</Typography>
+                    </Box>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Them ke hoach</Button>
+                </Stack>
+
+                {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+                    {[
+                        { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
+                        { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
+                        { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
+                        { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
+                    ].map((item) => (
+                        <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
+                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <LocalShippingIcon sx={{ fontSize: 16, color: item.color }} />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="h5" fontWeight={800} sx={{ color: item.color, lineHeight: 1.1 }}>{item.value}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                                    </Box>
+                                </Stack>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+                        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
+                            <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
+                                <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
+                            </Box>
+                        </CardContent>
+                    </Card>
+
+                    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                            <TextField
+                                size="small"
+                                placeholder="Tim ten ke hoach, can cu, don vi..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                            />
+                            <Tabs value={activeTab} onChange={(_, value: DieuDongTab) => setActiveTab(value)}>
+                                <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
+                                <Tab value="lich_dieu_dong" label="Lich dieu dong" />
+                            </Tabs>
+                        </Stack>
+                        <Box sx={{ flex: 1, minHeight: 0 }}>
+                            {activeTab === 'theo_doi_trang_bi'
+                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" />
+                                : <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />}
+                        </Box>
+                    </Box>
+                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                </Box>
+
+                <GenericScheduleDialog
+                    open={dialogOpen}
+                    onClose={() => setDialogOpen(false)}
+                    onSave={handleSave}
+                    initialData={dialogInitialData}
+                    initialEquipment={dialogInitialEquipment}
+                    editingId={editingSchedule?.id}
+                    equipmentPool={equipmentPool}
+                    equipmentLoading={equipmentLoading}
+                    title={editingSchedule?.id ? 'Cap nhat ke hoach dieu dong' : 'Them ke hoach dieu dong'}
+                    icon={LocalShippingIcon}
+                    fieldSetKey={TRANG_BI_FIELD_SET_KEYS.DIEU_DONG}
+                    nameFieldKey="ten_dieu_dong"
+                    nameFieldLabel="Ten dieu dong"
+                    requiredNameError="Vui long nhap ten dieu dong."
+                    startDateFieldKey="thoi_gian_thuc_hien"
+                    endDateFieldKey="thoi_gian_ket_thuc"
+                />
+            </Box>
+        </OfficeProvider>
+    );
 };
 
 export default DieuDong;

@@ -11,12 +11,30 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import TodayIcon from '@mui/icons-material/Today';
 
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import type { MaintenanceSchedule } from '../../pages/BaoDuong';
+
+export interface ScheduleGanttItem {
+    id: string;
+    tenLich: string;
+    canCu: string;
+    thoiGianLap: string;
+    donVi: string;
+    nguoiPhuTrach: string;
+    thoiGianThucHien: string;
+    thoiGianKetThuc: string;
+    noiDungCongViec: string;
+    vatChatBaoDam: string;
+    ketQua: string;
+    parameters: Record<string, string>;
+    equipmentKeys: string[];
+    soTrangBi: number;
+    version?: number;
+}
 
 interface GanttViewProps {
-    schedules: MaintenanceSchedule[];
-    onScheduleClick: (schedule: MaintenanceSchedule) => void;
+    schedules: ScheduleGanttItem[];
+    onScheduleClick: (schedule: ScheduleGanttItem) => void;
     loading?: boolean;
+    panelHeight?: number | string;
 }
 
 type ViewMode = 'month' | 'week';
@@ -30,7 +48,7 @@ const STATUS_COLORS = {
     none: { bg: '#f5f5f5', color: '#757575', border: '#e0e0e0', label: 'Chưa cập nhật' },
 };
 
-const resolveStatus = (schedule: MaintenanceSchedule): keyof typeof STATUS_COLORS => {
+const resolveStatus = (schedule: ScheduleGanttItem): keyof typeof STATUS_COLORS => {
     if (schedule.ketQua && schedule.ketQua.trim() !== '') return 'completed';
     const now = Date.now();
     const start = schedule.thoiGianThucHien ? new Date(schedule.thoiGianThucHien).getTime() : null;
@@ -63,7 +81,7 @@ const getDayWidth = (totalDays: number, containerWidth: number): number => {
 };
 
 const GanttBar: React.FC<{
-    schedule: MaintenanceSchedule;
+    schedule: ScheduleGanttItem;
     dayWidth: number;
     startOffset: number;
     totalDays: number;
@@ -117,11 +135,11 @@ const GanttBar: React.FC<{
 };
 
 const GanttChartView: React.FC<{
-    schedules: MaintenanceSchedule[];
+    schedules: ScheduleGanttItem[];
     year: number;
     month: number;
     viewMode: ViewMode;
-    onScheduleClick: (schedule: MaintenanceSchedule) => void;
+    onScheduleClick: (schedule: ScheduleGanttItem) => void;
 }> = ({ schedules, year, month, viewMode, onScheduleClick }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState(800);
@@ -169,7 +187,7 @@ const GanttChartView: React.FC<{
     }, [schedules]);
 
     return (
-        <Box ref={containerRef} sx={{ overflowX: 'auto' }}>
+        <Box ref={containerRef} sx={{ overflow: 'auto', height: '100%', minHeight: 0 }}>
             <Box sx={{ minWidth: 180 + totalWidth, display: 'flex', flexDirection: 'column' }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', borderBottom: '0.5px solid', borderColor: 'divider' }}>
@@ -266,27 +284,22 @@ const GanttChartView: React.FC<{
 };
 
 const TableView: React.FC<{
-    schedules: MaintenanceSchedule[];
-    onScheduleClick: (schedule: MaintenanceSchedule) => void;
-    filterKetQua: string;
-    onFilterChange: (v: string) => void;
-}> = ({ schedules, onScheduleClick, filterKetQua, onFilterChange }) => {
-    const uniqueKetQua = useMemo(() => (
-        [...new Set(schedules.map((s) => s.ketQua).filter(Boolean))]
-    ), [schedules]);
+    schedules: ScheduleGanttItem[];
+    onScheduleClick: (schedule: ScheduleGanttItem) => void;
+}> = ({ schedules, onScheduleClick }) => {
 
     const columns = useMemo<GridColDef[]>(() => [
-        { field: 'tenLich', headerName: 'Tên kế hoạch', minWidth: 220, flex: 1, valueGetter: (_, row: MaintenanceSchedule) => row.tenLich },
+        { field: 'tenLich', headerName: 'Tên kế hoạch', minWidth: 220, flex: 1, valueGetter: (_, row: ScheduleGanttItem) => row.tenLich },
         {
             field: 'thoiGianThucHien', headerName: 'Bắt đầu', width: 110,
-            valueGetter: (_, row: MaintenanceSchedule) => {
+            valueGetter: (_, row: ScheduleGanttItem) => {
                 if (!row.thoiGianThucHien) return '';
                 return new Date(row.thoiGianThucHien).toLocaleDateString('vi-VN');
             },
         },
         {
             field: 'thoiGianKetThuc', headerName: 'Kết thúc', width: 110,
-            valueGetter: (_, row: MaintenanceSchedule) => {
+            valueGetter: (_, row: ScheduleGanttItem) => {
                 if (!row.thoiGianKetThuc) return '';
                 return new Date(row.thoiGianKetThuc).toLocaleDateString('vi-VN');
             },
@@ -295,8 +308,8 @@ const TableView: React.FC<{
         { field: 'nguoiPhuTrach', headerName: 'Người phụ trách', width: 150 },
         {
             field: 'ketQua', headerName: 'Trạng thái', width: 150,
-            valueGetter: (_, row: MaintenanceSchedule) => row.ketQua,
-            renderCell: (params: GridRenderCellParams<MaintenanceSchedule, string>) => {
+            valueGetter: (_, row: ScheduleGanttItem) => row.ketQua,
+            renderCell: (params: GridRenderCellParams<ScheduleGanttItem, string>) => {
                 const st = resolveStatus(params.row);
                 const sc = STATUS_COLORS[st];
                 return (
@@ -316,39 +329,17 @@ const TableView: React.FC<{
         },
     ], []);
 
-    const filtered = useMemo(() => {
-        if (!filterKetQua) return schedules;
-        return schedules.filter((s) => s.ketQua === filterKetQua);
-    }, [schedules, filterKetQua]);
-
     return (
-        <Box>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="text.secondary">
-                    {filtered.length} kế hoạch
-                </Typography>
-                <Stack direction="row" spacing={0.5}>
-                    {['', ...uniqueKetQua].map((v) => (
-                        <Chip
-                            key={v || 'all'}
-                            label={v || 'Tất cả'}
-                            size="small"
-                            variant={filterKetQua === v ? 'filled' : 'outlined'}
-                            onClick={() => onFilterChange(v)}
-                            sx={{ fontSize: '0.7rem', cursor: 'pointer' }}
-                        />
-                    ))}
-                </Stack>
-            </Stack>
+        <Box sx={{ height: '100%', minHeight: 0 }}>
             <DataGrid
-                rows={filtered}
+                rows={schedules}
                 columns={columns}
                 getRowId={(row) => row.id}
                 hideFooter
                 density="compact"
-                onRowClick={(params) => onScheduleClick(params.row as MaintenanceSchedule)}
+                onRowClick={(params) => onScheduleClick(params.row as ScheduleGanttItem)}
                 sx={{
-                    height: 400,
+                    height: '100%',
                     cursor: 'pointer',
                     '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
                 }}
@@ -357,13 +348,12 @@ const TableView: React.FC<{
     );
 };
 
-const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loading }) => {
+const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loading, panelHeight }) => {
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth());
     const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [displayMode, setDisplayMode] = useState<DisplayMode>('gantt');
-    const [filterKetQua, setFilterKetQua] = useState('');
 
     const navigateMonth = useCallback((dir: number) => {
         setMonth((prev) => {
@@ -381,8 +371,23 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
 
     const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
 
+    const resolvedHeight = typeof panelHeight === 'number'
+        ? `${panelHeight}px`
+        : (panelHeight || '100%');
+
     return (
-        <Box sx={{ border: '0.5px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+        <Box
+            sx={{
+                border: '0.5px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+                height: resolvedHeight,
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+            }}
+        >
                 <Stack
                     direction="row"
                     alignItems="center"
@@ -392,7 +397,7 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                     <Stack direction="row" spacing={0.75} alignItems="center">
                         <Typography variant="subtitle2" fontWeight={800}>
                             {displayMode === 'gantt'
-                                ? `Lịch Gantt — ${MONTHS_VI[month]} ${year}`
+                                ? `Biểu đồ tiến độ — ${MONTHS_VI[month]} ${year}`
                                 : `Danh sách kế hoạch — ${MONTHS_VI[month]} ${year}`}
                         </Typography>
                         <Button size="small" onClick={goToToday} startIcon={<TodayIcon sx={{ fontSize: 14 }} />} sx={{ fontSize: '0.7rem', textTransform: 'none' }}>
@@ -422,7 +427,7 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                             onClick={() => setDisplayMode((prev) => prev === 'gantt' ? 'table' : 'gantt')}
                             sx={{ fontSize: '0.72rem', textTransform: 'none' }}
                         >
-                            {displayMode === 'gantt' ? 'Xem dang bang' : 'Xem dang gantt'}
+                            {displayMode === 'gantt' ? 'Xem dang bang' : 'Xem biểu đồ tiến độ'}
                         </Button>
 
                         <Stack direction="row" spacing={0.25}>
@@ -436,9 +441,9 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                     </Stack>
                 </Stack>
 
-                <Box sx={{ p: displayMode === 'table' ? 0 : 1.5 }}>
+                <Box sx={{ p: displayMode === 'table' ? 0 : 1.5, flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     {loading ? (
-                        <Box sx={{ textAlign: 'center', py: 4 }}>Đang tải...</Box>
+                        <Box sx={{ textAlign: 'center', py: 4, height: '100%' }}>Đang tải...</Box>
                     ) : displayMode === 'gantt' ? (
                         <GanttChartView
                             schedules={schedules}
@@ -451,8 +456,6 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                         <TableView
                             schedules={schedules}
                             onScheduleClick={onScheduleClick}
-                            filterKetQua={filterKetQua}
-                            onFilterChange={setFilterKetQua}
                         />
                     )}
                 </Box>

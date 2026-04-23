@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+option csharp_namespace = "protos";
+
+package NiemCatSchedule;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "Base.proto";
+
+message NiemCatScheduleTrangBiItem {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+  string ma_danh_muc = 3;
+  string ten_danh_muc = 4;
+  string so_hieu = 5;
+  string id_chuyen_nganh_kt = 6;
+  string id_nganh = 7;
+  map<string, string> parameters = 20;
+}
+
+message NiemCatScheduleItem {
+  string id = 1;
+  string ten_niem_cat = 2;
+  string can_cu = 3;
+  string loai_de_nghi = 4;
+  string loai_niem_cat = 5;
+  string don_vi_thuc_hien = 6;
+  string nguoi_thuc_hien = 7;
+  google.protobuf.Timestamp ngay_niem_cat = 8;
+  string ket_qua_thuc_hien = 9;
+  repeated NiemCatScheduleTrangBiItem ds_trang_bi = 10;
+  map<string, string> parameters = 11;
+  google.protobuf.StringValue nguoi_tao = 12;
+  google.protobuf.StringValue nguoi_sua = 13;
+  google.protobuf.Timestamp ngay_tao = 14;
+  google.protobuf.Timestamp ngay_sua = 15;
+  int32 version = 16;
+}
+
+message NiemCatScheduleGridItem {
+  string id = 1;
+  string ten_niem_cat = 2;
+  string can_cu = 3;
+  string loai_de_nghi = 4;
+  string loai_niem_cat = 5;
+  string don_vi_thuc_hien = 6;
+  string nguoi_thuc_hien = 7;
+  google.protobuf.Timestamp ngay_niem_cat = 8;
+  string ket_qua_thuc_hien = 9;
+  int32 so_trang_bi = 10;
+  string nguoi_sua = 11;
+  google.protobuf.Timestamp ngay_sua = 12;
+}
+
+message GetListNiemCatScheduleRequest {
+  google.protobuf.StringValue don_vi_thuc_hien = 1;
+  google.protobuf.StringValue id_chuyen_nganh_kt = 2;
+  google.protobuf.StringValue search_text = 3;
+  google.protobuf.Timestamp from_date = 4;
+  google.protobuf.Timestamp to_date = 5;
+}
+
+message GetListNiemCatScheduleResponse {
+  repeated NiemCatScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetNiemCatScheduleRequest {
+  string id = 1;
+}
+
+message GetNiemCatScheduleResponse {
+  NiemCatScheduleItem item = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message SaveNiemCatScheduleRequest {
+  NiemCatScheduleItem item = 1;
+  google.protobuf.Int32Value expected_version = 2;
+}
+
+message SaveNiemCatScheduleResponse {
+  string id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message DeleteNiemCatScheduleRequest {
+  string id = 1;
+}
+
+message GetListNiemCatScheduleByTrangBiRequest {
+  string id_trang_bi = 1;
+  int32 nhom_trang_bi = 2;
+}
+
+message GetListNiemCatScheduleByTrangBiResponse {
+  repeated NiemCatScheduleGridItem items = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+service NiemCatScheduleService {
+  rpc GetListNiemCatSchedule(GetListNiemCatScheduleRequest) returns (GetListNiemCatScheduleResponse);
+  rpc GetNiemCatSchedule(GetNiemCatScheduleRequest) returns (GetNiemCatScheduleResponse);
+  rpc SaveNiemCatSchedule(SaveNiemCatScheduleRequest) returns (SaveNiemCatScheduleResponse);
+  rpc DeleteNiemCatSchedule(DeleteNiemCatScheduleRequest) returns (Base.DeleteBaseResponse);
+  rpc GetListNiemCatScheduleByTrangBi(GetListNiemCatScheduleByTrangBiRequest) returns (GetListNiemCatScheduleByTrangBiResponse);
+}
