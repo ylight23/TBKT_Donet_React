@@ -30,6 +30,7 @@ import {
 } from '../../apis/niemCatScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
+import { pickScheduleValue } from '../../utils/scheduleFormValue';
 
 type NiemCatTab = 'theo_doi_trang_bi' | 'ket_qua_niem_cat';
 
@@ -129,19 +130,20 @@ const NiemCat: React.FC = () => {
 
             const mapped: PreserveSchedule[] = rows.map((row) => {
                 const detail = detailMap.get(row.id);
-                const start = detail?.ngayNiemCat || '';
-                const end = detail?.parameters?.thoi_gian_ket_thuc || start;
+                const params = detail?.parameters || {};
+                const start = detail?.ngayNiemCat || pickScheduleValue(params, ['ngay_niem_cat', 'thoi_gian_thuc_hien']) || '';
+                const end = pickScheduleValue(params, ['thoi_gian_ket_thuc', 'thoi_gian_thuc_hien']) || start;
                 return {
                     id: row.id,
-                    tenLich: row.tenNiemCat || '',
-                    canCu: row.canCu || '',
+                    tenLich: row.tenNiemCat || pickScheduleValue(params, ['ten_niem_cat']),
+                    canCu: row.canCu || pickScheduleValue(params, ['can_cu', 'can_cu_thuc_hien']),
                     thoiGianLap: row.ngayNiemCat || '',
-                    donVi: row.donViThucHien || '',
-                    nguoiPhuTrach: row.nguoiThucHien || '',
+                    donVi: row.donViThucHien || pickScheduleValue(params, ['don_vi_thuc_hien', 'don_vi']),
+                    nguoiPhuTrach: row.nguoiThucHien || pickScheduleValue(params, ['nguoi_thuc_hien', 'nguoi_phu_trach']),
                     thoiGianThucHien: start,
                     thoiGianKetThuc: end,
-                    noiDungCongViec: detail?.parameters?.noi_dung_cong_viec || '',
-                    vatChatBaoDam: detail?.parameters?.vat_chat_bao_dam || '',
+                    noiDungCongViec: pickScheduleValue(params, ['noi_dung_cong_viec', 'noi_dung_thuc_hien']),
+                    vatChatBaoDam: pickScheduleValue(params, ['vat_chat_bao_dam']),
                     ketQua: row.ketQuaThucHien || '',
                     parameters: detail?.parameters || {},
                     equipmentKeys: (detail?.dsTrangBi || []).map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)),
@@ -290,14 +292,14 @@ const NiemCat: React.FC = () => {
     const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payload: LocalNiemCatScheduleItem = {
             id: editingSchedule?.id || '',
-            tenNiemCat: formData.ten_niem_cat || '',
-            canCu: formData.can_cu || '',
-            loaiDeNghi: formData.loai_de_nghi || '',
-            loaiNiemCat: formData.loai_niem_cat || '',
-            donViThucHien: formData.don_vi_thuc_hien || '',
-            nguoiThucHien: formData.nguoi_thuc_hien || '',
-            ngayNiemCat: formData.ngay_niem_cat || '',
-            ketQuaThucHien: formData.ket_qua_thuc_hien || '',
+            tenNiemCat: pickScheduleValue(formData, ['ten_niem_cat']),
+            canCu: pickScheduleValue(formData, ['can_cu', 'can_cu_thuc_hien']),
+            loaiDeNghi: pickScheduleValue(formData, ['loai_de_nghi']),
+            loaiNiemCat: pickScheduleValue(formData, ['loai_niem_cat']),
+            donViThucHien: pickScheduleValue(formData, ['don_vi_thuc_hien', 'don_vi']),
+            nguoiThucHien: pickScheduleValue(formData, ['nguoi_thuc_hien', 'nguoi_phu_trach']),
+            ngayNiemCat: pickScheduleValue(formData, ['ngay_niem_cat', 'thoi_gian_thuc_hien']),
+            ketQuaThucHien: pickScheduleValue(formData, ['ket_qua_thuc_hien', 'ket_qua']),
             dsTrangBi: selectedEquipment.map((equipment) => ({
                 idTrangBi: equipment.id,
                 nhomTrangBi: equipment.nhom,
@@ -339,7 +341,7 @@ const NiemCat: React.FC = () => {
 
     return (
         <OfficeProvider>
-            <Box sx={{ p: 1.5, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Box sx={{ p: { xs: 1, lg: 1.25, xl: 1.5 }, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
                     <Box>
                         <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
@@ -352,7 +354,7 @@ const NiemCat: React.FC = () => {
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, xl: 1.5 }, mb: { xs: 1, xl: 1.5 }, flexShrink: 0 }}>
                     {[
                         { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
                         { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
@@ -360,7 +362,7 @@ const NiemCat: React.FC = () => {
                         { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
                     ].map((item) => (
                         <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
-                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <CardContent sx={{ p: { xs: 1, xl: 1.5 }, '&:last-child': { pb: { xs: 1, xl: 1.5 } } }}>
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <WarehouseIcon sx={{ fontSize: 16, color: item.color }} />
@@ -375,8 +377,18 @@ const NiemCat: React.FC = () => {
                     ))}
                 </Box>
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', lg: '220px minmax(0, 1fr) 220px', xl: '260px minmax(0, 1fr) 260px' },
+                        gridTemplateAreas: { xs: '"center" "left" "right"', lg: '"left center right"' },
+                        gap: { xs: 1, xl: 1.5 },
+                        alignItems: 'stretch',
+                        flex: 1,
+                        minHeight: 0,
+                    }}
+                >
+                    <Card variant="outlined" sx={{ gridArea: 'left', borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: { xs: 220, lg: 0 } }}>
                         <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
                             <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
                                 <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
@@ -384,8 +396,8 @@ const NiemCat: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Box sx={{ gridArea: 'center', height: '100%', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                             <TextField
                                 size="small"
                                 placeholder="Tim ten ke hoach, can cu, don vi..."
@@ -398,9 +410,9 @@ const NiemCat: React.FC = () => {
                                         </InputAdornment>
                                     ),
                                 }}
-                                sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                                sx={{ width: { xs: '100%', lg: 260, xl: 320 }, maxWidth: '100%', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                             />
-                            <Tabs value={activeTab} onChange={(_, value: NiemCatTab) => setActiveTab(value)}>
+                            <Tabs value={activeTab} onChange={(_, value: NiemCatTab) => setActiveTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
                                 <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
                                 <Tab value="ket_qua_niem_cat" label="Ket qua niem cat" />
                             </Tabs>
@@ -411,7 +423,9 @@ const NiemCat: React.FC = () => {
                                 : <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />}
                         </Box>
                     </Box>
-                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
+                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    </Box>
                 </Box>
 
                 <GenericScheduleDialog

@@ -16,6 +16,7 @@ import SecurityIcon from '@mui/icons-material/Security';
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useLocation } from 'react-router-dom';
 import OfficeDictionary, { type OfficeNode } from '../Office/subComponent/OfficeDictionary';
 import { OfficeProvider } from '../../context/OfficeContext';
@@ -31,6 +32,7 @@ import {
 } from '../../apis/baoQuanScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
+import { pickScheduleValue } from '../../utils/scheduleFormValue';
 
 type PreservationSchedule = {
     id: string;
@@ -146,16 +148,17 @@ const BaoQuan: React.FC = () => {
 
             const mapped: PreservationSchedule[] = rows.map((row) => {
                 const detail = detailMap.get(row.id);
+                const params = detail?.parameters || {};
                 return {
                     id: row.id,
-                    tenLich: row.tenLichBaoQuan || '',
-                    canCu: row.canCu || '',
-                    thoiGianLap: row.thoiGianLap || '',
-                    donVi: row.idDonVi || row.tenDonVi || '',
-                    nguoiPhuTrach: row.nguoiPhuTrach || '',
-                    thoiGianThucHien: row.thoiGianThucHien || '',
-                    thoiGianKetThuc: row.thoiGianKetThuc || '',
-                    noiDungCongViec: detail?.noiDungCongViec || '',
+                    tenLich: row.tenLichBaoQuan || pickScheduleValue(params, ['ten_bao_quan', 'ten_lich_bao_quan']),
+                    canCu: row.canCu || pickScheduleValue(params, ['can_cu', 'can_cu_thuc_hien']),
+                    thoiGianLap: row.thoiGianLap || pickScheduleValue(params, ['thoi_gian_lap']),
+                    donVi: row.idDonVi || row.tenDonVi || pickScheduleValue(params, ['don_vi_thuc_hien', 'don_vi']),
+                    nguoiPhuTrach: row.nguoiPhuTrach || pickScheduleValue(params, ['nguoi_phu_trach', 'nguoi_thuc_hien']),
+                    thoiGianThucHien: row.thoiGianThucHien || pickScheduleValue(params, ['thoi_gian_thuc_hien', 'ngay_bao_quan']),
+                    thoiGianKetThuc: row.thoiGianKetThuc || pickScheduleValue(params, ['thoi_gian_ket_thuc', 'thoi_gian_thuc_hien', 'ngay_bao_quan']),
+                    noiDungCongViec: detail?.noiDungCongViec || pickScheduleValue(params, ['noi_dung_cong_viec', 'noi_dung_thuc_hien']),
                     vatChatBaoDam: detail?.vatChatBaoDam || '',
                     ketQua: detail?.ketQua || '',
                     parameters: detail?.parameters || {},
@@ -314,7 +317,7 @@ const BaoQuan: React.FC = () => {
             });
             setDialogOpen(true);
         } catch (error) {
-            setErrorMessage((error as Error).message || 'Khong tai duoc chi tiet lich bao quan.');
+            setErrorMessage((error as Error).message || 'Không tải được chi tiết lịch bảo quản.');
         } finally {
             setSaving(false);
         }
@@ -330,24 +333,24 @@ const BaoQuan: React.FC = () => {
     }, [filteredSchedules, openEditDialog, schedules]);
 
     const handleSaveSchedule = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
-        const tenBaoQuan = String(formData['ten_bao_quan'] || formData['ten_lich_bao_quan'] || '').trim();
-        const idDonViThucHien = String(formData['don_vi_thuc_hien'] || formData['don_vi'] || '').trim();
-        const ngayBaoQuan = formData['ngay_bao_quan'] || '';
-        const thoiGianThucHien = formData['thoi_gian_thuc_hien'] || ngayBaoQuan || '';
-        const thoiGianKetThuc = formData['thoi_gian_ket_thuc'] || thoiGianThucHien || '';
+        const tenBaoQuan = pickScheduleValue(formData, ['ten_bao_quan', 'ten_lich_bao_quan']).trim();
+        const idDonViThucHien = pickScheduleValue(formData, ['don_vi_thuc_hien', 'don_vi']).trim();
+        const ngayBaoQuan = pickScheduleValue(formData, ['ngay_bao_quan']);
+        const thoiGianThucHien = pickScheduleValue(formData, ['thoi_gian_thuc_hien', 'ngay_bao_quan']) || ngayBaoQuan || '';
+        const thoiGianKetThuc = pickScheduleValue(formData, ['thoi_gian_ket_thuc', 'thoi_gian_thuc_hien', 'ngay_bao_quan']) || thoiGianThucHien || '';
         const payloadItem: LocalBaoQuanScheduleItem = {
             id: editingSchedule?.id || '',
             tenLichBaoQuan: tenBaoQuan,
-            canCu: formData['can_cu'] || '',
+            canCu: pickScheduleValue(formData, ['can_cu', 'can_cu_thuc_hien']),
             idDonVi: idDonViThucHien,
             tenDonVi: idDonViThucHien,
-            nguoiPhuTrach: formData['nguoi_phu_trach'] || '',
-            thoiGianLap: formData['thoi_gian_lap'] || '',
+            nguoiPhuTrach: pickScheduleValue(formData, ['nguoi_phu_trach', 'nguoi_thuc_hien']),
+            thoiGianLap: pickScheduleValue(formData, ['thoi_gian_lap']),
             thoiGianThucHien,
             thoiGianKetThuc,
-            noiDungCongViec: formData['noi_dung_cong_viec'] || '',
-            vatChatBaoDam: formData['vat_chat_bao_dam'] || '',
-            ketQua: formData['ket_qua'] || '',
+            noiDungCongViec: pickScheduleValue(formData, ['noi_dung_cong_viec', 'noi_dung_thuc_hien']),
+            vatChatBaoDam: pickScheduleValue(formData, ['vat_chat_bao_dam']),
+            ketQua: pickScheduleValue(formData, ['ket_qua']),
             dsTrangBi: selectedEquipment.map((equipment) => ({
                 idTrangBi: equipment.id,
                 nhomTrangBi: equipment.nhom,
@@ -392,11 +395,57 @@ const BaoQuan: React.FC = () => {
         return equipmentPool.filter((item) => editingSchedule.equipmentKeys.includes(item.key));
     }, [editingSchedule, equipmentPool]);
 
+    const baoQuanTableColumns = useMemo<GridColDef<PreservationSchedule>[]>(() => [
+        {
+            field: '__stt',
+            headerName: 'STT',
+            width: 70,
+            align: 'center',
+            headerAlign: 'center',
+            sortable: false,
+            filterable: false,
+            renderCell: (params: GridRenderCellParams<PreservationSchedule>) =>
+                params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
+        },
+        {
+            field: 'canCu',
+            headerName: 'Căn cứ',
+            minWidth: 160,
+            flex: 1,
+            valueGetter: (_, row) => row.canCu || '',
+        },
+        {
+            field: 'ngayThucHien',
+            headerName: 'Ngày thực hiện',
+            minWidth: 130,
+            flex: 0.7,
+            valueGetter: (_, row) => {
+                const value = row.thoiGianThucHien || row.parameters?.ngay_bao_quan || row.thoiGianLap;
+                const date = value ? new Date(value) : null;
+                return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('vi-VN') : '';
+            },
+        },
+        {
+            field: 'noiDungCongViec',
+            headerName: 'Nội dung thực hiện',
+            minWidth: 220,
+            flex: 1.4,
+            valueGetter: (_, row) => row.noiDungCongViec || row.parameters?.noi_dung_thuc_hien || '',
+        },
+        {
+            field: 'capBaoQuan',
+            headerName: 'Cấp bảo quản',
+            minWidth: 220,
+            flex: 1,
+            valueGetter: (_, row) => row.parameters?.cap_bao_quan || '',
+        },
+    ], []);
+
     return (
         <OfficeProvider>
             <Box
                 sx={{
-                    p: 1.5,
+                    p: { xs: 1, lg: 1.25, xl: 1.5 },
                     height: 'calc(100vh - 96px)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -406,14 +455,14 @@ const BaoQuan: React.FC = () => {
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
                 <Box>
                     <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
-                        BAO QUAN TRANG BI
+                        BẢO QUẢN TRANG BỊ
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        Quan ly lich bao quan theo mo hinh schedule-first.
+                        Quản lý lịch bảo quản.
                     </Typography>
                 </Box>
                 <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
-                    Them ke hoach
+                    Thêm kế hoạch
                 </Button>
             </Stack>
 
@@ -421,15 +470,15 @@ const BaoQuan: React.FC = () => {
                 <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>
             )}
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, xl: 1.5 }, mb: { xs: 1, xl: 1.5 }, flexShrink: 0 }}>
                 {[
-                    { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
-                    { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
-                    { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
-                    { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
+                    { label: 'Tổng số', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
+                    { label: 'Đã hoàn thành', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
+                    { label: 'Đang thực hiện', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
+                    { label: 'Quá hạn', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
                 ].map((item) => (
                     <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                        <CardContent sx={{ p: { xs: 1, xl: 1.5 }, '&:last-child': { pb: { xs: 1, xl: 1.5 } } }}>
                             <Stack direction="row" alignItems="center" spacing={1}>
                                 <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                     <SecurityIcon sx={{ fontSize: 16, color: item.color }} />
@@ -444,8 +493,18 @@ const BaoQuan: React.FC = () => {
                 ))}
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
-                <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+            <Box
+                sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', lg: '220px minmax(0, 1fr) 220px', xl: '260px minmax(0, 1fr) 260px' },
+                    gridTemplateAreas: { xs: '"center" "left" "right"', lg: '"left center right"' },
+                    gap: { xs: 1, xl: 1.5 },
+                    alignItems: 'stretch',
+                    flex: 1,
+                    minHeight: 0,
+                }}
+            >
+                <Card variant="outlined" sx={{ gridArea: 'left', borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: { xs: 220, lg: 0 } }}>
                     <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
                         
                         <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
@@ -454,8 +513,8 @@ const BaoQuan: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                <Box sx={{ gridArea: 'center', height: '100%', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                         <TextField
                             size="small"
                             placeholder="Tim ten ke hoach, can cu, don vi..."
@@ -468,22 +527,24 @@ const BaoQuan: React.FC = () => {
                                     </InputAdornment>
                                 ),
                             }}
-                            sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                            sx={{ width: { xs: '100%', lg: 260, xl: 320 }, maxWidth: '100%', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                         />
-                        <Tabs value={ganttTab} onChange={(_, value: BaoQuanGanttTab) => setGanttTab(value)}>
+                        <Tabs value={ganttTab} onChange={(_, value: BaoQuanGanttTab) => setGanttTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
                             <Tab value="tien_do_trang_bi" label="Tiến độ trang bị" />
                             <Tab value="lich_bao_quan" label="Lịch bảo quản" />
                         </Tabs>
                     </Stack>
                     <Box sx={{ flex: 1, minHeight: 0 }}>
                         {ganttTab === 'tien_do_trang_bi' ? (
-                            <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" />
+                            <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} />
                         ) : (
-                            <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />
+                            <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} />
                         )}
                     </Box>
                 </Box>
-                <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
+                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                </Box>
             </Box>
 
             <GenericScheduleDialog
@@ -495,13 +556,13 @@ const BaoQuan: React.FC = () => {
                 editingId={editingSchedule?.id}
                 equipmentPool={equipmentPool}
                 equipmentLoading={equipmentLoading}
-                title={editingSchedule?.id ? 'Cap nhat ke hoach bao quan' : 'Them ke hoach bao quan'}
+                title={editingSchedule?.id ? 'Cập nhật kế hoạch bảo quản' : 'Thêm kế hoạch bảo quản'}
                 icon={SecurityIcon}
                 color="#2563eb"
                 fieldSetKey={TRANG_BI_FIELD_SET_KEYS.BAO_QUAN}
                 nameFieldKey="ten_bao_quan"
-                nameFieldLabel="Ten bao quan"
-                requiredNameError="Vui long nhap ten bao quan."
+                nameFieldLabel="Tên bảo quản"
+                requiredNameError="Vui lòng nhập tên bảo quản."
                 startDateFieldKey="thoi_gian_thuc_hien"
                 endDateFieldKey="thoi_gian_ket_thuc"
             />

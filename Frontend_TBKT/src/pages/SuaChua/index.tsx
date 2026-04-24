@@ -22,6 +22,7 @@ import { OfficeProvider } from '../../context/OfficeContext';
 import GanttView from '../../components/BaoDuong/GanttView';
 import GanttChartSidebar from '../../components/BaoDuong/GanttChartSidebar';
 import GenericScheduleDialog, { type EquipmentOption } from '../../components/Schedule/GenericScheduleDialog';
+import SuaChuaEquipmentDetailDialog from '../../components/Schedule/SuaChuaEquipmentDetailDialog';
 import {
     getSuaChuaSchedule,
     getListSuaChuaSchedule,
@@ -30,6 +31,7 @@ import {
 } from '../../apis/suaChuaScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
+import { pickScheduleValue } from '../../utils/scheduleFormValue';
 
 type SuaChuaTab = 'theo_doi_trang_bi' | 'ket_qua_sua_chua';
 
@@ -80,6 +82,8 @@ const SuaChua: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<RepairSchedule | null>(null);
+    const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
+    const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
 
     const loadEquipmentPool = useCallback(async () => {
         setEquipmentLoading(true);
@@ -131,20 +135,21 @@ const SuaChua: React.FC = () => {
 
             const mapped: RepairSchedule[] = rows.map((row) => {
                 const detail = detailMap.get(row.id);
-                const start = detail?.parameters?.thoi_gian_thuc_hien || row.ngayDeNghi || detail?.ngayDeNghi || '';
-                const end = detail?.parameters?.thoi_gian_ket_thuc || start;
+                const params = detail?.parameters || {};
+                const start = pickScheduleValue(params, ['thoi_gian_thuc_hien']) || row.ngayDeNghi || detail?.ngayDeNghi || '';
+                const end = pickScheduleValue(params, ['thoi_gian_ket_thuc', 'thoi_gian_thuc_hien']) || start;
                 return {
                     id: row.id,
-                    tenLich: row.tenSuaChua || '',
-                    canCu: row.canCu || '',
+                    tenLich: row.tenSuaChua || pickScheduleValue(params, ['ten_sua_chua']),
+                    canCu: row.canCu || pickScheduleValue(params, ['can_cu', 'can_cu_thuc_hien']),
                     thoiGianLap: row.ngayDeNghi || '',
-                    donVi: row.donViSuaChua || '',
-                    nguoiPhuTrach: detail?.parameters?.nguoi_phu_trach || '',
+                    donVi: row.donViSuaChua || pickScheduleValue(params, ['don_vi_sua_chua', 'don_vi_thuc_hien']),
+                    nguoiPhuTrach: pickScheduleValue(params, ['nguoi_phu_trach', 'nguoi_thuc_hien']),
                     thoiGianThucHien: start,
                     thoiGianKetThuc: end,
-                    noiDungCongViec: detail?.parameters?.noi_dung_cong_viec || detail?.ghiChu || '',
-                    vatChatBaoDam: detail?.parameters?.vat_chat_bao_dam || '',
-                    ketQua: detail?.parameters?.ket_qua || '',
+                    noiDungCongViec: pickScheduleValue(params, ['noi_dung_cong_viec', 'noi_dung_thuc_hien']) || detail?.ghiChu || '',
+                    vatChatBaoDam: pickScheduleValue(params, ['vat_chat_bao_dam']),
+                    ketQua: pickScheduleValue(params, ['ket_qua']),
                     parameters: detail?.parameters || {},
                     equipmentKeys: (detail?.dsTrangBi || []).map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)),
                     soTrangBi: row.soTrangBi || 0,
@@ -249,6 +254,8 @@ const SuaChua: React.FC = () => {
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
+        setMemberParametersByKey({});
+        setDetailEquipment(null);
         setDialogOpen(true);
     }, []);
 
@@ -256,6 +263,12 @@ const SuaChua: React.FC = () => {
         setSaving(true);
         try {
             const detail = await getSuaChuaSchedule(schedule.id);
+            const nextMemberParameters: Record<string, Record<string, string>> = {};
+            detail.dsTrangBi.forEach((member) => {
+                nextMemberParameters[buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)] = { ...(member.parameters || {}) };
+            });
+            setMemberParametersByKey(nextMemberParameters);
+            setDetailEquipment(null);
             setEditingSchedule({
                 id: detail.id,
                 tenLich: detail.tenSuaChua || '',
@@ -291,14 +304,14 @@ const SuaChua: React.FC = () => {
     const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payload: LocalSuaChuaScheduleItem = {
             id: editingSchedule?.id || '',
-            tenSuaChua: formData.ten_sua_chua || '',
-            canCu: formData.can_cu || '',
-            mucSuaChua: formData.muc_sua_chua || '',
-            capSuaChua: formData.cap_sua_chua || '',
-            donViSuaChua: formData.don_vi_sua_chua || '',
-            donViDeNghi: formData.don_vi_de_nghi || '',
-            ngayDeNghi: formData.ngay_de_nghi || formData.thoi_gian_thuc_hien || '',
-            ghiChu: formData.ghi_chu || '',
+            tenSuaChua: pickScheduleValue(formData, ['ten_sua_chua']),
+            canCu: pickScheduleValue(formData, ['can_cu', 'can_cu_thuc_hien']),
+            mucSuaChua: pickScheduleValue(formData, ['muc_sua_chua']),
+            capSuaChua: pickScheduleValue(formData, ['cap_sua_chua']),
+            donViSuaChua: pickScheduleValue(formData, ['don_vi_sua_chua', 'don_vi_thuc_hien']),
+            donViDeNghi: pickScheduleValue(formData, ['don_vi_de_nghi']),
+            ngayDeNghi: pickScheduleValue(formData, ['ngay_de_nghi', 'thoi_gian_thuc_hien']),
+            ghiChu: pickScheduleValue(formData, ['ghi_chu', 'noi_dung_cong_viec', 'noi_dung_thuc_hien']),
             dsTrangBi: selectedEquipment.map((equipment) => ({
                 idTrangBi: equipment.id,
                 nhomTrangBi: equipment.nhom,
@@ -307,7 +320,7 @@ const SuaChua: React.FC = () => {
                 soHieu: equipment.soHieu,
                 idChuyenNganhKt: equipment.idChuyenNganhKt,
                 idNganh: equipment.idNganh,
-                parameters: {},
+                parameters: memberParametersByKey[equipment.key] || {},
             })),
             parameters: formData,
             version: editingSchedule?.version || 0,
@@ -315,7 +328,7 @@ const SuaChua: React.FC = () => {
         await saveSuaChuaSchedule({ item: payload, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         await loadSchedules();
-    }, [editingSchedule, loadSchedules]);
+    }, [editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};
@@ -339,9 +352,18 @@ const SuaChua: React.FC = () => {
         return equipmentPool.filter((item) => editingSchedule.equipmentKeys.includes(item.key));
     }, [editingSchedule, equipmentPool]);
 
+    const handleSaveEquipmentDetail = useCallback((nextValue: Record<string, string>) => {
+        if (!detailEquipment) return;
+        setMemberParametersByKey((prev) => ({
+            ...prev,
+            [detailEquipment.key]: nextValue,
+        }));
+        setDetailEquipment(null);
+    }, [detailEquipment]);
+
     return (
         <OfficeProvider>
-            <Box sx={{ p: 1.5, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Box sx={{ p: { xs: 1, lg: 1.25, xl: 1.5 }, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
                     <Box>
                         <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
@@ -354,7 +376,7 @@ const SuaChua: React.FC = () => {
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, xl: 1.5 }, mb: { xs: 1, xl: 1.5 }, flexShrink: 0 }}>
                     {[
                         { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
                         { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
@@ -362,7 +384,7 @@ const SuaChua: React.FC = () => {
                         { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
                     ].map((item) => (
                         <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
-                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <CardContent sx={{ p: { xs: 1, xl: 1.5 }, '&:last-child': { pb: { xs: 1, xl: 1.5 } } }}>
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <HandymanIcon sx={{ fontSize: 16, color: item.color }} />
@@ -377,8 +399,18 @@ const SuaChua: React.FC = () => {
                     ))}
                 </Box>
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', lg: '220px minmax(0, 1fr) 220px', xl: '260px minmax(0, 1fr) 260px' },
+                        gridTemplateAreas: { xs: '"center" "left" "right"', lg: '"left center right"' },
+                        gap: { xs: 1, xl: 1.5 },
+                        alignItems: 'stretch',
+                        flex: 1,
+                        minHeight: 0,
+                    }}
+                >
+                    <Card variant="outlined" sx={{ gridArea: 'left', borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: { xs: 220, lg: 0 } }}>
                         <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
                             <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
                                 <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
@@ -386,8 +418,8 @@ const SuaChua: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Box sx={{ gridArea: 'center', height: '100%', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                             <TextField
                                 size="small"
                                 placeholder="Tim ten ke hoach, can cu, don vi..."
@@ -400,9 +432,9 @@ const SuaChua: React.FC = () => {
                                         </InputAdornment>
                                     ),
                                 }}
-                                sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                                sx={{ width: { xs: '100%', lg: 260, xl: 320 }, maxWidth: '100%', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                             />
-                            <Tabs value={activeTab} onChange={(_, value: SuaChuaTab) => setActiveTab(value)}>
+                            <Tabs value={activeTab} onChange={(_, value: SuaChuaTab) => setActiveTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
                                 <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
                                 <Tab value="ket_qua_sua_chua" label="Ket qua sua chua" />
                             </Tabs>
@@ -413,12 +445,17 @@ const SuaChua: React.FC = () => {
                                 : <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />}
                         </Box>
                     </Box>
-                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
+                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    </Box>
                 </Box>
 
                 <GenericScheduleDialog
                     open={dialogOpen}
-                    onClose={() => setDialogOpen(false)}
+                    onClose={() => {
+                        setDialogOpen(false);
+                        setDetailEquipment(null);
+                    }}
                     onSave={handleSave}
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
@@ -433,6 +470,35 @@ const SuaChua: React.FC = () => {
                     requiredNameError="Vui long nhap ten sua chua."
                     startDateFieldKey="ngay_de_nghi"
                     endDateFieldKey="thoi_gian_ket_thuc"
+                    sidePanel={detailEquipment ? (
+                        <SuaChuaEquipmentDetailDialog
+                            equipment={detailEquipment}
+                            value={memberParametersByKey[detailEquipment.key] || {}}
+                            onClose={() => setDetailEquipment(null)}
+                            onSave={handleSaveEquipmentDetail}
+                        />
+                    ) : undefined}
+                    sidePanelWidth={540}
+                    equipmentActionRenderer={(equipment, selected, ensureSelected) => (
+                        <Button
+                            size="small"
+                            variant={memberParametersByKey[equipment.key] ? 'contained' : 'outlined'}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (!selected) ensureSelected();
+                                setDetailEquipment(equipment);
+                            }}
+                            sx={{
+                                py: 0.25,
+                                px: 1,
+                                fontSize: '0.72rem',
+                                textTransform: 'none',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {memberParametersByKey[equipment.key] ? 'Da nhap' : 'Nhap'}
+                        </Button>
+                    )}
                 />
             </Box>
         </OfficeProvider>

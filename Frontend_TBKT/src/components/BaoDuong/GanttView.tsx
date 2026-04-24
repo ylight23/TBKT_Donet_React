@@ -35,74 +35,167 @@ interface GanttViewProps {
     onScheduleClick: (schedule: ScheduleGanttItem) => void;
     loading?: boolean;
     panelHeight?: number | string;
+    tableColumns?: GridColDef<ScheduleGanttItem>[];
 }
 
-type ViewMode = 'month' | 'week';
+type ViewMode = 'week' | 'month' | 'year';
 type DisplayMode = 'gantt' | 'table';
 
+type DateRange = {
+    start: Date;
+    end: Date;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const STATUS_COLORS = {
-    overdue: { bg: '#FCEBEB', color: '#A32D2D', border: '#F09595', label: 'Quá hạn' },
-    inprogress: { bg: '#FAEEDA', color: '#854F0B', border: '#EF9F27', label: 'Đang thực hiện' },
-    upcoming: { bg: '#EEEDFE', color: '#3C3489', border: '#AFA9EC', label: 'Chưa bắt đầu' },
-    completed: { bg: '#EAF3DE', color: '#3B6D11', border: '#97C459', label: 'Hoàn thành' },
-    none: { bg: '#f5f5f5', color: '#757575', border: '#e0e0e0', label: 'Chưa cập nhật' },
+    overdue: { bg: '#FCEBEB', color: '#A32D2D', border: '#F09595', label: 'Qua han' },
+    inprogress: { bg: '#FAEEDA', color: '#854F0B', border: '#EF9F27', label: 'Dang thuc hien' },
+    upcoming: { bg: '#EEEDFE', color: '#3C3489', border: '#AFA9EC', label: 'Chua bat dau' },
+    completed: { bg: '#EAF3DE', color: '#3B6D11', border: '#97C459', label: 'Hoan thanh' },
+    none: { bg: '#f5f5f5', color: '#757575', border: '#e0e0e0', label: 'Chua cap nhat' },
+};
+
+const DOWS_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const MONTHS_VI = [
+    'Thang 1', 'Thang 2', 'Thang 3', 'Thang 4',
+    'Thang 5', 'Thang 6', 'Thang 7', 'Thang 8',
+    'Thang 9', 'Thang 10', 'Thang 11', 'Thang 12',
+];
+
+const parseDate = (value: string): Date | null => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+};
+
+const startOfDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const endOfDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+const startOfWeek = (date: Date): Date => {
+    const d = startOfDay(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d;
+};
+
+const endOfWeek = (date: Date): Date => {
+    const d = startOfWeek(date);
+    d.setDate(d.getDate() + 6);
+    return endOfDay(d);
+};
+
+const startOfMonth = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), 1);
+const endOfMonth = (date: Date): Date => new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+
+const startOfYear = (date: Date): Date => new Date(date.getFullYear(), 0, 1);
+const endOfYear = (date: Date): Date => new Date(date.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+const addByViewMode = (date: Date, viewMode: ViewMode, delta: number): Date => {
+    const next = new Date(date);
+    if (viewMode === 'week') {
+        next.setDate(next.getDate() + (delta * 7));
+        return next;
+    }
+    if (viewMode === 'month') {
+        next.setMonth(next.getMonth() + delta);
+        return next;
+    }
+    next.setFullYear(next.getFullYear() + delta);
+    return next;
+};
+
+const getRangeByView = (anchorDate: Date, viewMode: ViewMode): DateRange => {
+    if (viewMode === 'week') return { start: startOfWeek(anchorDate), end: endOfWeek(anchorDate) };
+    if (viewMode === 'month') return { start: startOfMonth(anchorDate), end: endOfMonth(anchorDate) };
+    return { start: startOfYear(anchorDate), end: endOfYear(anchorDate) };
+};
+
+const formatRangeLabel = (range: DateRange, viewMode: ViewMode): string => {
+    if (viewMode === 'year') return `Nam ${range.start.getFullYear()}`;
+    if (viewMode === 'month') return `${MONTHS_VI[range.start.getMonth()]} ${range.start.getFullYear()}`;
+    const from = `${String(range.start.getDate()).padStart(2, '0')}/${String(range.start.getMonth() + 1).padStart(2, '0')}`;
+    const to = `${String(range.end.getDate()).padStart(2, '0')}/${String(range.end.getMonth() + 1).padStart(2, '0')}/${range.end.getFullYear()}`;
+    return `Tuan ${from} - ${to}`;
+};
+
+const enumerateDays = (range: DateRange): Date[] => {
+    const days: Date[] = [];
+    const cursor = startOfDay(range.start);
+    const end = endOfDay(range.end);
+    while (cursor <= end) {
+        days.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+};
+
+const getScheduleRange = (schedule: ScheduleGanttItem): DateRange | null => {
+    const startCandidate = parseDate(schedule.thoiGianThucHien) ?? parseDate(schedule.thoiGianLap);
+    if (!startCandidate) return null;
+    const endCandidate = parseDate(schedule.thoiGianKetThuc) ?? startCandidate;
+    const start = startOfDay(startCandidate);
+    const end = endOfDay(endCandidate);
+    return end < start ? { start, end: endOfDay(start) } : { start, end };
 };
 
 const resolveStatus = (schedule: ScheduleGanttItem): keyof typeof STATUS_COLORS => {
     if (schedule.ketQua && schedule.ketQua.trim() !== '') return 'completed';
+    const range = getScheduleRange(schedule);
+    if (!range) return 'none';
     const now = Date.now();
-    const start = schedule.thoiGianThucHien ? new Date(schedule.thoiGianThucHien).getTime() : null;
-    const end = schedule.thoiGianKetThuc ? new Date(schedule.thoiGianKetThuc).getTime() : null;
-    if (!start) return 'none';
-    if (end && end < now) return 'overdue';
-    if (start <= now && (!end || end >= now)) return 'inprogress';
+    if (range.end.getTime() < now) return 'overdue';
+    if (range.start.getTime() <= now && range.end.getTime() >= now) return 'inprogress';
     return 'upcoming';
 };
 
-const DOWS_VI = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-const MONTHS_VI = [
-    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
-    'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
-    'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
-];
-
-const getDaysInPeriod = (year: number, month: number, viewMode: ViewMode): number => {
-    if (viewMode === 'week') {
-        const first = new Date(year, month, 1);
-        const dow = first.getDay();
-        const startOffset = dow === 0 ? 6 : dow - 1;
-        return 7;
-    }
-    return new Date(year, month + 1, 0).getDate();
+const resolveLevel = (schedule: ScheduleGanttItem): string => {
+    const p = schedule.parameters || {};
+    return (
+        p.cap_bao_quan ||
+        p.cap_bao_duong ||
+        p.muc_sua_chua ||
+        p.cap_sua_chua ||
+        p.loai_niem_cat ||
+        p.loai_de_nghi ||
+        p.cap_chat_luong ||
+        ''
+    );
 };
 
-const getDayWidth = (totalDays: number, containerWidth: number): number => {
-    return Math.floor(containerWidth / totalDays);
-};
+const intersectsRange = (scheduleRange: DateRange, viewRange: DateRange): boolean =>
+    scheduleRange.end.getTime() >= viewRange.start.getTime() && scheduleRange.start.getTime() <= viewRange.end.getTime();
 
 const GanttBar: React.FC<{
     schedule: ScheduleGanttItem;
+    scheduleRange: DateRange;
+    viewRange: DateRange;
     dayWidth: number;
-    startOffset: number;
-    totalDays: number;
     rowHeight: number;
+    totalDays: number;
     onClick: () => void;
-}> = ({ schedule, dayWidth, startOffset, totalDays, rowHeight, onClick }) => {
+}> = ({ schedule, scheduleRange, viewRange, dayWidth, rowHeight, totalDays, onClick }) => {
     const st = resolveStatus(schedule);
     const sc = STATUS_COLORS[st];
 
-    const start = schedule.thoiGianThucHien ? new Date(schedule.thoiGianThucHien) : null;
-    const end = schedule.thoiGianKetThuc ? new Date(schedule.thoiGianKetThuc) : start;
+    const clampedStart = Math.max(
+        0,
+        Math.floor((startOfDay(scheduleRange.start).getTime() - startOfDay(viewRange.start).getTime()) / DAY_MS),
+    );
+    const clampedEndExclusive = Math.min(
+        totalDays,
+        Math.ceil((endOfDay(scheduleRange.end).getTime() - startOfDay(viewRange.start).getTime()) / DAY_MS),
+    );
 
-    if (!start) return null;
+    if (clampedEndExclusive <= 0 || clampedStart >= totalDays || clampedEndExclusive <= clampedStart) return null;
 
-    const dayOfMonth = start.getDate();
-    const barLeft = (dayOfMonth - 1 + startOffset) * dayWidth;
-    const durationDays = end ? Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1 : 1;
-    const barWidth = Math.max(durationDays * dayWidth - 2, dayWidth * 0.5);
+    const barLeft = clampedStart * dayWidth;
+    const barWidth = Math.max((clampedEndExclusive - clampedStart) * dayWidth - 2, Math.min(dayWidth, 8));
 
     return (
-        <Tooltip title={`${schedule.tenLich}${schedule.soTrangBi ? ` · ${schedule.soTrangBi} trang bị` : ''}${schedule.nguoiPhuTrach ? ` · ${schedule.nguoiPhuTrach}` : ''}`} placement="top">
+        <Tooltip title={`${schedule.tenLich}${schedule.soTrangBi ? ` · ${schedule.soTrangBi} trang bi` : ''}${schedule.nguoiPhuTrach ? ` · ${schedule.nguoiPhuTrach}` : ''}`} placement="top">
             <Box
                 onClick={onClick}
                 sx={{
@@ -136,95 +229,122 @@ const GanttBar: React.FC<{
 
 const GanttChartView: React.FC<{
     schedules: ScheduleGanttItem[];
-    year: number;
-    month: number;
     viewMode: ViewMode;
+    anchorDate: Date;
     onScheduleClick: (schedule: ScheduleGanttItem) => void;
-}> = ({ schedules, year, month, viewMode, onScheduleClick }) => {
+}> = ({ schedules, viewMode, anchorDate, onScheduleClick }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(800);
+    const [containerWidth, setContainerWidth] = useState(980);
 
     useEffect(() => {
         if (!containerRef.current) return;
         const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                setContainerWidth(entry.contentRect.width);
-            }
+            for (const entry of entries) setContainerWidth(entry.contentRect.width);
         });
         observer.observe(containerRef.current);
         return () => observer.disconnect();
     }, []);
 
-    const totalDays = getDaysInPeriod(year, month, viewMode);
-    const dayWidth = Math.max(getDayWidth(totalDays, containerWidth - 180), 20);
+    const viewRange = useMemo(() => getRangeByView(anchorDate, viewMode), [anchorDate, viewMode]);
+    const dayCells = useMemo(() => enumerateDays(viewRange), [viewRange]);
+    const totalDays = dayCells.length;
 
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDow = firstDayOfMonth.getDay();
-    const startOffset = firstDow === 0 ? 6 : firstDow - 1;
+    const dayWidth = useMemo(() => {
+        const timelineArea = Math.max(containerWidth - 180, 360);
+        if (viewMode === 'year') return Math.max(Math.floor(timelineArea / totalDays), 2);
+        if (viewMode === 'week') return Math.max(Math.floor(timelineArea / totalDays), 38);
+        return Math.max(Math.floor(timelineArea / totalDays), 18);
+    }, [containerWidth, totalDays, viewMode]);
 
-    const dayLabels = useMemo(() => {
-        return Array.from({ length: totalDays }, (_, i) => {
-            if (viewMode === 'week') {
-                const d = new Date(year, month, 1);
-                d.setDate(d.getDate() - startOffset + i);
-                return { label: `${DOWS_VI[d.getDay()]}, ${d.getDate()}`, isWeekend: d.getDay() === 0 || d.getDay() === 6 };
-            }
-            const d = i + 1;
-            const show = d % 5 === 0 || d === 1 || totalDays <= 10;
-            return { label: show ? String(d) : '', isWeekend: false };
+    const scheduleRows = useMemo(() => {
+        return schedules
+            .map((schedule) => ({ schedule, range: getScheduleRange(schedule) }))
+            .filter((item): item is { schedule: ScheduleGanttItem; range: DateRange } => Boolean(item.range))
+            .filter((item) => intersectsRange(item.range, viewRange))
+            .sort((a, b) => a.range.start.getTime() - b.range.start.getTime());
+    }, [schedules, viewRange]);
+
+    const yearSegments = useMemo(() => {
+        if (viewMode !== 'year') return [];
+        const year = viewRange.start.getFullYear();
+        return Array.from({ length: 12 }, (_, month) => {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            return {
+                key: `${year}-${month + 1}`,
+                month,
+                width: daysInMonth * dayWidth,
+                isAlt: month % 2 === 1,
+            };
         });
-    }, [year, month, totalDays, viewMode, startOffset]);
+    }, [dayWidth, viewMode, viewRange.start]);
 
     const ROW_HEIGHT = 44;
     const totalWidth = totalDays * dayWidth;
 
-    const sortedSchedules = useMemo(() => {
-        return [...schedules].sort((a, b) => {
-            const da = a.thoiGianLap ? new Date(a.thoiGianLap).getTime() : 0;
-            const db = b.thoiGianLap ? new Date(b.thoiGianLap).getTime() : 0;
-            return db - da;
-        });
-    }, [schedules]);
-
     return (
         <Box ref={containerRef} sx={{ overflow: 'auto', height: '100%', minHeight: 0 }}>
             <Box sx={{ minWidth: 180 + totalWidth, display: 'flex', flexDirection: 'column' }}>
-                {/* Header */}
                 <Box sx={{ display: 'flex', borderBottom: '0.5px solid', borderColor: 'divider' }}>
                     <Box sx={{ width: 180, flexShrink: 0, p: 1, borderRight: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
-                        <Typography variant="caption" fontWeight={700} color="text.secondary">Kế hoạch</Typography>
+                        <Typography variant="caption" fontWeight={700} color="text.secondary">Ke hoach</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flex: 1 }}>
-                        {dayLabels.map((item, i) => (
-                            <Box
-                                key={i}
-                                sx={{
-                                    width: dayWidth,
-                                    minWidth: dayWidth,
-                                    textAlign: 'center',
-                                    py: 0.75,
-                                    borderRight: '0.5px solid',
-                                    borderColor: 'divider',
-                                    bgcolor: item.isWeekend ? 'action.hover' : 'background.default',
-                                }}
-                            >
-                                <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', fontWeight: 500 }}>
-                                    {item.label}
-                                </Typography>
-                            </Box>
-                        ))}
+                        {viewMode === 'year' ? (
+                            yearSegments.map((segment) => (
+                                <Box
+                                    key={segment.key}
+                                    sx={{
+                                        width: segment.width,
+                                        minWidth: segment.width,
+                                        textAlign: 'center',
+                                        py: 0.75,
+                                        borderRight: '0.5px solid',
+                                        borderColor: 'divider',
+                                        bgcolor: segment.isAlt ? 'action.hover' : 'background.default',
+                                    }}
+                                >
+                                    <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary', fontWeight: 600 }}>
+                                        {MONTHS_VI[segment.month]}
+                                    </Typography>
+                                </Box>
+                            ))
+                        ) : (
+                            dayCells.map((day) => {
+                                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                                const label = viewMode === 'week'
+                                    ? `${DOWS_VI[day.getDay()]}, ${day.getDate()}`
+                                    : ((day.getDate() % 2 === 0 || day.getDate() === 1 || totalDays <= 10) ? String(day.getDate()) : '');
+                                return (
+                                    <Box
+                                        key={day.toISOString()}
+                                        sx={{
+                                            width: dayWidth,
+                                            minWidth: dayWidth,
+                                            textAlign: 'center',
+                                            py: 0.75,
+                                            borderRight: '0.5px solid',
+                                            borderColor: 'divider',
+                                            bgcolor: isWeekend ? 'action.hover' : 'background.default',
+                                        }}
+                                    >
+                                        <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', fontWeight: 500 }}>
+                                            {label}
+                                        </Typography>
+                                    </Box>
+                                );
+                            })
+                        )}
                     </Box>
                 </Box>
 
-                {/* Rows */}
-                {sortedSchedules.length === 0 ? (
+                {scheduleRows.length === 0 ? (
                     <Box sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography variant="body2" color="text.disabled">Không có kế hoạch bảo dưỡng nào trong tháng này</Typography>
+                        <Typography variant="body2" color="text.disabled">
+                            Không có kế hoạch trong khoảng thời gian đang xem
+                        </Typography>
                     </Box>
                 ) : (
-                    sortedSchedules.map((schedule) => {
-                        const st = resolveStatus(schedule);
-                        const sc = STATUS_COLORS[st];
+                    scheduleRows.map(({ schedule, range }) => {
                         return (
                             <Box
                                 key={schedule.id}
@@ -248,29 +368,47 @@ const GanttChartView: React.FC<{
                                     </Typography>
                                 </Box>
                                 <Box sx={{ position: 'relative', flex: 1 }}>
-                                    {dayLabels.map((_, i) => {
-                                        const dow = (startOffset + i) % 7;
-                                        return (
+                                    {viewMode === 'year' ? (
+                                        yearSegments.map((segment, index) => (
                                             <Box
-                                                key={i}
+                                                key={`bg-year-${segment.key}`}
                                                 sx={{
                                                     position: 'absolute',
-                                                    left: i * dayWidth,
-                                                    width: dayWidth,
+                                                    left: yearSegments.slice(0, index).reduce((sum, item) => sum + item.width, 0),
+                                                    width: segment.width,
                                                     height: ROW_HEIGHT,
                                                     borderRight: '0.5px solid',
                                                     borderColor: 'divider',
-                                                    bgcolor: dow >= 5 ? 'rgba(0,0,0,0.015)' : 'transparent',
+                                                    bgcolor: segment.isAlt ? 'rgba(0,0,0,0.015)' : 'transparent',
                                                 }}
                                             />
-                                        );
-                                    })}
+                                        ))
+                                    ) : (
+                                        dayCells.map((day, i) => {
+                                            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                                            return (
+                                                <Box
+                                                    key={`bg-day-${schedule.id}-${day.toISOString()}`}
+                                                    sx={{
+                                                        position: 'absolute',
+                                                        left: i * dayWidth,
+                                                        width: dayWidth,
+                                                        height: ROW_HEIGHT,
+                                                        borderRight: '0.5px solid',
+                                                        borderColor: 'divider',
+                                                        bgcolor: isWeekend ? 'rgba(0,0,0,0.015)' : 'transparent',
+                                                    }}
+                                                />
+                                            );
+                                        })
+                                    )}
                                     <GanttBar
                                         schedule={schedule}
+                                        scheduleRange={range}
+                                        viewRange={viewRange}
                                         dayWidth={dayWidth}
-                                        startOffset={startOffset}
-                                        totalDays={totalDays}
                                         rowHeight={ROW_HEIGHT}
+                                        totalDays={totalDays}
                                         onClick={() => onScheduleClick(schedule)}
                                     />
                                 </Box>
@@ -286,90 +424,104 @@ const GanttChartView: React.FC<{
 const TableView: React.FC<{
     schedules: ScheduleGanttItem[];
     onScheduleClick: (schedule: ScheduleGanttItem) => void;
-}> = ({ schedules, onScheduleClick }) => {
-
+    columns?: GridColDef<ScheduleGanttItem>[];
+}> = ({ schedules, onScheduleClick, columns: columnsOverride }) => {
     const columns = useMemo<GridColDef[]>(() => [
-        { field: 'tenLich', headerName: 'Tên kế hoạch', minWidth: 220, flex: 1, valueGetter: (_, row: ScheduleGanttItem) => row.tenLich },
+        { field: 'tenLich', headerName: 'Tên kế hoạch', minWidth: 160, flex: 1.2, valueGetter: (_, row: ScheduleGanttItem) => row.tenLich },
+        { field: 'canCu', headerName: 'Căn cứ', minWidth: 120, flex: 1, valueGetter: (_, row: ScheduleGanttItem) => row.canCu || '' },
+        { field: 'donVi', headerName: 'Đơn vị thực hiện', minWidth: 120, flex: 1, valueGetter: (_, row: ScheduleGanttItem) => row.donVi || '' },
         {
-            field: 'thoiGianThucHien', headerName: 'Bắt đầu', width: 110,
+            field: 'thoiGianThucHien', headerName: 'Bắt đầu', minWidth: 95, flex: 0.65,
             valueGetter: (_, row: ScheduleGanttItem) => {
-                if (!row.thoiGianThucHien) return '';
-                return new Date(row.thoiGianThucHien).toLocaleDateString('vi-VN');
+                const start = parseDate(row.thoiGianThucHien) ?? parseDate(row.thoiGianLap);
+                return start ? start.toLocaleDateString('vi-VN') : '';
             },
         },
         {
-            field: 'thoiGianKetThuc', headerName: 'Kết thúc', width: 110,
+            field: 'thoiGianKetThuc', headerName: 'Kết thúc', minWidth: 95, flex: 0.65,
             valueGetter: (_, row: ScheduleGanttItem) => {
-                if (!row.thoiGianKetThuc) return '';
-                return new Date(row.thoiGianKetThuc).toLocaleDateString('vi-VN');
+                const end = parseDate(row.thoiGianKetThuc);
+                return end ? end.toLocaleDateString('vi-VN') : '';
             },
         },
-        { field: 'soTrangBi', headerName: 'Số TB', width: 80 },
-        { field: 'nguoiPhuTrach', headerName: 'Người phụ trách', width: 150 },
         {
-            field: 'ketQua', headerName: 'Trạng thái', width: 150,
-            valueGetter: (_, row: ScheduleGanttItem) => row.ketQua,
-            renderCell: (params: GridRenderCellParams<ScheduleGanttItem, string>) => {
-                const st = resolveStatus(params.row);
-                const sc = STATUS_COLORS[st];
-                return (
-                    <Chip
-                        size="small"
-                        label={sc.label}
-                        sx={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            bgcolor: sc.bg,
-                            color: sc.color,
-                            border: `0.5px solid ${sc.border}`,
-                        }}
-                    />
-                );
-            },
+            field: 'cap', headerName: 'Cấp', minWidth: 100, flex: 0.7,
+            valueGetter: (_, row: ScheduleGanttItem) => resolveLevel(row),
         },
+        {
+            field: 'noiDungCongViec', headerName: 'Nội dung thực hiện', minWidth: 140, flex: 1.1,
+            valueGetter: (_, row: ScheduleGanttItem) => row.noiDungCongViec || '',
+        },
+        // { field: 'soTrangBi', headerName: 'Số TB', minWidth: 70, flex: 0.45 },
+        // { field: 'nguoiPhuTrach', headerName: 'Người phụ trách', minWidth: 110, flex: 0.8 },
+        // {
+        //     field: 'status', headerName: 'Trạng thái', minWidth: 110, flex: 0.8,
+        //     valueGetter: (_, row: ScheduleGanttItem) => resolveStatus(row),
+        //     renderCell: (params: GridRenderCellParams<ScheduleGanttItem, string>) => {
+        //         const sc = STATUS_COLORS[(params.value || 'none') as keyof typeof STATUS_COLORS] || STATUS_COLORS.none;
+        //         return (
+        //             <Chip
+        //                 size="small"
+        //                 label={sc.label}
+        //                 sx={{
+        //                     fontSize: '0.7rem',
+        //                     fontWeight: 600,
+        //                     bgcolor: sc.bg,
+        //                     color: sc.color,
+        //                     border: `0.5px solid ${sc.border}`,
+        //                 }}
+        //             />
+        //         );
+        //     },
+        // },
     ], []);
 
+    const resolvedColumns = columnsOverride || columns;
+
     return (
-        <Box sx={{ height: '100%', minHeight: 0 }}>
+        <Box sx={{ height: '100%', minHeight: 0, minWidth: 0, width: '100%', overflow: 'hidden' }}>
             <DataGrid
                 rows={schedules}
-                columns={columns}
+                columns={resolvedColumns}
                 getRowId={(row) => row.id}
                 hideFooter
                 density="compact"
                 onRowClick={(params) => onScheduleClick(params.row as ScheduleGanttItem)}
+                disableColumnMenu
                 sx={{
                     height: '100%',
+                    width: '100%',
+                    minWidth: 0,
                     cursor: 'pointer',
                     '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
+                    '& .MuiDataGrid-main': { overflow: 'hidden' },
                 }}
             />
         </Box>
     );
 };
 
-const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loading, panelHeight }) => {
-    const today = new Date();
-    const [year, setYear] = useState(today.getFullYear());
-    const [month, setMonth] = useState(today.getMonth());
+const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loading, panelHeight, tableColumns }) => {
+    const today = useMemo(() => new Date(), []);
+    const [anchorDate, setAnchorDate] = useState<Date>(today);
     const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [displayMode, setDisplayMode] = useState<DisplayMode>('gantt');
 
-    const navigateMonth = useCallback((dir: number) => {
-        setMonth((prev) => {
-            let next = prev + dir;
-            if (next > 11) { next = 0; setYear((y) => y + 1); }
-            else if (next < 0) { next = 11; setYear((y) => y - 1); }
-            return next;
+    const viewRange = useMemo(() => getRangeByView(anchorDate, viewMode), [anchorDate, viewMode]);
+    const rangeLabel = useMemo(() => formatRangeLabel(viewRange, viewMode), [viewMode, viewRange]);
+
+    const visibleSchedules = useMemo(() => {
+        return schedules.filter((schedule) => {
+            const scheduleRange = getScheduleRange(schedule);
+            return scheduleRange ? intersectsRange(scheduleRange, viewRange) : false;
         });
-    }, []);
+    }, [schedules, viewRange]);
 
-    const goToToday = useCallback(() => {
-        setYear(today.getFullYear());
-        setMonth(today.getMonth());
-    }, []);
+    const navigate = useCallback((delta: number) => {
+        setAnchorDate((prev) => addByViewMode(prev, viewMode, delta));
+    }, [viewMode]);
 
-    const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+    const goToToday = useCallback(() => setAnchorDate(new Date()), []);
 
     const resolvedHeight = typeof panelHeight === 'number'
         ? `${panelHeight}px`
@@ -388,77 +540,86 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                 minHeight: 0,
             }}
         >
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{ px: 2, py: 1.25, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default', flexWrap: 'wrap', gap: 1 }}
-                >
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                        <Typography variant="subtitle2" fontWeight={800}>
-                            {displayMode === 'gantt'
-                                ? `Biểu đồ tiến độ — ${MONTHS_VI[month]} ${year}`
-                                : `Danh sách kế hoạch — ${MONTHS_VI[month]} ${year}`}
-                        </Typography>
-                        <Button size="small" onClick={goToToday} startIcon={<TodayIcon sx={{ fontSize: 14 }} />} sx={{ fontSize: '0.7rem', textTransform: 'none' }}>
-                            Hôm nay
-                        </Button>
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {displayMode === 'gantt' && (
-                            <ButtonGroup size="small" sx={{ '& .MuiButtonGroup-grouped': { minWidth: 40 } }}>
-                                <Button
-                                    variant={viewMode === 'month' ? 'contained' : 'outlined'}
-                                    onClick={() => setViewMode('month')}
-                                    sx={{ fontSize: '0.7rem', textTransform: 'none' }}
-                                >Tháng</Button>
-                                <Button
-                                    variant={viewMode === 'week' ? 'contained' : 'outlined'}
-                                    onClick={() => setViewMode('week')}
-                                    sx={{ fontSize: '0.7rem', textTransform: 'none' }}
-                                >Tuần</Button>
-                            </ButtonGroup>
-                        )}
-
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => setDisplayMode((prev) => prev === 'gantt' ? 'table' : 'gantt')}
-                            sx={{ fontSize: '0.72rem', textTransform: 'none' }}
-                        >
-                            {displayMode === 'gantt' ? 'Xem dang bang' : 'Xem biểu đồ tiến độ'}
-                        </Button>
-
-                        <Stack direction="row" spacing={0.25}>
-                            <Button size="small" onClick={() => navigateMonth(-1)} sx={{ minWidth: 28, p: 0.25 }}>
-                                <NavigateBeforeIcon fontSize="small" />
-                            </Button>
-                            <Button size="small" onClick={() => navigateMonth(1)} sx={{ minWidth: 28, p: 0.25 }}>
-                                <NavigateNextIcon fontSize="small" />
-                            </Button>
-                        </Stack>
-                    </Stack>
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ px: 2, py: 1.25, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default', flexWrap: 'wrap', gap: 1 }}
+            >
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Typography variant="subtitle2" fontWeight={800}>
+                        {displayMode === 'gantt' ? `Bieu do tien do — ${rangeLabel}` : `Danh sach ke hoach — ${rangeLabel}`}
+                    </Typography>
+                    <Button size="small" onClick={goToToday} startIcon={<TodayIcon sx={{ fontSize: 14 }} />} sx={{ fontSize: '0.7rem', textTransform: 'none' }}>
+                        Hom nay
+                    </Button>
                 </Stack>
 
-                <Box sx={{ p: displayMode === 'table' ? 0 : 1.5, flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                    {loading ? (
-                        <Box sx={{ textAlign: 'center', py: 4, height: '100%' }}>Đang tải...</Box>
-                    ) : displayMode === 'gantt' ? (
-                        <GanttChartView
-                            schedules={schedules}
-                            year={year}
-                            month={month}
-                            viewMode={viewMode}
-                            onScheduleClick={onScheduleClick}
-                        />
-                    ) : (
-                        <TableView
-                            schedules={schedules}
-                            onScheduleClick={onScheduleClick}
-                        />
+                <Stack direction="row" spacing={1} alignItems="center">
+                    {displayMode === 'gantt' && (
+                        <ButtonGroup size="small" sx={{ '& .MuiButtonGroup-grouped': { minWidth: 48 } }}>
+                            <Button
+                                variant={viewMode === 'week' ? 'contained' : 'outlined'}
+                                onClick={() => setViewMode('week')}
+                                sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                            >
+                                Tuan
+                            </Button>
+                            <Button
+                                variant={viewMode === 'month' ? 'contained' : 'outlined'}
+                                onClick={() => setViewMode('month')}
+                                sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                            >
+                                Thang
+                            </Button>
+                            <Button
+                                variant={viewMode === 'year' ? 'contained' : 'outlined'}
+                                onClick={() => setViewMode('year')}
+                                sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                            >
+                                Nam
+                            </Button>
+                        </ButtonGroup>
                     )}
-                </Box>
+
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setDisplayMode((prev) => prev === 'gantt' ? 'table' : 'gantt')}
+                        sx={{ fontSize: '0.72rem', textTransform: 'none' }}
+                    >
+                        {displayMode === 'gantt' ? 'Xem dang bang' : 'Xem bieu do tien do'}
+                    </Button>
+
+                    <Stack direction="row" spacing={0.25}>
+                        <Button size="small" onClick={() => navigate(-1)} sx={{ minWidth: 28, p: 0.25 }}>
+                            <NavigateBeforeIcon fontSize="small" />
+                        </Button>
+                        <Button size="small" onClick={() => navigate(1)} sx={{ minWidth: 28, p: 0.25 }}>
+                            <NavigateNextIcon fontSize="small" />
+                        </Button>
+                    </Stack>
+                </Stack>
+            </Stack>
+
+            <Box sx={{ p: displayMode === 'table' ? 0 : 1.5, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                {loading ? (
+                    <Box sx={{ textAlign: 'center', py: 4, height: '100%' }}>Dang tai...</Box>
+                ) : displayMode === 'gantt' ? (
+                    <GanttChartView
+                        schedules={visibleSchedules}
+                        viewMode={viewMode}
+                        anchorDate={anchorDate}
+                        onScheduleClick={onScheduleClick}
+                    />
+                ) : (
+                    <TableView
+                        schedules={visibleSchedules}
+                        onScheduleClick={onScheduleClick}
+                        columns={tableColumns}
+                    />
+                )}
+            </Box>
         </Box>
     );
 };

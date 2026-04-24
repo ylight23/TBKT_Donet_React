@@ -30,6 +30,7 @@ import {
 } from '../../apis/baoDuongScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
+import { pickScheduleValue } from '../../utils/scheduleFormValue';
 
 type MaintenanceSchedule = {
     id: string;
@@ -141,16 +142,17 @@ const BaoDuong: React.FC = () => {
 
             const mapped: MaintenanceSchedule[] = rows.map((row) => {
                 const detail = detailMap.get(row.id);
+                const params = detail?.parameters || {};
                 return {
                     id: row.id,
-                    tenLich: row.tenLichBaoDuong || '',
-                    canCu: row.canCu || '',
-                    thoiGianLap: row.thoiGianLap || '',
-                    donVi: row.idDonVi || row.tenDonVi || '',
-                    nguoiPhuTrach: row.nguoiPhuTrach || '',
-                    thoiGianThucHien: row.thoiGianThucHien || '',
-                    thoiGianKetThuc: row.thoiGianKetThuc || '',
-                    noiDungCongViec: detail?.noiDungCongViec || '',
+                    tenLich: row.tenLichBaoDuong || pickScheduleValue(params, ['ten_lich_bao_duong', 'ten_bao_duong']),
+                    canCu: row.canCu || pickScheduleValue(params, ['can_cu', 'can_cu_thuc_hien']),
+                    thoiGianLap: row.thoiGianLap || pickScheduleValue(params, ['thoi_gian_lap']),
+                    donVi: row.idDonVi || row.tenDonVi || pickScheduleValue(params, ['don_vi', 'don_vi_thuc_hien']),
+                    nguoiPhuTrach: row.nguoiPhuTrach || pickScheduleValue(params, ['nguoi_phu_trach', 'nguoi_thuc_hien']),
+                    thoiGianThucHien: row.thoiGianThucHien || pickScheduleValue(params, ['thoi_gian_thuc_hien']),
+                    thoiGianKetThuc: row.thoiGianKetThuc || pickScheduleValue(params, ['thoi_gian_ket_thuc', 'thoi_gian_thuc_hien']),
+                    noiDungCongViec: detail?.noiDungCongViec || pickScheduleValue(params, ['noi_dung_cong_viec', 'noi_dung_thuc_hien']),
                     vatChatBaoDam: detail?.vatChatBaoDam || '',
                     ketQua: detail?.ketQua || '',
                     parameters: detail?.parameters || {},
@@ -304,17 +306,17 @@ const BaoDuong: React.FC = () => {
     const handleSaveSchedule = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payloadItem: LocalBaoDuongScheduleItem = {
             id: editingSchedule?.id || '',
-            tenLichBaoDuong: (formData['ten_lich_bao_duong'] || '').trim(),
-            canCu: formData['can_cu'] || '',
-            idDonVi: formData['don_vi'] || '',
-            tenDonVi: formData['don_vi'] || '',
-            nguoiPhuTrach: formData['nguoi_phu_trach'] || '',
-            thoiGianLap: formData['thoi_gian_lap'] || '',
-            thoiGianThucHien: formData['thoi_gian_thuc_hien'] || '',
-            thoiGianKetThuc: formData['thoi_gian_ket_thuc'] || '',
-            noiDungCongViec: formData['noi_dung_cong_viec'] || '',
-            vatChatBaoDam: formData['vat_chat_bao_dam'] || '',
-            ketQua: formData['ket_qua'] || '',
+            tenLichBaoDuong: pickScheduleValue(formData, ['ten_lich_bao_duong', 'ten_bao_duong']).trim(),
+            canCu: pickScheduleValue(formData, ['can_cu', 'can_cu_thuc_hien']),
+            idDonVi: pickScheduleValue(formData, ['don_vi', 'don_vi_thuc_hien']),
+            tenDonVi: pickScheduleValue(formData, ['don_vi', 'don_vi_thuc_hien']),
+            nguoiPhuTrach: pickScheduleValue(formData, ['nguoi_phu_trach', 'nguoi_thuc_hien']),
+            thoiGianLap: pickScheduleValue(formData, ['thoi_gian_lap']),
+            thoiGianThucHien: pickScheduleValue(formData, ['thoi_gian_thuc_hien']),
+            thoiGianKetThuc: pickScheduleValue(formData, ['thoi_gian_ket_thuc', 'thoi_gian_thuc_hien']),
+            noiDungCongViec: pickScheduleValue(formData, ['noi_dung_cong_viec', 'noi_dung_thuc_hien']),
+            vatChatBaoDam: pickScheduleValue(formData, ['vat_chat_bao_dam']),
+            ketQua: pickScheduleValue(formData, ['ket_qua']),
             dsTrangBi: selectedEquipment.map((equipment) => ({
                 idTrangBi: equipment.id,
                 nhomTrangBi: equipment.nhom,
@@ -358,7 +360,7 @@ const BaoDuong: React.FC = () => {
 
     return (
         <OfficeProvider>
-            <Box sx={{ p: 1.5, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Box sx={{ p: { xs: 1, lg: 1.25, xl: 1.5 }, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
                     <Box>
                         <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
@@ -375,7 +377,7 @@ const BaoDuong: React.FC = () => {
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 1.5, flexShrink: 0 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, xl: 1.5 }, mb: { xs: 1, xl: 1.5 }, flexShrink: 0 }}>
                     {[
                         { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
                         { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
@@ -383,7 +385,7 @@ const BaoDuong: React.FC = () => {
                         { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
                     ].map((item) => (
                         <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
-                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <CardContent sx={{ p: { xs: 1, xl: 1.5 }, '&:last-child': { pb: { xs: 1, xl: 1.5 } } }}>
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <BuildCircleIcon sx={{ fontSize: 16, color: item.color }} />
@@ -398,8 +400,18 @@ const BaoDuong: React.FC = () => {
                     ))}
                 </Box>
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: 1.5, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', lg: '220px minmax(0, 1fr) 220px', xl: '260px minmax(0, 1fr) 260px' },
+                        gridTemplateAreas: { xs: '"center" "left" "right"', lg: '"left center right"' },
+                        gap: { xs: 1, xl: 1.5 },
+                        alignItems: 'stretch',
+                        flex: 1,
+                        minHeight: 0,
+                    }}
+                >
+                    <Card variant="outlined" sx={{ gridArea: 'left', borderRadius: 2, overflow: 'hidden', height: '100%', minHeight: { xs: 220, lg: 0 } }}>
                         <CardContent sx={{ p: 0, '&:last-child': { pb: 0 }, height: '100%' }}>
                             <Box sx={{ height: '100%', overflow: 'hidden', p: 1 }}>
                                 <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
@@ -407,8 +419,8 @@ const BaoDuong: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Box sx={{ gridArea: 'center', height: '100%', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                             <TextField
                                 size="small"
                                 placeholder="Tim ten ke hoach, can cu, don vi..."
@@ -421,9 +433,9 @@ const BaoDuong: React.FC = () => {
                                         </InputAdornment>
                                     ),
                                 }}
-                                sx={{ width: 360, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                                sx={{ width: { xs: '100%', lg: 260, xl: 320 }, maxWidth: '100%', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                             />
-                            <Tabs value={activeTab} onChange={(_, value: BaoDuongTab) => setActiveTab(value)}>
+                            <Tabs value={activeTab} onChange={(_, value: BaoDuongTab) => setActiveTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
                                 <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
                                 <Tab value="lich_bao_duong" label="Lich bao duong" />
                             </Tabs>
@@ -436,7 +448,9 @@ const BaoDuong: React.FC = () => {
                             )}
                         </Box>
                     </Box>
-                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
+                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    </Box>
                 </Box>
 
                 <GenericScheduleDialog

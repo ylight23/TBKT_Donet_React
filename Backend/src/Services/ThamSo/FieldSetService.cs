@@ -21,6 +21,7 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         "trang_bi.bao_quan",
         "trang_bi.bao_duong",
         "trang_bi.sua_chua",
+        "trang_bi.sua_chua_chi_tiet",
         "trang_bi.niem_cat",
         "trang_bi.dieu_dong",
     };

@@ -49,6 +49,9 @@ export interface GenericScheduleDialogProps {
     requiredNameError: string;
     startDateFieldKey?: string;
     endDateFieldKey?: string;
+    equipmentActionRenderer?: (equipment: EquipmentOption, selected: boolean, ensureSelected: () => void) => React.ReactNode;
+    sidePanel?: React.ReactNode;
+    sidePanelWidth?: number;
 }
 
 const DEFAULT_SET_COLORS = ['#2563eb', '#0ea5e9', '#16a34a', '#d97706', '#7c3aed'];
@@ -176,6 +179,9 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
     requiredNameError,
     startDateFieldKey = 'thoi_gian_thuc_hien',
     endDateFieldKey = 'thoi_gian_ket_thuc',
+    equipmentActionRenderer,
+    sidePanel,
+    sidePanelWidth = 520,
 }) => {
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -307,13 +313,36 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
         });
     }, [equipmentPool, equipmentSearch, nhomFilter]);
 
-    const equipmentColumns = useMemo<GridColDef<EquipmentOption>[]>(() => ([
-        { field: 'soHieu', headerName: 'So hieu', width: 130 },
-        { field: 'maDanhMuc', headerName: 'Ma danh muc', width: 180 },
-        { field: 'tenDanhMuc', headerName: 'Ten trang bi', minWidth: 260, flex: 1 },
-        { field: 'nhom', headerName: 'Nhom', width: 90, align: 'center', headerAlign: 'center', valueGetter: (_, row) => `N${row.nhom}` },
-        { field: 'donVi', headerName: 'Don vi', minWidth: 170, flex: 0.8 },
-    ]), []);
+    const equipmentColumns = useMemo<GridColDef<EquipmentOption>[]>(() => {
+        const baseColumns: GridColDef<EquipmentOption>[] = [
+            { field: 'soHieu', headerName: 'So hieu', width: 130 },
+            { field: 'maDanhMuc', headerName: 'Ma danh muc', width: 180 },
+            { field: 'tenDanhMuc', headerName: 'Ten trang bi', minWidth: 260, flex: 1 },
+            { field: 'nhom', headerName: 'Nhom', width: 90, align: 'center', headerAlign: 'center', valueGetter: (_, row) => `N${row.nhom}` },
+            { field: 'donVi', headerName: 'Don vi', minWidth: 170, flex: 0.8 },
+        ];
+
+        if (!equipmentActionRenderer) return baseColumns;
+
+        return [
+            {
+                field: '__actions',
+                headerName: 'Chi tiet',
+                width: 118,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                align: 'center',
+                headerAlign: 'center',
+                renderCell: (params) => equipmentActionRenderer(
+                    params.row,
+                    selectedEquipmentKeys.has(params.row.key),
+                    () => setSelectedEquipmentKeys((prev) => new Set([...Array.from(prev), params.row.key])),
+                ),
+            },
+            ...baseColumns,
+        ];
+    }, [equipmentActionRenderer, selectedEquipmentKeys]);
 
     const rowSelectionModel = useMemo<GridRowSelectionModel>(
         () => ({ type: 'include', ids: new Set(Array.from(selectedEquipmentKeys)) }),
@@ -388,8 +417,9 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
                 </>
             )}
         >
-            <Box sx={{ display: 'flex', minHeight: 640, maxHeight: 'calc(100vh - 220px)' }}>
-                <Box sx={{ width: '52%', minWidth: 460, borderRight: '0.5px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', minHeight: 640, maxHeight: 'calc(100vh - 220px)', overflow: 'hidden' }}>
+                <Box sx={{ flex: 1, minWidth: 0, display: 'flex', overflow: 'hidden' }}>
+                <Box sx={{ width: sidePanel ? '46%' : '52%', minWidth: sidePanel ? 380 : 460, borderRight: '0.5px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
                         <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Thong tin ke hoach
@@ -455,7 +485,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
                     </Box>
                 </Box>
 
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
                     <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: '#EAF2FF', height: '40%', minHeight: 230 }}>
                         <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
                             Chon khoang thoi gian
@@ -544,6 +574,24 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
                         </Box>
                     </Box>
                 </Box>
+                </Box>
+                {sidePanel && (
+                    <Box
+                        sx={{
+                            width: sidePanelWidth,
+                            maxWidth: '48%',
+                            flexShrink: 0,
+                            borderLeft: '0.5px solid',
+                            borderColor: 'divider',
+                            bgcolor: '#f6f7f9',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: 0,
+                        }}
+                    >
+                        {sidePanel}
+                    </Box>
+                )}
             </Box>
         </FormDialog>
     );

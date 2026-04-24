@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Dispatch, SetStateAction } from 'react';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import {
     Sidebar as SideBarLibrary,
@@ -109,6 +110,8 @@ const Item: React.FC<ItemProps> = ({ path, title, icon, selected, setSelected, a
 const Sidebar: React.FC = () => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const isCompactScreen = useMediaQuery(theme.breakpoints.down('xl'));
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('lg'));
     const dt = isDark ? dashboardTokensDark : dashboardTokensLight;
     const { items: dynamicMenuItems } = useDynamicMenuConfig();
     const { canFunc, canPhanHe, isAdmin, loaded: permLoaded } = useMyPermissions();
@@ -155,6 +158,7 @@ const Sidebar: React.FC = () => {
     ], [visibleMenu, visibleDynamicMenu]);
 
     const [isCollapse, setIsCollapse] = useState<boolean>(false);
+    const hasUserToggledCollapse = useRef(false);
     const location = useLocation();
     const [selected, setSelected] = useState<string>("dashboard");
     const { collapseSidebar } = useProSidebar();
@@ -169,9 +173,21 @@ const Sidebar: React.FC = () => {
         setSelected(activeMenuName);
     }, [location.pathname, dynamicMenuItems]);
 
+    useEffect(() => {
+        if (hasUserToggledCollapse.current) return;
+
+        const shouldCollapse = isCompactScreen || isSmallScreen;
+        if (isCollapse !== shouldCollapse) {
+            collapseSidebar(shouldCollapse);
+            setIsCollapse(shouldCollapse);
+        }
+    }, [collapseSidebar, isCollapse, isCompactScreen, isSmallScreen]);
+
     const handleCollapse = (): void => {
-        collapseSidebar();
-        setIsCollapse((prev) => !prev);
+        const nextCollapseState = !isCollapse;
+        hasUserToggledCollapse.current = true;
+        collapseSidebar(nextCollapseState);
+        setIsCollapse(nextCollapseState);
     };
 
     return (
@@ -179,6 +195,8 @@ const Sidebar: React.FC = () => {
             sx={{
                 display: "flex",
                 height: "100%",
+                flexShrink: 0,
+                minWidth: 0,
                 // ── Sidebar background = nền chính (trắng light / tối dark) ──
                 "& .ps-sidebar-container": {
                     background: `${dt.pageBg} !important`,
@@ -216,7 +234,11 @@ const Sidebar: React.FC = () => {
                 },
             }}
         >
-            <SideBarLibrary rootStyles={{ border: "none" }}>
+            <SideBarLibrary
+                width={isSmallScreen ? '220px' : '240px'}
+                collapsedWidth="68px"
+                rootStyles={{ border: "none", height: '100%' }}
+            >
                 <Menu>
                     {/* Title and Collapse */}
                     {!isCollapse ? (

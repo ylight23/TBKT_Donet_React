@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Outlet } from 'react-router-dom';
 import { ProSidebarProvider } from 'react-pro-sidebar';
@@ -13,8 +14,9 @@ const AppHeader = React.lazy(() => import('../pages/global/AppHeader'));
 function InnerLayout(): React.ReactElement {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const isNarrow = useMediaQuery(theme.breakpoints.down('lg'));
     const headerFallback = <div style={{ height: 56 }} />;
-    const sidebarFallback = <div style={{ width: 80, flexShrink: 0 }} />;
+    const sidebarFallback = <div style={{ width: isNarrow ? 64 : 80, flexShrink: 0 }} />;
     const topbarFallback = <div style={{ height: 48 }} />;
 
     return (
@@ -27,7 +29,7 @@ function InnerLayout(): React.ReactElement {
                     <Suspense fallback={sidebarFallback}>
                         <Sidebar />
                     </Suspense>
-                    <main className="content" style={{ position: 'relative', overflowY: 'auto', height: '100%' }}>
+                    <main className="content" style={{ position: 'relative', overflowY: 'auto', height: '100%', flex: 1, minWidth: 0, width: 'auto' }}>
                         <div
                             aria-hidden="true"
                             style={{

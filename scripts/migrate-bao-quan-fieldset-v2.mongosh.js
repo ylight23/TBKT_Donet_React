@@ -19,6 +19,20 @@ const FIELD_DEFS = [
   { id: 'f2f809e7-4d64-44af-9e3d-b42b2f9f1101', key: 'ten_bao_quan', label: 'Ten bao quan', type: 'text', required: true },
   { id: 'f2f809e7-4d64-44af-9e3d-b42b2f9f1102', key: 'can_cu', label: 'Can cu', type: 'textarea', required: false, validation: { maxLength: 500 } },
   {
+    id: 'f2f809e7-4d64-44af-9e3d-b42b2f9f1113',
+    key: 'cap_bao_quan',
+    label: 'Cấp bảo quản',
+    type: 'select',
+    required: true,
+    validation: {
+      options: [
+        'Bảo quản TBKT đang sử dụng',
+        'Bảo quản niêm cất ngắn hạn',
+        'Bảo quản niêm cất dài hạn',
+      ],
+    },
+  },
+  {
     id: 'f2f809e7-4d64-44af-9e3d-b42b2f9f1103',
     key: 'don_vi_thuc_hien',
     label: 'Don vi thuc hien',
