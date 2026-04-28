@@ -19,11 +19,17 @@ public class FieldSetService(ILogger<FieldSetService> logger)
         "trang_bi.thong_so_ky_thuat",
         "trang_bi.dong_bo",
         "trang_bi.bao_quan",
+        "trang_bi.bao_quan_chi_tiet",
         "trang_bi.bao_duong",
+        "trang_bi.bao_duong_chi_tiet",
         "trang_bi.sua_chua",
         "trang_bi.sua_chua_chi_tiet",
         "trang_bi.niem_cat",
+        "trang_bi.niem_cat_chi_tiet",
         "trang_bi.dieu_dong",
+        "trang_bi.dieu_dong_chi_tiet",
+        "trang_bi.chuyen_cap_chat_luong",
+        "trang_bi.chuyen_cap_chat_luong_chi_tiet",
     };
 
     private static string RequiredString(BsonDocument doc, string key)

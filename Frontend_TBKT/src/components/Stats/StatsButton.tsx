@@ -12,14 +12,22 @@ import CommonDialog from '../Dialog/CommonDialog';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import Grid from '@mui/material/Grid';
-import { styled, keyframes } from '@mui/material/styles';
+import { styled, keyframes, useTheme } from '@mui/material/styles';
 import { ResponsivePie } from '@nivo/pie';
 import useTrangBiGridData, { type TrangBiGridItem } from '../../hooks/useTrangBiGridData';
 import { getStatsByActiveMenu, isTrangBiStatsMenu, type CategoryStats } from '../../utils/statsCalculator';
 
+const PIE_COLORS_LIGHT = ['#22C55E', '#38BDF8', '#F59E0B', '#FB7185', '#A78BFA', '#2DD4BF', '#F97316', '#84CC16'];
+const PIE_COLORS_DARK = ['#86EFAC', '#7DD3FC', '#FDE68A', '#FDA4AF', '#C4B5FD', '#5EEAD4', '#FDBA74', '#BEF264'];
+
+const useBrightPieColors = () => {
+    const theme = useTheme();
+    return theme.palette.mode === 'dark' ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
+};
+
 const fadeIn = keyframes`
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 `;
 
 const StatsTooltipView = styled(({ className, ...props }: TooltipProps) => (
@@ -41,52 +49,59 @@ const StatsTooltipView = styled(({ className, ...props }: TooltipProps) => (
     },
 }));
 
-const SimpleStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => (
-    <Box sx={{ minWidth: 200, p: 0.5 }}>
-        <Typography variant="subtitle2" fontWeight={800} color="primary" sx={{ mb: 1.5, borderBottom: '1px solid rgba(0,0,0,0.05)', pb: 0.5 }}>
-            {stats.title.toUpperCase()}
-        </Typography>
+const SimpleStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
+    const colors = useBrightPieColors();
+    const pieData = stats.stats.map((s, index) => ({ id: s.label, label: s.label, value: s.count, color: colors[index % colors.length] }));
 
-        <Box sx={{ height: 160, mb: 1.5 }}>
-            <ResponsivePie
-                data={stats.stats.map((s) => ({ id: s.label, label: s.label, value: s.count, color: s.color }))}
-                innerRadius={0.7}
-                padAngle={2}
-                cornerRadius={3}
-                colors={{ datum: 'data.color' }}
-                enableArcLinkLabels={false}
-                arcLabelsTextColor="#ffffff"
-                arcLabelsSkipAngle={15}
-                theme={{ labels: { text: { fontSize: 11, fontWeight: 900 } } }}
-            />
-        </Box>
+    return (
+        <Box sx={{ minWidth: 200, p: 0.5 }}>
+            <Typography variant="subtitle2" fontWeight={800} color="primary" sx={{ mb: 1.5, borderBottom: '1px solid rgba(0,0,0,0.05)', pb: 0.5 }}>
+                {stats.title.toUpperCase()}
+            </Typography>
 
-        <Box display="flex" flexDirection="column" gap={0.75}>
-            {stats.stats.map((s) => (
-                <Box key={s.label} display="flex" justifyContent="space-between" alignItems="center">
-                    <Box display="flex" alignItems="center" gap={1}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: 2.5, bgcolor: s.color }} />
-                        <Typography variant="caption" fontWeight={600} sx={{ opacity: 0.85 }}>{s.label}</Typography>
+            <Box sx={{ height: 160, mb: 1.5 }}>
+                <ResponsivePie
+                    data={pieData}
+                    innerRadius={0.7}
+                    padAngle={2}
+                    cornerRadius={3}
+                    colors={{ datum: 'data.color' }}
+                    enableArcLinkLabels={false}
+                    arcLabelsTextColor="#ffffff"
+                    arcLabelsSkipAngle={15}
+                    theme={{ labels: { text: { fontSize: 11, fontWeight: 900 } } }}
+                />
+            </Box>
+
+            <Box display="flex" flexDirection="column" gap={0.75}>
+                {stats.stats.map((s, index) => (
+                    <Box key={s.label} display="flex" justifyContent="space-between" alignItems="center">
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <Box sx={{ width: 8, height: 8, borderRadius: 2.5, bgcolor: colors[index % colors.length] }} />
+                            <Typography variant="caption" fontWeight={600} sx={{ opacity: 0.85 }}>{s.label}</Typography>
+                        </Box>
+                        <Typography variant="caption" fontWeight={800} color="primary">{s.count}</Typography>
                     </Box>
-                    <Typography variant="caption" fontWeight={800} color="primary">{s.count}</Typography>
-                </Box>
-            ))}
+                ))}
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5, fontStyle: 'italic', opacity: 0.7, textAlign: 'center' }}>
+                *Click de xem phan tich chi tiet
+            </Typography>
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5, fontStyle: 'italic', opacity: 0.7, textAlign: 'center' }}>
-            *Click de xem phan tich chi tiet
-        </Typography>
-    </Box>
-);
+    );
+};
 
 const RichStatsView: React.FC<{ stats: CategoryStats }> = ({ stats }) => {
     const totalCount = stats.stats.reduce((acc, curr) => acc + curr.count, 0);
+    const colors = useBrightPieColors();
+    const pieData = stats.stats.map((s, index) => ({ ...s, id: s.label, value: s.count, color: colors[index % colors.length] }));
 
     return (
         <Grid container spacing={4} sx={{ mt: 0 }}>
             <Grid size={{ xs: 12, md: 5 }}>
                 <Box sx={{ height: 320 }}>
                     <ResponsivePie
-                        data={stats.stats.map((s) => ({ ...s, id: s.label, value: s.count }))}
+                        data={pieData}
                         innerRadius={0.6}
                         padAngle={1}
                         cornerRadius={3}
@@ -204,9 +219,8 @@ const StatsButton: React.FC<StatsButtonProps> = ({ activeMenu, trangBiData }) =>
                             bgcolor: 'primary.main',
                             color: '#fff',
                             boxShadow: '0 6px 16px rgba(46,125,50,0.25)',
-                            transform: 'translateY(-1px)',
                         },
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transition: 'background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease',
                     }}
                 >
                     Thong ke nhanh

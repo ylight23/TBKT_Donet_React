@@ -500,7 +500,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                                 border: color === c ? '3px solid' : '2px solid transparent',
                                                 borderColor: color === c ? 'background.paper' : 'transparent',
                                                 boxShadow: color === c ? `0 0 0 2.5px ${c}` : 'rgba(0,0,0,0.08) 0px 2px 4px',
-                                                '&:hover': { transform: 'scale(1.15)', zIndex: 1 },
+                                                '&:hover': { zIndex: 1 },
                                             }}
                                         />
                                     ))}

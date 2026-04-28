@@ -160,10 +160,7 @@ const CloneRoleDialog: React.FC<CloneRoleDialogProps> = ({
                                     cursor: 'pointer',
                                     outline: newRoleColor === c ? `2.5px solid ${c}` : 'none',
                                     outlineOffset: 2.5,
-                                    transition: 'all 0.15s',
-                                    '&:hover': {
-                                        transform: 'scale(1.15)',
-                                    },
+                                    transition: 'outline-color 0.15s, box-shadow 0.15s',
                                 }}
                             />
                         ))}

@@ -22,6 +22,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SearchIcon from '@mui/icons-material/Search';
 import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
 import { CountryRegionData } from 'react-country-region-selector';
 
 import { LocalDynamicField as DynamicField } from '../../../types/thamSo';
@@ -39,6 +41,7 @@ import {
     type DynamicOptionItem,
 } from '../../../apis/dynamicOptionApi';
 import { serializeProtoObject } from '../../../utils/serializeProto';
+import { parseManualOptions } from '../../../utils/manualOptionConfig';
 import VirtualOptionPicker from './VirtualOptionPicker';
 
 interface FieldInputProps {
@@ -92,9 +95,10 @@ const STANDARD_CONTROL_HEIGHT = 42;
 
 const getFieldLabel = (field: DynamicField): string => field.label;
 const toManualOptionItems = (options: string[] | undefined): DynamicOptionItem[] =>
-    (options ?? []).map((option) => ({
-        value: option,
-        label: option,
+    parseManualOptions(options).map((option) => ({
+        value: option.value,
+        label: option.label,
+        color: option.color,
     }));
 const getValidationHint = (field: DynamicField): string => {
     if (field.type === 'number') {
@@ -126,6 +130,35 @@ const getValidationHint = (field: DynamicField): string => {
     }
 
     return ' ';
+};
+
+const renderOptionContent = (option: DynamicOptionItem) => {
+    if (!option.color) {
+        return option.label;
+    }
+
+    return (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+            <Chip
+                size="small"
+                label={option.label}
+                sx={{
+                    bgcolor: `${option.color}18`,
+                    color: option.color,
+                    border: `1px solid ${option.color}55`,
+                    fontWeight: 700,
+                    maxWidth: 220,
+                    '& .MuiChip-label': {
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    },
+                }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                {option.value}
+            </Typography>
+        </Stack>
+    );
 };
 
 const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabel = false, onChange }) => {
@@ -572,7 +605,11 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                 }}
             >
                 <MenuItem value=""><em>{loading ? 'Đang tải...' : '-- Chọn --'}</em></MenuItem>
-                {options.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+                {options.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                        {renderOptionContent(option)}
+                    </MenuItem>
+                ))}
             </TextField>
         );
     }

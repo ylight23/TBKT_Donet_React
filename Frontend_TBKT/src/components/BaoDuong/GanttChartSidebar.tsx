@@ -21,9 +21,9 @@ interface GanttChartSidebarProps {
 
 const DOWS_VI = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const MONTHS_VI = [
-    'Thang 1', 'Thang 2', 'Thang 3', 'Thang 4',
-    'Thang 5', 'Thang 6', 'Thang 7', 'Thang 8',
-    'Thang 9', 'Thang 10', 'Thang 11', 'Thang 12',
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
+    'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
+    'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
 ];
 
 const resolveStatus = (schedule: ScheduleGanttItem): 'overdue' | 'inprogress' | 'upcoming' | 'completed' | 'none' => {

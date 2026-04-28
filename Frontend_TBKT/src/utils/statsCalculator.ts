@@ -1,5 +1,3 @@
-import { ChatLuong, TrangThaiTrangBi, mockSuaChua } from '../data/mockTBData';
-
 export interface StatItem {
     label: string;
     count: number;
@@ -14,11 +12,37 @@ export interface CategoryStats {
 export interface TrangBiStatRow {
     chatLuong?: string;
     trangThai?: string;
+    tinhTrangKyThuat?: string;
+    nhomTrangBi?: 1 | 2;
 }
+
+const normalizeText = (value?: string): string => (
+    (value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+);
+
+const matchesAny = (value: string | undefined, terms: string[]): boolean => {
+    const normalized = normalizeText(value);
+    return terms.some((term) => normalized.includes(normalizeText(term)));
+};
+
+const isGoodQuality = (value?: string): boolean => matchesAny(value, ['tot', 'kha', 'hoat dong tot']);
+const isMediumQuality = (value?: string): boolean => matchesAny(value, ['trung binh']);
+const isBadQuality = (value?: string): boolean => matchesAny(value, ['xau', 'hong']);
+const isOperating = (value?: string): boolean => matchesAny(value, ['hoat dong', 'dang su dung']);
+const isRepairing = (value?: string): boolean => matchesAny(value, ['sua chua']);
+const isPreserved = (value?: string): boolean => matchesAny(value, ['niem cat', 'bao quan']);
 
 export const isTrangBiStatsMenu = (activeMenu: string): boolean => (
     activeMenu === 'tinhTrangKT' ||
     activeMenu === 'baoQuan' ||
+    activeMenu === 'baoDuong' ||
+    activeMenu === 'suaChua' ||
+    activeMenu === 'suaChuaTB' ||
+    activeMenu === 'suaChuaKQ' ||
     activeMenu === 'niemCat' ||
     activeMenu === 'niemCatTB' ||
     activeMenu === 'niemCatKQ' ||
@@ -32,57 +56,34 @@ export const getStatsByActiveMenu = (
     activeMenu: string,
     trangBiRows: TrangBiStatRow[] = [],
 ): CategoryStats | null => {
-    const applicableBaoQuanRows = trangBiRows.filter((t) =>
-        t.trangThai === TrangThaiTrangBi.HoatDong ||
-        t.trangThai === TrangThaiTrangBi.NiemCat,
-    );
+    const applicableBaoQuanRows = trangBiRows.filter((t) => isOperating(t.trangThai) || isPreserved(t.trangThai));
 
     switch (activeMenu) {
         case 'tinhTrangKT':
             return {
                 title: 'Tinh trang ky thuat',
                 stats: [
-                    { label: 'Tot', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.Tot).length, color: '#2e7d32' },
-                    { label: 'Kha', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.Kha).length, color: '#1565c0' },
-                    { label: 'Trung binh', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.TrungBinh).length, color: '#ef6c00' },
-                    { label: 'Xau', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.Xau).length, color: '#c62828' },
-                    { label: 'Hong hoc', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.HỏngHoc).length, color: '#6a1b9a' },
+                    { label: 'Tot/Kha', count: trangBiRows.filter((t) => isGoodQuality(t.chatLuong) || isGoodQuality(t.tinhTrangKyThuat)).length, color: '#2e7d32' },
+                    { label: 'Trung binh', count: trangBiRows.filter((t) => isMediumQuality(t.chatLuong) || isMediumQuality(t.tinhTrangKyThuat)).length, color: '#ef6c00' },
+                    { label: 'Xau/Hong', count: trangBiRows.filter((t) => isBadQuality(t.chatLuong) || isBadQuality(t.tinhTrangKyThuat)).length, color: '#c62828' },
                 ],
             };
         case 'baoQuan':
             return {
                 title: 'Bao quan',
                 stats: [
-                    {
-                        label: 'Dat yeu cau',
-                        count: applicableBaoQuanRows.filter((t) =>
-                            t.chatLuong === ChatLuong.Tot || t.chatLuong === ChatLuong.Kha,
-                        ).length,
-                        color: '#2e7d32',
-                    },
-                    {
-                        label: 'Can kiem tra',
-                        count: applicableBaoQuanRows.filter((t) =>
-                            t.chatLuong === ChatLuong.TrungBinh ||
-                            t.chatLuong === ChatLuong.Xau ||
-                            t.chatLuong === ChatLuong.HỏngHoc,
-                        ).length,
-                        color: '#ef6c00',
-                    },
-                    {
-                        label: 'Trong niem cat',
-                        count: applicableBaoQuanRows.filter((t) => t.trangThai === TrangThaiTrangBi.NiemCat).length,
-                        color: '#1565c0',
-                    },
+                    { label: 'Dat yeu cau', count: applicableBaoQuanRows.filter((t) => isGoodQuality(t.chatLuong) || isGoodQuality(t.tinhTrangKyThuat)).length, color: '#2e7d32' },
+                    { label: 'Can kiem tra', count: applicableBaoQuanRows.filter((t) => isMediumQuality(t.chatLuong) || isBadQuality(t.chatLuong) || isMediumQuality(t.tinhTrangKyThuat) || isBadQuality(t.tinhTrangKyThuat)).length, color: '#ef6c00' },
+                    { label: 'Trong niem cat', count: applicableBaoQuanRows.filter((t) => isPreserved(t.trangThai)).length, color: '#1565c0' },
                 ],
             };
         case 'baoDuong':
             return {
                 title: 'Bao duong',
                 stats: [
-                    { label: 'Da bao duong', count: 0, color: '#2e7d32' },
-                    { label: 'Den han', count: 0, color: '#ef6c00' },
-                    { label: 'Qua han', count: 0, color: '#c62828' },
+                    { label: 'Tong trang bi', count: trangBiRows.length, color: '#1565c0' },
+                    { label: 'Tot/Kha', count: trangBiRows.filter((t) => isGoodQuality(t.chatLuong) || isGoodQuality(t.tinhTrangKyThuat)).length, color: '#2e7d32' },
+                    { label: 'Can theo doi', count: trangBiRows.filter((t) => isMediumQuality(t.chatLuong) || isBadQuality(t.chatLuong) || isMediumQuality(t.tinhTrangKyThuat) || isBadQuality(t.tinhTrangKyThuat)).length, color: '#ef6c00' },
                 ],
             };
         case 'suaChua':
@@ -91,9 +92,9 @@ export const getStatsByActiveMenu = (
             return {
                 title: 'Sua chua',
                 stats: [
-                    { label: 'Hoan thanh', count: mockSuaChua.filter((s) => s.ketQua === 'Hoàn thành').length, color: '#2e7d32' },
-                    { label: 'Dang sua', count: mockSuaChua.filter((s) => s.ketQua === 'Đang sửa').length, color: '#ef6c00' },
-                    { label: 'Khong sua duoc', count: mockSuaChua.filter((s) => s.ketQua === 'Không sửa được').length, color: '#c62828' },
+                    { label: 'Dang sua', count: trangBiRows.filter((t) => isRepairing(t.trangThai)).length, color: '#ef6c00' },
+                    { label: 'Hoat dong', count: trangBiRows.filter((t) => isOperating(t.trangThai)).length, color: '#2e7d32' },
+                    { label: 'Can xu ly', count: trangBiRows.filter((t) => isBadQuality(t.chatLuong) || isBadQuality(t.tinhTrangKyThuat)).length, color: '#c62828' },
                 ],
             };
         case 'niemCat':
@@ -102,45 +103,45 @@ export const getStatsByActiveMenu = (
             return {
                 title: 'Niem cat',
                 stats: [
-                    { label: 'Trong niem cat', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.NiemCat).length, color: '#2e7d32' },
-                    { label: 'Hoat dong', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.HoatDong).length, color: '#ef6c00' },
-                    { label: 'Sua chua', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.SuaChua).length, color: '#1565c0' },
+                    { label: 'Trong niem cat', count: trangBiRows.filter((t) => isPreserved(t.trangThai)).length, color: '#2e7d32' },
+                    { label: 'Hoat dong', count: trangBiRows.filter((t) => isOperating(t.trangThai)).length, color: '#ef6c00' },
+                    { label: 'Sua chua', count: trangBiRows.filter((t) => isRepairing(t.trangThai)).length, color: '#1565c0' },
                 ],
             };
         case 'dieuDong':
             return {
                 title: 'Dieu dong',
                 stats: [
-                    { label: 'Hoat dong', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.HoatDong).length, color: '#1565c0' },
-                    { label: 'Sua chua', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.SuaChua).length, color: '#2e7d32' },
-                    { label: 'Niem cat', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.NiemCat).length, color: '#c62828' },
+                    { label: 'Hoat dong', count: trangBiRows.filter((t) => isOperating(t.trangThai)).length, color: '#1565c0' },
+                    { label: 'Sua chua', count: trangBiRows.filter((t) => isRepairing(t.trangThai)).length, color: '#2e7d32' },
+                    { label: 'Niem cat', count: trangBiRows.filter((t) => isPreserved(t.trangThai)).length, color: '#c62828' },
                 ],
             };
         case 'chuyenCap':
             return {
                 title: 'Chuyen cap chat luong',
                 stats: [
-                    { label: 'Tot/Kha', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.Tot || t.chatLuong === ChatLuong.Kha).length, color: '#2e7d32' },
-                    { label: 'Trung binh/Xau', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.TrungBinh || t.chatLuong === ChatLuong.Xau).length, color: '#ef6c00' },
-                    { label: 'Hong hoc', count: trangBiRows.filter((t) => t.chatLuong === ChatLuong.HỏngHoc).length, color: '#c62828' },
+                    { label: 'Tot/Kha', count: trangBiRows.filter((t) => isGoodQuality(t.chatLuong) || isGoodQuality(t.tinhTrangKyThuat)).length, color: '#2e7d32' },
+                    { label: 'Trung binh', count: trangBiRows.filter((t) => isMediumQuality(t.chatLuong) || isMediumQuality(t.tinhTrangKyThuat)).length, color: '#ef6c00' },
+                    { label: 'Xau/Hong', count: trangBiRows.filter((t) => isBadQuality(t.chatLuong) || isBadQuality(t.tinhTrangKyThuat)).length, color: '#c62828' },
                 ],
             };
         case 'tbNhom1':
             return {
                 title: 'Trang bi Nhom 1',
                 stats: [
-                    { label: 'Hoat dong', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.HoatDong).length, color: '#2e7d32' },
-                    { label: 'Sua chua', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.SuaChua).length, color: '#ef6c00' },
-                    { label: 'Niem cat', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.NiemCat).length, color: '#1565c0' },
+                    { label: 'Hoat dong', count: trangBiRows.filter((t) => t.nhomTrangBi === 1 && isOperating(t.trangThai)).length, color: '#2e7d32' },
+                    { label: 'Sua chua', count: trangBiRows.filter((t) => t.nhomTrangBi === 1 && isRepairing(t.trangThai)).length, color: '#ef6c00' },
+                    { label: 'Niem cat', count: trangBiRows.filter((t) => t.nhomTrangBi === 1 && isPreserved(t.trangThai)).length, color: '#1565c0' },
                 ],
             };
         case 'tbNhom2':
             return {
                 title: 'Trang bi Nhom 2',
                 stats: [
-                    { label: 'Hoat dong', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.HoatDong).length, color: '#2e7d32' },
-                    { label: 'Sua chua', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.SuaChua).length, color: '#ef6c00' },
-                    { label: 'Niem cat', count: trangBiRows.filter((t) => t.trangThai === TrangThaiTrangBi.NiemCat).length, color: '#1565c0' },
+                    { label: 'Hoat dong', count: trangBiRows.filter((t) => t.nhomTrangBi === 2 && isOperating(t.trangThai)).length, color: '#2e7d32' },
+                    { label: 'Sua chua', count: trangBiRows.filter((t) => t.nhomTrangBi === 2 && isRepairing(t.trangThai)).length, color: '#ef6c00' },
+                    { label: 'Niem cat', count: trangBiRows.filter((t) => t.nhomTrangBi === 2 && isPreserved(t.trangThai)).length, color: '#1565c0' },
                 ],
             };
         case 'employee':

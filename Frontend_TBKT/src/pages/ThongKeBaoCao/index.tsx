@@ -42,7 +42,9 @@ import { militaryColors } from '../../theme';
 import CommonFilter from '../../components/Filter/CommonFilter';
 
 // ── Màu charts ───────────────────────────────────────────────
-const BAR_COLORS = ['#0D1B2A', '#415A77', '#778DA9', '#2e7d32', '#ed6c02', '#d32f2f'];
+const BAR_COLORS = ['#22C55E', '#38BDF8', '#F59E0B', '#FB7185', '#A78BFA', '#2DD4BF'];
+const PIE_COLORS_LIGHT = ['#22C55E', '#38BDF8', '#F59E0B', '#FB7185', '#A78BFA', '#2DD4BF', '#F97316', '#84CC16'];
+const PIE_COLORS_DARK = ['#86EFAC', '#7DD3FC', '#FDE68A', '#FDA4AF', '#C4B5FD', '#5EEAD4', '#FDBA74', '#BEF264'];
 
 // ── Component: Biểu đồ cột tự vẽ ────────────────────────────
 interface BarRow { label: string; value: number; max: number; color: string }
@@ -181,8 +183,9 @@ const ThongKeBaoCao: React.FC = () => {
   const maxSL = Math.max(...thongKeTheoLoai.map(r => r.soLuong));
   const maxDV = Math.max(...thongKeTheoDonVi.map(r => r.soLuong));
 
+  const pieColors = isDark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
   const pieData = phanVungDonViData.map((d, i) => ({
-    ...d, color: BAR_COLORS[i % BAR_COLORS.length],
+    ...d, color: pieColors[i % pieColors.length],
   }));
 
   const loaiRows = thongKeTheoLoai.map((r, i) => ({ ...r, id: i + 1 }));

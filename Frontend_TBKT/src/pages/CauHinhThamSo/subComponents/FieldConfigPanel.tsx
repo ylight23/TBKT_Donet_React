@@ -31,6 +31,12 @@ import { FIELD_TYPES } from '../constants';
 import { FieldType, FieldValidation } from '../types';
 import type { DanhMucChuyenNganhOption } from '../../../apis/danhmucChuyenNganhApi';
 import { DYNAMIC_OPTION_API_HINTS } from '../../../apis/dynamicOptionApi';
+import {
+    FIELD_OPTION_COLOR_PRESETS,
+    parseManualOption,
+    serializeManualOption,
+    type ManualOptionConfig,
+} from '../../../utils/manualOptionConfig';
 import type { RootState } from '../../../store';
 
 const GRID_RENDER_OPTIONS = [
@@ -192,12 +198,23 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
 
     const handleAddOption = () => {
         const currentOptions = validation.options || [];
-        updateValidation('options', [...currentOptions, `Lựa chọn ${currentOptions.length + 1}`]);
+        const index = currentOptions.length + 1;
+        updateValidation('options', [
+            ...currentOptions,
+            serializeManualOption({
+                value: `lua_chon_${index}`,
+                label: `Lựa chọn ${index}`,
+                color: FIELD_OPTION_COLOR_PRESETS[(index - 1) % FIELD_OPTION_COLOR_PRESETS.length],
+            }),
+        ]);
     };
 
-    const handleUpdateOption = (index: number, value: string) => {
+    const handleUpdateOption = (index: number, patch: Partial<ManualOptionConfig>) => {
         const currentOptions = [...(validation.options || [])];
-        currentOptions[index] = value;
+        currentOptions[index] = serializeManualOption({
+            ...parseManualOption(currentOptions[index] ?? ''),
+            ...patch,
+        });
         updateValidation('options', currentOptions);
     };
 
@@ -217,7 +234,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
     const handleSave = () => {
         const normalizedKey = normalizeFieldKey(draft.key || '');
         if (!normalizedKey) {
-            setKeyError('Key khong hop le. Chi duoc dung chu thuong, so va dau _.');
+            setKeyError('Key không hợp lệ. Chỉ được dùng chữ thường, số và dấu _.');
             return;
         }
 
@@ -225,7 +242,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
         if (visibleCNs.length > 0) {
             const invalidCnIds = requestedCnIds.filter((cnId) => !visibleCnSet.has(cnId));
             if (invalidCnIds.length > 0) {
-                setCnError(`Khong duoc gan field cho chuyen nganh ngoai pham vi: ${invalidCnIds.join(', ')}`);
+                setCnError(`Không được gán field cho chuyên ngành ngoài phạm vi: ${invalidCnIds.join(', ')}`);
                 return;
             }
         }
@@ -302,7 +319,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                                     setDraft((prev) => ({ ...prev, key: normalized }));
                                 }
                             }}
-                            helperText="Chi dung chu thuong (a-z), so (0-9) va dau _"
+                            helperText="Chỉ dùng chữ thường (a-z), số (0-9) và dấu _"
                             disabled={!keyEditable}
                         />
 
@@ -440,7 +457,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                         {(draft.type === 'text' || draft.type === 'textarea') && (
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
                                 <TextField
-                                    label="Min length"
+                                    label="Độ dài tối thiểu"
                                     type="number"
                                     size="small"
                                     value={draft.validation.minLength ?? ''}
@@ -453,7 +470,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                                     fullWidth
                                 />
                                 <TextField
-                                    label="Max length"
+                                    label="Độ dài tối đa"
                                     type="number"
                                     size="small"
                                     value={draft.validation.maxLength ?? ''}
@@ -641,7 +658,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                                         placeholder="/Office.OfficeService/GetListOffice"
                                         value={validation.apiUrl ?? ''}
                                         onChange={(e) => updateValidation('apiUrl', e.target.value)}
-                                        helperText="Nhap truc tiep endpoint gRPC cua service. Vi du: /Office.OfficeService/GetListOffice hoac /DanhMucTrangBi.DanhMucTrangBiService/GetListTree"
+                                        helperText="Nhập trực tiếp api service. VD: /Office.OfficeService/GetListOffice hoặc /DanhMucTrangBi.DanhMucTrangBiService/GetListTree"
                                     />
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
                                         {DYNAMIC_OPTION_API_HINTS.map((hint) => (
@@ -667,7 +684,7 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                                         Danh sách quốc gia dùng `react-country-region-selector`
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        Trường này sẽ render bằng popover tìm kiếm lấy dữ liệu từ `react-country-region-selector`, có hiển thị cờ quốc gia và phù hợp cho nước xuất xứ, quốc gia sản xuất, quốc tịch hoặc nước đăng ký.
+                                        Trường này sẽ hiển thị bằng popover tìm kiếm lấy dữ liệu từ `react-country-region-selector`, có hiển thị cờ quốc gia và phù hợp cho nước xuất xứ, quốc gia sản xuất, quốc tịch hoặc nước đăng ký.
                                     </Typography>
                                 </Box>
                             ) : (
@@ -682,37 +699,95 @@ const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                                     </Stack>
 
                                     <Stack spacing={1}>
-                                        {(validation.options ?? []).map((opt, idx) => (
-                                            <Box
-                                                key={`opt-${idx}`}
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1,
-                                                    p: 1,
-                                                    border: '1px solid',
-                                                    borderColor: 'divider',
-                                                    borderRadius: 2.5,
-                                                    bgcolor: 'background.paper',
-                                                }}
-                                            >
-                                                <Typography variant="caption" sx={{ fontWeight: 800, minWidth: 24, color: 'text.disabled' }}>
-                                                    {idx + 1}.
-                                                </Typography>
-                                <TextField
-                                    fullWidth
-                                    size="small"
-                                    variant="outlined"
-                                    placeholder="Nhập giá trị..."
-                                    value={opt}
-                                    onChange={(e) => handleUpdateOption(idx, e.target.value)}
-                                    InputProps={{ sx: { fontWeight: 600 } }}
-                                />
-                                                <IconButton size="small" color="error" onClick={() => handleRemoveOption(idx)}>
-                                                    <DeleteIcon fontSize="small" />
-                                                </IconButton>
-                                            </Box>
-                                        ))}
+                                        {(validation.options ?? []).map((opt, idx) => {
+                                            const option = parseManualOption(opt);
+                                            const chipColor = option.color || '#6b7280';
+
+                                            return (
+                                                <Box
+                                                    key={`opt-${idx}`}
+                                                    sx={{
+                                                        p: 1.25,
+                                                        border: '1px solid',
+                                                        borderColor: 'divider',
+                                                        borderRadius: 2.5,
+                                                        bgcolor: 'background.paper',
+                                                    }}
+                                                >
+                                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                                        <Typography variant="caption" sx={{ fontWeight: 800, minWidth: 24, color: 'text.disabled' }}>
+                                                            {idx + 1}.
+                                                        </Typography>
+                                                        <Chip
+                                                            size="small"
+                                                            label={option.label || option.value || 'Chua co nhan'}
+                                                            sx={{
+                                                                bgcolor: `${chipColor}18`,
+                                                                color: chipColor,
+                                                                border: `1px solid ${chipColor}55`,
+                                                                fontWeight: 700,
+                                                            }}
+                                                        />
+                                                        <Box sx={{ flex: 1 }} />
+                                                        <IconButton
+                                                            size="small"
+                                                            color="error"
+                                                            aria-label="Xoa gia tri lua chon"
+                                                            onClick={() => handleRemoveOption(idx)}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Stack>
+                                                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Gia tri luu"
+                                                            value={option.value}
+                                                            onChange={(e) => handleUpdateOption(idx, { value: e.target.value })}
+                                                            InputProps={{ sx: { fontWeight: 600 } }}
+                                                        />
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            label="Nhan hien thi"
+                                                            value={option.label}
+                                                            onChange={(e) => handleUpdateOption(idx, { label: e.target.value })}
+                                                        />
+                                                        <TextField
+                                                            size="small"
+                                                            label="Mau badge"
+                                                            value={option.color ?? ''}
+                                                            onChange={(e) => handleUpdateOption(idx, { color: e.target.value })}
+                                                            sx={{ width: { xs: '100%', md: 140 } }}
+                                                        />
+                                                    </Stack>
+                                                    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
+                                                        {FIELD_OPTION_COLOR_PRESETS.map((color) => (
+                                                            <Box
+                                                                key={color}
+                                                                component="button"
+                                                                type="button"
+                                                                aria-label={`Chon mau ${color}`}
+                                                                onClick={() => handleUpdateOption(idx, { color })}
+                                                                style={{ background: color }}
+                                                                sx={{
+                                                                    width: 22,
+                                                                    height: 22,
+                                                                    borderRadius: '50%',
+                                                                    border: option.color === color ? '2px solid #111827' : '1px solid rgba(0,0,0,0.18)',
+                                                                    cursor: 'pointer',
+                                                                    p: 0,
+                                                                }}
+                                                            />
+                                                        ))}
+                                                        <Button size="small" onClick={() => handleUpdateOption(idx, { color: undefined })}>
+                                                            Bo mau
+                                                        </Button>
+                                                    </Stack>
+                                                </Box>
+                                            );
+                                        })}
                                         {(validation.options ?? []).length === 0 && (
                                             <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3, border: '1px dashed', borderColor: 'divider', borderRadius: 2.5}}>
                                                 Chưa có dữ liệu. Hãy nhấn "Thêm giá trị".

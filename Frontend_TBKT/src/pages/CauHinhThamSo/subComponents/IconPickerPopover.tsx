@@ -179,7 +179,7 @@ const IconPickerPopover: React.FC<IconPickerPopoverProps> = React.memo(({
                                             borderColor: isSelected ? selectedColor : 'divider',
                                             bgcolor: isSelected ? `${selectedColor}18` : 'transparent',
                                             color: isSelected ? selectedColor : 'text.secondary',
-                                            transition: 'all 0.12s ease',
+                                            transition: 'border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease',
                                             userSelect: 'none',
                                             px: 0.5,
                                             py: 1,
@@ -187,7 +187,6 @@ const IconPickerPopover: React.FC<IconPickerPopoverProps> = React.memo(({
                                                 borderColor: selectedColor,
                                                 bgcolor: `${selectedColor}12`,
                                                 color: selectedColor,
-                                                transform: 'scale(1.03)',
                                             },
                                         }}
                                     >

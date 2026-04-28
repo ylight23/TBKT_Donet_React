@@ -339,11 +339,10 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                 bgcolor: 'background.paper',
                                 border: `1px solid ${theme.palette.divider}`,
                                 borderRadius: 2.5,
-                                transition: 'box-shadow 0.15s, border-color 0.15s, transform 0.15s',
+                                transition: 'box-shadow 0.15s, border-color 0.15s',
                                 '&:hover': {
                                     boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.06)}`,
                                     borderColor: alpha(theme.palette.primary.main, 0.22),
-                                    transform: 'translateY(-1px)',
                                 },
                             }}
                         >

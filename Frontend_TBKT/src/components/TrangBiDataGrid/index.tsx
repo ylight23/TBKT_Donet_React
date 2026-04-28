@@ -32,6 +32,7 @@ import StatsButton from '../Stats/StatsButton';
 import AddTrangBiDialog from './AddTrangBiDialog';
 import LazyDataGrid from '../LazyDataGrid';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
+import { findManualOption } from '../../utils/manualOptionConfig';
 
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
   [TrangThaiTrangBi.HoatDong]: 'success',
@@ -478,6 +479,23 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           const rowValue = (params.row as Record<string, unknown>)[resolvedKey];
 
           if (renderType === 'badge') {
+            const configuredOption = findManualOption(field.validation?.options, String(rowValue ?? ''));
+            if (configuredOption?.color) {
+              return (
+                <Chip
+                  label={configuredOption.label || String(rowValue ?? '')}
+                  size="small"
+                  sx={{
+                    bgcolor: `${configuredOption.color}18`,
+                    color: configuredOption.color,
+                    fontWeight: 700,
+                    fontSize: 11,
+                    border: `1px solid ${configuredOption.color}55`,
+                  }}
+                />
+              );
+            }
+
             if (resolvedKey === 'trangThai') {
               return (
                 <Chip

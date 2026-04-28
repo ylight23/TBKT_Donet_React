@@ -19,6 +19,7 @@ import { getStripedRowSx } from '../../../utils/stripedSurface';
 export interface VirtualOptionItem {
     value: string;
     label: string;
+    color?: string;
 }
 
 interface VirtualOptionPickerProps {
@@ -117,14 +118,21 @@ const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
                                         label={selectedOption.value}
                                         variant="outlined"
                                         sx={{
+                                            ...(selectedOption.color
+                                                ? {
+                                                    bgcolor: `${selectedOption.color}18`,
+                                                    color: selectedOption.color,
+                                                    borderColor: `${selectedOption.color}55`,
+                                                }
+                                                : {}),
                                             maxWidth: 132,
                                             '& .MuiChip-label': {
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
                                             },
                                         }}
-                                    />
-                                )}
+                                        />
+                                    )}
                                 <IconButton size="small" onClick={handleOpen} disabled={disabled}>
                                     {selectedOption ? (
                                         <KeyboardArrowDownIcon fontSize="small" color={anchorEl ? 'primary' : 'action'} />
@@ -231,7 +239,23 @@ const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
                                         }}
                                     >
                                         <ListItemText
-                                            primary={option.label}
+                                            primary={option.color ? (
+                                                <Chip
+                                                    size="small"
+                                                    label={option.label}
+                                                    sx={{
+                                                        bgcolor: `${option.color}18`,
+                                                        color: option.color,
+                                                        border: `1px solid ${option.color}55`,
+                                                        fontWeight: 700,
+                                                        maxWidth: '100%',
+                                                        '& .MuiChip-label': {
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                        },
+                                                    }}
+                                                />
+                                            ) : option.label}
                                             secondary={option.value}
                                             primaryTypographyProps={{ variant: 'body2', fontWeight: isSelected ? 700 : 500 }}
                                             secondaryTypographyProps={{ variant: 'caption', sx: { fontFamily: 'monospace' } }}
@@ -270,7 +294,23 @@ const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
                                             }}
                                         >
                                             <ListItemText
-                                                primary={option.label}
+                                                primary={option.color ? (
+                                                    <Chip
+                                                        size="small"
+                                                        label={option.label}
+                                                        sx={{
+                                                            bgcolor: `${option.color}18`,
+                                                            color: option.color,
+                                                            border: `1px solid ${option.color}55`,
+                                                            fontWeight: 700,
+                                                            maxWidth: '100%',
+                                                            '& .MuiChip-label': {
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                            },
+                                                        }}
+                                                    />
+                                                ) : option.label}
                                                 secondary={option.value}
                                                 primaryTypographyProps={{ variant: 'body2', fontWeight: isSelected ? 700 : 500 }}
                                                 secondaryTypographyProps={{ variant: 'caption', sx: { fontFamily: 'monospace' } }}

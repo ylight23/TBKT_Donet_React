@@ -223,9 +223,8 @@ const Login: React.FC = () => {
                             borderRadius: 2.5,
                             background: `linear-gradient(to right, ${colors.forestAccent[600]}, ${colors.forestAccent[500]})`,
                             boxShadow: `0 4px 14px 0 ${colors.forestAccent[500]}66`,
-                            transition: 'all 0.3s ease',
+                            transition: 'background 0.3s ease, box-shadow 0.3s ease',
                             '&:hover': {
-                                transform: 'translateY(-2px)',
                                 boxShadow: `0 6px 20px rgba(0, 0, 0, 0.23)`,
                                 background: `linear-gradient(to right, ${colors.forestAccent[700]}, ${colors.forestAccent[600]})`,
                             },

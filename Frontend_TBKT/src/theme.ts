@@ -572,7 +572,7 @@ export const themeSetting = (mode: PaletteMode) => {
             textTransform: 'none' as const,
             fontWeight: 600,
             letterSpacing: '0.2px',
-            transition: 'background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
+            transition: 'background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease',
             ...(ownerState.variant === 'militaryAction' && {
               borderRadius: 2.5,
               paddingLeft: 24,
@@ -600,9 +600,7 @@ export const themeSetting = (mode: PaletteMode) => {
               boxShadow: isDark
                 ? '0 4px 14px rgba(0,0,0,0.55)'
                 : '0 4px 12px rgba(46,125,50,0.40)',
-              transform: 'translateY(-1px)',
             },
-            '&:active': { transform: 'translateY(0)' },
           },
         },
       },

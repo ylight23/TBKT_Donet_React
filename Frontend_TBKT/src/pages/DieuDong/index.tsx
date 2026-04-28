@@ -22,6 +22,7 @@ import { OfficeProvider } from '../../context/OfficeContext';
 import GanttView from '../../components/BaoDuong/GanttView';
 import GanttChartSidebar from '../../components/BaoDuong/GanttChartSidebar';
 import GenericScheduleDialog, { type EquipmentOption } from '../../components/Schedule/GenericScheduleDialog';
+import DieuDongEquipmentDetailPanel from '../../components/Schedule/DieuDongEquipmentDetailPanel';
 import {
     getDieuDongSchedule,
     getListDieuDongSchedule,
@@ -80,6 +81,8 @@ const DieuDong: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<TransferSchedule | null>(null);
+    const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
+    const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
 
     const loadEquipmentPool = useCallback(async () => {
         setEquipmentLoading(true);
@@ -246,6 +249,8 @@ const DieuDong: React.FC = () => {
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
+        setMemberParametersByKey({});
+        setDetailEquipment(null);
         setDialogOpen(true);
     }, []);
 
@@ -253,6 +258,12 @@ const DieuDong: React.FC = () => {
         setSaving(true);
         try {
             const detail = await getDieuDongSchedule(schedule.id);
+            const nextMemberParameters: Record<string, Record<string, string>> = {};
+            detail.dsTrangBi.forEach((member) => {
+                nextMemberParameters[buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)] = { ...(member.parameters || {}) };
+            });
+            setMemberParametersByKey(nextMemberParameters);
+            setDetailEquipment(null);
             setEditingSchedule({
                 id: detail.id,
                 tenLich: detail.tenDieuDong || '',
@@ -304,15 +315,16 @@ const DieuDong: React.FC = () => {
                 soHieu: equipment.soHieu,
                 idChuyenNganhKt: equipment.idChuyenNganhKt,
                 idNganh: equipment.idNganh,
-                parameters: {},
+                parameters: memberParametersByKey[equipment.key] || {},
             })),
             parameters: formData,
             version: editingSchedule?.version || 0,
         };
         await saveDieuDongSchedule({ item: payload, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
+        setDetailEquipment(null);
         await loadSchedules();
-    }, [editingSchedule, loadSchedules]);
+    }, [editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};
@@ -333,6 +345,15 @@ const DieuDong: React.FC = () => {
         if (!editingSchedule) return [];
         return equipmentPool.filter((item) => editingSchedule.equipmentKeys.includes(item.key));
     }, [editingSchedule, equipmentPool]);
+
+    const handleSaveEquipmentDetail = useCallback((nextValue: Record<string, string>) => {
+        if (!detailEquipment) return;
+        setMemberParametersByKey((prev) => ({
+            ...prev,
+            [detailEquipment.key]: nextValue,
+        }));
+        setDetailEquipment(null);
+    }, [detailEquipment]);
 
     return (
         <OfficeProvider>
@@ -425,7 +446,10 @@ const DieuDong: React.FC = () => {
 
                 <GenericScheduleDialog
                     open={dialogOpen}
-                    onClose={() => setDialogOpen(false)}
+                    onClose={() => {
+                        setDialogOpen(false);
+                        setDetailEquipment(null);
+                    }}
                     onSave={handleSave}
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
@@ -440,6 +464,45 @@ const DieuDong: React.FC = () => {
                     requiredNameError="Vui long nhap ten dieu dong."
                     startDateFieldKey="thoi_gian_thuc_hien"
                     endDateFieldKey="thoi_gian_ket_thuc"
+                    sidePanel={detailEquipment ? (
+                        <DieuDongEquipmentDetailPanel
+                            equipment={detailEquipment}
+                            value={{
+                                ten_ke_hoach: dialogInitialData.ten_dieu_dong || '',
+                                can_cu_thuc_hien: dialogInitialData.can_cu || '',
+                                thoi_gian: dialogInitialData.thoi_gian_thuc_hien || '',
+                                don_vi_giao: dialogInitialData.don_vi_giao || '',
+                                nguoi_giao: dialogInitialData.nguoi_giao || dialogInitialData.nguoi_phu_trach || '',
+                                don_vi_nhan: dialogInitialData.don_vi_nhan || '',
+                                nguoi_nhan: dialogInitialData.nguoi_nhan || '',
+                                ghi_chu: dialogInitialData.ghi_chu || '',
+                                ...(memberParametersByKey[detailEquipment.key] || {}),
+                            }}
+                            onClose={() => setDetailEquipment(null)}
+                            onSave={handleSaveEquipmentDetail}
+                        />
+                    ) : undefined}
+                    sidePanelWidth={540}
+                    equipmentActionRenderer={(equipment, selected, ensureSelected) => (
+                        <Button
+                            size="small"
+                            variant={memberParametersByKey[equipment.key] ? 'contained' : 'outlined'}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (!selected) ensureSelected();
+                                setDetailEquipment(equipment);
+                            }}
+                            sx={{
+                                py: 0.25,
+                                px: 1,
+                                fontSize: '0.72rem',
+                                textTransform: 'none',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {memberParametersByKey[equipment.key] ? 'Da nhap' : 'Nhap'}
+                        </Button>
+                    )}
                 />
             </Box>
         </OfficeProvider>

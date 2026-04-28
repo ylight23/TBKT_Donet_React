@@ -22,6 +22,7 @@ import { OfficeProvider } from '../../context/OfficeContext';
 import GanttView from '../../components/BaoDuong/GanttView';
 import GanttChartSidebar from '../../components/BaoDuong/GanttChartSidebar';
 import GenericScheduleDialog, { type EquipmentOption } from '../../components/Schedule/GenericScheduleDialog';
+import BaoDuongEquipmentDetailPanel from '../../components/Schedule/BaoDuongEquipmentDetailPanel';
 import {
     getBaoDuongSchedule,
     getListBaoDuongSchedule,
@@ -85,6 +86,8 @@ const BaoDuong: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<MaintenanceSchedule | null>(null);
+    const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
+    const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
 
     const loadEquipmentPool = useCallback(async () => {
         setEquipmentLoading(true);
@@ -263,6 +266,8 @@ const BaoDuong: React.FC = () => {
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
+        setMemberParametersByKey({});
+        setDetailEquipment(null);
         setDialogOpen(true);
     }, []);
 
@@ -271,6 +276,12 @@ const BaoDuong: React.FC = () => {
         try {
             const detail = await getBaoDuongSchedule(schedule.id);
             const equipmentKeys = detail.dsTrangBi.map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi));
+            const nextMemberParameters: Record<string, Record<string, string>> = {};
+            detail.dsTrangBi.forEach((member) => {
+                nextMemberParameters[buildEquipmentKey(member.idTrangBi, member.nhomTrangBi)] = { ...(member.parameters || {}) };
+            });
+            setMemberParametersByKey(nextMemberParameters);
+            setDetailEquipment(null);
             setEditingSchedule({
                 id: detail.id,
                 tenLich: detail.tenLichBaoDuong || '',
@@ -325,7 +336,7 @@ const BaoDuong: React.FC = () => {
                 soHieu: equipment.soHieu,
                 idChuyenNganhKt: equipment.idChuyenNganhKt,
                 idNganh: equipment.idNganh,
-                parameters: {},
+                parameters: memberParametersByKey[equipment.key] || {},
             })),
             parameters: formData,
             version: editingSchedule?.version || 0,
@@ -333,8 +344,9 @@ const BaoDuong: React.FC = () => {
 
         await saveBaoDuongSchedule({ item: payloadItem, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
+        setDetailEquipment(null);
         await loadSchedules();
-    }, [editingSchedule, loadSchedules]);
+    }, [editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};
@@ -358,20 +370,29 @@ const BaoDuong: React.FC = () => {
         return equipmentPool.filter((item) => editingSchedule.equipmentKeys.includes(item.key));
     }, [editingSchedule, equipmentPool]);
 
+    const handleSaveEquipmentDetail = useCallback((nextValue: Record<string, string>) => {
+        if (!detailEquipment) return;
+        setMemberParametersByKey((prev) => ({
+            ...prev,
+            [detailEquipment.key]: nextValue,
+        }));
+        setDetailEquipment(null);
+    }, [detailEquipment]);
+
     return (
         <OfficeProvider>
             <Box sx={{ p: { xs: 1, lg: 1.25, xl: 1.5 }, height: 'calc(100vh - 96px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
                     <Box>
                         <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
-                            BAO DUONG TRANG BI
+                            BẢO DƯỠNG TRANG BỊ
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Quan ly lich bao duong theo mo hinh schedule-first.
+                            Quản lý lịch bảo dưỡng theo kế hoạch.
                         </Typography>
                     </Box>
                     <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
-                        Them ke hoach
+                        Thêm kế hoạch
                     </Button>
                 </Stack>
 
@@ -379,10 +400,10 @@ const BaoDuong: React.FC = () => {
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, xl: 1.5 }, mb: { xs: 1, xl: 1.5 }, flexShrink: 0 }}>
                     {[
-                        { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
-                        { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
-                        { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
-                        { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
+                        { label: 'Tổng kế hoạch', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
+                        { label: 'Đã hoàn thành', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
+                        { label: 'Đang thực hiện', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
+                        { label: 'Quá hạn', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
                     ].map((item) => (
                         <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
                             <CardContent sx={{ p: { xs: 1, xl: 1.5 }, '&:last-child': { pb: { xs: 1, xl: 1.5 } } }}>
@@ -423,7 +444,7 @@ const BaoDuong: React.FC = () => {
                         <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                             <TextField
                                 size="small"
-                                placeholder="Tim ten ke hoach, can cu, don vi..."
+                                placeholder="Tìm tên kế hoạch, căn cứ, đơn vị..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 InputProps={{
@@ -436,8 +457,8 @@ const BaoDuong: React.FC = () => {
                                 sx={{ width: { xs: '100%', lg: 260, xl: 320 }, maxWidth: '100%', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                             />
                             <Tabs value={activeTab} onChange={(_, value: BaoDuongTab) => setActiveTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-                                <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
-                                <Tab value="lich_bao_duong" label="Lich bao duong" />
+                                <Tab value="theo_doi_trang_bi" label="Theo dõi trang bị" />
+                                <Tab value="lich_bao_duong" label="Lịch bảo dưỡng" />
                             </Tabs>
                         </Stack>
                         <Box sx={{ flex: 1, minHeight: 0 }}>
@@ -455,22 +476,54 @@ const BaoDuong: React.FC = () => {
 
                 <GenericScheduleDialog
                     open={dialogOpen}
-                    onClose={() => setDialogOpen(false)}
+                    onClose={() => {
+                        setDialogOpen(false);
+                        setDetailEquipment(null);
+                    }}
                     onSave={handleSaveSchedule}
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
                     editingId={editingSchedule?.id}
                     equipmentPool={equipmentPool}
                     equipmentLoading={equipmentLoading}
-                    title={editingSchedule?.id ? 'Cap nhat ke hoach bao duong' : 'Them ke hoach bao duong'}
+                    title={editingSchedule?.id ? 'Cập nhật kế hoạch bảo dưỡng' : 'Thêm kế hoạch bảo dưỡng'}
                     icon={BuildCircleIcon}
                     color="#2563eb"
                     fieldSetKey={TRANG_BI_FIELD_SET_KEYS.BAO_DUONG}
                     nameFieldKey="ten_lich_bao_duong"
-                    nameFieldLabel="Ten bao duong"
-                    requiredNameError="Vui long nhap ten lich bao duong."
+                    nameFieldLabel="Tên bảo dưỡng"
+                    requiredNameError="Vui lòng nhập tên lịch bảo dưỡng."
                     startDateFieldKey="thoi_gian_thuc_hien"
                     endDateFieldKey="thoi_gian_ket_thuc"
+                    sidePanel={detailEquipment ? (
+                        <BaoDuongEquipmentDetailPanel
+                            equipment={detailEquipment}
+                            value={memberParametersByKey[detailEquipment.key] || {}}
+                            onClose={() => setDetailEquipment(null)}
+                            onSave={handleSaveEquipmentDetail}
+                        />
+                    ) : undefined}
+                    sidePanelWidth={520}
+                    equipmentActionRenderer={(equipment, selected, ensureSelected) => (
+                        <Button
+                            size="small"
+                            variant={memberParametersByKey[equipment.key] ? 'contained' : 'outlined'}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (!selected) ensureSelected();
+                                setDetailEquipment(equipment);
+                            }}
+                            sx={{
+                                py: 0.25,
+                                px: 1,
+                                fontSize: '0.72rem',
+                                textTransform: 'none',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {memberParametersByKey[equipment.key] ? 'Đã nhập' : 'Nhập'}
+                        </Button>
+                    )}
                 />
             </Box>
         </OfficeProvider>

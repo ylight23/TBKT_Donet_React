@@ -10,6 +10,7 @@ import { getListNhomDongBo, NHOM_DONG_BO_LIST_ENDPOINT } from './nhomDongBoApi';
 export interface DynamicOptionItem {
     value: string;
     label: string;
+    color?: string;
 }
 
 export const DYNAMIC_OPTION_API_HINTS = [

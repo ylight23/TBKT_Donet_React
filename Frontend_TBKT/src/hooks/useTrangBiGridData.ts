@@ -4,7 +4,9 @@ import trangBiKiThuatApi, {
     type TrangBiNhom2GridItem,
 } from '../apis/trangBiKiThuatApi';
 
-export type TrangBiGridItem = TrangBiNhom1GridItem | TrangBiNhom2GridItem;
+export type TrangBiGridItem = (TrangBiNhom1GridItem | TrangBiNhom2GridItem) & {
+    nhomTrangBi?: 1 | 2;
+};
 
 interface UseTrangBiGridDataResult {
     data: TrangBiGridItem[];
@@ -34,7 +36,10 @@ export default function useTrangBiGridData(enabled = true): UseTrangBiGridDataRe
                 trangBiKiThuatApi.getListTrangBiNhom1(),
                 trangBiKiThuatApi.getListTrangBiNhom2(),
             ]);
-            setData([...nhom1, ...nhom2]);
+            setData([
+                ...nhom1.map((item) => ({ ...item, nhomTrangBi: 1 as const })),
+                ...nhom2.map((item) => ({ ...item, nhomTrangBi: 2 as const })),
+            ]);
         } catch (err) {
             console.error('[useTrangBiGridData] loadData error', err);
             setData([]);

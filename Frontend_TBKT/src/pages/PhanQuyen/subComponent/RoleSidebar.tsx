@@ -307,11 +307,7 @@ const RoleSidebar: React.FC<RoleSidebarProps> = ({
                             borderColor: theme.palette.primary.main,
                             color: 'primary.main',
                             bgcolor: alpha(theme.palette.primary.main, 0.04),
-                            transform: 'translateY(-1px)',
                         },
-                        '&:active': {
-                            transform: 'translateY(0)',
-                        }
                     }}
                 >
                     <AddCircleOutlineIcon sx={{ fontSize: 18 }} />

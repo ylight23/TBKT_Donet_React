@@ -37,9 +37,21 @@ public sealed class DanhMucTrangBiServiceImpl(
     {
         var doc = new BsonDocument();
         foreach (var kv in parameters)
-            doc[kv.Key] = kv.Value;
+        {
+            var key = NormalizeTrangBiParameterKey(kv.Key);
+            if (!string.IsNullOrWhiteSpace(key))
+                doc[key] = kv.Value;
+        }
         return doc;
     }
+
+    private static string NormalizeTrangBiParameterKey(string key)
+        => key.Trim() switch
+        {
+            "cap_chat_luong" => "chat_luong",
+            "chatLuong" => "chat_luong",
+            _ => key.Trim(),
+        };
 
     // Used for TrangBiTree which still uses repeated ExtendedField parameters
     private static BsonArray ToParameterArray(IEnumerable<ExtendedField> parameters)
@@ -60,7 +72,7 @@ public sealed class DanhMucTrangBiServiceImpl(
         if (!doc.TryGetElement("Parameters", out var paramElem)) return result;
         if (paramElem.Value is not BsonDocument paramDoc) return result;
         foreach (var kv in paramDoc)
-            result[kv.Name] = kv.Value.BsonType == BsonType.String ? kv.Value.AsString : string.Empty;
+            result[NormalizeTrangBiParameterKey(kv.Name)] = kv.Value.BsonType == BsonType.String ? kv.Value.AsString : string.Empty;
         return result;
     }
 
@@ -588,7 +600,7 @@ public sealed class DanhMucTrangBiServiceImpl(
         var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (rawKey, rawValue) in parameters)
         {
-            var key = (rawKey ?? string.Empty).Trim();
+            var key = NormalizeTrangBiParameterKey(rawKey ?? string.Empty);
             var value = (rawValue ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value)) continue;
             if (ReservedTrangBiParameterKeys.Contains(key)) continue;
@@ -935,6 +947,10 @@ public sealed class DanhMucTrangBiServiceImpl(
     {
         var builder = Builders<BsonDocument>.Filter;
         var filter = ServiceMutationPolicy.BuildCnVisibilityFilter(context, "IdChuyenNganhKT", true);
+        filter &= builder.Ne("Delete", true);
+        filter &= builder.Exists("IdChuyenNganhKT", true);
+        filter &= builder.Ne("IdChuyenNganhKT", BsonNull.Value);
+        filter &= builder.Ne("IdChuyenNganhKT", string.Empty);
 
         if (!string.IsNullOrWhiteSpace(idChuyenNganhKt))
             filter &= builder.Eq("IdChuyenNganhKT", idChuyenNganhKt);

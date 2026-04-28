@@ -1,111 +1,110 @@
 {
   "permissionGroups": [
     {
-      "group": "Trang bi ky thuat",
+      "group": "Trang bị kỹ thuật",
       "icon": "🔧",
       "order": 10,
       "permissions": [
-        { "code": "equipment.view", "name": "Xem danh sach trang bi", "order": 10 },
-        { "code": "equipment.create", "name": "Tiep nhan trang bi", "order": 20 },
-        { "code": "equipment.edit", "name": "Cap nhat thong tin trang bi", "order": 30 },
-        { "code": "equipment.delete", "name": "Xoa / huy trang bi", "order": 40 },
-        { "code": "equipment.export", "name": "Xuat danh sach Excel", "order": 50 },
-        { "code": "equipment.group1", "name": "Quan ly trang bi nhom 1", "order": 60 },
-        { "code": "equipment.group2", "name": "Quan ly trang bi nhom 2", "order": 70 }
+        { "code": "equipment.view", "name": "Xem danh sách trang bị", "order": 10 },
+        { "code": "equipment.create", "name": "Tiếp nhận trang bị", "order": 20 },
+        { "code": "equipment.edit", "name": "Cập nhật thông tin trang bị", "order": 30 },
+        { "code": "equipment.delete", "name": "Xóa / hủy trang bị", "order": 40 },
+        { "code": "equipment.export", "name": "Xuất danh sách Excel", "order": 50 },
+        { "code": "equipment.group1", "name": "Quản lý trang bị nhóm 1", "order": 60 },
+        { "code": "equipment.group2", "name": "Quản lý trang bị nhóm 2", "order": 70 }
       ]
     },
     {
-      "group": "Quan ly ky thuat",
+      "group": "Quản lý kỹ thuật",
       "icon": "🛠️",
       "order": 20,
       "permissions": [
-        { "code": "tech.status", "name": "Xem tinh trang ky thuat", "order": 10 },
-        { "code": "tech.preservation", "name": "Bao quan trang bi", "order": 20 },
-        { "code": "tech.maintenance", "name": "Bao duong trang bi", "order": 30 },
-        { "code": "tech.repair", "name": "Sua chua trang bi", "order": 40 },
-        { "code": "tech.storage", "name": "Niem cat trang bi", "order": 50 },
-        { "code": "tech.transfer", "name": "Dieu dong trang bi", "order": 60 },
-        { "code": "tech.quality", "name": "Chuyen cap chat luong", "order": 70 },
-        { "code": "trangbilog.view", "name": "Xem log trang bi", "order": 80 },
-        { "code": "trangbilog.bao_quan", "name": "Quan ly bao quan", "order": 90 },
-        { "code": "trangbilog.bao_duong", "name": "Quan ly bao duong", "order": 100 },
-        { "code": "trangbilog.sua_chua", "name": "Quan ly sua chua", "order": 110 },
-        { "code": "trangbilog.niem_cat", "name": "Quan ly niem cat", "order": 120 },
-        { "code": "trangbilog.dieu_dong", "name": "Quan ly dieu dong", "order": 130 }
+        { "code": "tech.status", "name": "Xem tình trạng kỹ thuật", "order": 10 },
+        { "code": "tech.preservation", "name": "Bảo quản trang bị", "order": 20 },
+        { "code": "tech.maintenance", "name": "Bảo dưỡng trang bị", "order": 30 },
+        { "code": "tech.repair", "name": "Sửa chữa trang bị", "order": 40 },
+        { "code": "tech.storage", "name": "Niêm cất trang bị", "order": 50 },
+        { "code": "tech.transfer", "name": "Điều động trang bị", "order": 60 },
+        { "code": "tech.quality", "name": "Chuyển cấp chất lượng", "order": 70 },
+        { "code": "trangbilog.view", "name": "Xem log trang bị", "order": 80 },
+        { "code": "trangbilog.bao_quan", "name": "Quản lý bảo quản", "order": 90 },
+        { "code": "trangbilog.bao_duong", "name": "Quản lý bảo dưỡng", "order": 100 },
+        { "code": "trangbilog.sua_chua", "name": "Quản lý sửa chữa", "order": 110 },
+        { "code": "trangbilog.niem_cat", "name": "Quản lý niêm cất", "order": 120 },
+        { "code": "trangbilog.dieu_dong", "name": "Quản lý điều động", "order": 130 }
       ]
     },
     {
-      "group": "Bao cao va thong ke",
+      "group": "Báo cáo và thống kê",
       "icon": "📊",
       "order": 30,
       "permissions": [
-        { "code": "report.view", "name": "Xem bao cao", "order": 10 },
-        { "code": "report.export", "name": "Xuat bao cao", "order": 20 },
-        { "code": "report.schedule", "name": "Len lich bao cao", "order": 30 },
-        { "code": "report.classify", "name": "Bao cao mat", "order": 40 }
+        { "code": "report.view", "name": "Xem báo cáo", "order": 10 },
+        { "code": "report.export", "name": "Xuất báo cáo", "order": 20 },
+        { "code": "report.schedule", "name": "Lên lịch báo cáo", "order": 30 },
+        { "code": "report.classify", "name": "Báo cáo mật", "order": 40 }
       ]
     },
     {
-      "group": "Quan ly don vi",
+      "group": "Quản lý đơn vị",
       "icon": "🏢",
       "order": 40,
       "permissions": [
-        { "code": "office.view", "name": "Xem cay to chuc don vi", "order": 10 },
-        { "code": "office.create", "name": "Tao don vi moi", "order": 20 },
-        { "code": "office.edit", "name": "Cap nhat thong tin don vi", "order": 30 },
-        { "code": "office.delete", "name": "Xoa don vi", "order": 40 },
-        { "code": "office.export", "name": "Xuat danh sach don vi", "order": 50 }
+        { "code": "office.view", "name": "Xem cây tổ chức đơn vị", "order": 10 },
+        { "code": "office.create", "name": "Tạo đơn vị mới", "order": 20 },
+        { "code": "office.edit", "name": "Cập nhật thông tin đơn vị", "order": 30 },
+        { "code": "office.delete", "name": "Xóa đơn vị", "order": 40 },
+        { "code": "office.export", "name": "Xuất danh sách đơn vị", "order": 50 }
       ]
     },
     {
-      "group": "Nhan vien",
+      "group": "Nhân viên",
       "icon": "👥",
       "order": 50,
       "permissions": [
-        { "code": "employee.view", "name": "Xem ho so nhan vien", "order": 10 },
-        { "code": "employee.create", "name": "Them nhan vien", "order": 20 },
-        { "code": "employee.edit", "name": "Cap nhat ho so", "order": 30 },
-        { "code": "employee.delete", "name": "Xoa nhan vien", "order": 40 }
+        { "code": "employee.view", "name": "Xem hồ sơ nhân viên", "order": 10 },
+        { "code": "employee.create", "name": "Thêm nhân viên", "order": 20 },
+        { "code": "employee.edit", "name": "Cập nhật hồ sơ", "order": 30 },
+        { "code": "employee.delete", "name": "Xóa nhân viên", "order": 40 }
       ]
     },
     {
-      "group": "Cau hinh he thong",
+      "group": "Cấu hình hệ thống",
       "icon": "⚙️",
       "order": 60,
       "permissions": [
-        { "code": "config.view", "name": "Xem cau hinh he thong", "order": 10 },
-        { "code": "config.param", "name": "Cau hinh tham so", "order": 20 },
-        { "code": "config.role", "name": "Quan ly phan quyen", "order": 30 },
-        { "code": "config.template", "name": "Cau hinh template", "order": 40 },
-        { "code": "config.menu", "name": "Cau hinh menu", "order": 50 },
-        { "code": "config.audit", "name": "Nhat ky kiem toan", "order": 60 },
-        { "code": "thamso_dynamicfield", "name": "Quan ly dynamic field", "order": 70 },
-        { "code": "thamso_fieldset", "name": "Quan ly field set", "order": 80 },
-        { "code": "thamso_formconfig", "name": "Quan ly form config", "order": 90 },
-        { "code": "thamso_dynamicmenu", "name": "Quan ly dynamic menu", "order": 100 },
-        { "code": "thamso_dynamicmenu_datasource", "name": "Quan ly dynamic menu datasource", "order": 110 },
-        { "code": "thamso_templatelayout", "name": "Quan ly template layout", "order": 120 },
-        { "code": "thamso_restore", "name": "Khoi phuc cau hinh tham so", "order": 130 }
+        { "code": "config.view", "name": "Xem cấu hình hệ thống", "order": 10 },
+        { "code": "config.param", "name": "Cấu hình tham số", "order": 20 },
+        { "code": "config.role", "name": "Quản lý phân quyền", "order": 30 },
+        { "code": "config.template", "name": "Cấu hình template", "order": 40 },
+        { "code": "config.menu", "name": "Cấu hình menu", "order": 50 },
+        { "code": "config.audit", "name": "Nhật ký kiểm toán", "order": 60 },
+        { "code": "thamso_dynamicfield", "name": "Quản lý dynamic field", "order": 70 },
+        { "code": "thamso_fieldset", "name": "Quản lý field set", "order": 80 },
+        { "code": "thamso_formconfig", "name": "Quản lý form config", "order": 90 },
+        { "code": "thamso_dynamicmenu", "name": "Quản lý dynamic menu", "order": 100 },
+        { "code": "thamso_dynamicmenu_datasource", "name": "Quản lý dynamic menu datasource", "order": 110 },
+        { "code": "thamso_templatelayout", "name": "Quản lý template layout", "order": 120 },
+        { "code": "thamso_restore", "name": "Khôi phục cấu hình tham số", "order": 130 }
       ]
     }
   ],
   "staticMenus": [
-    { "title": "Bang dieu hanh", "path": "/", "icon": "Dashboard", "active": "dashboard" },
-    { "title": "Trang bi nhom 1", "path": "/trang-bi-nhom-1", "icon": "Computer", "active": "tbNhom1", "permissionCodes": ["equipment.view"] },
-    { "title": "Trang bi nhom 2", "path": "/trang-bi-nhom-2", "icon": "DevicesOther", "active": "tbNhom2", "permissionCodes": ["equipment.view"] },
-    { "title": "Nhom dong bo", "path": "/nhom-dong-bo", "icon": "Build", "active": "nhomDongBo", "permissionCodes": ["equipment.view"] },
-    { "title": "Tinh trang ky thuat", "path": "/tinh-trang-ky-thuat", "icon": "Shield", "active": "tinhTrangKT", "permissionCodes": ["tinhtrangkt.view"] },
-    { "title": "Bao quan", "path": "/bao-quan", "icon": "Inventory", "active": "trangbilog_bao_quan", "permissionCodes": ["trangbilog.bao_quan"] },
-    { "title": "Bao duong", "path": "/bao-duong", "icon": "Build", "active": "trangbilog_bao_duong", "permissionCodes": ["trangbilog.bao_duong"] },
-    { "title": "Sua chua", "path": "/sua-chua", "icon": "Handyman", "active": "trangbilog_sua_chua", "permissionCodes": ["trangbilog.sua_chua"] },
-    { "title": "Niem cat", "path": "/niem-cat", "icon": "Warehouse", "active": "trangbilog_niem_cat", "permissionCodes": ["trangbilog.niem_cat"] },
-    { "title": "Dieu dong", "path": "/dieu-dong", "icon": "LocalShipping", "active": "trangbilog_dieu_dong", "permissionCodes": ["trangbilog.dieu_dong"] },
-    { "title": "Chuyen cap chat luong", "path": "/chuyen-cap-chat-luong", "icon": "StarRate", "active": "chuyenCap", "permissionCodes": ["chuyencap.view"] },
-    { "title": "Thong ke bao cao", "path": "/thong-ke-bao-cao", "icon": "BarChart", "active": "thongKe", "permissionCodes": ["thongke.view"] },
-    { "title": "Cau hinh tham so", "path": "/cau-hinh-tham-so", "icon": "Settings", "active": "cauHinhThamSo", "permissionCodes": ["thamso_dynamicfield", "thamso_fieldset", "thamso_formconfig"] },
-    { "title": "Cau hinh template", "path": "/cau-hinh-template", "icon": "LibraryBooks", "active": "cauHinhTemplate", "permissionCodes": ["thamso_templatelayout", "thamso_formconfig"] },
-    { "title": "Cau hinh datasource", "path": "/cau-hinh-data-source", "icon": "Storage", "active": "cauHinhDataSource", "permissionCodes": ["thamso_dynamicmenu_datasource"] },
-    { "title": "Cau hinh menu", "path": "/cau-hinh-menu", "icon": "Settings", "active": "cauHinhMenu", "permissionCodes": ["thamso_dynamicmenu"] },
-    { "title": "Phan quyen", "path": "/phan-quyen", "icon": "AdminPanelSettings", "active": "phanQuyen", "permissionCodes": ["config.role"] }
+    { "title": "Bảng điều hành", "path": "/", "icon": "Dashboard", "active": "dashboard" },
+    { "title": "Trang bị nhóm 1", "path": "/trang-bi-nhom-1", "icon": "Computer", "active": "tbNhom1", "permissionCodes": ["equipment.view"] },
+    { "title": "Trang bị nhóm 2", "path": "/trang-bi-nhom-2", "icon": "DevicesOther", "active": "tbNhom2", "permissionCodes": ["equipment.view"] },
+    { "title": "Tình trạng kỹ thuật", "path": "/tinh-trang-ky-thuat", "icon": "Shield", "active": "tinhTrangKT", "permissionCodes": ["tinhtrangkt.view"] },
+    { "title": "Bảo quản", "path": "/bao-quan", "icon": "Inventory", "active": "trangbilog_bao_quan", "permissionCodes": ["trangbilog.bao_quan"] },
+    { "title": "Bảo dưỡng", "path": "/bao-duong", "icon": "Build", "active": "trangbilog_bao_duong", "permissionCodes": ["trangbilog.bao_duong"] },
+    { "title": "Sửa chữa", "path": "/sua-chua", "icon": "Handyman", "active": "trangbilog_sua_chua", "permissionCodes": ["trangbilog.sua_chua"] },
+    { "title": "Niêm cất", "path": "/niem-cat", "icon": "Warehouse", "active": "trangbilog_niem_cat", "permissionCodes": ["trangbilog.niem_cat"] },
+    { "title": "Điều động", "path": "/dieu-dong", "icon": "LocalShipping", "active": "trangbilog_dieu_dong", "permissionCodes": ["trangbilog.dieu_dong"] },
+    { "title": "Chuyển cấp chất lượng", "path": "/chuyen-cap-chat-luong", "icon": "StarRate", "active": "chuyenCap", "permissionCodes": ["chuyencap.view"] },
+    { "title": "Thống kê báo cáo", "path": "/thong-ke-bao-cao", "icon": "BarChart", "active": "thongKe", "permissionCodes": ["thongke.view"] },
+    { "title": "Cấu hình tham số", "path": "/cau-hinh-tham-so", "icon": "Settings", "active": "cauHinhThamSo", "permissionCodes": ["thamso_dynamicfield", "thamso_fieldset", "thamso_formconfig"] },
+    { "title": "Cấu hình template", "path": "/cau-hinh-template", "icon": "LibraryBooks", "active": "cauHinhTemplate", "permissionCodes": ["thamso_templatelayout", "thamso_formconfig"] },
+    { "title": "Cấu hình datasource", "path": "/cau-hinh-data-source", "icon": "Storage", "active": "cauHinhDataSource", "permissionCodes": ["thamso_dynamicmenu_datasource"] },
+    { "title": "Cấu hình menu", "path": "/cau-hinh-menu", "icon": "Settings", "active": "cauHinhMenu", "permissionCodes": ["thamso_dynamicmenu"] },
+    { "title": "Phân quyền", "path": "/phan-quyen", "icon": "AdminPanelSettings", "active": "phanQuyen", "permissionCodes": ["config.role"] }
   ]
 }

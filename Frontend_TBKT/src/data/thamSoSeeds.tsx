@@ -27,7 +27,7 @@ export const SEED_FIELDS: DynamicField[] = []; /* [
     { id: 'f04', key: 'don_vi_quan_ly', label: 'Đơn vị quản lý', type: 'text', required: false, validation: {} },
     { id: 'f05', key: 'don_vi_su_dung', label: 'Đơn vị sử dụng', type: 'text', required: false, validation: {} },
     { id: 'f06', key: 'so_luong', label: 'Số lượng', type: 'number', required: false, validation: { min: 0, max: 99999 } },
-    { id: 'f07', key: 'cap_chat_luong', label: 'Cấp chất lượng', type: 'select', required: false, validation: { options: ['Loại 1', 'Loại 2', 'Loại 3', 'Loại 4'] } },
+    { id: 'f07', key: 'chat_luong', label: 'Cấp chất lượng', type: 'select', required: false, validation: { options: ['Loại 1', 'Loại 2', 'Loại 3', 'Loại 4'] } },
     { id: 'f08', key: 'serial_number', label: 'Serial Number', type: 'text', required: false, validation: {} },
     { id: 'f09', key: 'nam_san_xuat', label: 'Năm sản xuất', type: 'number', required: false, validation: { min: 1900, max: 2100 } },
     { id: 'f10', key: 'nam_su_dung', label: 'Năm đưa vào sử dụng', type: 'number', required: false, validation: { min: 1900, max: 2100 } },

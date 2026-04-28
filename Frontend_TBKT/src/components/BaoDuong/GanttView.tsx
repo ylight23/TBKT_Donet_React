@@ -58,9 +58,9 @@ const STATUS_COLORS = {
 
 const DOWS_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTHS_VI = [
-    'Thang 1', 'Thang 2', 'Thang 3', 'Thang 4',
-    'Thang 5', 'Thang 6', 'Thang 7', 'Thang 8',
-    'Thang 9', 'Thang 10', 'Thang 11', 'Thang 12',
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
+    'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
+    'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
 ];
 
 const parseDate = (value: string): Date | null => {
@@ -114,11 +114,11 @@ const getRangeByView = (anchorDate: Date, viewMode: ViewMode): DateRange => {
 };
 
 const formatRangeLabel = (range: DateRange, viewMode: ViewMode): string => {
-    if (viewMode === 'year') return `Nam ${range.start.getFullYear()}`;
+    if (viewMode === 'year') return `Năm ${range.start.getFullYear()}`;
     if (viewMode === 'month') return `${MONTHS_VI[range.start.getMonth()]} ${range.start.getFullYear()}`;
     const from = `${String(range.start.getDate()).padStart(2, '0')}/${String(range.start.getMonth() + 1).padStart(2, '0')}`;
     const to = `${String(range.end.getDate()).padStart(2, '0')}/${String(range.end.getMonth() + 1).padStart(2, '0')}/${range.end.getFullYear()}`;
-    return `Tuan ${from} - ${to}`;
+    return `Tuần ${from} - ${to}`;
 };
 
 const enumerateDays = (range: DateRange): Date[] => {
@@ -548,10 +548,10 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
             >
                 <Stack direction="row" spacing={0.75} alignItems="center">
                     <Typography variant="subtitle2" fontWeight={800}>
-                        {displayMode === 'gantt' ? `Bieu do tien do — ${rangeLabel}` : `Danh sach ke hoach — ${rangeLabel}`}
+                        {displayMode === 'gantt' ? `Biểu đồ tiến độ — ${rangeLabel}` : `Danh sách kế hoạch — ${rangeLabel}`}
                     </Typography>
                     <Button size="small" onClick={goToToday} startIcon={<TodayIcon sx={{ fontSize: 14 }} />} sx={{ fontSize: '0.7rem', textTransform: 'none' }}>
-                        Hom nay
+                        Hôm nay
                     </Button>
                 </Stack>
 
@@ -563,21 +563,21 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                                 onClick={() => setViewMode('week')}
                                 sx={{ fontSize: '0.7rem', textTransform: 'none' }}
                             >
-                                Tuan
+                                Tuần
                             </Button>
                             <Button
                                 variant={viewMode === 'month' ? 'contained' : 'outlined'}
                                 onClick={() => setViewMode('month')}
                                 sx={{ fontSize: '0.7rem', textTransform: 'none' }}
                             >
-                                Thang
+                                Tháng
                             </Button>
                             <Button
                                 variant={viewMode === 'year' ? 'contained' : 'outlined'}
                                 onClick={() => setViewMode('year')}
                                 sx={{ fontSize: '0.7rem', textTransform: 'none' }}
                             >
-                                Nam
+                                Năm
                             </Button>
                         </ButtonGroup>
                     )}
@@ -588,7 +588,7 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                         onClick={() => setDisplayMode((prev) => prev === 'gantt' ? 'table' : 'gantt')}
                         sx={{ fontSize: '0.72rem', textTransform: 'none' }}
                     >
-                        {displayMode === 'gantt' ? 'Xem dang bang' : 'Xem bieu do tien do'}
+                        {displayMode === 'gantt' ? 'Xem dạng bảng' : 'Xem biểu đồ tiến độ'}
                     </Button>
 
                     <Stack direction="row" spacing={0.25}>

@@ -28,8 +28,8 @@ const TrangBiNhom1: React.FC = () => {
 
   return (
     <TrangBiDataGrid
-      title="TRANG BI KY THUAT NHOM 1"
-      subtitle="Quan ly phuong tien thong tin ky thuat - nhom trang bi chinh"
+      title="TRANG BỊ KỸ THUẬT NHÓM 1"
+      subtitle="Quản lý thực lực trang bị kỹ thuật nhóm 1"
       data={data}
       loading={loading}
       errorMessage={errorMessage}
