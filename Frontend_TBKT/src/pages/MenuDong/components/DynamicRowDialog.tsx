@@ -1,7 +1,8 @@
 import React from 'react';
-import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import DynamicDataForm from '../../CauHinhThamSo/subComponents/DynamicDataForm';
 import type { CreateDialogState } from '../types';
+import { FormSkeleton } from '../../../components/Skeletons';
 
 type Props = {
   state: CreateDialogState;
@@ -18,10 +19,7 @@ const DynamicRowDialog: React.FC<Props> = ({ state, titleBg, onClose, onSubmit, 
     </DialogTitle>
     <DialogContent dividers>
       {state.loading && (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <CircularProgress size={18} />
-          <Typography>Dang tai FormConfig...</Typography>
-        </Stack>
+        <FormSkeleton rows={5} cols={2} />
       )}
       {!state.loading && state.error && <Alert severity="warning">{state.error}</Alert>}
       {!state.loading && !state.error && state.info && <Alert severity="info">{state.info}</Alert>}
@@ -49,4 +47,3 @@ const DynamicRowDialog: React.FC<Props> = ({ state, titleBg, onClose, onSubmit, 
 );
 
 export default DynamicRowDialog;
-

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import thamSoApi from '../apis/thamSoApi';
 import danhMucTrangBiApi from '../apis/danhMucTrangBiApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../constants/fieldSetKeys';
@@ -78,12 +78,25 @@ export default function useTrangBiDialogSchema({
         }
     }, []);
 
+    useLayoutEffect(() => {
+        if (!open) return;
+
+        setFieldSetsByKey({});
+        setAllFields([]);
+        setSchemaLoading(true);
+        setSchemaError('');
+        setTechnicalFieldSets([]);
+        setTechnicalLoading(false);
+        setTechnicalError('');
+        technicalFetchRef.current += 1;
+    }, [open]);
+
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
+
         setSchemaLoading(true);
         setSchemaError('');
-
         loadPreloadedSchemas()
             .then(({ fieldSetsByKey: nextFieldSetsByKey, fields }) => {
                 if (cancelled) return;
@@ -100,19 +113,6 @@ export default function useTrangBiDialogSchema({
 
         return () => { cancelled = true; };
     }, [loadPreloadedSchemas, open]);
-
-    useEffect(() => {
-        if (open) {
-            setFieldSetsByKey({});
-            setAllFields([]);
-            setSchemaLoading(false);
-            setSchemaError('');
-            setTechnicalFieldSets([]);
-            setTechnicalLoading(false);
-            setTechnicalError('');
-            technicalFetchRef.current += 1;
-        }
-    }, [open]);
 
     useEffect(() => {
         if (!open) return;

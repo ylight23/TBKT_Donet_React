@@ -6,7 +6,6 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     Stack,
     Typography,
 } from '@mui/material';
@@ -18,6 +17,7 @@ import {
     getBaoQuanSchedulesByTrangBi,
     type LocalBaoQuanScheduleByTrangBiItem,
 } from '../../../apis/baoQuanScheduleApi';
+import { ListSkeleton } from '../../Skeletons';
 
 interface BaoQuanTabProps {
     trangBiId: string;
@@ -65,12 +65,12 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
         const start = item.thoiGianThucHien ? new Date(item.thoiGianThucHien).getTime() : NaN;
         const end = item.thoiGianKetThuc ? new Date(item.thoiGianKetThuc).getTime() : NaN;
         if (Number.isFinite(end) && end < now) {
-            return { label: 'Qua han', bg: '#FCEBEB', color: '#A32D2D' };
+            return { label: 'Quá hạn', bg: '#FCEBEB', color: '#A32D2D' };
         }
         if (Number.isFinite(start) && (!Number.isFinite(end) || end >= now) && start <= now) {
-            return { label: 'Dang thuc hien', bg: '#FAEEDA', color: '#854F0B' };
+            return { label: 'Đang thực hiện', bg: '#FAEEDA', color: '#854F0B' };
         }
-        return { label: 'Sap dien ra', bg: '#EEEDFE', color: '#3C3489' };
+        return { label: 'Sắp diễn ra', bg: '#EEEDFE', color: '#3C3489' };
     };
 
     const renderStatusBadge = (item: LocalBaoQuanScheduleByTrangBiItem) => {
@@ -90,7 +90,7 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
                 <Stack direction="row" spacing={1} alignItems="center">
                     <InfoIcon sx={{ fontSize: 16, color: '#16a34a' }} />
                     <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#16a34a' }}>
-                        Nhat ky bao quan
+                        Nhật ký bảo quản
                     </Typography>
                     {trangBiName && (
                         <Typography variant="caption" color="text.secondary">- {trangBiName}</Typography>
@@ -113,7 +113,7 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
                             '&:hover': { bgcolor: '#15803d' },
                         }}
                     >
-                        Mo menu Bao quan
+                        Mở menu bảo quản
                     </Button>
                 )}
             </Stack>
@@ -126,16 +126,14 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
 
             {!trangBiId && (
                 <Alert severity="info" sx={{ mb: 1 }}>
-                    Vui long luu trang bi truoc de ghi nhat ky bao quan.
+                    Vui lòng lưu trang bị trước để ghi nhật ký bảo quản.
                 </Alert>
             )}
 
             {loading ? (
-                <Box sx={{ textAlign: 'center', py: 3 }}>
-                    <CircularProgress size={24} />
-                </Box>
+                <ListSkeleton rows={3} />
             ) : items.length === 0 && trangBiId ? (
-                <Alert severity="info">Chua co nhat ky bao quan cho trang bi nay.</Alert>
+                <Alert severity="info">Chưa có nhật ký bảo quản cho trang bị này.</Alert>
             ) : (
                 <Stack spacing={0.75}>
                     {items.map((item) => (
@@ -154,11 +152,11 @@ const BaoQuanTab: React.FC<BaoQuanTabProps> = ({
                                             {renderStatusBadge(item)}
                                         </Stack>
                                         <Typography variant="body2" fontWeight={600} noWrap>
-                                            {item.tenLichBaoQuan || 'Lich bao quan'}
+                                            {item.tenLichBaoQuan || 'Lịch bảo quản'}
                                         </Typography>
                                         {item.nguoiPhuTrach && (
                                             <Typography variant="caption" color="text.secondary">
-                                                Nguoi phu trach: {item.nguoiPhuTrach}
+                                                Người phụ trách: {item.nguoiPhuTrach}
                                             </Typography>
                                         )}
                                     </Box>

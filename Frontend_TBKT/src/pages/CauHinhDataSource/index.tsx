@@ -274,7 +274,7 @@ const CauHinhDataSource: React.FC = () => {
                                 {browseFields.map((field) => (
                                     <Paper key={field.key} variant="outlined" sx={{ p: 1 }}>
                                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                                            <Typography sx={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700 }}>{field.key}</Typography>
+                                            <Typography sx={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>{field.key}</Typography>
                                             <Chip size="small" label={field.dataType || 'string'} />
                                             {field.required && <Chip size="small" color="warning" variant="outlined" label="Bat buoc" />}
                                         </Stack>

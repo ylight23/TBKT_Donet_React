@@ -4,6 +4,7 @@ import {
     DeleteSuaChuaScheduleRequestSchema,
     GetSuaChuaScheduleRequestSchema,
     GetListSuaChuaScheduleRequestSchema,
+    GetListSuaChuaScheduleByTrangBiRequestSchema,
     SaveSuaChuaScheduleRequestSchema,
     SuaChuaScheduleItemSchema,
     type SuaChuaScheduleGridItem as SuaChuaScheduleGridItemProto,
@@ -160,6 +161,22 @@ export async function getSuaChuaSchedule(id: string): Promise<LocalSuaChuaSchedu
     const res = await suaChuaScheduleClient.getSuaChuaSchedule(req);
     if (!res.success || !res.item) throw new Error(res.message || 'Khong the lay chi tiet lich sua chua.');
     return mapItem(res.item);
+}
+
+export async function getSuaChuaSchedulesByTrangBi(
+    idTrangBi: string,
+    nhomTrangBi: number,
+): Promise<LocalSuaChuaScheduleGridItem[]> {
+    const normalizedId = String(idTrangBi ?? '').trim();
+    if (!normalizedId) return [];
+
+    const req = create(GetListSuaChuaScheduleByTrangBiRequestSchema, {
+        idTrangBi: normalizedId,
+        nhomTrangBi,
+    });
+    const res = await suaChuaScheduleClient.getListSuaChuaScheduleByTrangBi(req);
+    if (!res.success) throw new Error(res.message || 'Khong the lay lich sua chua theo trang bi.');
+    return (res.items ?? []).map(mapGrid);
 }
 
 export async function saveSuaChuaSchedule(payload: {

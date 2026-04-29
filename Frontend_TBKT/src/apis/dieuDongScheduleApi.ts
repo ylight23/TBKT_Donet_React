@@ -4,6 +4,7 @@ import {
     DeleteDieuDongScheduleRequestSchema,
     GetDieuDongScheduleRequestSchema,
     GetListDieuDongScheduleRequestSchema,
+    GetListDieuDongScheduleByTrangBiRequestSchema,
     SaveDieuDongScheduleRequestSchema,
     DieuDongScheduleItemSchema,
     type DieuDongScheduleGridItem as DieuDongScheduleGridItemProto,
@@ -159,6 +160,22 @@ export async function getDieuDongSchedule(id: string): Promise<LocalDieuDongSche
     const res = await dieuDongScheduleClient.getDieuDongSchedule(req);
     if (!res.success || !res.item) throw new Error(res.message || 'Khong the lay chi tiet lich dieu dong.');
     return mapItem(res.item);
+}
+
+export async function getDieuDongSchedulesByTrangBi(
+    idTrangBi: string,
+    nhomTrangBi: number,
+): Promise<LocalDieuDongScheduleGridItem[]> {
+    const normalizedId = String(idTrangBi ?? '').trim();
+    if (!normalizedId) return [];
+
+    const req = create(GetListDieuDongScheduleByTrangBiRequestSchema, {
+        idTrangBi: normalizedId,
+        nhomTrangBi,
+    });
+    const res = await dieuDongScheduleClient.getListDieuDongScheduleByTrangBi(req);
+    if (!res.success) throw new Error(res.message || 'Khong the lay lich dieu dong theo trang bi.');
+    return (res.items ?? []).map(mapGrid);
 }
 
 export async function saveDieuDongSchedule(payload: {

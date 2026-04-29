@@ -312,7 +312,7 @@ export const useLegacyMenuDongLogic = ({
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
     printWindow.document.write(
-      `<pre style="white-space:pre-wrap;font-family:monospace;padding:16px">${escaped}</pre>`,
+      `<pre style="white-space:pre-wrap;font-family:inherit;padding:16px">${escaped}</pre>`,
     );
     printWindow.document.close();
     printWindow.focus();

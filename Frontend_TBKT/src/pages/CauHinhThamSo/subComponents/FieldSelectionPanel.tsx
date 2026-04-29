@@ -205,7 +205,7 @@ const FieldSelectionPanel: React.FC<FieldSelectionPanelProps> = React.memo(({
                                                             variant="caption"
                                                             color="text.secondary"
                                                             noWrap
-                                                            sx={{ fontFamily: 'monospace', fontSize: 11 }}
+                                                            sx={{ fontFamily: 'inherit', fontSize: 11 }}
                                                         >
                                                             {field.key} · {meta.label}
                                                         </Typography>

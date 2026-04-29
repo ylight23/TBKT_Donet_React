@@ -22,6 +22,7 @@ import officeApi from '../../../apis/officeApi';
 import { serializeProtoObject } from '../../../utils/serializeProto';
 import OfficeContext from '../../../context/OfficeContext';
 import { getStripedRowSx } from '../../../utils/stripedSurface';
+import { TreeSkeleton } from '../../../components/Skeletons';
 
 
 
@@ -80,6 +81,11 @@ export interface OfficeDictionaryProps {
 const officeNodeCache = new Map<string, OfficeNode[]>();
 const ROOT_KEY = 'root';
 const ROW_HEIGHT = 40;
+const TREE_GUIDE_STEP = 20;
+const TREE_GUIDE_LEFT = 10;
+const TREE_GUIDE_OVERLAP = 8;
+const TREE_GUIDE_RADIUS = 12;
+const TREE_GUIDE_WIDTH = '1px solid';
 
 function getNodeId(node: OfficeNode): string {
     return node.id?.toString() ?? '';
@@ -101,6 +107,79 @@ function isLoadingRow(row: VisibleRow): row is LoadingRow {
 function isTreeRow(row: VisibleRow): row is TreeRow {
     return 'node' in row;
 }
+
+const TreeGuideLines: React.FC<{ depth: number; rowHeight: number; hasExpandedChildren?: boolean; active?: boolean }> = ({
+    depth,
+    rowHeight,
+    hasExpandedChildren = false,
+    active = false,
+}) => {
+    const theme = useTheme();
+    if (depth <= 0 && !hasExpandedChildren) return null;
+
+    const lineColor = active
+        ? (theme.palette.mode === 'dark' ? '#7BC47F' : '#1B5E20')
+        : (theme.palette.mode === 'dark' ? 'rgba(123,196,127,0.42)' : 'rgba(27, 94, 32, 0.42)');
+    const elbowTop = Math.floor(rowHeight / 2);
+
+    return (
+        <Box aria-hidden sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {Array.from({ length: depth }).map((_, level) => {
+                const left = level * TREE_GUIDE_STEP + TREE_GUIDE_LEFT;
+                const isCurrent = level === depth - 1;
+                return (
+                    <React.Fragment key={level}>
+                        {!isCurrent && (
+                            <Box
+                                data-tree-guide="true"
+                                sx={{
+                                    position: 'absolute',
+                                    left,
+                                    top: -TREE_GUIDE_OVERLAP,
+                                    bottom: -TREE_GUIDE_OVERLAP,
+                                    borderLeft: TREE_GUIDE_WIDTH,
+                                    borderColor: lineColor,
+                                    transition: 'border-color 120ms ease',
+                                }}
+                            />
+                        )}
+                        {isCurrent && (
+                            <Box
+                                data-tree-guide="true"
+                                sx={{
+                                    position: 'absolute',
+                                    left,
+                                    top: -TREE_GUIDE_OVERLAP,
+                                    width: 18,
+                                    height: elbowTop + TREE_GUIDE_OVERLAP + 1,
+                                    borderLeft: TREE_GUIDE_WIDTH,
+                                    borderBottom: TREE_GUIDE_WIDTH,
+                                    borderBottomLeftRadius: TREE_GUIDE_RADIUS,
+                                    borderColor: lineColor,
+                                    transition: 'border-color 120ms ease',
+                                }}
+                            />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+            {hasExpandedChildren && (
+                <Box
+                    data-tree-guide="true"
+                    sx={{
+                        position: 'absolute',
+                        left: depth * TREE_GUIDE_STEP + TREE_GUIDE_LEFT,
+                        top: elbowTop - 1,
+                        bottom: -TREE_GUIDE_OVERLAP,
+                        borderLeft: TREE_GUIDE_WIDTH,
+                        borderColor: lineColor,
+                        transition: 'border-color 120ms ease',
+                    }}
+                />
+            )}
+        </Box>
+    );
+};
 
 function useSyncedStateRef<T>(initialState: T): [T, React.MutableRefObject<T>, (nextValue: SetStateAction<T>) => T] {
     const [state, setState] = useState<T>(initialState);
@@ -180,7 +259,8 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
     if ((row as LoadingRow).loading) {
         const loadingRow = row as LoadingRow;
         return (
-            <Box sx={{ ...style, display: 'flex', alignItems: 'center', pl: `${loadingRow.depth * 20 + 28}px`, gap: 1 }}>
+            <Box sx={{ ...style, position: 'absolute', display: 'flex', alignItems: 'center', pl: `${loadingRow.depth * TREE_GUIDE_STEP + 28}px`, gap: 1 }}>
+                <TreeGuideLines depth={loadingRow.depth} rowHeight={ROW_HEIGHT} />
                 <CircularProgress size={14} />
                 <Typography variant="body2" sx={{ color: '#757575', fontSize: '0.875rem' }}>Đang tải…</Typography>
             </Box>
@@ -195,9 +275,10 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
         <Box
             sx={{
                 ...style,
+                position: 'absolute',
                 display: 'flex',
                 alignItems: 'center',
-                pl: `${depth * 20}px`,
+                pl: `${depth * TREE_GUIDE_STEP}px`,
                 pr: 1,
                 cursor: 'pointer',
                 borderRadius: 1,
@@ -205,9 +286,13 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 userSelect: 'none',
                 mb: 0.25,
+                '&:hover [data-tree-guide="true"]': {
+                    borderColor: theme.palette.mode === 'dark' ? '#7BC47F' : '#1B5E20',
+                },
             }}
             onClick={() => onSelect(node)}
         >
+            <TreeGuideLines depth={depth} rowHeight={ROW_HEIGHT} hasExpandedChildren={canExpand && isExpanded} active={isSelected} />
             <Box
                 sx={{ width: 28, height: ROW_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                 onClick={canExpand ? (e: React.MouseEvent) => { e.stopPropagation(); onToggleExpand(id); } : undefined}
@@ -919,12 +1004,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             {/* Virtualized tree */}
             <Box sx={{ flex: 1, overflow: 'hidden', px: 1, py: 1 }}>
                 {loadingRoot || searchLoading ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '200px', gap: 2 }}>
-                        <CircularProgress />
-                        <Typography variant="body2" color="text.secondary">
-                            {searchLoading ? 'Đang tìm kiếm…' : 'Đang tải danh sách đơn vị…'}
-                        </Typography>
-                    </Box>
+                    <TreeSkeleton rows={8} />
                 ) : error ? (
                     <Alert severity="error">{error}</Alert>
                 ) : visibleList.length === 0 ? (

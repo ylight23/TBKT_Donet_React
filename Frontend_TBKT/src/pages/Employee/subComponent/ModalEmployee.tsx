@@ -3,7 +3,6 @@ import {
     Avatar,
     Box,
     Button,
-    CircularProgress,
     Divider,
     FormControlLabel,
     Grid,
@@ -31,6 +30,7 @@ import OfficeDictionaryDialog from './OfficeDictionaryDialog';
 import employeeApi from '../../../apis/employeeApi';
 import { OfficeNode } from '../../Office/subComponent/OfficeDictionary';
 import { useEmployee, EmployeeItem } from '../../../context/EmployeeContext';
+import { FormSkeleton } from '../../../components/Skeletons';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -274,10 +274,7 @@ const ModalEmployee: React.FC<ModalEmployeeProps> = ({ data }) => {
                 confirmText={isUpdate ? 'Lưu cán bộ' : 'Tạo cán bộ'}
             >
                 {isLoading && isOpen ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300, flexDirection: 'column', gap: 2 }}>
-                        <CircularProgress size={40} />
-                        <Typography color="text.secondary">Đang tải hồ sơ cán bộ…</Typography>
-                    </Box>
+                    <FormSkeleton rows={8} cols={2} />
                 ) : (
                     <Box component="form" autoComplete="off">
                         <Grid container spacing={3}>

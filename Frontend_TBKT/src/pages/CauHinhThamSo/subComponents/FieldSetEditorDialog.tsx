@@ -561,7 +561,7 @@ const FieldSetEditorDialog: React.FC<FieldSetEditorDialogProps> = ({ open, setDa
                                     error={customColor.trim().length > 0 && !isCustomColorValid}
                                     InputProps={{
                                         startAdornment: <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>#</Typography>,
-                                        sx: { fontFamily: 'monospace', fontWeight: 700 },
+                                        sx: { fontFamily: 'inherit', fontWeight: 700 },
                                     }}
                                     sx={{ flex: 1 }}
                                 />

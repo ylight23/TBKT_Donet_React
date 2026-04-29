@@ -69,8 +69,8 @@ export const createDialogTabsSx = (
     px: 2,
     mx: 0.25,
     textTransform: 'none' as const,
-    borderTopLeftRadius: '6px',
-    borderTopRightRadius: '6px',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     border: '1px solid',
     borderBottom: 0,
     borderColor: 'transparent',
@@ -87,7 +87,7 @@ export const createDialogTabsSx = (
   },
   '& .MuiTabs-indicator': {
     height: 3,
-    borderRadius: '3px 3px 0 0',
+    borderRadius: 0,
     bgcolor: accent,
   },
 });

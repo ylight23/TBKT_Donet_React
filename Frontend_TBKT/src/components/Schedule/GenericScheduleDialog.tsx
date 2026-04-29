@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     Box,
@@ -18,6 +18,8 @@ import type { SvgIconComponent } from '@mui/icons-material';
 import { FieldSetGroup, type GeneralFieldSetItem } from '../TrangBiDataGrid/GeneralInfoTab';
 import { FormDialog } from '../Dialog';
 import thamSoApi, { type LocalFieldSet } from '../../apis/thamSoApi';
+import { FormSkeleton, GridSkeleton } from '../Skeletons';
+import { militaryColors } from '../../theme';
 
 export type EquipmentOption = {
     key: string;
@@ -52,9 +54,16 @@ export interface GenericScheduleDialogProps {
     equipmentActionRenderer?: (equipment: EquipmentOption, selected: boolean, ensureSelected: () => void) => React.ReactNode;
     sidePanel?: React.ReactNode;
     sidePanelWidth?: number;
+    readOnly?: boolean;
 }
 
-const DEFAULT_SET_COLORS = ['#2563eb', '#0ea5e9', '#16a34a', '#d97706', '#7c3aed'];
+const DEFAULT_SET_COLORS = [
+    militaryColors.forestGreen,
+    militaryColors.info,
+    militaryColors.success,
+    militaryColors.warning,
+    militaryColors.gold,
+];
 const DOWS_VI = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const MONTHS_VI = [
     'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
@@ -116,7 +125,7 @@ const MiniCalendar: React.FC<{
     };
 
     return (
-        <Box>
+        <Box sx={{ width: '100%', minWidth: 0 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
                 <Button size="small" onClick={onPrev} sx={{ minWidth: 24, p: 0.25 }}>
                     <NavigateBeforeIcon fontSize="small" />
@@ -126,7 +135,7 @@ const MiniCalendar: React.FC<{
                     <NavigateNextIcon fontSize="small" />
                 </Button>
             </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.25 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 0.25, width: '100%' }}>
                 {DOWS_VI.map((d) => (
                     <Typography key={d} sx={{ fontSize: '0.62rem', color: 'text.secondary', textAlign: 'center', fontWeight: 700 }}>
                         {d}
@@ -142,7 +151,7 @@ const MiniCalendar: React.FC<{
                             onClick={() => onDayClick(d)}
                             sx={{
                                 textAlign: 'center',
-                                py: 0.35,
+                                py: { xs: 0.25, sm: 0.35 },
                                 borderRadius: 1,
                                 cursor: 'pointer',
                                 fontSize: '0.72rem',
@@ -172,7 +181,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
     equipmentLoading,
     title,
     icon: Icon,
-    color = '#2563eb',
+    color = militaryColors.forestGreen,
     fieldSetKey,
     nameFieldKey,
     nameFieldLabel,
@@ -182,6 +191,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
     equipmentActionRenderer,
     sidePanel,
     sidePanelWidth = 520,
+    readOnly = false,
 }) => {
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -204,7 +214,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
             const data = await thamSoApi.getFieldSetsByKey(fieldSetKey);
             setFieldSetDetails(mergeFieldSets(data));
         } catch (error) {
-            setSchemaError((error as Error).message || 'Khong tai duoc fieldset.');
+            setSchemaError((error as Error).message || 'Không tải được dữ liệu.');
         } finally {
             setSchemaLoading(false);
         }
@@ -237,10 +247,12 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
     }, [open, initialData, initialEquipment, startDateFieldKey, endDateFieldKey, loadFieldSets]);
 
     const handleFieldChange = useCallback((key: string, value: string) => {
+        if (readOnly) return;
         setFormData((prev) => ({ ...prev, [key]: value }));
-    }, []);
+    }, [readOnly]);
 
     const handleDayClick = useCallback((d: number) => {
+        if (readOnly) return;
         const dt = new Date(calYear, calMonth, d);
         if (!rangeStart || (rangeStart && rangeEnd)) {
             setRangeStart(dt);
@@ -256,7 +268,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
         setRangeEnd(end);
         handleFieldChange(startDateFieldKey, toInputDate(start.toISOString()));
         handleFieldChange(endDateFieldKey, toInputDate(end.toISOString()));
-    }, [calMonth, calYear, endDateFieldKey, handleFieldChange, rangeEnd, rangeStart, startDateFieldKey]);
+    }, [calMonth, calYear, endDateFieldKey, handleFieldChange, rangeEnd, rangeStart, readOnly, startDateFieldKey]);
 
     const navigateMonth = useCallback((dir: number) => {
         setCalMonth((prev) => {
@@ -285,11 +297,11 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
                 label: field.label,
                 type: field.type,
                 required: field.required,
-                disabled: field.disabled ?? false,
+                disabled: readOnly || (field.disabled ?? false),
                 validation: field.validation ?? {},
             })),
         }))
-    ), [fieldSetDetails]);
+    ), [fieldSetDetails, readOnly]);
 
     const dynamicFieldKeys = useMemo(
         () => new Set(dynamicContent.flatMap((item) => item.fields.map((field) => String(field.key || '').trim())).filter(Boolean)),
@@ -315,19 +327,19 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
 
     const equipmentColumns = useMemo<GridColDef<EquipmentOption>[]>(() => {
         const baseColumns: GridColDef<EquipmentOption>[] = [
-            { field: 'soHieu', headerName: 'So hieu', width: 130 },
-            { field: 'maDanhMuc', headerName: 'Ma danh muc', width: 180 },
-            { field: 'tenDanhMuc', headerName: 'Ten trang bi', minWidth: 260, flex: 1 },
-            { field: 'nhom', headerName: 'Nhom', width: 90, align: 'center', headerAlign: 'center', valueGetter: (_, row) => `N${row.nhom}` },
-            { field: 'donVi', headerName: 'Don vi', minWidth: 170, flex: 0.8 },
+            { field: 'soHieu', headerName: 'Số hiệu', width: 130 },
+            { field: 'maDanhMuc', headerName: 'Mã danh mục', width: 180 },
+            { field: 'tenDanhMuc', headerName: 'Tên trang bị', minWidth: 260, flex: 1 },
+            { field: 'nhom', headerName: 'Nhóm', width: 90, align: 'center', headerAlign: 'center', valueGetter: (_, row) => `N${row.nhom}` },
+            { field: 'donVi', headerName: 'Đơn vị', minWidth: 170, flex: 0.8 },
         ];
 
-        if (!equipmentActionRenderer) return baseColumns;
+        if (!equipmentActionRenderer || readOnly) return baseColumns;
 
         return [
             {
                 field: '__actions',
-                headerName: 'Chi tiet',
+                headerName: 'Chi tiết',
                 width: 118,
                 sortable: false,
                 filterable: false,
@@ -342,7 +354,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
             },
             ...baseColumns,
         ];
-    }, [equipmentActionRenderer, selectedEquipmentKeys]);
+    }, [equipmentActionRenderer, readOnly, selectedEquipmentKeys]);
 
     const rowSelectionModel = useMemo<GridRowSelectionModel>(
         () => ({ type: 'include', ids: new Set(Array.from(selectedEquipmentKeys)) }),
@@ -350,8 +362,9 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
     );
 
     const handleSelectionModelChange = useCallback((model: GridRowSelectionModel) => {
+        if (readOnly) return;
         setSelectedEquipmentKeys(new Set(Array.from(model.ids).map((id) => String(id))));
-    }, []);
+    }, [readOnly]);
 
     const formatDateLabel = (dt: Date | null): string => {
         if (!dt) return '--';
@@ -364,13 +377,14 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
     }, [rangeEnd, rangeStart]);
 
     const handleSave = async () => {
+        if (readOnly) return;
         const requiredName = String(formData[nameFieldKey] || '').trim();
         if (!requiredName) {
             setSaveError(requiredNameError);
             return;
         }
         if (selectedEquipmentKeys.size === 0) {
-            setSaveError('Vui long chon it nhat 1 trang bi.');
+            setSaveError('Vui lòng chọn ít nhất 1 trang bị.');
             return;
         }
 
@@ -383,7 +397,7 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
         try {
             await onSave({ formData: mergedFormData, selectedEquipment });
         } catch (error) {
-            setSaveError((error as Error).message || 'Khong the luu ke hoach.');
+            setSaveError((error as Error).message || 'Không thể lưu kế hoạch.');
         } finally {
             setSaving(false);
         }
@@ -407,173 +421,195 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
                     {saveError && <Alert severity="error" sx={{ flex: 1, py: 0.5, px: 1.5, mr: 1 }}>{saveError}</Alert>}
                     <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
                         {selectedEquipmentKeys.size > 0
-                            ? `Ke hoach ap dung cho ${selectedEquipmentKeys.size} trang bi`
-                            : 'Nhap thong tin va chon it nhat 1 trang bi'}
+                            ? `Kế hoạch áp dụng cho ${selectedEquipmentKeys.size} trang bị`
+                            : 'Nhập thông tin và chọn ít nhất 1 trang bị'}
                     </Typography>
-                    <Button onClick={onClose} variant="outlined">Huy</Button>
-                    <Button onClick={handleSave} variant="contained" startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />} disabled={saving}>
-                        {saving ? 'Dang luu...' : (editingId ? 'Cap nhat' : 'Luu ke hoach')}
-                    </Button>
+                    <Button onClick={onClose} variant="outlined">{readOnly ? 'Đóng' : 'Hủy'}</Button>
+                    {!readOnly && (
+                        <Button onClick={handleSave} variant="contained" startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />} disabled={saving}>
+                            {saving ? 'Đang lưu...' : (editingId ? 'Cập nhật' : 'Lưu kế hoạch')}
+                        </Button>
+                    )}
                 </>
             )}
         >
             <Box sx={{ display: 'flex', minHeight: 640, maxHeight: 'calc(100vh - 220px)', overflow: 'hidden' }}>
-                <Box sx={{ flex: 1, minWidth: 0, display: 'flex', overflow: 'hidden' }}>
-                <Box sx={{ width: sidePanel ? '46%' : '52%', minWidth: sidePanel ? 380 : 460, borderRight: '0.5px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
-                        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Thong tin ke hoach
-                        </Typography>
-                    </Box>
-                    <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {!dynamicFieldKeys.has(nameFieldKey) && (
-                            <TextField
-                                fullWidth
-                                size="small"
-                                label={nameFieldLabel}
-                                value={formData[nameFieldKey] || ''}
-                                onChange={(e) => handleFieldChange(nameFieldKey, e.target.value)}
-                            />
-                        )}
-                        {!dynamicFieldKeys.has(startDateFieldKey) && (
-                            <TextField
-                                fullWidth
-                                size="small"
-                                type="date"
-                                label="Thoi gian thuc hien"
-                                InputLabelProps={{ shrink: true }}
-                                value={formData[startDateFieldKey] || ''}
-                                onChange={(e) => { handleFieldChange(startDateFieldKey, e.target.value); if (e.target.value) setRangeStart(new Date(e.target.value)); }}
-                            />
-                        )}
-                        {!dynamicFieldKeys.has(endDateFieldKey) && (
-                            <TextField
-                                fullWidth
-                                size="small"
-                                type="date"
-                                label="Thoi gian ket thuc"
-                                InputLabelProps={{ shrink: true }}
-                                value={formData[endDateFieldKey] || ''}
-                                onChange={(e) => { handleFieldChange(endDateFieldKey, e.target.value); if (e.target.value) setRangeEnd(new Date(e.target.value)); }}
-                            />
-                        )}
-
-                        <Box sx={{ borderTop: '0.5px solid', borderColor: 'divider', pt: 1.5 }}>
-                            {schemaLoading ? (
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                    <CircularProgress size={16} />
-                                    <Typography variant="caption" color="text.secondary">Dang tai fieldset...</Typography>
-                                </Stack>
-                            ) : schemaError ? (
-                                <Alert severity="warning" sx={{ fontSize: '0.75rem' }}>{schemaError}</Alert>
-                            ) : dynamicContent.length === 0 ? (
-                                <Typography variant="caption" color="text.disabled">Chua co fieldset cau hinh.</Typography>
-                            ) : (
-                                dynamicContent.map((item, index) => (
-                                    <FieldSetGroup
-                                        key={`${item.fieldSet.id}-${index}`}
-                                        fieldSet={item.fieldSet}
-                                        fields={item.fields}
-                                        formData={formData}
-                                        onFieldChange={handleFieldChange}
-                                        color={item.fieldSet.color || DEFAULT_SET_COLORS[index % DEFAULT_SET_COLORS.length]}
-                                        showSectionHeader={false}
-                                    />
-                                ))
-                            )}
-                        </Box>
-                    </Box>
-                </Box>
-
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-                    <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: '#EAF2FF', height: '40%', minHeight: 230 }}>
-                        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
-                            Chon khoang thoi gian
-                        </Typography>
-                        <Box sx={{ maxWidth: 320 }}>
-                            <MiniCalendar
-                                year={calYear}
-                                month={calMonth}
-                                rangeStart={rangeStart}
-                                rangeEnd={rangeEnd}
-                                onPrev={() => navigateMonth(-1)}
-                                onNext={() => navigateMonth(1)}
-                                onDayClick={handleDayClick}
-                            />
-                            <Stack direction="row" spacing={1} mt={1}>
-                                <Box sx={{ flex: 1, bgcolor: 'background.default', borderRadius: 1, p: 0.75, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>Bat dau</Typography>
-                                    <Typography variant="caption" fontWeight={700}>{formatDateLabel(rangeStart)}</Typography>
-                                </Box>
-                                <Box sx={{ flex: 1, bgcolor: 'background.default', borderRadius: 1, p: 0.75, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>Ket thuc</Typography>
-                                    <Typography variant="caption" fontWeight={700}>{formatDateLabel(rangeEnd)}</Typography>
-                                </Box>
-                                <Box sx={{ flex: 1, bgcolor: 'background.default', borderRadius: 1, p: 0.75, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>Thoi luong</Typography>
-                                    <Typography variant="caption" fontWeight={700}>{durationDays !== null ? `${durationDays} ngay` : '--'}</Typography>
-                                </Box>
-                            </Stack>
-                        </Box>
-                    </Box>
-
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 320 }}>
-                        <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: '#EAF2FF', display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>
-                                Danh sach trang bi
-                            </Typography>
-                            <Typography variant="caption" color="text.disabled">
-                                ({selectedEquipment.length} da chon / {equipmentPool.length})
+                <Box sx={{ flex: 1, minWidth: 0, display: 'flex', gap: 1, overflow: 'hidden', bgcolor: 'background.default' }}>
+                    <Box sx={{ width: sidePanel ? '46%' : '52%', minWidth: sidePanel ? 380 : 460, border: '0.5px solid', borderColor: 'divider', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
+                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Thông tin kế hoạch
                             </Typography>
                         </Box>
-
-                        <Box sx={{ px: 2, py: 1, borderBottom: '0.5px solid', borderColor: 'divider', display: 'flex', gap: 1, alignItems: 'center' }}>
-                            <TextField
-                                size="small"
-                                placeholder="Tim trang bi..."
-                                value={equipmentSearch}
-                                onChange={(e) => setEquipmentSearch(e.target.value)}
-                                InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: 0.5, color: 'text.disabled' }} /> }}
-                                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.75 } }}
-                            />
-                            {(['all', 'nhom1', 'nhom2'] as const).map((n) => (
-                                <Button
-                                    key={n}
+                        <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {!dynamicFieldKeys.has(nameFieldKey) && (
+                                <TextField
+                                    fullWidth
                                     size="small"
-                                    variant={nhomFilter === n ? 'contained' : 'outlined'}
-                                    onClick={() => setNhomFilter(n)}
-                                    sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.72rem', textTransform: 'none' }}
-                                >
-                                    {n === 'all' ? 'Tat ca' : n === 'nhom1' ? 'Nhom 1' : 'Nhom 2'}
-                                </Button>
-                            ))}
-                        </Box>
-
-                        <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                            {equipmentLoading ? (
-                                <Stack alignItems="center" py={4}><CircularProgress size={24} /></Stack>
-                            ) : (
-                                <DataGrid
-                                    rows={filteredEquipmentRows}
-                                    getRowId={(row) => row.key}
-                                    columns={equipmentColumns}
-                                    checkboxSelection
-                                    disableRowSelectionOnClick
-                                    rowSelectionModel={rowSelectionModel}
-                                    onRowSelectionModelChange={handleSelectionModelChange}
-                                    keepNonExistentRowsSelected
-                                    hideFooter
-                                    density="compact"
-                                    sx={{
-                                        border: 0,
-                                        '& .MuiDataGrid-columnHeaders': { borderBottom: '0.5px solid', borderColor: 'divider' },
-                                        '& .MuiDataGrid-cell': { borderBottom: '0.5px solid', borderColor: 'divider', fontSize: '0.78rem' },
-                                    }}
+                                    label={nameFieldLabel}
+                                    value={formData[nameFieldKey] || ''}
+                                    disabled={readOnly}
+                                    onChange={(e) => handleFieldChange(nameFieldKey, e.target.value)}
                                 />
                             )}
+                            {!dynamicFieldKeys.has(startDateFieldKey) && (
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    type="date"
+                                    label="Thời gian thực hiện"
+                                    InputLabelProps={{ shrink: true }}
+                                    value={formData[startDateFieldKey] || ''}
+                                    disabled={readOnly}
+                                    onChange={(e) => { handleFieldChange(startDateFieldKey, e.target.value); if (e.target.value) setRangeStart(new Date(e.target.value)); }}
+                                />
+                            )}
+                            {!dynamicFieldKeys.has(endDateFieldKey) && (
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    type="date"
+                                    label="Thời gian kết thúc"
+                                    InputLabelProps={{ shrink: true }}
+                                    value={formData[endDateFieldKey] || ''}
+                                    disabled={readOnly}
+                                    onChange={(e) => { handleFieldChange(endDateFieldKey, e.target.value); if (e.target.value) setRangeEnd(new Date(e.target.value)); }}
+                                />
+                            )}
+
+                            <Box sx={{ borderTop: '0.5px solid', borderColor: 'divider', pt: 1.5 }}>
+                                {schemaLoading ? (
+                                    <FormSkeleton rows={3} cols={1} />
+                                ) : schemaError ? (
+                                    <Alert severity="warning" sx={{ fontSize: '0.75rem' }}>{schemaError}</Alert>
+                                ) : dynamicContent.length === 0 ? (
+                                    <Typography variant="caption" color="text.disabled">Chưa có dữ liệu cấu hình.</Typography>
+                                ) : (
+                                    dynamicContent.map((item, index) => (
+                                        <FieldSetGroup
+                                            key={`${item.fieldSet.id}-${index}`}
+                                            fieldSet={item.fieldSet}
+                                            fields={item.fields}
+                                            formData={formData}
+                                            onFieldChange={handleFieldChange}
+                                            color={item.fieldSet.color || DEFAULT_SET_COLORS[index % DEFAULT_SET_COLORS.length]}
+                                            showSectionHeader={false}
+                                        />
+                                    ))
+                                )}
+                            </Box>
                         </Box>
                     </Box>
-                </Box>
+
+                    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden', bgcolor: 'background.default' }}>
+                        <Box
+                            sx={{
+                                border: '0.5px solid',
+                                borderColor: 'divider',
+                                bgcolor: '#EAF2FF',
+                                flex: '0 0 auto',
+                                minHeight: 0,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+                                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+                                    Chọn khoảng thời gian
+                                </Typography>
+                            </Box>
+                            <Box sx={{ width: '100%', minWidth: 0, p: 1.5 }}>
+                                <MiniCalendar
+                                    year={calYear}
+                                    month={calMonth}
+                                    rangeStart={rangeStart}
+                                    rangeEnd={rangeEnd}
+                                    onPrev={() => navigateMonth(-1)}
+                                    onNext={() => navigateMonth(1)}
+                                    onDayClick={handleDayClick}
+                                />
+                                <Box
+                                    sx={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                                        gap: 1,
+                                        mt: 1,
+                                    }}
+                                >
+                                    <Box sx={{ minWidth: 0, bgcolor: 'background.default', borderRadius: 1, p: 0.75, textAlign: 'center' }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>Bắt đầu</Typography>
+                                        <Typography variant="caption" fontWeight={700} noWrap>{formatDateLabel(rangeStart)}</Typography>
+                                    </Box>
+                                    <Box sx={{ minWidth: 0, bgcolor: 'background.default', borderRadius: 1, p: 0.75, textAlign: 'center' }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>Kết thúc</Typography>
+                                        <Typography variant="caption" fontWeight={700} noWrap>{formatDateLabel(rangeEnd)}</Typography>
+                                    </Box>
+                                    <Box sx={{ minWidth: 0, bgcolor: 'background.default', borderRadius: 1, p: 0.75, textAlign: 'center' }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>Thời lượng</Typography>
+                                        <Typography variant="caption" fontWeight={700} noWrap>{durationDays !== null ? `${durationDays} ngày` : '--'}</Typography>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        </Box>
+
+                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, border: '0.5px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+                            <Box sx={{ px: 2, py: 1.5, borderBottom: '0.5px solid', borderColor: 'divider', bgcolor: 'background.default', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>
+                                    Danh sách trang bị
+                                </Typography>
+                                <Typography variant="caption" color="text.disabled">
+                                    ({selectedEquipment.length} đã chọn / {equipmentPool.length})
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ px: 2, py: 1, borderBottom: '0.5px solid', borderColor: 'divider', display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <TextField
+                                    size="small"
+                                    placeholder="Tìm trang bị..."
+                                    value={equipmentSearch}
+                                    disabled={readOnly}
+                                    onChange={(e) => setEquipmentSearch(e.target.value)}
+                                    InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: 0.5, color: 'text.disabled' }} /> }}
+                                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.75 } }}
+                                />
+                                {(['all', 'nhom1', 'nhom2'] as const).map((n) => (
+                                    <Button
+                                        key={n}
+                                        size="small"
+                                        variant={nhomFilter === n ? 'contained' : 'outlined'}
+                                        disabled={readOnly}
+                                        onClick={() => setNhomFilter(n)}
+                                        sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.72rem', textTransform: 'none' }}
+                                    >
+                                        {n === 'all' ? 'Tất cả' : n === 'nhom1' ? 'Nhóm 1' : 'Nhóm 2'}
+                                    </Button>
+                                ))}
+                            </Box>
+
+                            <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                                {equipmentLoading ? (
+                                    <GridSkeleton rows={6} cols={5} />
+                                ) : (
+                                    <DataGrid
+                                        rows={filteredEquipmentRows}
+                                        getRowId={(row) => row.key}
+                                        columns={equipmentColumns}
+                                        checkboxSelection={!readOnly}
+                                        disableRowSelectionOnClick
+                                        rowSelectionModel={readOnly ? undefined : rowSelectionModel}
+                                        onRowSelectionModelChange={readOnly ? undefined : handleSelectionModelChange}
+                                        keepNonExistentRowsSelected
+                                        hideFooter
+                                        density="compact"
+                                        sx={{
+                                            border: 0,
+                                            '& .MuiDataGrid-columnHeaders': { borderBottom: '0.5px solid', borderColor: 'divider' },
+                                            '& .MuiDataGrid-cell': { borderBottom: '0.5px solid', borderColor: 'divider', fontSize: '0.78rem' },
+                                        }}
+                                    />
+                                )}
+                            </Box>
+                        </Box>
+                    </Box>
                 </Box>
                 {sidePanel && (
                     <Box
@@ -598,3 +634,4 @@ const GenericScheduleDialog: React.FC<GenericScheduleDialogProps> = ({
 };
 
 export default GenericScheduleDialog;
+

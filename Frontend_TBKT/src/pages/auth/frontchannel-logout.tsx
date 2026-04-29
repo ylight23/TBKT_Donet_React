@@ -51,7 +51,7 @@ const FrontChannelLogout: React.FC = () => {
   }, [dispatch]);
 
   return (
-    <div style={{ padding: 16, fontFamily: "Arial, sans-serif" }}>
+    <div style={{ padding: 16, fontFamily: "inherit" }}>
       Logout processed. You may close this tab.
     </div>
   );

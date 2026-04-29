@@ -7,7 +7,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
 import Skeleton from '@mui/material/Skeleton';
 import Collapse from '@mui/material/Collapse';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
@@ -20,6 +19,7 @@ import type {
   LocalFieldSet as FieldSet,
 } from '../../types/thamSo';
 import { FieldSetGroup } from './GeneralInfoTab';
+import { FormSkeleton } from '../Skeletons';
 
 // ── Types ─────────────────────────────────────────────────────
 export interface TechnicalFieldSetItem {
@@ -43,13 +43,10 @@ const DEFAULT_SET_COLORS = ['#3b82f6', '#22d3ee', '#34d399', '#fbbf24', '#a78bfa
 
 // ── Empty state helpers ──────────────────────────────────────
 const EmptyStateLoading: React.FC<{ selectedCategoryCode: string }> = ({ selectedCategoryCode }) => (
-  <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
-    <CircularProgress size={28} sx={{ mb: 2 }} />
-    <Typography variant="body2" fontWeight={600}>
-      Đang tải thông số kỹ thuật...
-    </Typography>
+  <Box>
+    <FormSkeleton rows={6} cols={2} />
     {selectedCategoryCode && (
-      <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.65 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ px: 2, mt: -1, display: 'block', opacity: 0.65 }}>
         Mã danh mục: {selectedCategoryCode}
       </Typography>
     )}
@@ -333,10 +330,7 @@ const TechnicalFieldsTab: React.FC<TechnicalFieldsTabProps> = ({
 
       {/* Loading spinner khi đang nạp thêm (đã có content trước đó) */}
       {technicalLoading && (
-        <Box sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
-          <CircularProgress size={20} sx={{ mb: 1 }} />
-          <Typography variant="body2">Đang tải thêm thông số kỹ thuật...</Typography>
-        </Box>
+        <FormSkeleton rows={2} cols={2} />
       )}
     </Stack>
   );

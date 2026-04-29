@@ -150,7 +150,7 @@ const SetSelectorDialog: React.FC<SetSelectorDialogProps> = ({
                                         </Box>
                                         <Box>
                                             <Typography variant="body2" fontWeight={700}>{field.label}</Typography>
-                                            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'primary.main', opacity: 0.8 }}>{field.key}</Typography>
+                                            <Typography variant="caption" sx={{ fontFamily: 'inherit', color: 'primary.main', opacity: 0.8 }}>{field.key}</Typography>
                                         </Box>
                                     </Stack>
                                 ))}

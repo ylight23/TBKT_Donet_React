@@ -4,6 +4,7 @@ import {
     DeleteNiemCatScheduleRequestSchema,
     GetNiemCatScheduleRequestSchema,
     GetListNiemCatScheduleRequestSchema,
+    GetListNiemCatScheduleByTrangBiRequestSchema,
     SaveNiemCatScheduleRequestSchema,
     NiemCatScheduleItemSchema,
     type NiemCatScheduleGridItem as NiemCatScheduleGridItemProto,
@@ -162,6 +163,22 @@ export async function getNiemCatSchedule(id: string): Promise<LocalNiemCatSchedu
     const res = await niemCatScheduleClient.getNiemCatSchedule(req);
     if (!res.success || !res.item) throw new Error(res.message || 'Khong the lay chi tiet lich niem cat.');
     return mapItem(res.item);
+}
+
+export async function getNiemCatSchedulesByTrangBi(
+    idTrangBi: string,
+    nhomTrangBi: number,
+): Promise<LocalNiemCatScheduleGridItem[]> {
+    const normalizedId = String(idTrangBi ?? '').trim();
+    if (!normalizedId) return [];
+
+    const req = create(GetListNiemCatScheduleByTrangBiRequestSchema, {
+        idTrangBi: normalizedId,
+        nhomTrangBi,
+    });
+    const res = await niemCatScheduleClient.getListNiemCatScheduleByTrangBi(req);
+    if (!res.success) throw new Error(res.message || 'Khong the lay lich niem cat theo trang bi.');
+    return (res.items ?? []).map(mapGrid);
 }
 
 export async function saveNiemCatSchedule(payload: {

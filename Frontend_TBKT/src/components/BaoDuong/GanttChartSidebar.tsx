@@ -172,10 +172,10 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                     />
                     <Box mt={1.5} pt={1.5} sx={{ borderTop: '0.5px solid', borderColor: 'divider' }}>
                         <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                            Sap dien ra
+                            Sắp diễn ra
                         </Typography>
                         {upcomingSchedules.length === 0 ? (
-                            <Typography variant="caption" color="text.disabled">Khong co ke hoach sap toi</Typography>
+                            <Typography variant="caption" color="text.disabled">Không có kế hoạch sắp tới</Typography>
                         ) : (
                             upcomingSchedules.map((s) => (
                                 <Box
@@ -184,7 +184,7 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                                     sx={{ py: 0.75, borderBottom: '0.5px solid', borderColor: 'divider', cursor: 'pointer', '&:last-child': { borderBottom: 'none' } }}
                                 >
                                     <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.8rem' }}>{s.tenLich}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{s.soTrangBi} trang bi</Typography>
+                                    <Typography variant="caption" color="text.secondary">{s.soTrangBi} trang bị</Typography>
                                 </Box>
                             ))
                         )}
@@ -197,7 +197,7 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                     title={(
                         <Stack direction="row" alignItems="center" spacing={0.75}>
                             <WarningAmberIcon sx={{ fontSize: 15, color: '#A32D2D' }} />
-                            <Typography variant="caption" fontWeight={700} color="error.main">Can xu ly</Typography>
+                            <Typography variant="caption" fontWeight={700} color="error.main">Cần xử lý</Typography>
                         </Stack>
                     )}
                     sx={{ p: 1.5, pb: 0.5 }}
@@ -206,14 +206,14 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                     {actionItems.length === 0 ? (
                         <Stack alignItems="center" spacing={0.5} py={1}>
                             <ScheduleIcon sx={{ fontSize: 28, color: 'text.disabled' }} />
-                            <Typography variant="caption" color="text.disabled">Khong co muc can xu ly</Typography>
+                            <Typography variant="caption" color="text.disabled">Không có mục cần xử lý</Typography>
                         </Stack>
                     ) : (
                         actionItems.map(({ schedule, type, days }) => (
                             <Box key={schedule.id} onClick={() => onScheduleClick?.(schedule)} sx={{ py: 0.75, borderBottom: '0.5px solid', borderColor: 'divider', cursor: 'pointer', '&:last-child': { borderBottom: 'none' } }}>
                                 <Stack direction="row" spacing={1} alignItems="flex-start">
                                     <Chip
-                                        label={type === 'overdue' ? 'Qua han' : 'Sap han'}
+                                        label={type === 'overdue' ? 'Quá hạn' : 'Sắp hạn'}
                                         size="small"
                                         sx={{
                                             fontSize: '0.6rem',
@@ -228,7 +228,7 @@ const GanttChartSidebar: React.FC<GanttChartSidebarProps> = ({ schedules, onSche
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Typography variant="caption" fontWeight={700} sx={{ display: 'block', fontSize: '0.78rem' }}>{schedule.tenLich}</Typography>
                                         <Typography variant="caption" sx={{ fontSize: '0.68rem', color: type === 'overdue' ? '#A32D2D' : '#854F0B' }}>
-                                            {type === 'overdue' ? `Qua han ${days} ngay` : `Con ${days} ngay`}
+                                            {type === 'overdue' ? `Quá hạn ${days} ngày` : `Còn ${days} ngày`}
                                         </Typography>
                                     </Box>
                                 </Stack>

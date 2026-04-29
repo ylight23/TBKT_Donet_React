@@ -117,12 +117,12 @@ const FieldLibraryRow = React.memo(({ field, index, start, active, cnMap, onTogg
                     transition: 'background-color 0.1s',
                 }}
             >
-                <Typography variant="caption" color="text.disabled" sx={{ width: 36, textAlign: 'right', fontFamily: 'monospace' }}>
+                <Typography variant="caption" color="text.disabled" sx={{ width: 36, textAlign: 'right', fontFamily: 'inherit' }}>
                     {index + 1}
                 </Typography>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="body2" fontWeight={700} noWrap>{field.label}</Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap sx={{ fontFamily: 'monospace' }}>{field.key}</Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap sx={{ fontFamily: 'inherit' }}>{field.key}</Typography>
                 </Box>
                 <Chip size="small" icon={<Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5, color: meta.color }}>{meta.icon}</Box> as any} label={meta.label} sx={{ height: 20, fontSize: 10, bgcolor: `${meta.color}18`, color: meta.color }} />
                 {field.required && <Chip size="small" color="error" label="Bat buoc" variant="outlined" sx={{ height: 20, fontSize: 10 }} />}
@@ -449,7 +449,7 @@ const PageFieldLibrary: React.FC<PageFieldLibraryProps> = ({ fields, deletedFiel
                         </RadioGroup>
                     </Box>
                     {hasActiveFilters && <Button size="small" variant="text" color="inherit" onClick={clearAllFilters} sx={{ fontSize: 11, textTransform: 'none' }}>Xoa bo loc</Button>}
-                    {deletedFields.length > 0 && <><Divider /><Box><Box onClick={() => setShowDeleted(!showDeleted)} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', py: 0.5 }}><RestoreIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main' }} /><Typography variant="caption" fontWeight={700} color="warning.main">Da xoa ({deletedFields.length})</Typography><ExpandMoreIcon fontSize="small" sx={{ ml: 'auto', transform: showDeleted ? 'rotate(180deg)' : 'none', transition: '0.2s' }} /></Box><Collapse in={showDeleted}><Stack spacing={0.5} sx={{ mt: 0.5 }}>{deletedFields.map((field) => <Box key={field.id} sx={{ p: 0.75, borderRadius: 1, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center' }}><Box sx={{ flex: 1, minWidth: 0 }}><Typography variant="caption" fontWeight={600} noWrap display="block">{field.label}</Typography><Typography variant="caption" color="text.secondary" noWrap sx={{ fontFamily: 'monospace' }}>{field.key}</Typography></Box><Button size="small" variant="text" sx={{ fontSize: 10, minWidth: 0 }} onClick={() => void onRestoreField(field.id)}>Phuc hoi</Button><Tooltip title="Xoa vinh vien"><IconButton size="small" color="error" onClick={() => void onHardDeleteField(field.id)}><WarningAmberIcon fontSize="small" /></IconButton></Tooltip></Box>)}</Stack></Collapse></Box></>}
+                    {deletedFields.length > 0 && <><Divider /><Box><Box onClick={() => setShowDeleted(!showDeleted)} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', py: 0.5 }}><RestoreIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main' }} /><Typography variant="caption" fontWeight={700} color="warning.main">Da xoa ({deletedFields.length})</Typography><ExpandMoreIcon fontSize="small" sx={{ ml: 'auto', transform: showDeleted ? 'rotate(180deg)' : 'none', transition: '0.2s' }} /></Box><Collapse in={showDeleted}><Stack spacing={0.5} sx={{ mt: 0.5 }}>{deletedFields.map((field) => <Box key={field.id} sx={{ p: 0.75, borderRadius: 1, border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center' }}><Box sx={{ flex: 1, minWidth: 0 }}><Typography variant="caption" fontWeight={600} noWrap display="block">{field.label}</Typography><Typography variant="caption" color="text.secondary" noWrap sx={{ fontFamily: 'inherit' }}>{field.key}</Typography></Box><Button size="small" variant="text" sx={{ fontSize: 10, minWidth: 0 }} onClick={() => void onRestoreField(field.id)}>Phuc hoi</Button><Tooltip title="Xoa vinh vien"><IconButton size="small" color="error" onClick={() => void onHardDeleteField(field.id)}><WarningAmberIcon fontSize="small" /></IconButton></Tooltip></Box>)}</Stack></Collapse></Box></>}
                 </CardContent>
             </Card>
 

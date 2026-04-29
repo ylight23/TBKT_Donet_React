@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
-  CircularProgress,
   IconButton,
   MenuItem,
   Pagination,
@@ -26,6 +25,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import thamSoApi from '../../../apis/thamSoApi';
 import { useTemplateRuntimeContext } from '../runtimeContext';
 import { useMyPermissions } from '../../../hooks/useMyPermissions';
+import { GridSkeleton } from '../../../components/Skeletons';
 
 type ColumnDef = { label: string; key: string; align?: string };
 type RowDef = Record<string, unknown>;
@@ -467,9 +467,7 @@ export const DataTableBlockConfig = {
         {loadError && <Alert severity="error" sx={{ mb: 1 }}>{loadError}</Alert>}
 
         {loadingRows ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={28} />
-          </Box>
+          <GridSkeleton rows={6} cols={Math.max(cols.length + (hasActionColumn ? 1 : 0), 4)} />
         ) : (
           <TableContainer component={Paper} variant="outlined">
             <Table size={dense === 'yes' ? 'small' : 'medium'}>

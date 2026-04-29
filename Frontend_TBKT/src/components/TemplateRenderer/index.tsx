@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Render, type Config, type Data } from '@puckeditor/core';
 import '@puckeditor/core/puck.css';
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { Alert, Box, Stack, Typography } from '@mui/material';
 import { PUCK_CONFIG } from '../../features/templateRuntime/puckConfig';
 import { toEditorData } from '../../features/templateRuntime/editorData';
 import thamSoApi from '../../apis/thamSoApi';
 import { TemplateRuntimeProvider } from '../../features/templateRuntime/runtimeContext';
+import { PageSkeleton } from '../Skeletons';
 
 interface TemplateRendererProps {
   templateKey: string;
@@ -81,11 +82,7 @@ const TemplateRenderer: React.FC<TemplateRendererProps> = ({
   }, [templateKey]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <PageSkeleton />;
   }
 
   if (error) {

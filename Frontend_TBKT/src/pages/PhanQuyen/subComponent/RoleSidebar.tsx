@@ -81,7 +81,7 @@ const SidebarRole = React.memo(function SidebarRole({ role, rowIndex, selected, 
                     color: 'text.disabled',
                     flexShrink: 0,
                     fontWeight: 600,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "inherit",
                 }}
             >
                 {role.userCount}

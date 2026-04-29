@@ -23,6 +23,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import { DialogSkeleton } from '../Skeletons';
 
 export type DialogMode = 'add' | 'edit' | 'delete' | 'info' | 'success' | 'warning' | 'error' | 'custom';
 
@@ -253,14 +254,11 @@ export const DialogShell: React.FC<DialogShellProps> = ({
                     <Box sx={{
                         position: 'absolute',
                         inset: 0,
-                        bgcolor: 'rgba(255,255,255,0.7)',
+                        bgcolor: 'background.paper',
                         zIndex: 10,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backdropFilter: 'blur(2px)',
+                        overflow: 'hidden',
                     }}>
-                        <CircularProgress size={40} color="primary" />
+                        <DialogSkeleton rows={6} cols={2} />
                     </Box>
                 )}
                 {children}

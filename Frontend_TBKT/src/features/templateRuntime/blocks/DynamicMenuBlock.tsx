@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Box, CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Alert, Box, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { nameToIcon } from '../../../utils/thamSoUtils';
 import thamSoApi from '../../../apis/thamSoApi';
 import type { DynamicMenuConfigItem } from '../../../types/dynamicMenu';
 import { useMyPermissions } from '../../../hooks/useMyPermissions';
+import { TreeSkeleton } from '../../../components/Skeletons';
 
 type Props = {
   title?: string;
@@ -62,11 +63,7 @@ export const DynamicMenuBlockConfig = {
     }, [showDisabled, canFunc, isAdmin, permLoaded]);
 
     if (loading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-          <CircularProgress size={28} />
-        </Box>
-      );
+      return <TreeSkeleton rows={6} />;
     }
 
     return (

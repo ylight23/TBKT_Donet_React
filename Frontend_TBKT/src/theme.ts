@@ -10,6 +10,8 @@
 import { createContext, useState, useMemo } from 'react';
 import { createTheme as muiCreateTheme, Theme, PaletteMode } from '@mui/material/styles';
 
+export const APP_FONT_FAMILY = "'Roboto', sans-serif";
+
 // -------------------------------------------------------------------
 //  MILITARY DESIGN SYSTEM – CUSTOM VARIANTS TYPE EXTENSIONS
 // -------------------------------------------------------------------
@@ -420,6 +422,7 @@ export function generateCSSVariables(isDark: boolean): Record<string, string> {
     '--color-success': militaryColors.success,
     '--color-warning': militaryColors.warning,
     '--color-error': militaryColors.error,
+    '--app-font-family': APP_FONT_FAMILY,
     '--datagrid-header-bg': isDark ? gradientGreen.darkHeader : gradientGreen.lightHeader,
     '--datagrid-header-text': isDark ? '#FFFFFF' : '#000000',
     '--mil-text-primary': isDark ? '#FFFFFF' : '#0D0D0D',
@@ -481,14 +484,14 @@ export const themeSetting = (mode: PaletteMode) => {
     },
     shape: { borderRadius: 2.5},
     typography: {
-      fontFamily: ['Inter', 'Roboto', 'sans-serif'].join(','),
+      fontFamily: APP_FONT_FAMILY,
       fontSize: 13,
-      h1: { fontFamily: 'Inter, Roboto, sans-serif', fontSize: 36, fontWeight: 700, letterSpacing: '-0.5px' },
-      h2: { fontFamily: 'Inter, Roboto, sans-serif', fontSize: 28, fontWeight: 700 },
-      h3: { fontFamily: 'Inter, Roboto, sans-serif', fontSize: 22, fontWeight: 700, letterSpacing: '-0.3px' },
-      h4: { fontFamily: 'Inter, Roboto, sans-serif', fontSize: 18, fontWeight: 600 },
-      h5: { fontFamily: 'Inter, Roboto, sans-serif', fontSize: 15, fontWeight: 600 },
-      h6: { fontFamily: 'Inter, Roboto, sans-serif', fontSize: 13, fontWeight: 600, letterSpacing: '0.2px' },
+      h1: { fontFamily: APP_FONT_FAMILY, fontSize: 36, fontWeight: 700, letterSpacing: '-0.5px' },
+      h2: { fontFamily: APP_FONT_FAMILY, fontSize: 28, fontWeight: 700 },
+      h3: { fontFamily: APP_FONT_FAMILY, fontSize: 22, fontWeight: 700, letterSpacing: '-0.3px' },
+      h4: { fontFamily: APP_FONT_FAMILY, fontSize: 18, fontWeight: 600 },
+      h5: { fontFamily: APP_FONT_FAMILY, fontSize: 15, fontWeight: 600 },
+      h6: { fontFamily: APP_FONT_FAMILY, fontSize: 13, fontWeight: 600, letterSpacing: '0.2px' },
       body1: { fontSize: 14, lineHeight: 1.6 },
       body2: { fontSize: 13, lineHeight: 1.5 },
       caption: { fontSize: 11.5, letterSpacing: '0.3px' },
@@ -508,8 +511,15 @@ export const themeSetting = (mode: PaletteMode) => {
             colorScheme: isDark ? 'dark' : 'light',
           },
           body: {
+            fontFamily: APP_FONT_FAMILY,
             backgroundColor: dt.pageBg,
             color: dt.textPrimary,
+          },
+          '*, *::before, *::after': {
+            fontFamily: `${APP_FONT_FAMILY} !important`,
+          },
+          'button, input, textarea, select': {
+            font: 'inherit',
           },
         },
       },
@@ -676,6 +686,21 @@ export const themeSetting = (mode: PaletteMode) => {
           root: { borderRadius: 2.5},
           bar: {
             background: isDark ? gradientGreen.darkBtn : gradientGreen.lightBtn,
+          },
+        },
+      },
+      MuiSkeleton: {
+        defaultProps: {
+          animation: 'wave' as const,
+        },
+        styleOverrides: {
+          root: {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(46,125,50,0.10)',
+            '&::after': {
+              background: isDark
+                ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent)'
+                : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.70), transparent)',
+            },
           },
         },
       },

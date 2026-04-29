@@ -4,6 +4,7 @@ import {
     DeleteChuyenCapChatLuongScheduleRequestSchema,
     GetChuyenCapChatLuongScheduleRequestSchema,
     GetListChuyenCapChatLuongScheduleRequestSchema,
+    GetListChuyenCapChatLuongScheduleByTrangBiRequestSchema,
     SaveChuyenCapChatLuongScheduleRequestSchema,
     ChuyenCapChatLuongScheduleItemSchema,
     type ChuyenCapChatLuongScheduleGridItem as ChuyenCapChatLuongScheduleGridItemProto,
@@ -139,6 +140,22 @@ export async function getChuyenCapChatLuongSchedule(id: string): Promise<LocalCh
     const res = await chuyenCapChatLuongScheduleClient.getChuyenCapChatLuongSchedule(req);
     if (!res.success || !res.item) throw new Error(res.message || 'Khong the lay chi tiet chuyen cap chat luong.');
     return mapItem(res.item);
+}
+
+export async function getChuyenCapChatLuongSchedulesByTrangBi(
+    idTrangBi: string,
+    nhomTrangBi: number,
+): Promise<LocalChuyenCapChatLuongScheduleGridItem[]> {
+    const normalizedId = String(idTrangBi ?? '').trim();
+    if (!normalizedId) return [];
+
+    const req = create(GetListChuyenCapChatLuongScheduleByTrangBiRequestSchema, {
+        idTrangBi: normalizedId,
+        nhomTrangBi,
+    });
+    const res = await chuyenCapChatLuongScheduleClient.getListChuyenCapChatLuongScheduleByTrangBi(req);
+    if (!res.success) throw new Error(res.message || 'Khong the lay chuyen cap chat luong theo trang bi.');
+    return (res.items ?? []).map(mapGrid);
 }
 
 export async function saveChuyenCapChatLuongSchedule(payload: {

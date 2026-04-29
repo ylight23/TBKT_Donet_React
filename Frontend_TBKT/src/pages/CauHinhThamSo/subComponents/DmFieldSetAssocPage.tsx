@@ -262,7 +262,7 @@ const DmFieldSetAssocPage: React.FC<DmFieldSetAssocPageProps> = ({ fields, field
                                     <Typography variant="h6" fontWeight={700} noWrap>
                                         {normalizeText(selectedNode?.ten) || normalizeText(selectedNode?.tenDayDu) || selectedDmId}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'inherit' }}>
                                         {selectedDmId}
                                     </Typography>
                                 </Box>

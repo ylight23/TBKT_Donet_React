@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -184,7 +184,7 @@ function buildQuery(
     return [unitQuery, cnQuery, ownText, crossText];
 }
 
-// â”€â”€ Optimized ScopeTypeSelector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Optimized ScopeTypeSelector ──────────────────────────────────
 interface ScopeTypeSelectorProps {
     config: GroupScopeConfig;
     onSelect: (type: ScopeType) => void;
@@ -268,7 +268,7 @@ const ScopeTypeSelector = React.memo(({ config, onSelect, theme }: ScopeTypeSele
     );
 });
 
-// â”€â”€ Optimized OfficeNode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Optimized OfficeNode ───────────────────────────────────────────
 
 interface OfficeNodeProps {
     office: OfficeOption;
@@ -364,7 +364,7 @@ const OfficeNode = React.memo(({
                         sx={{ 
                             fontSize: 10, 
                             color: 'text.disabled', 
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "inherit",
                             opacity: 0.8,
                         }}
                     >
@@ -376,7 +376,7 @@ const OfficeNode = React.memo(({
     );
 });
 
-// â”€â”€ Optimized OfficeTree â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Optimized OfficeTree ───────────────────────────────────────────
 
 function OfficeTree({
     offices,
@@ -428,7 +428,7 @@ function OfficeTree({
         return multi ? (selectedIds ?? []).includes(id) : selectedId === id;
     }, [multi, selectedIds, selectedId]);
 
-    // â”€â”€ VIRTUALIZATION LOGIC â”€â”€
+    // ── VIRTUALIZATION LOGIC ──
     // 1. Flatten the tree into only visible (expanded) nodes
     const visibleNodes = useMemo(() => {
         const list: { office: OfficeOption; depth: number; hasChildren: boolean }[] = [];
@@ -608,7 +608,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         [chuyenNganhOptions],
     );
 
-    // â”€â”€ DEFERRED PREVIEW (Optimization) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DEFERRED PREVIEW (Optimization) ────────────────────────────────
     // Using deferred values for calculations ensures UI updates (clicks)
     // are prioritized over heavy filtering of large office lists.
     const deferredConfig = useDeferredValue(config);
@@ -1019,7 +1019,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRUOC TRUY VAN</Typography>
                     {queryLines.map((line, idx) => (
                         <React.Fragment key={idx}>
-                            <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.8, color: idx < 2 ? 'text.primary' : 'text.secondary' }}>
+                            <Typography sx={{ fontFamily: "inherit", fontSize: 11.5, lineHeight: 1.8, color: idx < 2 ? 'text.primary' : 'text.secondary' }}>
                                 {line}
                             </Typography>
                             {idx < queryLines.length - 1 && <Divider sx={{ my: 1.1 }} />}
@@ -1029,7 +1029,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHAM VI CHUYEN NGANH (DOCUMENT)</Typography>
-                    <Box component="pre" sx={{ m: 0, p: 1.25, borderRadius: 2, bgcolor: 'background.default', border: `1px solid ${theme.palette.divider}`, fontSize: 11, lineHeight: 1.6, overflow: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
+                    <Box component="pre" sx={{ m: 0, p: 1.25, borderRadius: 2, bgcolor: 'background.default', border: `1px solid ${theme.palette.divider}`, fontSize: 11, lineHeight: 1.6, overflow: 'auto', fontFamily: "inherit" }}>
                         {JSON.stringify(normalizedPhamVi ?? null, null, 2)}
                     </Box>
                 </Box>

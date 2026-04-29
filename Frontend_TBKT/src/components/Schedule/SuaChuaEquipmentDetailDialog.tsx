@@ -4,7 +4,6 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     Divider,
     IconButton,
     MenuItem,
@@ -30,6 +29,7 @@ import thamSoApi, { type LocalFieldSet } from '../../apis/thamSoApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 import { FieldSetGroup, type GeneralFieldSetItem } from '../TrangBiDataGrid/GeneralInfoTab';
 import type { EquipmentOption } from './GenericScheduleDialog';
+import { FormSkeleton } from '../Skeletons';
 
 type RepairTaskRow = {
     id: string;
@@ -284,12 +284,7 @@ const SuaChuaEquipmentDetailDialog: React.FC<SuaChuaEquipmentDetailDialogProps> 
 
     const renderContent = useCallback((items: GeneralFieldSetItem[], emptyText: string) => {
         if (loading) {
-            return (
-                <Stack direction="row" alignItems="center" spacing={1}>
-                    <CircularProgress size={16} />
-                    <Typography variant="caption" color="text.secondary">Dang tai fieldset...</Typography>
-                </Stack>
-            );
+            return <FormSkeleton rows={3} cols={1} />;
         }
         if (error) return <Alert severity="warning">{error}</Alert>;
         if (items.length === 0) return <Alert severity="info">{emptyText}</Alert>;

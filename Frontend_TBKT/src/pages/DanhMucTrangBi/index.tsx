@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -13,6 +12,7 @@ import DanhMucTrangBiTreePanel from './DanhMucTrangBiTreePanel';
 import TrangBiFormPanel from './TrangBiFormPanel';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
 import Alert from '@mui/material/Alert';
+import { PageSkeleton } from '../../components/Skeletons';
 
 const TREE_PANEL_WIDTH = 320;
 
@@ -90,11 +90,7 @@ const DanhMucTrangBi: React.FC = () => {
     };
 
     if (cnLoading && cnOptions.length === 0) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-                <CircularProgress />
-            </Box>
-        );
+        return <PageSkeleton />;
     }
 
     return (

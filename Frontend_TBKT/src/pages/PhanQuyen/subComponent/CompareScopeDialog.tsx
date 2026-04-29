@@ -241,7 +241,7 @@ function PathText({ path }: { path: string }) {
         <Typography
             variant="caption"
             sx={{
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "inherit",
                 fontSize: 10, color: 'text.secondary',
                 wordBreak: 'break-all', lineHeight: 1.4,
             }}

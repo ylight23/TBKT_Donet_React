@@ -143,7 +143,7 @@ const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, on
                         <Typography
                             variant="caption"
                             sx={{
-                                fontFamily: "'JetBrains Mono', monospace",
+                                fontFamily: "inherit",
                                 fontSize: 10,
                                 color: 'text.disabled',
                             }}
@@ -475,7 +475,7 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
                                 <Typography
                                     variant="caption"
                                     sx={{
-                                        fontFamily: "'JetBrains Mono', monospace",
+                                        fontFamily: "inherit",
                                         fontSize: 10,
                                         color: 'text.secondary',
                                         textAlign: 'right',

@@ -9,7 +9,6 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     Stack,
     Typography,
 } from '@mui/material';
@@ -21,6 +20,7 @@ import {
     getBaoDuongSchedulesByTrangBi,
     type LocalBaoDuongScheduleByTrangBiItem,
 } from '../../../apis/baoDuongScheduleApi';
+import { ListSkeleton } from '../../Skeletons';
 
 interface BaoDuongTabProps {
     trangBiId: string;
@@ -68,12 +68,12 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
         const start = item.thoiGianThucHien ? new Date(item.thoiGianThucHien).getTime() : NaN;
         const end = item.thoiGianKetThuc ? new Date(item.thoiGianKetThuc).getTime() : NaN;
         if (Number.isFinite(end) && end < now) {
-            return { label: 'Qua han', bg: '#FCEBEB', color: '#A32D2D' };
+            return { label: 'Quá hạn', bg: '#FCEBEB', color: '#A32D2D' };
         }
         if (Number.isFinite(start) && (!Number.isFinite(end) || end >= now) && start <= now) {
-            return { label: 'Dang thuc hien', bg: '#FAEEDA', color: '#854F0B' };
+            return { label: 'Đang thực hiện', bg: '#FAEEDA', color: '#854F0B' };
         }
-        return { label: 'Sap dien ra', bg: '#EEEDFE', color: '#3C3489' };
+        return { label: 'Sắp diễn ra', bg: '#EEEDFE', color: '#3C3489' };
     };
 
     const renderStatusBadge = (item: LocalBaoDuongScheduleByTrangBiItem) => {
@@ -134,9 +134,7 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
             )}
 
             {loading ? (
-                <Box sx={{ textAlign: 'center', py: 3 }}>
-                    <CircularProgress size={24} />
-                </Box>
+                <ListSkeleton rows={3} />
             ) : items.length === 0 && trangBiId ? (
                 <Alert severity="info">Chưa có nhật ký bảo dưỡng cho trang bị này.</Alert>
             ) : (
@@ -157,11 +155,11 @@ const BaoDuongTab: React.FC<BaoDuongTabProps> = ({
                                             {renderStatusBadge(item)}
                                         </Stack>
                                         <Typography variant="body2" fontWeight={600} noWrap>
-                                            {item.tenLichBaoDuong || 'Lich bao duong'}
+                                            {item.tenLichBaoDuong || 'Lịch bảo dưỡng'}
                                         </Typography>
                                         {item.nguoiPhuTrach && (
                                             <Typography variant="caption" color="text.secondary">
-                                                Nguoi phu trach: {item.nguoiPhuTrach}
+                                                Người phụ trách: {item.nguoiPhuTrach}
                                             </Typography>
                                         )}
                                     </Box>

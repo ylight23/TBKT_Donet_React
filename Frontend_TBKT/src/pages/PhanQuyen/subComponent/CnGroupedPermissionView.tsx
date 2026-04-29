@@ -435,7 +435,7 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
                                                                         <SI sx={{ fontSize: 15, color: sC.iconColor, flexShrink: 0 }} />
                                                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                                                             <Typography sx={{ fontSize: 12, fontWeight: sC.fontWeight, color: sC.textColor, lineHeight: 1.3, textDecoration: perm.status === 'blocked-by-cn' ? 'line-through' : 'none' }}>{perm.name}</Typography>
-                                                                            <Typography sx={{ fontSize: 9.5, color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace" }}>{perm.code}</Typography>
+                                                                            <Typography sx={{ fontSize: 9.5, color: 'text.disabled', fontFamily: "inherit" }}>{perm.code}</Typography>
                                                                         </Box>
                                                                     </Box>
                                                                 );

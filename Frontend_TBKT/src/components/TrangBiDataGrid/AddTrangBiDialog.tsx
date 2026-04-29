@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   lazy,
   Suspense,
   startTransition,
@@ -36,6 +37,7 @@ import MiscellaneousServicesIcon from '@mui/icons-material/MiscellaneousServices
 import HandymanIcon from '@mui/icons-material/Handyman';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import StarIcon from '@mui/icons-material/Star';
 
 import { FormDialog } from '../Dialog';
 import {
@@ -65,6 +67,7 @@ const BaoDuongTab = lazy(() => import('./tabs/BaoDuongTab'));
 const SuaChuaTab = lazy(() => import('./tabs/SuaChuaTab'));
 const NiemCatTab = lazy(() => import('./tabs/NiemCatTab'));
 const DieuDongTab = lazy(() => import('./tabs/DieuDongTab'));
+const ChuyenCapChatLuongTab = lazy(() => import('./tabs/ChuyenCapChatLuongTab'));
 
 // ── Tab keys (dùng string thay vì index number) ─────────────
 const TAB_GENERAL = '0';
@@ -75,6 +78,7 @@ const TAB_BAO_DUONG = '4';
 const TAB_SUA_CHUA = '5';
 const TAB_NIEM_CAT = '6';
 const TAB_DIEU_DONG = '7';
+const TAB_CHUYEN_CAP = '8';
 
 const TAB_META = [
   { value: TAB_GENERAL, label: 'Thông tin chung', Icon: InfoOutlinedIcon },
@@ -85,6 +89,7 @@ const TAB_META = [
   { value: TAB_SUA_CHUA, label: 'Sửa chữa', Icon: HandymanIcon },
   { value: TAB_NIEM_CAT, label: 'Niêm cất', Icon: WarehouseIcon },
   { value: TAB_DIEU_DONG, label: 'Điều động', Icon: LocalShippingIcon },
+  { value: TAB_CHUYEN_CAP, label: 'Chuyển cấp', Icon: StarIcon },
 ] as const;
 
 // ── Props ───────────────────────────────────────────────────
@@ -133,7 +138,7 @@ const mapTrangBiSyncItem = (
 
 // ── Suspense fallback cho tab content ───────────────────────
 const TabSkeleton: React.FC<{ height?: number | string }> = ({ height = 320 }) => (
-  <Stack spacing={1.5} sx={{ px: 0.5, pt: 1 }}>
+  <Stack spacing={1.5} sx={{ px: 0.5, pt: 1, minHeight: height }}>
     {[1, 2, 3].map((i) => (
       <Skeleton
         key={i}
@@ -201,6 +206,11 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     selectedCategoryCode,
   });
 
+  const schemaReadyForEditor = useMemo(
+    () => !schemaLoading && (allFields.length > 0 || Boolean(schemaError)),
+    [allFields.length, schemaError, schemaLoading],
+  );
+
   // ── Log side panel state ────────────────────────────────────
   // TrangBi editor record (extract name for log tabs)
   const trangBiNameForLogs = useMemo(() => {
@@ -223,7 +233,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
 
 
   // ── Reset form khi dialog mở ─────────────────────────────────
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (open) {
       setActiveTab(TAB_GENERAL);
       setFormData({});
@@ -282,6 +292,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   // ── Nạp record để sửa ───────────────────────────────────────
   useEffect(() => {
     if (!open || !isEditMode || !editingRecordId || !activeMenu) return;
+    if (!schemaReadyForEditor) return;
 
     let cancelled = false;
     setRecordLoading(true);
@@ -328,7 +339,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     isEditMode,
     editingRecordId,
     activeMenu,
-    schemaLoading,
+    schemaReadyForEditor,
     categoryFieldKey,
     parentFieldKey,
     specializationFieldKey,
@@ -748,7 +759,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   // ── Log panel helpers ────────────────────────────────────────
   // ── Navigation helpers ──────────────────────────────────────
   const isFirstTab = activeTab === TAB_GENERAL;
-  const isLastTab = activeTab === TAB_SYNC;
+  const isLastTab = activeTab === TAB_CHUYEN_CAP;
 
   const handlePreviousTab = useCallback(() => {
     if (!isFirstTab) {
@@ -773,30 +784,6 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   // ── Loading state ───────────────────────────────────────────
   const isBaseFormLoading = schemaLoading || (isEditMode && (recordLoading || !editorRecord));
 
-  if (false) {
-    return (
-      <FormDialog
-        open={open}
-        onClose={onClose}
-        mode={dialogMode}
-        icon={dialogIcon}
-        maxWidth="sm"
-        title="Nhập trang bị kỹ thuật"
-        contentPadding={0}
-        showConfirm={false}
-        showCancel={false}
-      >
-        <Box sx={{ p: 3 }}>
-          <Stack spacing={1.5}>
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} variant="rectangular" height={56} sx={{ borderRadius: 2 }} />
-            ))}
-          </Stack>
-        </Box>
-      </FormDialog>
-    );
-  }
-
   const FORM_WIDTH = 720;
   const dialogWidth = FORM_WIDTH;
   const dialogWidthCss = `min(${dialogWidth}px, calc(100vw - 32px))`;
@@ -818,8 +805,8 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           width: dialogWidthCss,
           maxWidth: dialogWidthCss,
           maxHeight: '90vh',
-          minHeight: 0,
-          height: 'auto',
+          minHeight: 'min(720px, calc(100vh - 64px))',
+          height: 'min(760px, calc(100vh - 64px))',
           transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1)',
         },
       }}
@@ -890,7 +877,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
             maxWidth: FORM_WIDTH,
             minWidth: 0,
             flexShrink: 0,
-            overflowY: 'auto',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'hidden',
             overflowX: 'hidden',
           }}
         >
@@ -950,7 +940,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                                   minWidth: 18,
                                   height: 18,
                                   px: 0.6,
-                                  borderRadius: '9px',
+                                  borderRadius: '3px',
                                   bgcolor: 'success.main',
                                   color: '#fff',
                                   fontSize: '0.65rem',
@@ -1070,6 +1060,17 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                       trangBiId={trangBiIdForLogs}
                       trangBiName={trangBiNameForLogs}
                       onOpenLogPanel={() => {}}
+                      refreshKey={0}
+                    />
+                  </Suspense>
+                )}
+
+                {activeTab === TAB_CHUYEN_CAP && (
+                  <Suspense fallback={<TabSkeleton />}>
+                    <ChuyenCapChatLuongTab
+                      trangBiId={trangBiIdForLogs}
+                      trangBiNhom={currentEquipmentNhom}
+                      trangBiName={trangBiNameForLogs}
                       refreshKey={0}
                     />
                   </Suspense>

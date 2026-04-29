@@ -27,6 +27,7 @@ import {
     getDieuDongSchedule,
     getListDieuDongSchedule,
     saveDieuDongSchedule,
+    deleteDieuDongSchedule,
     type LocalDieuDongScheduleItem,
 } from '../../apis/dieuDongScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
@@ -81,6 +82,7 @@ const DieuDong: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<TransferSchedule | null>(null);
+    const [readOnlyDialog, setReadOnlyDialog] = useState(false);
     const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
     const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
 
@@ -249,13 +251,15 @@ const DieuDong: React.FC = () => {
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
+        setReadOnlyDialog(false);
         setMemberParametersByKey({});
         setDetailEquipment(null);
         setDialogOpen(true);
     }, []);
 
-    const openEditDialog = useCallback(async (schedule: TransferSchedule) => {
+    const openEditDialog = useCallback(async (schedule: TransferSchedule, options?: { readOnly?: boolean }) => {
         setSaving(true);
+        setReadOnlyDialog(Boolean(options?.readOnly));
         try {
             const detail = await getDieuDongSchedule(schedule.id);
             const nextMemberParameters: Record<string, Record<string, string>> = {};
@@ -293,8 +297,33 @@ const DieuDong: React.FC = () => {
         const sourceScheduleId = row.parameters?.__schedule_id;
         if (!sourceScheduleId) return;
         const schedule = filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId);
-        if (schedule) void openEditDialog(schedule);
+        if (schedule) void openEditDialog(schedule, { readOnly: true });
     }, [filteredSchedules, openEditDialog, schedules]);
+    const handleViewSchedule = useCallback((schedule: TransferSchedule) => {
+        const sourceScheduleId = schedule.parameters?.__schedule_id;
+        const targetSchedule = sourceScheduleId
+            ? (filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId) || schedule)
+            : schedule;
+        void openEditDialog(targetSchedule, { readOnly: true });
+    }, [filteredSchedules, openEditDialog, schedules]);
+
+    const handleDeleteSchedule = useCallback(async (schedule: TransferSchedule) => {
+        if (!window.confirm('Bạn có chắc muốn xóa lịch này?')) return;
+        const sourceScheduleId = schedule.parameters?.__schedule_id;
+        const targetSchedule = sourceScheduleId
+            ? (filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId) || schedule)
+            : schedule;
+        setSaving(true);
+        setErrorMessage('');
+        try {
+            await deleteDieuDongSchedule(targetSchedule.id);
+            await loadSchedules();
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Không xóa được lịch.');
+        } finally {
+            setSaving(false);
+        }
+    }, [filteredSchedules, loadSchedules, schedules]);
 
     const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payload: LocalDieuDongScheduleItem = {
@@ -361,21 +390,21 @@ const DieuDong: React.FC = () => {
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
                     <Box>
                         <Typography variant="h4" fontWeight={800} color="primary" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
-                            DIEU DONG TRANG BI
+                            ĐIỀU ĐỘNG TRANG BỊ
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">Quan ly theo doi trang bi va lich dieu dong.</Typography>
+                        <Typography variant="body2" color="text.secondary">Quản lý theo dõi trang bị và lịch điều động.</Typography>
                     </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Them ke hoach</Button>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Thêm kế hoạch</Button>
                 </Stack>
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, xl: 1.5 }, mb: { xs: 1, xl: 1.5 }, flexShrink: 0 }}>
                     {[
-                        { label: 'Tong ke hoach', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
-                        { label: 'Da hoan thanh', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
-                        { label: 'Dang thuc hien', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
-                        { label: 'Qua han', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
+                        { label: 'Tổng kế hoạch', value: stats.total, color: '#3C3489', bg: '#EEEDFE', border: '#AFA9EC' },
+                        { label: 'Đã hoàn thành', value: stats.completed, color: '#3B6D11', bg: '#EAF3DE', border: '#97C459' },
+                        { label: 'Đang thực hiện', value: stats.inprogress, color: '#854F0B', bg: '#FAEEDA', border: '#EF9F27' },
+                        { label: 'Quá hạn', value: stats.overdue, color: '#A32D2D', bg: '#FCEBEB', border: '#F09595' },
                     ].map((item) => (
                         <Card key={item.label} variant="outlined" sx={{ borderRadius: 2, border: `0.5px solid ${item.border}44` }}>
                             <CardContent sx={{ p: { xs: 1, xl: 1.5 }, '&:last-child': { pb: { xs: 1, xl: 1.5 } } }}>
@@ -416,7 +445,7 @@ const DieuDong: React.FC = () => {
                         <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                             <TextField
                                 size="small"
-                                placeholder="Tim ten ke hoach, can cu, don vi..."
+                                placeholder="Tìm tên kế hoạch, căn cứ, đơn vị..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 InputProps={{
@@ -429,18 +458,18 @@ const DieuDong: React.FC = () => {
                                 sx={{ width: { xs: '100%', lg: 260, xl: 320 }, maxWidth: '100%', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                             />
                             <Tabs value={activeTab} onChange={(_, value: DieuDongTab) => setActiveTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-                                <Tab value="theo_doi_trang_bi" label="Theo doi trang bi" />
-                                <Tab value="lich_dieu_dong" label="Lich dieu dong" />
+                                <Tab value="theo_doi_trang_bi" label="Theo dõi trang bị" />
+                                <Tab value="lich_dieu_dong" label="Lịch điều động" />
                             </Tabs>
                         </Stack>
                         <Box sx={{ flex: 1, minHeight: 0 }}>
                             {activeTab === 'theo_doi_trang_bi'
-                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" />
-                                : <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />}
+                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
+                                : <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />}
                         </Box>
                     </Box>
                     <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
-                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={handleViewSchedule} panelHeight="100%" />
                     </Box>
                 </Box>
 
@@ -454,14 +483,15 @@ const DieuDong: React.FC = () => {
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
                     editingId={editingSchedule?.id}
+                readOnly={readOnlyDialog}
                     equipmentPool={equipmentPool}
                     equipmentLoading={equipmentLoading}
-                    title={editingSchedule?.id ? 'Cap nhat ke hoach dieu dong' : 'Them ke hoach dieu dong'}
+                    title={editingSchedule?.id ? 'Cập nhật kế hoạch điều động' : 'Thêm kế hoạch điều động'}
                     icon={LocalShippingIcon}
                     fieldSetKey={TRANG_BI_FIELD_SET_KEYS.DIEU_DONG}
                     nameFieldKey="ten_dieu_dong"
-                    nameFieldLabel="Ten dieu dong"
-                    requiredNameError="Vui long nhap ten dieu dong."
+                    nameFieldLabel="Tên điều động"
+                    requiredNameError="Vui lòng nhập tên điều động."
                     startDateFieldKey="thoi_gian_thuc_hien"
                     endDateFieldKey="thoi_gian_ket_thuc"
                     sidePanel={detailEquipment ? (
@@ -500,7 +530,7 @@ const DieuDong: React.FC = () => {
                                 whiteSpace: 'nowrap',
                             }}
                         >
-                            {memberParametersByKey[equipment.key] ? 'Da nhap' : 'Nhap'}
+                            {memberParametersByKey[equipment.key] ? 'Đã nhập' : 'Thêm'}
                         </Button>
                     )}
                 />
@@ -510,3 +540,8 @@ const DieuDong: React.FC = () => {
 };
 
 export default DieuDong;
+
+
+
+
+

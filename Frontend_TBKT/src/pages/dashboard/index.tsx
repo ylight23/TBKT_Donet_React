@@ -24,6 +24,7 @@ import BusinessIcon from '@mui/icons-material/Business';
 import { militaryColors } from '../../theme';
 import CommonFilter from '../../components/Filter/CommonFilter';
 import useTrangBiGridData, { type TrangBiGridItem } from '../../hooks/useTrangBiGridData';
+import { ChartSkeleton } from '../../components/Skeletons';
 
 interface StatCardProps {
   title: string;
@@ -393,7 +394,7 @@ const Dashboard: React.FC = () => {
                   />
                 ) : (
                   <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
-                    {loading ? 'Đang tải dữ liệu...' : 'Chưa có dữ liệu đơn vị'}
+                    {loading ? <ChartSkeleton /> : 'Chưa có dữ liệu đơn vị'}
                   </Box>
                 )}
               </Box>

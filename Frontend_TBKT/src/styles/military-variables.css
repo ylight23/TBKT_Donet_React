@@ -266,8 +266,8 @@
    TYPOGRAPHY — Quân sự không dùng font quá mềm
    ────────────────────────────────────────────────────────────────── */
 :root {
-  --font-primary:  'Inter', 'Roboto', sans-serif;
-  --font-mono:     'JetBrains Mono', 'Consolas', monospace;
+  --font-primary:  var(--app-font-family, 'Roboto', sans-serif);
+  --font-mono:     var(--app-font-family, 'Roboto', sans-serif);
 
   --text-xs:   11.5px;
   --text-sm:   12.5px;

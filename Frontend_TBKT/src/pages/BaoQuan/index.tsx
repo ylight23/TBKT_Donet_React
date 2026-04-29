@@ -29,6 +29,7 @@ import {
     getBaoQuanSchedule,
     getListBaoQuanSchedule,
     saveBaoQuanSchedule,
+    deleteBaoQuanSchedule,
     type LocalBaoQuanScheduleItem,
 } from '../../apis/baoQuanScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
@@ -90,6 +91,7 @@ const BaoQuan: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<PreservationSchedule | null>(null);
+    const [readOnlyDialog, setReadOnlyDialog] = useState(false);
     const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
     const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
 
@@ -178,7 +180,7 @@ const BaoQuan: React.FC = () => {
             });
             setSchedules(mapped);
         } catch (error) {
-            setErrorMessage((error as Error).message || 'Khong tai duoc danh sach lich bao quan.');
+            setErrorMessage((error as Error).message || 'Không tải được danh sách lịch bảo quản.');
         } finally {
             setLoading(false);
         }
@@ -293,13 +295,15 @@ const BaoQuan: React.FC = () => {
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
+        setReadOnlyDialog(false);
         setMemberParametersByKey({});
         setDetailEquipment(null);
         setDialogOpen(true);
     }, []);
 
-    const openEditDialog = useCallback(async (schedule: PreservationSchedule) => {
+    const openEditDialog = useCallback(async (schedule: PreservationSchedule, options?: { readOnly?: boolean }) => {
         setSaving(true);
+        setReadOnlyDialog(Boolean(options?.readOnly));
         try {
             const detail = await getBaoQuanSchedule(schedule.id);
             const equipmentKeys = detail.dsTrangBi.map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi));
@@ -338,10 +342,33 @@ const BaoQuan: React.FC = () => {
         const sourceScheduleId = row.parameters?.__schedule_id;
         if (!sourceScheduleId) return;
         const schedule = filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId);
-        if (schedule) {
-            void openEditDialog(schedule);
-        }
+        if (schedule) void openEditDialog(schedule, { readOnly: true });
     }, [filteredSchedules, openEditDialog, schedules]);
+    const handleViewSchedule = useCallback((schedule: PreservationSchedule) => {
+        const sourceScheduleId = schedule.parameters?.__schedule_id;
+        const targetSchedule = sourceScheduleId
+            ? (filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId) || schedule)
+            : schedule;
+        void openEditDialog(targetSchedule, { readOnly: true });
+    }, [filteredSchedules, openEditDialog, schedules]);
+
+    const handleDeleteSchedule = useCallback(async (schedule: PreservationSchedule) => {
+        if (!window.confirm('Bạn có chắc muốn xóa lịch này?')) return;
+        const sourceScheduleId = schedule.parameters?.__schedule_id;
+        const targetSchedule = sourceScheduleId
+            ? (filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId) || schedule)
+            : schedule;
+        setSaving(true);
+        setErrorMessage('');
+        try {
+            await deleteBaoQuanSchedule(targetSchedule.id);
+            await loadSchedules();
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Không xóa được lịch.');
+        } finally {
+            setSaving(false);
+        }
+    }, [filteredSchedules, loadSchedules, schedules]);
 
     const handleSaveSchedule = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const tenBaoQuan = pickScheduleValue(formData, ['ten_bao_quan', 'ten_lich_bao_quan']).trim();
@@ -538,7 +565,7 @@ const BaoQuan: React.FC = () => {
                     <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} mb={1} spacing={1}>
                         <TextField
                             size="small"
-                            placeholder="Tim ten ke hoach, can cu, don vi..."
+                            placeholder="Tìm tên kế hoạch, căn cứ, đơn vị..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             InputProps={{
@@ -557,14 +584,14 @@ const BaoQuan: React.FC = () => {
                     </Stack>
                     <Box sx={{ flex: 1, minHeight: 0 }}>
                         {ganttTab === 'tien_do_trang_bi' ? (
-                            <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} />
+                            <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
                         ) : (
-                            <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} />
+                            <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
                         )}
                     </Box>
                 </Box>
                 <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
-                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                    <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={handleViewSchedule} panelHeight="100%" />
                 </Box>
             </Box>
 
@@ -578,6 +605,7 @@ const BaoQuan: React.FC = () => {
                 initialData={dialogInitialData}
                 initialEquipment={dialogInitialEquipment}
                 editingId={editingSchedule?.id}
+                readOnly={readOnlyDialog}
                 equipmentPool={equipmentPool}
                 equipmentLoading={equipmentLoading}
                 title={editingSchedule?.id ? 'Cập nhật kế hoạch bảo quản' : 'Thêm kế hoạch bảo quản'}
@@ -615,7 +643,7 @@ const BaoQuan: React.FC = () => {
                             whiteSpace: 'nowrap',
                         }}
                     >
-                        {memberParametersByKey[equipment.key] ? 'Da nhap' : 'Nhap'}
+                        {memberParametersByKey[equipment.key] ? 'Đã nhập' : 'Thêm'}
                     </Button>
                 )}
             />
@@ -625,3 +653,7 @@ const BaoQuan: React.FC = () => {
 };
 
 export default BaoQuan;
+
+
+
+

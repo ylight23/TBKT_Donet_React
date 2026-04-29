@@ -381,7 +381,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                                 variant="caption"
                                                 sx={{
                                                     color: 'text.secondary',
-                                                    fontFamily: "'JetBrains Mono', monospace",
+                                                    fontFamily: "inherit",
                                                     display: 'block',
                                                 }}
                                                 noWrap
@@ -404,7 +404,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                             <AccountTreeIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
                                             <Typography
                                                 variant="caption"
-                                                sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace" }}
+                                                sx={{ color: 'text.disabled', fontFamily: "inherit" }}
                                                 noWrap
                                             >
                                                 {user.anchorNodeName || user.anchorNodeId || user.currentOfficePath}

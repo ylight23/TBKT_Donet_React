@@ -26,6 +26,7 @@ import nhomDongBoApi, {
     type NhomDongBoThanhVienView,
 } from '../../apis/nhomDongBoApi';
 import NhomDongBoManageDialog from './NhomDongBoManageDialog';
+import { ListSkeleton } from '../../components/Skeletons';
 
 const formatTimestamp = (value?: { seconds?: bigint | number; nanos?: number } | null): string => {
     if (!value || value.seconds === undefined || value.seconds === null) return '-';
@@ -282,10 +283,7 @@ const NhomDongBoPage: React.FC = () => {
                         )}
 
                         {detailLoading && (
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <CircularProgress size={18} />
-                                <Typography variant="body2" color="text.secondary">Dang tai chi tiet nhom...</Typography>
-                            </Stack>
+                            <ListSkeleton rows={4} />
                         )}
 
                         {detailError && <Alert severity="error">{detailError}</Alert>}

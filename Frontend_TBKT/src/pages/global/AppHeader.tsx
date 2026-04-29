@@ -69,7 +69,7 @@ const AppHeader: React.FC = () => {
                         color: militaryGold[300],
                         lineHeight: 1.25,
                         textTransform: 'uppercase',
-                        fontFamily: 'Inter, Roboto, sans-serif',
+                        fontFamily: 'inherit',
                         textShadow: '0 1px 6px rgba(0,0,0,0.45)',
                     }}
                 >
@@ -83,7 +83,7 @@ const AppHeader: React.FC = () => {
                         color: 'rgba(255,255,255,0.85)',
                         letterSpacing: '0.04em',
                         lineHeight: 1.4,
-                        fontFamily: 'Inter, Roboto, sans-serif',
+                        fontFamily: 'inherit',
                         mt: 0.25,
                     }}
                 >

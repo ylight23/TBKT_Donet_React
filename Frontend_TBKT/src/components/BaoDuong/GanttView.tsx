@@ -9,8 +9,12 @@ import Tooltip from '@mui/material/Tooltip';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import TodayIcon from '@mui/icons-material/Today';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
+import IconButton from '@mui/material/IconButton';
 
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
+import { GanttSkeleton } from '../Skeletons';
 
 export interface ScheduleGanttItem {
     id: string;
@@ -36,6 +40,8 @@ interface GanttViewProps {
     loading?: boolean;
     panelHeight?: number | string;
     tableColumns?: GridColDef<ScheduleGanttItem>[];
+    onViewSchedule?: (schedule: ScheduleGanttItem) => void;
+    onDeleteSchedule?: (schedule: ScheduleGanttItem) => void;
 }
 
 type ViewMode = 'week' | 'month' | 'year';
@@ -424,8 +430,10 @@ const GanttChartView: React.FC<{
 const TableView: React.FC<{
     schedules: ScheduleGanttItem[];
     onScheduleClick: (schedule: ScheduleGanttItem) => void;
+    onViewSchedule?: (schedule: ScheduleGanttItem) => void;
+    onDeleteSchedule?: (schedule: ScheduleGanttItem) => void;
     columns?: GridColDef<ScheduleGanttItem>[];
-}> = ({ schedules, onScheduleClick, columns: columnsOverride }) => {
+}> = ({ schedules, onScheduleClick, onViewSchedule, onDeleteSchedule, columns: columnsOverride }) => {
     const columns = useMemo<GridColDef[]>(() => [
         { field: 'tenLich', headerName: 'Tên kế hoạch', minWidth: 160, flex: 1.2, valueGetter: (_, row: ScheduleGanttItem) => row.tenLich },
         { field: 'canCu', headerName: 'Căn cứ', minWidth: 120, flex: 1, valueGetter: (_, row: ScheduleGanttItem) => row.canCu || '' },
@@ -476,7 +484,53 @@ const TableView: React.FC<{
         // },
     ], []);
 
-    const resolvedColumns = columnsOverride || columns;
+    const actionColumn = useMemo<GridColDef<ScheduleGanttItem> | null>(() => {
+        if (!onViewSchedule && !onDeleteSchedule) return null;
+        return {
+            field: '__actions',
+            headerName: 'Thao tác',
+            width: 92,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            align: 'center',
+            headerAlign: 'center',
+            renderCell: (params: GridRenderCellParams<ScheduleGanttItem>) => (
+                <Stack direction="row" spacing={0.25} justifyContent="center" sx={{ width: '100%' }}>
+                    {onViewSchedule && (
+                        <IconButton
+                            size="small"
+                            title="Xem chi tiết"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onViewSchedule(params.row);
+                            }}
+                        >
+                            <VisibilityIcon sx={{ fontSize: 17 }} />
+                        </IconButton>
+                    )}
+                    {onDeleteSchedule && (
+                        <IconButton
+                            size="small"
+                            color="error"
+                            title="Xóa"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteSchedule(params.row);
+                            }}
+                        >
+                            <DeleteIcon sx={{ fontSize: 17 }} />
+                        </IconButton>
+                    )}
+                </Stack>
+            ),
+        };
+    }, [onDeleteSchedule, onViewSchedule]);
+
+    const resolvedColumns = useMemo(
+        () => actionColumn ? [actionColumn, ...(columnsOverride || columns)] : (columnsOverride || columns),
+        [actionColumn, columns, columnsOverride],
+    );
 
     return (
         <Box sx={{ height: '100%', minHeight: 0, minWidth: 0, width: '100%', overflow: 'hidden' }}>
@@ -501,7 +555,7 @@ const TableView: React.FC<{
     );
 };
 
-const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loading, panelHeight, tableColumns }) => {
+const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loading, panelHeight, tableColumns, onViewSchedule, onDeleteSchedule }) => {
     const today = useMemo(() => new Date(), []);
     const [anchorDate, setAnchorDate] = useState<Date>(today);
     const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -604,7 +658,7 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
 
             <Box sx={{ p: displayMode === 'table' ? 0 : 1.5, flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 {loading ? (
-                    <Box sx={{ textAlign: 'center', py: 4, height: '100%' }}>Dang tai...</Box>
+                    <GanttSkeleton />
                 ) : displayMode === 'gantt' ? (
                     <GanttChartView
                         schedules={visibleSchedules}
@@ -616,6 +670,8 @@ const GanttView: React.FC<GanttViewProps> = ({ schedules, onScheduleClick, loadi
                     <TableView
                         schedules={visibleSchedules}
                         onScheduleClick={onScheduleClick}
+                        onViewSchedule={onViewSchedule}
+                        onDeleteSchedule={onDeleteSchedule}
                         columns={tableColumns}
                     />
                 )}

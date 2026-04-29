@@ -27,6 +27,7 @@ import {
     getBaoDuongSchedule,
     getListBaoDuongSchedule,
     saveBaoDuongSchedule,
+    deleteBaoDuongSchedule,
     type LocalBaoDuongScheduleItem,
 } from '../../apis/baoDuongScheduleApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
@@ -86,6 +87,7 @@ const BaoDuong: React.FC = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<MaintenanceSchedule | null>(null);
+    const [readOnlyDialog, setReadOnlyDialog] = useState(false);
     const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
     const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
 
@@ -266,13 +268,15 @@ const BaoDuong: React.FC = () => {
 
     const openCreateDialog = useCallback(() => {
         setEditingSchedule(null);
+        setReadOnlyDialog(false);
         setMemberParametersByKey({});
         setDetailEquipment(null);
         setDialogOpen(true);
     }, []);
 
-    const openEditDialog = useCallback(async (schedule: MaintenanceSchedule) => {
+    const openEditDialog = useCallback(async (schedule: MaintenanceSchedule, options?: { readOnly?: boolean }) => {
         setSaving(true);
+        setReadOnlyDialog(Boolean(options?.readOnly));
         try {
             const detail = await getBaoDuongSchedule(schedule.id);
             const equipmentKeys = detail.dsTrangBi.map((member) => buildEquipmentKey(member.idTrangBi, member.nhomTrangBi));
@@ -311,8 +315,33 @@ const BaoDuong: React.FC = () => {
         const sourceScheduleId = row.parameters?.__schedule_id;
         if (!sourceScheduleId) return;
         const schedule = filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId);
-        if (schedule) void openEditDialog(schedule);
+        if (schedule) void openEditDialog(schedule, { readOnly: true });
     }, [filteredSchedules, openEditDialog, schedules]);
+    const handleViewSchedule = useCallback((schedule: MaintenanceSchedule) => {
+        const sourceScheduleId = schedule.parameters?.__schedule_id;
+        const targetSchedule = sourceScheduleId
+            ? (filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId) || schedule)
+            : schedule;
+        void openEditDialog(targetSchedule, { readOnly: true });
+    }, [filteredSchedules, openEditDialog, schedules]);
+
+    const handleDeleteSchedule = useCallback(async (schedule: MaintenanceSchedule) => {
+        if (!window.confirm('Bạn có chắc muốn xóa lịch này?')) return;
+        const sourceScheduleId = schedule.parameters?.__schedule_id;
+        const targetSchedule = sourceScheduleId
+            ? (filteredSchedules.find((item) => item.id === sourceScheduleId) || schedules.find((item) => item.id === sourceScheduleId) || schedule)
+            : schedule;
+        setSaving(true);
+        setErrorMessage('');
+        try {
+            await deleteBaoDuongSchedule(targetSchedule.id);
+            await loadSchedules();
+        } catch (error) {
+            setErrorMessage((error as Error).message || 'Không xóa được lịch.');
+        } finally {
+            setSaving(false);
+        }
+    }, [filteredSchedules, loadSchedules, schedules]);
 
     const handleSaveSchedule = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payloadItem: LocalBaoDuongScheduleItem = {
@@ -463,14 +492,14 @@ const BaoDuong: React.FC = () => {
                         </Stack>
                         <Box sx={{ flex: 1, minHeight: 0 }}>
                             {activeTab === 'theo_doi_trang_bi' ? (
-                                <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" />
+                                <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
                             ) : (
-                                <GanttView schedules={filteredSchedules} onScheduleClick={openEditDialog} loading={loading || saving} panelHeight="100%" />
+                                <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
                             )}
                         </Box>
                     </Box>
                     <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
-                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={openEditDialog} panelHeight="100%" />
+                        <GanttChartSidebar schedules={filteredSchedules} onScheduleClick={handleViewSchedule} panelHeight="100%" />
                     </Box>
                 </Box>
 
@@ -484,6 +513,7 @@ const BaoDuong: React.FC = () => {
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
                     editingId={editingSchedule?.id}
+                readOnly={readOnlyDialog}
                     equipmentPool={equipmentPool}
                     equipmentLoading={equipmentLoading}
                     title={editingSchedule?.id ? 'Cập nhật kế hoạch bảo dưỡng' : 'Thêm kế hoạch bảo dưỡng'}
@@ -521,7 +551,7 @@ const BaoDuong: React.FC = () => {
                                 whiteSpace: 'nowrap',
                             }}
                         >
-                            {memberParametersByKey[equipment.key] ? 'Đã nhập' : 'Nhập'}
+                            {memberParametersByKey[equipment.key] ? 'Đã nhập' : 'Thêm'}
                         </Button>
                     )}
                 />
@@ -531,3 +561,8 @@ const BaoDuong: React.FC = () => {
 };
 
 export default BaoDuong;
+
+
+
+
+

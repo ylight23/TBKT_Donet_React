@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-    CircularProgress,
     Box,
     Button,
     Divider,
@@ -26,6 +25,7 @@ import { CommonDialog } from "../../../components/Dialog";
 import officeApi from '../../../apis/officeApi';
 import { OfficeNode } from './OfficeDictionary';
 import { useOffice } from '../../../context/OfficeContext';
+import { FormSkeleton } from '../../../components/Skeletons';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -227,10 +227,7 @@ const ModalOffice: React.FC<ModalOfficeProps> = ({
                 confirmText={isUpdate ? 'Lưu thay đổi' : 'Tạo đơn vị'}
             >
                 {isLoading && isOpen ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200, flexDirection: 'column', gap: 2 }}>
-                        <CircularProgress size={40} />
-                        <Typography color="text.secondary">Đang tải dữ liệu…</Typography>
-                    </Box>
+                    <FormSkeleton rows={6} cols={2} />
                 ) : (
                     <Box component="form" autoComplete="off">
                         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>

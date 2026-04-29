@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Box, Chip, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import thamSoApi from '../../../apis/thamSoApi';
+import { MetricCardsSkeleton } from '../../../components/Skeletons';
 
 type KpiItem = {
   label: string;
@@ -109,7 +110,7 @@ export const KpiRowBlockConfig = {
     const list = sourceKey ? dynamicItems : staticList;
 
     if (loadError) return <Alert severity="error" sx={{ m: 2 }}>{loadError}</Alert>;
-    if (loadingKpi) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>;
+    if (loadingKpi) return <MetricCardsSkeleton count={cols} />;
 
     return (
       <Box

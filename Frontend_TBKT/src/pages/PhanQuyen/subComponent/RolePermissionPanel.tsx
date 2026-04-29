@@ -140,7 +140,7 @@ function PermissionRow({
                                     mt: 0.25,
                                     fontSize: 10,
                                     color: 'text.secondary',
-                                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                                    fontFamily: "inherit",
                                     wordBreak: 'break-word',
                                 }}
                             >

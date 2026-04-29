@@ -306,9 +306,9 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                 </Box>
                                 <Box sx={{ flex: 1 }}>
                                     <Typography sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>{selectedName}</Typography>
-                                    <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>{selectedId}</Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: "inherit", fontSize: 10 }}>{selectedId}</Typography>
                                     {managedOfficeId && (
-                                        <Typography variant="caption" sx={{ display: 'block', color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                                        <Typography variant="caption" sx={{ display: 'block', color: 'text.disabled', fontFamily: "inherit", fontSize: 10 }}>
                                             IDQuanTriDonVi: {managedOfficeId}
                                         </Typography>
                                     )}
@@ -343,7 +343,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                     }}
                                 />
                                 {currentAdminManagedOfficeId && (
-                                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontFamily: "inherit" }}>
                                         Dang loc user theo IDQuanTriDonVi cua ban: {currentAdminManagedOfficeId}
                                     </Typography>
                                 )}
@@ -406,7 +406,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                                             <Typography noWrap sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>{employee.name}</Typography>
                                                             {employee.donVi && (
-                                                                <Typography noWrap variant="caption" sx={{ color: 'text.disabled', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                                                                <Typography noWrap variant="caption" sx={{ color: 'text.disabled', fontFamily: "inherit", fontSize: 10 }}>
                                                                     {employee.donVi}
                                                                 </Typography>
                                                             )}
@@ -463,7 +463,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                                     <Typography sx={{ fontWeight: active ? 700 : 400, fontSize: 13, color: active ? scopeOption.color : 'text.primary', flex: 1 }}>
                                         {scopeOption.label}
                                     </Typography>
-                                    <Typography sx={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: 'text.disabled', bgcolor: alpha(theme.palette.divider, 0.3), px: 0.75, py: 0.25, borderRadius: 0.75 }}>
+                                    <Typography sx={{ fontSize: 10, fontFamily: "inherit", fontWeight: 600, color: 'text.disabled', bgcolor: alpha(theme.palette.divider, 0.3), px: 0.75, py: 0.25, borderRadius: 0.75 }}>
                                         {scopeOption.value}
                                     </Typography>
                                 </Box>
@@ -536,7 +536,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
                             <Box sx={{ p: 1, borderRadius: 1.5, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                                 <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 0.25 }}>Đơn vị đang quản trị</Typography>
-                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "inherit" }}>
                                     {managedOfficeId || 'Chưa xác định từ hồ sơ user'}
                                 </Typography>
                                 {workingOfficeId && (
@@ -547,7 +547,7 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                             </Box>
                             <Box sx={{ p: 1, borderRadius: 1.5, border: `1px solid ${delegatedMissingAnchor ? theme.palette.error.main : theme.palette.divider}`, bgcolor: delegatedMissingAnchor ? alpha(theme.palette.error.main, 0.06) : 'background.paper' }}>
                                 <Typography sx={{ fontSize: 11, color: delegatedMissingAnchor ? 'error.main' : 'text.secondary', mb: 0.25 }}>Đơn vị sẽ được ủy quyền</Typography>
-                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: delegatedMissingAnchor ? 'error.main' : 'text.primary' }}>
+                                <Typography sx={{ fontSize: 12.5, fontWeight: 700, fontFamily: "inherit", color: delegatedMissingAnchor ? 'error.main' : 'text.primary' }}>
                                     {anchorNodeId.trim() || 'Chưa chọn'}
                                 </Typography>
                             </Box>

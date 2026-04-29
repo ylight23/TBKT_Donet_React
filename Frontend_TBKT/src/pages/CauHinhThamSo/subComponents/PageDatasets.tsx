@@ -529,7 +529,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                                 </Stack>
 
                                                 <Typography variant="caption" color="text.disabled"
-                                                    sx={{ width: 32, textAlign: 'right', fontFamily: 'monospace' }}>
+                                                    sx={{ width: 32, textAlign: 'right', fontFamily: 'inherit' }}>
                                                     {vRow.index + 1}
                                                 </Typography>
 
@@ -542,7 +542,7 @@ const PageDatasets: React.FC<PageDatasetsProps> = ({ fields, fieldSets, setField
                                                 </Box>
 
                                                 <Typography variant="caption" color="text.secondary"
-                                                    sx={{ fontFamily: 'monospace', minWidth: 80, textAlign: 'right' }} noWrap>
+                                                    sx={{ fontFamily: 'inherit', minWidth: 80, textAlign: 'right' }} noWrap>
                                                     {field.key}
                                                 </Typography>
 

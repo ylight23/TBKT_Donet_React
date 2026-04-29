@@ -258,7 +258,7 @@ const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
                                             ) : option.label}
                                             secondary={option.value}
                                             primaryTypographyProps={{ variant: 'body2', fontWeight: isSelected ? 700 : 500 }}
-                                            secondaryTypographyProps={{ variant: 'caption', sx: { fontFamily: 'monospace' } }}
+                                            secondaryTypographyProps={{ variant: 'caption', sx: { fontFamily: 'inherit' } }}
                                         />
                                     </ListItemButton>
                                 );
@@ -313,7 +313,7 @@ const VirtualOptionPicker: React.FC<VirtualOptionPickerProps> = ({
                                                 ) : option.label}
                                                 secondary={option.value}
                                                 primaryTypographyProps={{ variant: 'body2', fontWeight: isSelected ? 700 : 500 }}
-                                                secondaryTypographyProps={{ variant: 'caption', sx: { fontFamily: 'monospace' } }}
+                                                secondaryTypographyProps={{ variant: 'caption', sx: { fontFamily: 'inherit' } }}
                                             />
                                         </ListItemButton>
                                     );

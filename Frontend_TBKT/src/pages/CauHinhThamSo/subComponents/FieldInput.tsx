@@ -154,7 +154,7 @@ const renderOptionContent = (option: DynamicOptionItem) => {
                     },
                 }}
             />
-            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'inherit' }}>
                 {option.value}
             </Typography>
         </Stack>
