@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"IdNguoiDung":{"$numberInt":"1"},"MaPhanHe":{"$numberInt":"1"}},"name":"idx_phanquyen_user_subsystem_user_module"}],"uuid":"284f32e5a43947ecb3f6b0bbf31842cc","collectionName":"PhanQuyenPhanHeNguoiDung","type":"collection"}

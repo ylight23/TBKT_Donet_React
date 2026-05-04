@@ -1,3 +1,3 @@
-mongodump --db=quanly_dmcanbo --out=D:\quanly_dmcanbo
+mongodump --db=quanly_dmcanbo --out="D:\TBKT_Donet_React"
 
-mongorestore --db=quanly_dmcanbo quanly_dmcanbo
+mongorestore --drop --db=quanly_dmcanbo "D:\TBKT_Donet_React\quanly_dmcanbo"
