@@ -1,11 +1,5 @@
 import { isEmpty } from 'lodash';
 
-const V = 'v1';
-export const STORAGE_KEYS = {
-    IS_AUTHENTICATED: `isAuthenticated:${V}`,
-    CURRENT_USER: `currentUser:${V}`,
-} as const;
-
 const sessionCache = new Map<string, string | null>();
 
 if (typeof window !== 'undefined') {
@@ -49,7 +43,6 @@ export const safeSessionRemove = (key: string): void => {
 export const getLocalStorage = safeSessionGet;
 
 export const removeLocalStorage = (): void => {
-    Object.values(STORAGE_KEYS).forEach((key) => safeSessionRemove(key));
     ['isAuthenticated', '_token', 'currentUser', 'permission'].forEach((key) => {
         try {
             sessionStorage.removeItem(key);
@@ -58,13 +51,6 @@ export const removeLocalStorage = (): void => {
         }
     });
 };
-
-export interface MinimalUser {
-    id: string;
-    name: string;
-    username: string;
-    is_admin?: number;
-}
 
 interface CurrentUser {
     is_admin?: number;

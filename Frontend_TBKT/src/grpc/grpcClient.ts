@@ -1,6 +1,6 @@
 import { createClient, Interceptor } from "@connectrpc/connect";
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
-import { store } from '../store';
+import { getOidcAccessTokenFromSession } from "../utils/oidc";
 
 import { EmployeeService } from "./generated/Employee_pb";
 import { OfficeService } from "./generated/Office_pb";
@@ -24,7 +24,7 @@ import { ChuyenCapChatLuongScheduleService } from "./generated/ChuyenCapChatLuon
 // =====================
 const authInterceptor: Interceptor = (next) => async (req) => {
   // Đọc accessToken từ Redux store (không lưu trong sessionStorage)
-  const token = store.getState().authReducer.accessToken;
+  const token = getOidcAccessTokenFromSession();
 
   if (token) {
     req.header.set("authorization", `Bearer ${token}`);
@@ -87,3 +87,4 @@ export const suaChuaScheduleClient = createClient(SuaChuaScheduleService, transp
 export const niemCatScheduleClient = createClient(NiemCatScheduleService, transport);
 export const dieuDongScheduleClient = createClient(DieuDongScheduleService, transport);
 export const chuyenCapChatLuongScheduleClient = createClient(ChuyenCapChatLuongScheduleService, transport);
+

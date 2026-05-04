@@ -1,14 +1,12 @@
 import React, { Suspense, useMemo } from 'react';
 import { RouteObject, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { useSelector } from 'react-redux';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { PageSkeleton } from '../components/Skeletons';
-import type { RootState } from '../store';
 import { permissionManifest } from '../config/permissionManifest';
 import { useMyPermissions } from '../hooks/useMyPermissions';
 import { useDynamicMenuConfig } from '../hooks/useDynamicMenuConfig';
@@ -68,13 +66,12 @@ const staticRoutePermissionMap = flattenStaticMenuPermissions();
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const auth = useAuth();
-    const isAuthenticated = useSelector((s: RootState) => s.authReducer.isAuthenticated);
 
     if (auth.isLoading || auth.activeNavigator) {
         return loadingSpinner;
     }
 
-    if (!auth.isAuthenticated && !isAuthenticated) {
+    if (!auth.isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 

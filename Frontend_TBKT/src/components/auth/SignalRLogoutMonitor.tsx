@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import * as signalR from "@microsoft/signalr";
 import { useAuth } from "react-oidc-context";
 import { useDispatch } from "react-redux";
-import { AppDispatch, store } from "../../store";
-import { logout } from "../../store/authReducer/auth";
+import { AppDispatch } from "../../store";
+import { clearPermissions } from "../../store/reducer/permissionReducer";
 
 /**
  * SignalR Real-Time Logout Monitor
@@ -46,7 +46,7 @@ const SignalRLogoutMonitor: React.FC = () => {
 
     // Helper function to check token and setup connection
     const setupConnection = () => {
-      const token = store.getState().authReducer.accessToken;
+      const token = auth.user?.access_token;
       if (!token || token.trim().length === 0) {
         retryCountRef.current++;
         if (retryCountRef.current <= maxRetries) {
@@ -70,7 +70,7 @@ const SignalRLogoutMonitor: React.FC = () => {
       .withUrl(`${baseUrl}/hubs/session`, {
         accessTokenFactory: () => {
           // Đọc accessToken từ Redux store (không lưu trong sessionStorage)
-          return store.getState().authReducer.accessToken ?? "";
+          return auth.user?.access_token ?? "";
         },
         transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents,
       })
@@ -136,7 +136,7 @@ const SignalRLogoutMonitor: React.FC = () => {
       console.log(`[SignalR] Processing logout: ${reason}`);
       
       // Clear local state immediately
-      dispatch(logout());
+      dispatch(clearPermissions());
       
       // Disconnect SignalR before redirect
       if (connectionRef.current) {
@@ -215,9 +215,10 @@ const SignalRLogoutMonitor: React.FC = () => {
         retryTimeoutRef.current = null;
       }
     };
-  }, [auth.isLoading, auth.isAuthenticated, auth, dispatch]);
+  }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, auth, dispatch]);
 
   return null; // This is a headless component
 };
 
 export default SignalRLogoutMonitor;
+

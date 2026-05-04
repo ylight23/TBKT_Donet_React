@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { logout } from "../../store/authReducer/auth";
+import { clearPermissions } from "../../store/reducer/permissionReducer";
 import { AppDispatch } from "../../store";
 
 const FrontChannelLogout: React.FC = () => {
@@ -13,11 +13,8 @@ const FrontChannelLogout: React.FC = () => {
 
     console.log("[FrontChannelLogout] Received front-channel logout", { iss, sid });
 
-    // Clear local session and redux state
-    dispatch(logout());
-    sessionStorage.removeItem("_token");
-    sessionStorage.removeItem("isAuthenticated");
-    sessionStorage.clear();
+    // Clear app state
+    dispatch(clearPermissions());
 
     // Notify other tabs of the same app
     try {

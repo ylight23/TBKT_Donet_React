@@ -9,7 +9,7 @@ import { ToastContainer, ToastContainerProps } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from "react-oidc-context";
 import { authConfig } from "./configs/authConfig";
-import AuthSync from "./components/auth/AuthSync";
+import PermissionSync from "./components/auth/PermissionSync";
 import { FrontChannelLogoutMonitor } from "./components/auth/FrontChannelLogoutMonitor";
 import { FrontChannelLogoutStatus } from "./components/auth/FrontChannelLogoutStatus";
 // import { CustomSessionMonitor } from "./components/auth/CustomSessionMonitor";
@@ -41,7 +41,7 @@ root.render(
         <ToastContainer
           {...notifiConfig}
         />
-        <AuthSync />
+        <PermissionSync />
         {/* <CustomSessionMonitor /> */}
         {/* <FrontChannelLogoutMonitor />
         <FrontChannelLogoutStatus /> */}

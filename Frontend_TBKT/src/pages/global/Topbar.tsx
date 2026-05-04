@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+﻿import React, { useContext, useEffect, useRef } from "react";
 import { ColorModeContext, dashboardTokensDark, dashboardTokensLight, gradientGreen } from "../../theme";
 
 import Box from '@mui/material/Box';
@@ -16,10 +16,11 @@ import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
 import ExitToApp from "@mui/icons-material/ExitToApp";
 
 import { useDispatch } from 'react-redux';
-import { logout } from "../../store/authReducer/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
+import type { UserProfile } from "oidc-client-ts";
 import { AppDispatch } from '../../store';
+import { clearPermissions } from "../../store/reducer/permissionReducer";
 
 interface RouteNameMap {
     [key: string]: string;
@@ -34,31 +35,58 @@ const Topbar: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const auth = useAuth();
+    const profileLoggedRef = useRef(false);
+    const profile = auth.user?.profile as UserProfile | undefined;
+    const rawProfile = profile as Record<string, unknown> | undefined;
+    const readClaim = (...keys: string[]): string => {
+        if (!rawProfile) return '';
+        for (const key of keys) {
+            const value = rawProfile[key];
+            if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+        }
+        return '';
+    };
+    const firstName = readClaim('given_name', 'givenname', 'http://wso2.org/claims/givenname');
+    const lastName = readClaim('family_name', 'lastname', 'http://wso2.org/claims/lastname');
+    const firstLastName = `${firstName} ${lastName}`.trim();
+    const fullName = readClaim(
+        'name',
+        'http://wso2.org/claims/fullname',
+        'display_name',
+        'http://wso2.org/claims/displayName'
+    );
+    const preferredUsername = readClaim('preferred_username', 'http://wso2.org/claims/displayName');
+    const fallbackUsername = readClaim('username', 'http://wso2.org/claims/username');
+    const greetingName =
+        (firstLastName.length > 0 && firstLastName) ||
+        (fullName.length > 0 && fullName) ||
+        preferredUsername ||
+        fallbackUsername ||
+        'bạn';
+
+    useEffect(() => {
+        if (!auth.isAuthenticated || !auth.user?.profile || profileLoggedRef.current) return;
+        profileLoggedRef.current = true;
+        console.log("[Topbar] OIDC profile claims:", auth.user.profile);
+    }, [auth.isAuthenticated, auth.user]);
 
     const handleLogout = async (): Promise<void> => {
         try {
-            console.log("[Topbar] User initiated logout");
             const idToken = auth.user?.id_token;
-            if (!idToken) console.warn("[Topbar] No id_token found, logout may fail");
 
             try {
                 const channel = new BroadcastChannel("logout_channel");
                 channel.postMessage({ type: "logout", reason: "user_initiated_logout", timestamp: Date.now() });
                 channel.close();
-            } catch (broadcastErr) {
-                console.warn("[Topbar] BroadcastChannel failed:", broadcastErr);
-            }
+            } catch {}
 
-            dispatch(logout());
-            localStorage.clear();
-            sessionStorage.clear();
+            dispatch(clearPermissions());
 
             await auth.signoutRedirect({
                 post_logout_redirect_uri: window.location.origin + "/login",
                 id_token_hint: idToken,
             });
-        } catch (error) {
-            console.error("[Topbar] Failed to logout:", error);
+        } catch {
             window.location.href = "/login?reason=logout_error";
         }
     };
@@ -66,11 +94,11 @@ const Topbar: React.FC = () => {
     const pathnames = location.pathname.split('/').filter((x) => x);
 
     const routeNameMap: RouteNameMap = {
-        'dashboard': 'Trang chủ',
+        'dashboard': 'Trang chu',
         'employee': 'Quản lý Cán bộ',
         'office': 'Quản lý Đơn vị',
         'catalog': 'Danh mục',
-        'settings': 'Cài đặt',
+        'settings': 'ài đặt',
         'trang-bi-nhom-1': 'Trang bị Nhóm 1',
         'trang-bi-nhom-2': 'Trang bị Nhóm 2',
         'tinh-trang-ky-thuat': 'Tình trạng Kỹ thuật',
@@ -83,14 +111,12 @@ const Topbar: React.FC = () => {
         'thong-ke-bao-cao': 'Thống kê Báo cáo',
     };
 
-    // ── Breadcrumb màu theo Light/Dark (WCAG AA contrast) ──────────────────
     const breadcrumbBg = isDark ? 'rgba(76,175,80,0.10)' : 'rgba(46,125,50,0.08)';
     const breadcrumbBorder = isDark ? '1px solid rgba(76,175,80,0.20)' : '1px solid #C8E6C9';
-    const linkColor = isDark ? '#A5D6A7' : '#1B5E20';   // pas 4.5:1 on bg
+    const linkColor = isDark ? '#A5D6A7' : '#1B5E20';
     const linkHoverColor = isDark ? '#C8E6C9' : '#2E7D32';
-    const activeColor = isDark ? '#66BB6A' : '#2E7D32';   // current page — bold
+    const activeColor = isDark ? '#66BB6A' : '#2E7D32';
 
-    // ── Action buttons ──────────────────────────────────────────────────────
     const actionBg = isDark ? 'rgba(76,175,80,0.10)' : 'rgba(46,125,50,0.08)';
     const iconColor = isDark ? '#A5D6A7' : '#2E7D32';
     const iconHoverBg = isDark ? 'rgba(76,175,80,0.20)' : 'rgba(46,125,50,0.15)';
@@ -103,13 +129,12 @@ const Topbar: React.FC = () => {
             px={2}
             py={1.25}
             sx={{
-                bgcolor: dt.topbarBg, // Removed invalid 'brightness(1.2)' concatenation
+                bgcolor: dt.topbarBg,
                 borderBottom: `1px solid ${dt.topbarBorder}`,
                 transition: 'background-color 0.3s ease',
                 minHeight: 56,
             }}
         >
-            {/* ── Breadcrumb ── */}
             <Box
                 display="flex"
                 alignItems="center"
@@ -147,14 +172,12 @@ const Topbar: React.FC = () => {
                         onClick={() => navigate('/')}
                     >
                         <HomeIcon fontSize="small" />
-                        Trang chủ
+                        Trang chu
                     </Link>
                     {pathnames.map((value, index) => {
                         const last = index === pathnames.length - 1;
                         const to = `/${pathnames.slice(0, index + 1).join('/')}`;
-                        const displayName =
-                            routeNameMap[value] ||
-                            value.charAt(0).toUpperCase() + value.slice(1);
+                        const displayName = routeNameMap[value] || value.charAt(0).toUpperCase() + value.slice(1);
 
                         return last ? (
                             <Typography
@@ -163,10 +186,7 @@ const Topbar: React.FC = () => {
                                     color: activeColor,
                                     fontWeight: 700,
                                     fontSize: '0.85rem',
-                                    // subtle gradient text cho trang hiện tại
-                                    background: isDark
-                                        ? gradientGreen.lightBtn   // bright trên dark bg
-                                        : gradientGreen.darkBtn,   // dark trên light bg
+                                    background: isDark ? gradientGreen.lightBtn : gradientGreen.darkBtn,
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
                                     backgroundClip: 'text',
@@ -195,7 +215,6 @@ const Topbar: React.FC = () => {
                 </Breadcrumbs>
             </Box>
 
-            {/* ── Action buttons (toggle + logout) ── */}
             <Box
                 display="flex"
                 alignItems="center"
@@ -208,7 +227,18 @@ const Topbar: React.FC = () => {
                     py: 0.25,
                 }}
             >
-                <Tooltip title={isDark ? "Chuyển Light Mode" : "Chuyển Dark Mode"} arrow>
+                <Typography
+                    sx={{
+                        px: 1,
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: linkColor,
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    Xin chào, {greetingName}
+                </Typography>
+                <Tooltip title={isDark ? "Chuyển sang Chế độ sáng" : "Chuyển sang Chế độ tối"} arrow>
                     <IconButton
                         onClick={colorMode.toggleColorMode}
                         aria-label={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
@@ -224,7 +254,7 @@ const Topbar: React.FC = () => {
                 <Tooltip title="Đăng xuất" arrow>
                     <IconButton
                         onClick={handleLogout}
-                        aria-label="Đăng xuất khỏi hệ thống"
+                        aria-label="Đăng xuất tài khoản"
                         sx={{
                             color: iconColor,
                             transition: 'background-color 0.2s ease',
@@ -243,3 +273,5 @@ const Topbar: React.FC = () => {
 };
 
 export default Topbar;
+
+

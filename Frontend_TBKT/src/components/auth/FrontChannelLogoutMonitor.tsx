@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback } from "react";
 import { useAuth }     from "react-oidc-context";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../store";
-import { logout }      from "../../store/authReducer/auth";
+import { clearPermissions } from "../../store/reducer/permissionReducer";
 import { removeLocalStorage } from "../../utils";
 
 export const FrontChannelLogoutMonitor: React.FC = () => {
@@ -18,7 +18,7 @@ export const FrontChannelLogoutMonitor: React.FC = () => {
         if (isLoggingOutRef.current) return;
         isLoggingOutRef.current = true;
 
-        dispatch(logout());
+        dispatch(clearPermissions());
         removeLocalStorage();
 
         if (shouldBroadcast) {

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useSelector } from 'react-redux';
+import { useAuth } from 'react-oidc-context';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -17,7 +17,6 @@ import CommonDialog from '../../../components/Dialog/CommonDialog';
 import type { ScopeType, PhamViChuyenNganhConfig } from '../../../types/permission';
 import { SCOPE_TYPES, ALL_SCOPE_TYPES, scopeLookup } from '../data/permissionData';
 import employeeApi from '../../../apis/employeeApi';
-import type { RootState } from '../../../store';
 import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 
 interface EmployeeOption {
@@ -99,7 +98,12 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
     const [workingOfficeId, setWorkingOfficeId] = useState('');
     const [saving, setSaving] = useState(false);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const currentUserId = useSelector((s: RootState) => s.authReducer.currentUser?.id || '');
+    const auth = useAuth();
+    const currentUserId = useMemo(() => {
+        const profile = auth.user?.profile as Record<string, unknown> | undefined;
+        const sub = profile?.sub;
+        return typeof sub === 'string' ? sub : '';
+    }, [auth.user?.profile]);
     const [currentAdminManagedOfficeId, setCurrentAdminManagedOfficeId] = useState('');
 
     useEffect(() => {
