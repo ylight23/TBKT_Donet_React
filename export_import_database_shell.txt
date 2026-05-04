@@ -1,0 +1,3 @@
+mongodump --db=quanly_dmcanbo --out=D:\quanly_dmcanbo
+
+mongorestore --db=quanly_dmcanbo quanly_dmcanbo
