@@ -50,7 +50,8 @@ public sealed class RebuildService
             DateTime? delegatedExpiry = null;
             string? idNguoiUyQuyen = null;
             var visibleCNs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            BsonDocument? bestPhamViDoc = null;
+            // Merged CN actions from ALL groups (union) — replaces single bestPhamViDoc
+            var mergedCnActions = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var doc in memberDocs)
             {
@@ -98,16 +99,19 @@ public sealed class RebuildService
                     foreach (var entry in phamViEntries.Documents())
                     {
                         var id = entry.StringOr("Id");
-                        if (!string.IsNullOrEmpty(id))
-                            visibleCNs.Add(id);
+                        if (string.IsNullOrEmpty(id)) continue;
+                        visibleCNs.Add(id);
+                        // Merge actions from all groups (union)
+                        if (!mergedCnActions.TryGetValue(id, out var actionSet))
+                        {
+                            actionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            mergedCnActions[id] = actionSet;
+                        }
+                        var actionArr = entry.ArrayOr("Actions");
+                        if (actionArr != null)
+                            foreach (var a in actionArr.Strings())
+                                if (!string.IsNullOrEmpty(a)) actionSet.Add(a);
                     }
-                }
-
-                // Collect PhamViChuyenNganh for AccessGate (A3)
-                if (bestPhamViDoc == null)
-                {
-                    if (phamViDoc != null && phamViDoc.ElementCount > 0)
-                        bestPhamViDoc = phamViDoc;
                 }
 
             }
@@ -297,6 +301,37 @@ public sealed class RebuildService
                     break;
             }
 
+            // Build merged PhamViChuyenNganh from all groups' actions
+            BsonDocument? mergedPhamViDoc = null;
+            if (mergedCnActions.Count > 0)
+            {
+                var idChuyenNganhDocArr = new BsonArray();
+                foreach (var kv in mergedCnActions)
+                {
+                    idChuyenNganhDocArr.Add(new BsonDocument
+                    {
+                        { "Id", kv.Key },
+                        { "Actions", new BsonArray(kv.Value) },
+                    });
+                }
+
+                // Primary CN: prefer per-user assignment override → then group default
+                var primaryCnId = memberDocs
+                    .Select(d => d.DocOr("PhamViChuyenNganh")?.StringOr("IdChuyenNganh"))
+                    .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id))
+                    ?? roleScopeDocs
+                        .Select(d => d.DocOr("PhamViChuyenNganh")?.StringOr("IdChuyenNganh"))
+                        .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id))
+                    ?? mergedCnActions.Keys.FirstOrDefault()
+                    ?? "";
+
+                mergedPhamViDoc = new BsonDocument
+                {
+                    { "IdChuyenNganh", primaryCnId },
+                    { "IdChuyenNganhDoc", idChuyenNganhDocArr },
+                };
+            }
+
             var permDoc = new BsonDocument
             {
                 { "_id", userId },
@@ -307,7 +342,7 @@ public sealed class RebuildService
                 { "ServiceScopes", new BsonArray(serviceScopes) },
                 { "ChucNang", chucNangArr },
                 { "VisibleCNs", new BsonArray(visibleCNs) },
-                { "PhamViChuyenNganh", bestPhamViDoc != null ? (BsonValue)bestPhamViDoc : BsonNull.Value },
+                { "PhamViChuyenNganh", mergedPhamViDoc != null ? (BsonValue)mergedPhamViDoc : BsonNull.Value },
                 { "RebuiltAt", rebuildStart },
             };
 

@@ -28,6 +28,7 @@ import { useTheme } from '@mui/material/styles';
 // Icons
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import SaveIcon from '@mui/icons-material/Save';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined';
@@ -55,6 +56,7 @@ import trangBiKiThuatApi, {
   type TrangBiNhom2EditorItem,
 } from '../../apis/trangBiKiThuatApi';
 import nhomDongBoApi from '../../apis/nhomDongBoApi';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 import useTrangBiDialogSchema from '../../hooks/useTrangBiDialogSchema';
 import useTrangBiDialogFieldSetContent from '../../hooks/useTrangBiDialogFieldSetContent';
 
@@ -99,6 +101,7 @@ interface AddTrangBiDialogProps {
   onSaved?: () => void;
   activeMenu?: 'tbNhom1' | 'tbNhom2';
   editingRecordId?: string | null;
+  readOnly?: boolean;
 }
 
 type TrangBiEditorRecord = TrangBiNhom1EditorItem | TrangBiNhom2EditorItem;
@@ -157,11 +160,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   onSaved,
   activeMenu,
   editingRecordId,
+  readOnly = false,
 }) => {
   const isEditMode = Boolean(editingRecordId);
-  const dialogMode = isEditMode ? 'edit' : 'add';
+  const dialogMode = readOnly ? 'info' : (isEditMode ? 'edit' : 'add');
+  const { canCnAction } = useMyPermissions();
   const dialogTitle = isEditMode ? 'Chỉnh sửa trang bị kỹ thuật' : 'Thêm trang bị kỹ thuật mới';
-  const dialogIcon = isEditMode ? <EditIcon /> : <AddIcon />;
+  const dialogIcon = readOnly ? <VisibilityIcon /> : (isEditMode ? <EditIcon /> : <AddIcon />);
   const saveButtonLabel = isEditMode ? 'Cập nhật trang bị' : 'Lưu trang bị';
 
   // Tab state – dùng string key thay vì number
@@ -365,6 +370,27 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     nganhFieldKey,
   });
 
+  const toReadOnlyFieldSetContent = useCallback(<T extends { fields: Array<{ disabled?: boolean }> }>(items: T[]): T[] => {
+    if (!readOnly) return items;
+    return items.map((item) => ({
+      ...item,
+      fields: item.fields.map((field) => ({ ...field, disabled: true })),
+    }));
+  }, [readOnly]);
+
+  const readonlyGeneralTabContent = useMemo(
+    () => toReadOnlyFieldSetContent(generalTabContent),
+    [generalTabContent, toReadOnlyFieldSetContent],
+  );
+  const readonlyTechnicalTabContent = useMemo(
+    () => toReadOnlyFieldSetContent(technicalTabContent),
+    [technicalTabContent, toReadOnlyFieldSetContent],
+  );
+  const readonlySyncTabContent = useMemo(
+    () => toReadOnlyFieldSetContent(syncTabContent),
+    [syncTabContent, toReadOnlyFieldSetContent],
+  );
+
   const hasParentField = useMemo(
     () => allFields.some((field) => field.key === parentFieldKey),
     [allFields, parentFieldKey],
@@ -514,6 +540,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }, [selectedSyncGroupId]);
 
   const handleAddSyncMember = useCallback((item: SyncEquipmentItem) => {
+    if (readOnly) return;
     if (!canAttachToCurrentGroup(item)) {
       setSyncSearchError('Trang bị đã thuộc nhóm đồng bộ khác, không thể thêm vào nhóm hiện tại.');
       return;
@@ -525,12 +552,13 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     if (syncStatusFieldKey) {
       setFormData((prev) => ({ ...prev, [syncStatusFieldKey]: 'true' }));
     }
-  }, [canAttachToCurrentGroup, selectedSyncMemberKeys, syncStatusFieldKey]);
+  }, [canAttachToCurrentGroup, readOnly, selectedSyncMemberKeys, syncStatusFieldKey]);
 
   const handleRemoveSyncMember = useCallback((item: SyncEquipmentItem) => {
+    if (readOnly) return;
     const key = buildSyncEquipmentKey(item);
     setSyncMembers((prev) => prev.filter((entry) => buildSyncEquipmentKey(entry) !== key));
-  }, []);
+  }, [readOnly]);
 
   const syncParentCategoryFields = useCallback(async (selectedCategoryId: string) => {
     try {
@@ -584,6 +612,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   ]);
 
   const handleFieldChange = useCallback((fieldKey: string, value: string) => {
+    if (readOnly) return;
     setFormData((prev) => {
       if (prev[fieldKey] === value) return prev;
       const next = { ...prev, [fieldKey]: value };
@@ -605,7 +634,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       setSyncMembers([]);
       setSyncGroupMeta(null);
     }
-  }, [categoryFieldKey, syncGroupFieldKey, syncParentCategoryFields, syncStatusFieldKey]);
+  }, [categoryFieldKey, readOnly, syncGroupFieldKey, syncParentCategoryFields, syncStatusFieldKey]);
 
   const handleTabChange = useCallback((_event: React.SyntheticEvent, newValue: string) => {
     startTransition(() => {
@@ -614,10 +643,18 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (readOnly) return;
     const maDinhDanh = (formData[categoryFieldKey] ?? '').trim();
 
     if (!maDinhDanh) {
       setSaveError('Vui lòng chọn mã danh mục trang bị trước khi lưu.');
+      return;
+    }
+
+    const cnId = (formData[specializationFieldKey] ?? '').trim();
+    const cnAction = editorRecord?.id ? 'edit' : 'add';
+    if (cnId && !canCnAction(cnAction, cnId)) {
+      setSaveError(`Bạn không có quyền ${cnAction === 'edit' ? 'chỉnh sửa' : 'thêm'} trang bị thuộc chuyên ngành này.`);
       return;
     }
 
@@ -754,6 +791,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
     currentEquipmentNhom,
     onSaved,
     onClose,
+    readOnly,
   ]);
 
   // ── Log panel helpers ────────────────────────────────────────
@@ -784,9 +822,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
   // ── Loading state ───────────────────────────────────────────
   const isBaseFormLoading = schemaLoading || (isEditMode && (recordLoading || !editorRecord));
 
-  const FORM_WIDTH = 720;
-  const dialogWidth = FORM_WIDTH;
-  const dialogWidthCss = `min(${dialogWidth}px, calc(100vw - 32px))`;
+  const FORM_WIDTH = 1280;
+  const DIALOG_HEIGHT = 900;
+  const dialogWidthCss = `min(${FORM_WIDTH}px, calc(100vw - 32px))`;
+  const dialogHeightCss = `min(${DIALOG_HEIGHT}px, calc(100vh - 64px))`;
 
   return (
     <FormDialog
@@ -795,20 +834,19 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       mode={dialogMode}
       maxWidth={false}
       fullWidth={false}
-      title={dialogTitle}
+      title={readOnly ? 'Xem chi tiết trang bị kỹ thuật' : dialogTitle}
       icon={dialogIcon}
       onConfirm={handleSave}
       confirmText={saveButtonLabel}
       contentPadding={0}
       sx={{
-        '& .MuiDialog-paper': {
-          width: dialogWidthCss,
-          maxWidth: dialogWidthCss,
-          maxHeight: '90vh',
-          minHeight: 'min(720px, calc(100vh - 64px))',
-          height: 'min(760px, calc(100vh - 64px))',
-          transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1)',
-        },
+        width: dialogWidthCss,
+        maxWidth: dialogWidthCss,
+        minWidth: dialogWidthCss,
+        height: dialogHeightCss,
+        minHeight: dialogHeightCss,
+        maxHeight: dialogHeightCss,
+        transition: 'none',
       }}
       contentSx={{
         overflow: 'hidden',
@@ -817,6 +855,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
         display: 'flex',
         flex: '1 1 auto',
         minHeight: 0,
+        height: '100%',
       }}
       showConfirm={false}
       showCancel={false}
@@ -843,16 +882,18 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
               Hủy
             </Button>
 
-            {!isLastTab ? (
-              <Button
-                variant="contained"
-                onClick={handleNextTab}
-                disabled={isBaseFormLoading}
-                sx={dialogPrimaryBtnSx(setColorAccent)}
-              >
-                Tiếp tục →
-              </Button>
-            ) : (
+            {!isLastTab && (
+                <Button
+                  variant="contained"
+                  onClick={handleNextTab}
+                  disabled={isBaseFormLoading}
+                  sx={dialogPrimaryBtnSx(setColorAccent)}
+                >
+                  Tiếp tục →
+                </Button>
+            )}
+
+            {!readOnly && (
               <Button
                 variant="contained"
                 onClick={handleSave}
@@ -868,7 +909,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
       )}
     >
       {/* ── Flex wrapper: form area + side panel ─────────────── */}
-      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', width: '100%' }}>
+      <Box sx={{ display: 'flex', flex: '1 1 auto', minHeight: 0, height: '100%', overflow: 'hidden', width: '100%' }}>
 
         {/* ── Main form area ─────────────────────────────────── */}
         <Box
@@ -878,6 +919,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
             minWidth: 0,
             flexShrink: 0,
             height: '100%',
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'hidden',
@@ -905,7 +947,18 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
           )}
 
           {/* Tab bar */}
-          <Box sx={dialogTabHeaderSx(isDark)}>
+          <Box
+            sx={{
+              ...dialogTabHeaderSx(isDark),
+              position: 'relative',
+              top: 'auto',
+              flex: '1 1 auto',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
             <TabContext value={activeTab}>
               <Box sx={{ borderBottom: 0, display: 'flex', alignItems: 'stretch' }}>
                 <TabList
@@ -960,13 +1013,22 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
               </Box>
 
               {/* Tab Content area */}
-              <Box sx={dialogTabContentSx(isDark)}>
+              <Box
+                sx={{
+                  ...dialogTabContentSx(isDark),
+                  flex: '1 1 auto',
+                  minHeight: 0,
+                  height: '100%',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                }}
+              >
                 {isBaseFormLoading && <TabSkeleton />}
 
                 {!isBaseFormLoading && activeTab === TAB_GENERAL && (
                   <Suspense fallback={<TabSkeleton />}>
                     <GeneralInfoTab
-                      generalTabContent={generalTabContent}
+                      generalTabContent={readonlyGeneralTabContent}
                       formData={formData}
                       onFieldChange={handleFieldChange}
                     />
@@ -976,7 +1038,7 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                 {!isBaseFormLoading && activeTab === TAB_TECHNICAL && (
                   <Suspense fallback={<TabSkeleton />}>
                     <TechnicalFieldsTab
-                      technicalTabContent={technicalTabContent}
+                      technicalTabContent={readonlyTechnicalTabContent}
                       technicalLoading={technicalLoading}
                       technicalError={technicalError}
                       selectedCategoryCode={selectedCategoryCode}
@@ -1003,9 +1065,10 @@ const AddTrangBiDialog: React.FC<AddTrangBiDialogProps> = ({
                       onRemove={handleRemoveSyncMember}
                       canAttachToCurrentGroup={canAttachToCurrentGroup}
                       buildKey={buildSyncEquipmentKey}
-                      dynamicFieldSets={syncTabContent}
+                      dynamicFieldSets={readonlySyncTabContent}
                       formData={formData}
                       onFieldChange={handleFieldChange}
+                      readOnly={readOnly}
                     />
                   </Suspense>
                 )}

@@ -70,6 +70,7 @@ export interface SyncMembersTabProps {
   dynamicFieldSets?: Array<{ fieldSet: FieldSet; fields: DynamicField[] }>;
   formData?: Record<string, string>;
   onFieldChange?: (fieldKey: string, value: string) => void;
+  readOnly?: boolean;
 }
 
 // ── Chip màu theo Nhóm ────────────────────────────────────────
@@ -127,6 +128,7 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
   dynamicFieldSets = [],
   formData = {},
   onFieldChange,
+  readOnly = false,
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -241,6 +243,7 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
           size="small"
           variant={searchPanelOpen ? 'contained' : 'outlined'}
           startIcon={searchPanelOpen ? <ExpandLessIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+          disabled={readOnly}
           onClick={() => setSearchPanelOpen((v) => !v)}
           sx={{
             textTransform: 'none',
@@ -285,6 +288,7 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
               size="small"
               autoFocus
               value={syncSearchText}
+              disabled={readOnly}
               onChange={(e) => onSearchTextChange(e.target.value)}
               placeholder="Nhập tên danh mục, mã, số hiệu... (tối thiểu 2 ký tự)"
               slotProps={{
@@ -360,7 +364,7 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
                       const key = buildKey(item);
                       const alreadySelected = selectedSyncMemberKeys.has(key);
                       const blocked = Boolean(item.idNhomDongBo) && !canAttachToCurrentGroup(item);
-                      const disabled = alreadySelected || blocked;
+                      const disabled = readOnly || alreadySelected || blocked;
 
                       return (
                         <Box
@@ -574,6 +578,7 @@ const SyncMembersTab: React.FC<SyncMembersTabProps> = ({
                       <IconButton
                         size="small"
                         className="delete-btn"
+                        disabled={readOnly}
                         onClick={() => onRemove(item)}
                         sx={{
                           opacity: 0,

@@ -33,6 +33,7 @@ import {
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 import { pickScheduleValue } from '../../utils/scheduleFormValue';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 
 type ChuyenCapTab = 'theo_doi_trang_bi' | 'ket_qua_chuyen_cap';
 
@@ -68,6 +69,7 @@ const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'comp
 
 const ChuyenCapChatLuong: React.FC = () => {
     const location = useLocation();
+    const { canCnAction } = useMyPermissions();
     const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
     const [loading, setLoading] = useState(false);
@@ -125,7 +127,8 @@ const ChuyenCapChatLuong: React.FC = () => {
         setLoading(true);
         setErrorMessage('');
         try {
-            const rows = await getListChuyenCapChatLuongSchedule({});
+            const officeId = String(selectedOffice?.id || '').trim();
+            const rows = await getListChuyenCapChatLuongSchedule({ donViThucHien: officeId || undefined });
             const details = await Promise.all(rows.map(async (row) => {
                 try { return await getChuyenCapChatLuongSchedule(row.id); } catch { return null; }
             }));
@@ -163,7 +166,7 @@ const ChuyenCapChatLuong: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedOffice]);
 
     useEffect(() => {
         void Promise.all([loadEquipmentPool()]).then(() => { void loadSchedules(); });
@@ -349,11 +352,15 @@ const ChuyenCapChatLuong: React.FC = () => {
             parameters: formData,
             version: editingSchedule?.version || 0,
         };
+        // CN authorization check (UX gate — backend enforces authoritatively)
+        const cnAction = editingSchedule?.id ? 'edit' : 'add';
+        if (selectedEquipment.some(eq => eq.idChuyenNganhKt && !canCnAction(cnAction, eq.idChuyenNganhKt))) return;
+
         await saveChuyenCapChatLuongSchedule({ item: payload, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         setDetailEquipment(null);
         await loadSchedules();
-    }, [editingSchedule, loadSchedules, memberParametersByKey]);
+    }, [canCnAction, editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};

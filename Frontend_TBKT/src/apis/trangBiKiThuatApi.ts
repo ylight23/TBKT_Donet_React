@@ -19,11 +19,13 @@ export async function getListTrangBiNhom1(options: {
     idChuyenNganhKt?: string;
     maDanhMuc?: string;
     searchText?: string;
+    idDonVi?: string;
 } = {}): Promise<TrangBiNhom1GridItem[]> {
     const request = create(GetListTrangBiNhom1RequestSchema, {
         idChuyenNganhKt: options.idChuyenNganhKt,
         maDanhMuc: options.maDanhMuc,
         searchText: options.searchText,
+        idDonVi: options.idDonVi,
     });
     const res = await danhMucTrangBiClient.getListTrangBiNhom1(request);
     if (!res.success) {
@@ -72,11 +74,13 @@ export async function getListTrangBiNhom2(options: {
     idChuyenNganhKt?: string;
     maDanhMuc?: string;
     searchText?: string;
+    idDonVi?: string;
 } = {}): Promise<TrangBiNhom2GridItem[]> {
     const request = create(GetListTrangBiNhom2RequestSchema, {
         idChuyenNganhKt: options.idChuyenNganhKt,
         maDanhMuc: options.maDanhMuc,
         searchText: options.searchText,
+        idDonVi: options.idDonVi,
     });
     const res = await danhMucTrangBiClient.getListTrangBiNhom2(request);
     if (!res.success) {

@@ -132,6 +132,7 @@ message GetListTrangBiNhom1Request {
   google.protobuf.StringValue id_chuyen_nganh_kt = 1;   // lọc theo chuyên ngành (tùy chọn)
   google.protobuf.StringValue ma_danh_muc = 2;           // lọc theo danh mục trang bị (tùy chọn)
   google.protobuf.StringValue search_text = 3;           // tìm kiếm toàn văn (tùy chọn)
+  google.protobuf.StringValue id_don_vi = 4;
 }
 
 message TrangBiNhom1GridItem {
@@ -212,6 +213,7 @@ message GetListTrangBiNhom2Request {
   google.protobuf.StringValue id_chuyen_nganh_kt = 1;
   google.protobuf.StringValue ma_danh_muc = 2;
   google.protobuf.StringValue search_text = 3;
+  google.protobuf.StringValue id_don_vi = 4;
 }
 
 message TrangBiNhom2GridItem {

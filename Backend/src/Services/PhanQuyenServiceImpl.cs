@@ -27,7 +27,7 @@ public class PhanQuyenServiceImpl(
     // - Write path: SaveNhomNguoiDung, DeleteNhomNguoiDung, SaveGroupPermissions,
     //   AssignUserToGroup, RemoveUserFromGroup
 
-    // ── Collection names (khớp migration_scope_v1.js) ──────────────
+    // ── Collection names (canonical — xem PermissionCollectionNames.cs) ──────────────
 
     public override async Task<GetPermissionCatalogResponse> GetPermissionCatalog(
         GetPermissionCatalogRequest request, ServerCallContext context)

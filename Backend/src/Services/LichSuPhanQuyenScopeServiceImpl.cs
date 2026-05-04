@@ -12,14 +12,13 @@ namespace Backend.Services;
 [Authorize]
 public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichSuPhanQuyenScopeServiceBase
 {
-    private const string ColLichSuPhanQuyenScope = "LichSuPhanQuyenScope";
 
     // ── GetList ───────────────────────────────────────────────────
     public override async Task<LichSuPhanQuyenScopeListResponse> GetList(
         LichSuPhanQuyenScopeListRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColLichSuPhanQuyenScope);
+        var col = db.GetCollection<BsonDocument>(PermissionCollectionNames.AuthzAuditLogs);
 
         var filters = new List<FilterDefinition<BsonDocument>>();
 
@@ -76,7 +75,7 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
         LichSuPhanQuyenScopeGetRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColLichSuPhanQuyenScope);
+        var col = db.GetCollection<BsonDocument>(PermissionCollectionNames.AuthzAuditLogs);
 
         var doc = await col.Find(Builders<BsonDocument>.Filter.Eq("_id", request.Id))
             .FirstOrDefaultAsync();
@@ -102,7 +101,7 @@ public class LichSuPhanQuyenScopeServiceImpl : LichSuPhanQuyenScopeService.LichS
         LichSuPhanQuyenScopeSaveRequest request, ServerCallContext context)
     {
         var db = Global.MongoDB!;
-        var col = db.GetCollection<BsonDocument>(ColLichSuPhanQuyenScope);
+        var col = db.GetCollection<BsonDocument>(PermissionCollectionNames.AuthzAuditLogs);
 
         var item = request.Item;
         var id = string.IsNullOrEmpty(item.Id) ? Guid.NewGuid().ToString() : item.Id;

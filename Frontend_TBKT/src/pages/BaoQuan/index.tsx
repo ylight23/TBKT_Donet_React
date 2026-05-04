@@ -35,6 +35,7 @@ import {
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 import { pickScheduleValue } from '../../utils/scheduleFormValue';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 
 type PreservationSchedule = {
     id: string;
@@ -76,6 +77,7 @@ const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'comp
 
 const BaoQuan: React.FC = () => {
     const location = useLocation();
+    const { canCnAction } = useMyPermissions();
     const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
     const [loading, setLoading] = useState(false);
@@ -137,7 +139,8 @@ const BaoQuan: React.FC = () => {
         setLoading(true);
         setErrorMessage('');
         try {
-            const rows = await getListBaoQuanSchedule({});
+            const officeId = String(selectedOffice?.id || '').trim();
+            const rows = await getListBaoQuanSchedule({ idDonVi: officeId || undefined });
             const details = await Promise.all(rows.map(async (row) => {
                 try {
                     return await getBaoQuanSchedule(row.id);
@@ -184,7 +187,7 @@ const BaoQuan: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedOffice]);
 
     useEffect(() => {
         void Promise.all([loadEquipmentPool()]).then(() => {
@@ -403,11 +406,15 @@ const BaoQuan: React.FC = () => {
             version: editingSchedule?.version || 0,
         };
 
+        // CN authorization check (UX gate — backend enforces authoritatively)
+        const cnAction = editingSchedule?.id ? 'edit' : 'add';
+        if (selectedEquipment.some(eq => eq.idChuyenNganhKt && !canCnAction(cnAction, eq.idChuyenNganhKt))) return;
+
         await saveBaoQuanSchedule({ item: payloadItem, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         setDetailEquipment(null);
         await loadSchedules();
-    }, [editingSchedule, loadSchedules, memberParametersByKey]);
+    }, [canCnAction, editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};

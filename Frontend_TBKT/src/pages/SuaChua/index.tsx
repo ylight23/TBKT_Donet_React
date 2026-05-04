@@ -33,6 +33,7 @@ import {
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
 import { TRANG_BI_FIELD_SET_KEYS } from '../../constants/fieldSetKeys';
 import { pickScheduleValue } from '../../utils/scheduleFormValue';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 
 type SuaChuaTab = 'theo_doi_trang_bi' | 'ket_qua_sua_chua';
 
@@ -70,6 +71,7 @@ const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'comp
 
 const SuaChua: React.FC = () => {
     const location = useLocation();
+    const { canCnAction } = useMyPermissions();
     const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
     const [loading, setLoading] = useState(false);
@@ -128,7 +130,8 @@ const SuaChua: React.FC = () => {
         setLoading(true);
         setErrorMessage('');
         try {
-            const rows = await getListSuaChuaSchedule({});
+            const officeId = String(selectedOffice?.id || '').trim();
+            const rows = await getListSuaChuaSchedule({ donViSuaChua: officeId || undefined });
             const details = await Promise.all(rows.map(async (row) => {
                 try { return await getSuaChuaSchedule(row.id); } catch { return null; }
             }));
@@ -166,7 +169,7 @@ const SuaChua: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedOffice]);
 
     useEffect(() => {
         void Promise.all([loadEquipmentPool()]).then(() => { void loadSchedules(); });
@@ -354,10 +357,14 @@ const SuaChua: React.FC = () => {
             parameters: formData,
             version: editingSchedule?.version || 0,
         };
+        // CN authorization check (UX gate — backend enforces authoritatively)
+        const cnAction = editingSchedule?.id ? 'edit' : 'add';
+        if (selectedEquipment.some(eq => eq.idChuyenNganhKt && !canCnAction(cnAction, eq.idChuyenNganhKt))) return;
+
         await saveSuaChuaSchedule({ item: payload, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         await loadSchedules();
-    }, [editingSchedule, loadSchedules, memberParametersByKey]);
+    }, [canCnAction, editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};

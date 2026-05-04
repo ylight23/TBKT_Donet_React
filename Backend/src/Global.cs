@@ -750,19 +750,19 @@ public static class Global
                     new CreateIndexOptions { Name = "idx_phanquyen_group_function_group_module" }));
 
             CreateMongoIndex(
-                MongoDB!.GetCollection<BsonDocument>("LichSuPhanQuyenScope"),
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.AuthzAuditLogs),
                 new CreateIndexModel<BsonDocument>(
                     Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiDuocPhanQuyen").Descending("NgayThucHien"),
                     new CreateIndexOptions { Name = "idx_lichsu_scope_target_time_desc" }));
 
             CreateMongoIndex(
-                MongoDB!.GetCollection<BsonDocument>("LichSuPhanQuyenScope"),
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.AuthzAuditLogs),
                 new CreateIndexModel<BsonDocument>(
                     Builders<BsonDocument>.IndexKeys.Ascending("IdNguoiThucHien").Descending("NgayThucHien"),
                     new CreateIndexOptions { Name = "idx_lichsu_scope_actor_time_desc" }));
 
             CreateMongoIndex(
-                MongoDB!.GetCollection<BsonDocument>("LichSuPhanQuyenScope"),
+                MongoDB!.GetCollection<BsonDocument>(PermissionCollectionNames.AuthzAuditLogs),
                 new CreateIndexModel<BsonDocument>(
                     Builders<BsonDocument>.IndexKeys.Ascending("NgayHetHanMoi"),
                     new CreateIndexOptions { Name = "idx_lichsu_scope_expire_new", Sparse = true }));

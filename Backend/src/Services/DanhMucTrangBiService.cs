@@ -942,6 +942,7 @@ public sealed class DanhMucTrangBiServiceImpl(
         IMongoCollection<BsonDocument> collection,
         string? idChuyenNganhKt,
         string? maDanhMuc,
+        string? idDonVi,
         string? searchText,
         ServerCallContext context)
     {
@@ -958,6 +959,9 @@ public sealed class DanhMucTrangBiServiceImpl(
         if (!string.IsNullOrWhiteSpace(maDanhMuc))
             filter &= builder.Eq("MaDanhMuc", maDanhMuc);
 
+        if (!string.IsNullOrWhiteSpace(idDonVi))
+            filter &= BuildTrangBiOfficeFilter(builder, idDonVi);
+
         if (!string.IsNullOrWhiteSpace(searchText))
         {
             var q = EscapeRegex(searchText);
@@ -972,6 +976,24 @@ public sealed class DanhMucTrangBiServiceImpl(
         return await collection.Find(filter)
             .SortByDescending(d => d["NgayTao"])
             .ToListAsync(context.CancellationToken);
+    }
+
+    private static FilterDefinition<BsonDocument> BuildTrangBiOfficeFilter(
+        FilterDefinitionBuilder<BsonDocument> builder,
+        string idDonVi)
+    {
+        var normalized = (idDonVi ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            return FilterDefinition<BsonDocument>.Empty;
+
+        var escaped = System.Text.RegularExpressions.Regex.Escape(normalized);
+        var subtree = new BsonRegularExpression($"^{escaped}(\\.|$)", "i");
+        return builder.Or(
+            builder.Regex("IdDonVi", subtree),
+            builder.Regex("Parameters.id_don_vi", subtree),
+            builder.Regex("Parameters.don_vi", subtree),
+            builder.Regex("Parameters.id_don_vi_quan_ly", subtree),
+            builder.Regex("Parameters.don_vi_quan_ly", subtree));
     }
 
     public override async Task<SaveTrangBiNhom1Response> SaveTrangBiNhom1(SaveTrangBiNhom1Request request, ServerCallContext context)
@@ -1102,6 +1124,7 @@ public sealed class DanhMucTrangBiServiceImpl(
                 collection,
                 request.IdChuyenNganhKt,
                 request.MaDanhMuc,
+                request.IdDonVi,
                 request.SearchText,
                 context);
 
@@ -1295,6 +1318,7 @@ public sealed class DanhMucTrangBiServiceImpl(
                 collection,
                 request.IdChuyenNganhKt,
                 request.MaDanhMuc,
+                request.IdDonVi,
                 request.SearchText,
                 context);
 

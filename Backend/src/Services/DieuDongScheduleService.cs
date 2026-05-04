@@ -129,6 +129,13 @@ public sealed class DieuDongScheduleServiceImpl(
 
             await ValidateTrangBiRefsAsync(item.DsTrangBi, context.CancellationToken);
 
+            // CN authorization gate (save)
+            {
+                var cnAction = string.IsNullOrWhiteSpace(item.Id) ? "add" : "edit";
+                foreach (var cn in item.DsTrangBi.Select(tb => tb.IdChuyenNganhKt).Distinct(StringComparer.OrdinalIgnoreCase))
+                    ServiceMutationPolicy.RequireActOnCN(context, cnAction, cn, true);
+            }
+
             var userId = context.GetUserID();
             var now = DateTime.UtcNow;
             var isNew = string.IsNullOrWhiteSpace(item.Id);
@@ -200,6 +207,32 @@ public sealed class DieuDongScheduleServiceImpl(
                 response.Message = "MongoDB collection DieuDongSchedule is unavailable.";
                 return response;
             }
+
+            // CN authorization gate (delete): fetch existing to verify permissions
+            var existing = await coll
+                .Find(Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("_id", request.Id),
+                    Builders<BsonDocument>.Filter.Ne("Delete", true)))
+                .Project(Builders<BsonDocument>.Projection.Include("DsTrangBi.IdChuyenNganhKT"))
+                .Limit(1)
+                .FirstOrDefaultAsync(context.CancellationToken);
+
+            if (existing == null)
+            {
+                response.Success = false;
+                response.Message = "Khong tim thay ban ghi de xoa.";
+                return response;
+            }
+
+            var deleteCNs = existing.ArrayOr("DsTrangBi")
+                ?.Documents()
+                .Select(d => d.StringOr("IdChuyenNganhKT"))
+                .Where(cn => !string.IsNullOrEmpty(cn))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                ?? Enumerable.Empty<string>();
+
+            foreach (var cn in deleteCNs)
+                ServiceMutationPolicy.RequireActOnCN(context, "delete", cn, true);
 
             var result = await coll.UpdateOneAsync(
                 Builders<BsonDocument>.Filter.Eq("_id", request.Id),
@@ -279,8 +312,8 @@ public sealed class DieuDongScheduleServiceImpl(
         if (!string.IsNullOrWhiteSpace(request.DonVi))
         {
             filters.Add(fb.Or(
-                fb.Eq("DonViGiao", request.DonVi),
-                fb.Eq("DonViNhan", request.DonVi)));
+                BuildOfficeSubtreeFilter(fb, "DonViGiao", request.DonVi),
+                BuildOfficeSubtreeFilter(fb, "DonViNhan", request.DonVi)));
         }
 
         if (!string.IsNullOrWhiteSpace(request.IdChuyenNganhKt))
@@ -311,6 +344,16 @@ public sealed class DieuDongScheduleServiceImpl(
             filters.Add(fb.Lte("ThoiGianThucHien", toDate.Value));
 
         return fb.And(filters);
+    }
+
+    private static FilterDefinition<BsonDocument> BuildOfficeSubtreeFilter(
+        FilterDefinitionBuilder<BsonDocument> fb,
+        string fieldName,
+        string idDonVi)
+    {
+        var normalized = (idDonVi ?? string.Empty).Trim();
+        var escaped = System.Text.RegularExpressions.Regex.Escape(normalized);
+        return fb.Regex(fieldName, new BsonRegularExpression($"^{escaped}(\\.|$)", "i"));
     }
 
     private async Task ValidateTrangBiRefsAsync(IEnumerable<DieuDongScheduleTrangBiItem> items, CancellationToken cancellationToken)

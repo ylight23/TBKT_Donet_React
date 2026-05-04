@@ -26,6 +26,7 @@ import { FormDialog } from '../Dialog';
 import officeApi, { type OfficeListOption } from '../../apis/officeApi';
 import nhomDongBoApi from '../../apis/nhomDongBoApi';
 import trangBiKiThuatApi from '../../apis/trangBiKiThuatApi';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 
 interface CurrentEquipmentDraft {
   id?: string;
@@ -89,6 +90,7 @@ const NhomDongBoQuickCreateDialog: React.FC<NhomDongBoQuickCreateDialogProps> = 
   suggestedOfficeId,
 }) => {
   const theme = useTheme();
+  const { canCnAction } = useMyPermissions();
   const [tenNhom, setTenNhom] = useState('');
   const [idDonVi, setIdDonVi] = useState('');
   const [officeOptions, setOfficeOptions] = useState<OfficeListOption[]>([]);
@@ -263,6 +265,17 @@ const NhomDongBoQuickCreateDialog: React.FC<NhomDongBoQuickCreateDialogProps> = 
 
     if (payloadRefs.size === 0) {
       setSaveError('Can chon it nhat 1 trang bi dong bo de tao nhom.');
+      return;
+    }
+
+    // CN authorization check: tất cả trang bị trong nhóm phải thuộc CN mà user có quyền add/edit
+    const isNewGroup = !currentEquipment?.id;
+    const cnAction = isNewGroup ? 'add' : 'edit';
+    const unauthorizedItem = selectedItems.find(
+      (item) => item.idChuyenNganhKt && !canCnAction(cnAction, item.idChuyenNganhKt),
+    );
+    if (unauthorizedItem) {
+      setSaveError(`Bạn không có quyền ${cnAction === 'add' ? 'thêm' : 'chỉnh sửa'} trang bị thuộc chuyên ngành "${unauthorizedItem.idChuyenNganhKt}".`);
       return;
     }
 

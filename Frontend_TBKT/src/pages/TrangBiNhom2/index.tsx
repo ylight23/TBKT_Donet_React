@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import TrangBiDataGrid from '../../components/TrangBiDataGrid';
 import trangBiKiThuatApi, { type TrangBiNhom2GridItem } from '../../apis/trangBiKiThuatApi';
+import type { OfficeNode } from '../Office/subComponent/OfficeDictionary';
 
 const TrangBiNhom2: React.FC = () => {
   const [data, setData] = useState<TrangBiNhom2GridItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const records = await trangBiKiThuatApi.getListTrangBiNhom2();
+      const officeId = String(selectedOffice?.id || '').trim();
+      const records = await trangBiKiThuatApi.getListTrangBiNhom2({ idDonVi: officeId || undefined });
       setData(records);
     } catch (err) {
       console.error('[TrangBiNhom2] loadData error', err);
@@ -20,7 +23,7 @@ const TrangBiNhom2: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedOffice]);
 
   useEffect(() => {
     void loadData();
@@ -35,6 +38,8 @@ const TrangBiNhom2: React.FC = () => {
       errorMessage={errorMessage}
       activeMenu="tbNhom2"
       onRecordSaved={loadData}
+      selectedOffice={selectedOffice}
+      onOfficeSelect={setSelectedOffice}
     />
   );
 };

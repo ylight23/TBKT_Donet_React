@@ -89,6 +89,8 @@ interface TrangBiDataGridProps {
   errorMessage?: string;
   activeMenu?: 'tbNhom1' | 'tbNhom2' | string;
   onRecordSaved?: () => void;
+  selectedOffice?: OfficeNode | null;
+  onOfficeSelect?: (office: OfficeNode | null) => void;
 }
 
 type TrangBiGridRow = TrangBiNhom1GridItem | TrangBiNhom2GridItem;
@@ -105,14 +107,17 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   errorMessage = '',
   activeMenu,
   onRecordSaved,
+  selectedOffice: controlledSelectedOffice,
+  onOfficeSelect,
 }) => {
   const { canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
   const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
 
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
-  const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+  const [internalSelectedOffice, setInternalSelectedOffice] = useState<OfficeNode | null>(null);
   const [openAdd, setOpenAdd] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [dialogReadOnly, setDialogReadOnly] = useState(false);
   const [gridFieldConfigs, setGridFieldConfigs] = useState<LocalDynamicField[]>([]);
 
   useEffect(() => {
@@ -141,17 +146,25 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
 
   const handleOpenCreateDialog = useCallback(() => {
     setEditingRecordId(null);
+    setDialogReadOnly(false);
     setOpenAdd(true);
   }, []);
 
   const handleCloseDialog = useCallback(() => {
     setOpenAdd(false);
     setEditingRecordId(null);
+    setDialogReadOnly(false);
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!filterValues) return data;
+  const selectedOffice = controlledSelectedOffice !== undefined ? controlledSelectedOffice : internalSelectedOffice;
+  const handleOfficeSelect = useCallback((office: OfficeNode | null) => {
+    if (controlledSelectedOffice === undefined) {
+      setInternalSelectedOffice(office);
+    }
+    onOfficeSelect?.(office);
+  }, [controlledSelectedOffice, onOfficeSelect]);
 
+  const filtered = useMemo(() => {
     const {
       fullTextSearch,
       donVi,
@@ -166,7 +179,21 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
       donViQuanLy,
       namSanXuat,
       namSuDung,
-    } = filterValues;
+    } = filterValues ?? {
+      fullTextSearch: '',
+      donVi: '',
+      maDanhMuc: '',
+      tenDanhMuc: '',
+      capChatLuong: '',
+      tinhTrangSuDung: '',
+      soHieu: '',
+      nhom: '',
+      phanNganh: '',
+      tinhTrangKyThuat: '',
+      donViQuanLy: '',
+      namSanXuat: '',
+      namSuDung: '',
+    };
 
     const q = fullTextSearch.toLowerCase();
 
@@ -196,8 +223,14 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
       if (namSuDung && extendedRow.namSuDung !== Number(namSuDung)) return false;
 
       if (selectedOffice) {
-        const officeName = selectedOffice.ten || selectedOffice.tenDayDu || '';
-        if (!row.donVi.toLowerCase().includes(officeName.toLowerCase())) return false;
+        const officeId = String(selectedOffice.id || '').trim();
+        const officeName = String(selectedOffice.ten || selectedOffice.tenDayDu || '').trim().toLowerCase();
+        const rowUnits = [row.donVi, row.donViQuanLy]
+          .map((value) => String(value || '').trim())
+          .filter(Boolean);
+        const matchedById = officeId && rowUnits.some((value) => value === officeId || value.startsWith(`${officeId}.`));
+        const matchedByName = officeName && rowUnits.some((value) => value.toLowerCase().includes(officeName));
+        if (!matchedById && !matchedByName) return false;
       }
 
       return true;
@@ -240,11 +273,23 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   const handleEditRow = useCallback((row: TrangBiGridRow) => {
     if (activeMenuForDialog) {
       setEditingRecordId(row.id);
+      setDialogReadOnly(false);
       setOpenAdd(true);
       return;
     }
 
     alert(`Sua: ${row.maDanhMuc}`);
+  }, [activeMenuForDialog]);
+
+  const handleViewRow = useCallback((row: TrangBiGridRow) => {
+    if (activeMenuForDialog) {
+      setEditingRecordId(row.id);
+      setDialogReadOnly(true);
+      setOpenAdd(true);
+      return;
+    }
+
+    alert(`Xem: ${row.maDanhMuc}`);
   }, [activeMenuForDialog]);
 
   const fallbackColumns = useMemo<GridColDef<TrangBiGridRow>[]>(() => [
@@ -372,7 +417,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           <Tooltip title="Xem chi tiết">
             <IconButton
               size="small"
-              onClick={() => alert(`Xem: ${params.row.maDanhMuc}`)}
+              onClick={() => handleViewRow(params.row)}
               disabled={isRowActionDisabled('view', params.row)}
               sx={{ color: militaryColors.navy }}
             >
@@ -415,7 +460,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
         </Stack>
       ),
     },
-  ], [handleEditRow, isRowActionDisabled]);
+  ], [handleEditRow, handleViewRow, isRowActionDisabled]);
 
   const dynamicColumns = useMemo<GridColDef<TrangBiGridRow>[]>(() => {
     const enabledFields = gridFieldConfigs
@@ -573,7 +618,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           <Tooltip title="Xem chi tiết">
             <IconButton
               size="small"
-              onClick={() => alert(`Xem: ${params.row.maDanhMuc}`)}
+              onClick={() => handleViewRow(params.row)}
               disabled={isRowActionDisabled('view', params.row)}
               sx={{ color: militaryColors.navy }}
             >
@@ -618,7 +663,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
     };
 
     return [sttColumn, ...runtimeGridColumns, actionColumn];
-  }, [data, gridFieldConfigs, handleEditRow, isRowActionDisabled]);
+  }, [data, gridFieldConfigs, handleEditRow, handleViewRow, isRowActionDisabled]);
 
   const columns = useMemo<GridColDef<TrangBiGridRow>[]>(() => {
     const preferred = dynamicColumns.length > 0 ? dynamicColumns : fallbackColumns;
@@ -646,7 +691,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
             height: '100%',
           }}
         >
-          <OfficeDictionary onSelect={setSelectedOffice} selectedOffice={selectedOffice} />
+          <OfficeDictionary onSelect={handleOfficeSelect} selectedOffice={selectedOffice} />
         </Box>
 
         <Stack
@@ -731,10 +776,12 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
             onClose={handleCloseDialog}
             onSaved={() => {
               setEditingRecordId(null);
+              setDialogReadOnly(false);
               onRecordSaved?.();
             }}
             activeMenu={activeMenuForDialog}
             editingRecordId={editingRecordId}
+            readOnly={dialogReadOnly}
           />
 
           <FilterTrangBi onSearch={handleSearch} onClear={handleClearFilter} />

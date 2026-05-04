@@ -11,8 +11,7 @@ import Alert from '@mui/material/Alert';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
-import ExpandMore from '@mui/icons-material/ExpandMore';
-import ChevronRight from '@mui/icons-material/ChevronRight';
+import KeyboardArrowRightRounded from '@mui/icons-material/KeyboardArrowRightRounded';
 import Search from '@mui/icons-material/Search';
 import Clear from '@mui/icons-material/Clear';
 import { useTheme } from '@mui/material/styles';
@@ -53,6 +52,7 @@ interface TreeRow {
     isExpanded: boolean;
     isLoading: boolean;
     canExpand: boolean;
+    hasVisibleChildren: boolean;
 }
 
 type VisibleRow = LoadingRow | TreeRow;
@@ -82,10 +82,15 @@ const officeNodeCache = new Map<string, OfficeNode[]>();
 const ROOT_KEY = 'root';
 const ROW_HEIGHT = 40;
 const TREE_GUIDE_STEP = 20;
-const TREE_GUIDE_LEFT = 10;
-const TREE_GUIDE_OVERLAP = 8;
+const TREE_TOGGLE_WIDTH = 28;
+const TREE_GUIDE_LEFT = TREE_TOGGLE_WIDTH / 2;
+const TREE_GUIDE_ELBOW_WIDTH = TREE_GUIDE_STEP;
+const TREE_GUIDE_OVERLAP = 18;
 const TREE_GUIDE_RADIUS = 12;
-const TREE_GUIDE_WIDTH = '1px solid';
+const TREE_GUIDE_WIDTH = 1;
+const TREE_GUIDE_HOVER_WIDTH = 2;
+const TREE_GUIDE_JOINT_OFFSET = 0;
+const TREE_ARROW_Y_OFFSET = 0.5;
 
 function getNodeId(node: OfficeNode): string {
     return node.id?.toString() ?? '';
@@ -108,19 +113,32 @@ function isTreeRow(row: VisibleRow): row is TreeRow {
     return 'node' in row;
 }
 
-const TreeGuideLines: React.FC<{ depth: number; rowHeight: number; hasExpandedChildren?: boolean; active?: boolean }> = ({
+const TreeGuideLines: React.FC<{
+    depth: number;
+    rowHeight: number;
+    hasExpandedChildren?: boolean;
+    active?: boolean;
+    childGuideActive?: boolean;
+    disableVerticalHover?: boolean;
+}> = ({
     depth,
     rowHeight,
     hasExpandedChildren = false,
     active = false,
+    childGuideActive,
+    disableVerticalHover = false,
 }) => {
     const theme = useTheme();
+    const activeGuideGlow = theme.palette.mode === 'dark'
+        ? 'drop-shadow(0 0 3px rgba(123,196,127,0.55))'
+        : 'drop-shadow(0 0 3px rgba(27,94,32,0.28))';
     if (depth <= 0 && !hasExpandedChildren) return null;
 
-    const lineColor = active
-        ? (theme.palette.mode === 'dark' ? '#7BC47F' : '#1B5E20')
-        : (theme.palette.mode === 'dark' ? 'rgba(123,196,127,0.42)' : 'rgba(27, 94, 32, 0.42)');
-    const elbowTop = Math.floor(rowHeight / 2);
+    const baseLineColor = theme.palette.mode === 'dark' ? 'rgba(123,196,127,0.42)' : 'rgba(27, 94, 32, 0.42)';
+    const activeLineColor = theme.palette.mode === 'dark' ? '#7BC47F' : '#1B5E20';
+    const lineColor = active ? activeLineColor : baseLineColor;
+    const verticalActive = false;
+    const elbowTop = Math.floor(rowHeight / 2) + TREE_GUIDE_JOINT_OFFSET;
 
     return (
         <Box aria-hidden sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -137,9 +155,10 @@ const TreeGuideLines: React.FC<{ depth: number; rowHeight: number; hasExpandedCh
                                     left,
                                     top: -TREE_GUIDE_OVERLAP,
                                     bottom: -TREE_GUIDE_OVERLAP,
-                                    borderLeft: TREE_GUIDE_WIDTH,
-                                    borderColor: lineColor,
-                                    transition: 'border-color 120ms ease',
+                                    borderLeft: `${verticalActive ? TREE_GUIDE_HOVER_WIDTH : TREE_GUIDE_WIDTH}px solid`,
+                                    borderColor: verticalActive ? activeLineColor : baseLineColor,
+                                    filter: verticalActive ? activeGuideGlow : 'none',
+                                    transition: 'border-color 120ms ease, border-width 120ms ease, filter 120ms ease',
                                 }}
                             />
                         )}
@@ -150,13 +169,14 @@ const TreeGuideLines: React.FC<{ depth: number; rowHeight: number; hasExpandedCh
                                     position: 'absolute',
                                     left,
                                     top: -TREE_GUIDE_OVERLAP,
-                                    width: 18,
-                                    height: elbowTop + TREE_GUIDE_OVERLAP + 1,
-                                    borderLeft: TREE_GUIDE_WIDTH,
-                                    borderBottom: TREE_GUIDE_WIDTH,
+                                    width: TREE_GUIDE_ELBOW_WIDTH,
+                                    height: elbowTop + TREE_GUIDE_OVERLAP,
+                                    borderLeft: `${active ? TREE_GUIDE_HOVER_WIDTH : TREE_GUIDE_WIDTH}px solid`,
+                                    borderBottom: `${active ? TREE_GUIDE_HOVER_WIDTH : TREE_GUIDE_WIDTH}px solid`,
                                     borderBottomLeftRadius: TREE_GUIDE_RADIUS,
                                     borderColor: lineColor,
-                                    transition: 'border-color 120ms ease',
+                                    filter: active ? activeGuideGlow : 'none',
+                                    transition: 'border-color 120ms ease, border-width 120ms ease, filter 120ms ease',
                                 }}
                             />
                         )}
@@ -169,11 +189,12 @@ const TreeGuideLines: React.FC<{ depth: number; rowHeight: number; hasExpandedCh
                     sx={{
                         position: 'absolute',
                         left: depth * TREE_GUIDE_STEP + TREE_GUIDE_LEFT,
-                        top: elbowTop - 1,
+                        top: elbowTop,
                         bottom: -TREE_GUIDE_OVERLAP,
-                        borderLeft: TREE_GUIDE_WIDTH,
-                        borderColor: lineColor,
-                        transition: 'border-color 120ms ease',
+                        borderLeft: `${(childGuideActive ?? verticalActive) ? TREE_GUIDE_HOVER_WIDTH : TREE_GUIDE_WIDTH}px solid`,
+                        borderColor: (childGuideActive ?? verticalActive) ? activeLineColor : baseLineColor,
+                        filter: (childGuideActive ?? verticalActive) ? activeGuideGlow : 'none',
+                        transition: 'border-color 120ms ease, border-width 120ms ease, filter 120ms ease',
                     }}
                 />
             )}
@@ -218,8 +239,9 @@ function computeVisibleList(
             const isLoading = !!loadingByParent[id];
             const childNodes = nodesByParent[id];
             const canExpand = hasChildren(node) || !!(childNodes && childNodes.length > 0);
+            const hasVisibleChildren = isLoading || !!(childNodes && childNodes.length > 0);
 
-            rows.push({ node, depth: currentDepth, isExpanded, isLoading, canExpand });
+            rows.push({ node, depth: currentDepth, isExpanded, isLoading, canExpand, hasVisibleChildren });
 
             if (isExpanded) {
                 if (isLoading) {
@@ -242,8 +264,10 @@ interface VirtualTreeRowProps {
     row: VisibleRow;
     rowIndex: number;
     isSelected: boolean;
+    isDirectHovered: boolean;
     onToggleExpand: (id: string) => void;
     onSelect: (node: OfficeNode) => void;
+    onHoverPathChange: (nodeId: string | null) => void;
     style: CSSProperties;
 }
 
@@ -251,8 +275,10 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
     row,
     rowIndex,
     isSelected,
+    isDirectHovered,
     onToggleExpand,
     onSelect,
+    onHoverPathChange,
     style,
 }: VirtualTreeRowProps) {
     const theme = useTheme();
@@ -267,10 +293,9 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
         );
     }
 
-    const { node, depth, isExpanded, canExpand } = row as TreeRow;
+    const { node, depth, isExpanded, canExpand, hasVisibleChildren } = row as TreeRow;
     const id = node.id?.toString() ?? '';
     const ten = node.ten || node.Ten || node.tenDayDu || node.TenDayDu || id;
-
     return (
         <Box
             sx={{
@@ -282,31 +307,53 @@ const VirtualTreeRow = React.memo(function VirtualTreeRow({
                 pr: 1,
                 cursor: 'pointer',
                 borderRadius: 1,
-                ...getStripedRowSx(theme, rowIndex, isSelected),
+                ...getStripedRowSx(theme, rowIndex, false),
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 userSelect: 'none',
                 mb: 0.25,
-                '&:hover [data-tree-guide="true"]': {
-                    borderColor: theme.palette.mode === 'dark' ? '#7BC47F' : '#1B5E20',
-                },
             }}
             onClick={() => onSelect(node)}
+            onMouseEnter={() => onHoverPathChange(id)}
+            onMouseLeave={() => onHoverPathChange(null)}
         >
-            <TreeGuideLines depth={depth} rowHeight={ROW_HEIGHT} hasExpandedChildren={canExpand && isExpanded} active={isSelected} />
+            <TreeGuideLines
+                depth={depth}
+                rowHeight={ROW_HEIGHT}
+                hasExpandedChildren={isExpanded && hasVisibleChildren}
+                active={isSelected || isDirectHovered}
+                childGuideActive={false}
+                disableVerticalHover={isDirectHovered && !isSelected}
+            />
             <Box
-                sx={{ width: 28, height: ROW_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                sx={{
+                    width: TREE_TOGGLE_WIDTH,
+                    height: ROW_HEIGHT,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    color: isSelected ? theme.palette.primary.main : 'text.secondary',
+                }}
                 onClick={canExpand ? (e: React.MouseEvent) => { e.stopPropagation(); onToggleExpand(id); } : undefined}
             >
                 {canExpand && (
-                    isExpanded
-                        ? <ExpandMore sx={{ fontSize: 18, color: '#555' }} />
-                        : <ChevronRight sx={{ fontSize: 18, color: '#555' }} />
+                    <KeyboardArrowRightRounded
+                        sx={{
+                            fontSize: 18,
+                            display: 'flex',
+                            transform: isExpanded
+                                ? `translateY(${TREE_ARROW_Y_OFFSET}px) rotate(90deg)`
+                                : `translateY(${TREE_ARROW_Y_OFFSET}px) rotate(0deg)`,
+                            transformOrigin: 'center',
+                            transition: 'transform 120ms ease, color 120ms ease',
+                        }}
+                    />
                 )}
             </Box>
             <Typography noWrap variant="body1"
                 sx={{
                     fontSize: '0.925rem',
-                    fontWeight: isSelected ? 700 : 400,
+                    fontWeight: isSelected ? 1000 : 420,
                     flex: 1,
                     minWidth: 0,
                     color: isSelected ? theme.palette.primary.main : 'text.primary'
@@ -351,6 +398,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
     const [searchText, setSearchText] = useState<string>('');
     const [searchLoading, setSearchLoading] = useState<boolean>(false);
     const [searchResults, setSearchResults] = useState<OfficeNode[] | null>(null);
+    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const searchRequestIdRef = useRef<number>(0);
     const [, startExpandTransition] = useTransition();
@@ -404,6 +452,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
             isExpanded: expandedSetRef.current.has(id),
             isLoading: !!loadingByParentRef.current[id],
             canExpand: hasChildren(node) || !!(childNodes && childNodes.length > 0),
+            hasVisibleChildren: !!loadingByParentRef.current[id] || !!(childNodes && childNodes.length > 0),
         };
     }, []);
 
@@ -919,7 +968,7 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
     const visibleList = useMemo<VisibleRow[]>(() => {
         if (isSearchMode) {
             return (searchResults || []).map(node => ({
-                node, depth: 0, isExpanded: false, isLoading: false, canExpand: false,
+                node, depth: 0, isExpanded: false, isLoading: false, canExpand: false, hasVisibleChildren: false,
             }));
         }
         return visibleTreeRows;
@@ -1022,8 +1071,10 @@ const OfficeDictionary = React.forwardRef<OfficeDictionaryRef, OfficeDictionaryP
                                         row={row}
                                         rowIndex={virtualRow.index}
                                         isSelected={!!(row as TreeRow).node && (row as TreeRow).node?.id?.toString() === selectedId}
+                                        isDirectHovered={isTreeRow(row) && hoveredNodeId === getNodeId(row.node)}
                                         onToggleExpand={handleToggleExpand}
                                         onSelect={handleSelect}
+                                        onHoverPathChange={setHoveredNodeId}
                                         style={{
                                             position: 'absolute',
                                             top: `${virtualRow.start}px`,
