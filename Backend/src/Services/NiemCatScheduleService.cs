@@ -15,6 +15,7 @@ public sealed class NiemCatScheduleServiceImpl(
     : NiemCatScheduleService.NiemCatScheduleServiceBase
 {
     private const string CollectionName = "NiemCatSchedule";
+    private const string PermissionCode = "trangbilog.niem_cat";
     private const string TrangBiNhom1Collection = "TrangBiNhom1";
     private const string TrangBiNhom2Collection = "TrangBiNhom2";
 
@@ -33,6 +34,8 @@ public sealed class NiemCatScheduleServiceImpl(
         var response = new GetListNiemCatScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -69,6 +72,8 @@ public sealed class NiemCatScheduleServiceImpl(
         var response = new GetNiemCatScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -111,6 +116,8 @@ public sealed class NiemCatScheduleServiceImpl(
         var response = new SaveNiemCatScheduleResponse();
         try
         {
+            context.RequireCreateOrEdit(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -200,6 +207,8 @@ public sealed class NiemCatScheduleServiceImpl(
         var response = new DeleteBaseResponse();
         try
         {
+            context.RequireDelete(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -263,6 +272,8 @@ public sealed class NiemCatScheduleServiceImpl(
         var response = new GetListNiemCatScheduleByTrangBiResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {

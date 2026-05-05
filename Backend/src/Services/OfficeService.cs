@@ -18,6 +18,8 @@ namespace Backend.Services;
 public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnvironment _environment) : OfficeService.OfficeServiceBase
 {
 
+    private const string PermissionCode = "office.view";
+
     private int lengthOfLevel = 3;
     private int maxOfLevel = 999;
 
@@ -43,6 +45,8 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
         OfficeListResponse response = new OfficeListResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             logger.LogInformation($"[GetListOffice START] ParentID={request.ParentId}, LoadAll={request.LoadAll}, ShowToLevel={request.ShowToLevel}, SearchText={request.SearchText}");
             var builder = Builders<BsonDocument>.Filter;
             var filter = builder.Empty;
@@ -339,6 +343,8 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
      [Authorize]
     public override Task<OfficeResponse> GetOffice(OfficeRequest request, ServerCallContext context)
     {
+        context.RequireView(PermissionCode);
+
         //context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "GetOffice", request, _logger);
         OfficeResponse response = new OfficeResponse();
         // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanView(funcName: funcName))
@@ -385,6 +391,8 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     public override async Task<SaveOfficeResponse> ReorderOffice(ReorderOfficeRequest request, ServerCallContext context)
     {
         var response = new SaveOfficeResponse();
+        context.RequireView(PermissionCode);
+
         // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcName))
         // {
         //     response.Success = false;
@@ -589,6 +597,8 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     public override async Task<OfficeDeleteResponse> DeleteOffice(OfficeRequest request, ServerCallContext context)
     {
         var response = new OfficeDeleteResponse();
+        context.RequireView(PermissionCode);
+
         // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanDelete(funcName: funcName))
         // {
         //     response.Success = false;
@@ -696,6 +706,8 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     public override async Task<SaveOfficeResponse> SaveOffice(SaveOfficeRequest request, ServerCallContext context)
     {
         var response = new SaveOfficeResponse();
+        context.RequireView(PermissionCode);
+
         // if (!string.IsNullOrEmpty(context.GetUserID()) && !context.CanCreateOrEdit(funcName: funcName))
         // {
         //     response.Success = false;
@@ -1068,6 +1080,7 @@ public class OfficeServiceImpl(ILogger<OfficeServiceImpl> logger, IWebHostEnviro
     public override async Task<SaveOrderOfficeResponse> SaveOrderOffice(SaveOrderOfficeRequest request, ServerCallContext context)
     {
         var response = new SaveOrderOfficeResponse() { Success = true };
+        context.RequireView(PermissionCode);
 
         // context.WriteLog(DiziApp.Shared.Models.Core.Global.ApplicationName, "SaveOrderOffice", request, _logger);
 

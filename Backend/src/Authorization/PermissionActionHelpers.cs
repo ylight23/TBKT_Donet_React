@@ -8,7 +8,7 @@ internal static class PermissionActionHelpers
 {
     private static readonly string[] ActionNames =
     [
-        "view", "add", "edit", "delete", "approve", "download", "print"
+        "view", "add", "edit", "delete", "approve", "unapprove", "download", "print"
     ];
 
     public static BsonDocument EmptyActionsDocument() => new()
@@ -18,6 +18,7 @@ internal static class PermissionActionHelpers
         { "edit", false },
         { "delete", false },
         { "approve", false },
+        { "unapprove", false },
         { "download", false },
         { "print", false },
     };
@@ -34,6 +35,7 @@ internal static class PermissionActionHelpers
             { "edit", actionDoc.BoolOr("edit") },
             { "delete", actionDoc.BoolOr("delete") },
             { "approve", actionDoc.BoolOr("approve") },
+            { "unapprove", actionDoc.BoolOr("unapprove") },
             { "download", actionDoc.BoolOr("download") },
             { "print", actionDoc.BoolOr("print") },
         };
@@ -56,6 +58,7 @@ internal static class PermissionActionHelpers
         actions.Edit = actionDoc.BoolOr("edit");
         actions.Delete = actionDoc.BoolOr("delete");
         actions.Approve = actionDoc.BoolOr("approve");
+        actions.Unapprove = actionDoc.BoolOr("unapprove");
         actions.Download = actionDoc.BoolOr("download");
         actions.Print = actionDoc.BoolOr("print");
         return actions;
@@ -69,6 +72,7 @@ internal static class PermissionActionHelpers
         if (source.Edit) target.Edit = true;
         if (source.Delete) target.Delete = true;
         if (source.Approve) target.Approve = true;
+        if (source.Unapprove) target.Unapprove = true;
         if (source.Download) target.Download = true;
         if (source.Print) target.Print = true;
     }

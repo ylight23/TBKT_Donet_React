@@ -15,6 +15,7 @@ public sealed class SuaChuaScheduleServiceImpl(
     : SuaChuaScheduleService.SuaChuaScheduleServiceBase
 {
     private const string CollectionName = "SuaChuaSchedule";
+    private const string PermissionCode = "trangbilog.sua_chua";
     private const string TrangBiNhom1Collection = "TrangBiNhom1";
     private const string TrangBiNhom2Collection = "TrangBiNhom2";
 
@@ -33,6 +34,8 @@ public sealed class SuaChuaScheduleServiceImpl(
         var response = new GetListSuaChuaScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -69,6 +72,8 @@ public sealed class SuaChuaScheduleServiceImpl(
         var response = new GetSuaChuaScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -111,6 +116,8 @@ public sealed class SuaChuaScheduleServiceImpl(
         var response = new SaveSuaChuaScheduleResponse();
         try
         {
+            context.RequireCreateOrEdit(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -201,6 +208,8 @@ public sealed class SuaChuaScheduleServiceImpl(
         var response = new DeleteBaseResponse();
         try
         {
+            context.RequireDelete(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -264,6 +273,8 @@ public sealed class SuaChuaScheduleServiceImpl(
         var response = new GetListSuaChuaScheduleByTrangBiResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {

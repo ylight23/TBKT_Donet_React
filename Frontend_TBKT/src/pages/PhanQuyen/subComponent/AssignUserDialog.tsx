@@ -487,9 +487,13 @@ const AssignUserDialog: React.FC<AssignUserDialogProps> = ({
                             value={anchorNodeId}
                             onChange={(e) => setAnchorNodeId(e.target.value)}
                             placeholder="vd: dv1, office-root"
-                            disabled={scope === 'SELF' || scope === 'ALL'}
+                            // Legacy SELF is disabled by the new data-scope model.
+                            // disabled={scope === 'SELF' || scope === 'ALL'}
+                            disabled={scope === 'ALL'}
                             error={delegatedMissingAnchor}
-                            helperText={scope === 'SELF' || scope === 'ALL'
+                            // Legacy SELF is disabled by the new data-scope model.
+                            // helperText={scope === 'SELF' || scope === 'ALL'
+                            helperText={scope === 'ALL'
                                 ? 'Scope này không cần anchor node'
                                 : scope === 'DELEGATED'
                                     ? 'Bắt buộc: nhập đơn vị sẽ được ủy quyền quản trị'

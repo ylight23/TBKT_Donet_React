@@ -15,6 +15,7 @@ public sealed class BaoDuongScheduleServiceImpl(
     : BaoDuongScheduleService.BaoDuongScheduleServiceBase
 {
     private const string CollectionName = "BaoDuongSchedule";
+    private const string PermissionCode = "trangbilog.bao_duong";
     private const string TrangBiNhom1Collection = "TrangBiNhom1";
     private const string TrangBiNhom2Collection = "TrangBiNhom2";
 
@@ -33,6 +34,8 @@ public sealed class BaoDuongScheduleServiceImpl(
         var response = new GetListBaoDuongScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -70,6 +73,8 @@ public sealed class BaoDuongScheduleServiceImpl(
         var response = new GetBaoDuongScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -112,6 +117,8 @@ public sealed class BaoDuongScheduleServiceImpl(
         var response = new SaveBaoDuongScheduleResponse();
         try
         {
+            context.RequireCreateOrEdit(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -210,6 +217,8 @@ public sealed class BaoDuongScheduleServiceImpl(
         var response = new DeleteBaseResponse();
         try
         {
+            context.RequireDelete(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -273,6 +282,8 @@ public sealed class BaoDuongScheduleServiceImpl(
         var response = new GetListBaoDuongScheduleByTrangBiResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {

@@ -70,6 +70,13 @@ public sealed class AccessGate
         = new Dictionary<string, HashSet<string>>();
 
     /// <summary>
+    /// IDChuyenNganh -> MaChucNang -> allowed actions. When present this narrows
+    /// the CN action layer for a specific static menu/function.
+    /// </summary>
+    public IReadOnlyDictionary<string, Dictionary<string, HashSet<string>>> FunctionActionsPerCN { get; init; }
+        = new Dictionary<string, Dictionary<string, HashSet<string>>>();
+
+    /// <summary>
     /// Internal service scopes resolved from MaPhanHe, used for microservice-ready enforcement.
     /// Example: "tbkt-thongtin", "tbkt-kythuat".
     /// </summary>
@@ -115,6 +122,21 @@ public sealed class AccessGate
         if (ActionsPerCN.Count == 0) return true; // no CN rules configured = allow all
         if (!ActionsPerCN.TryGetValue(idChuyenNganh, out var allowed)) return false;
         return allowed.Contains(action);
+    }
+
+    public bool CanActOnCN(string maChucNang, string action, string? idChuyenNganh)
+    {
+        if (IsSuperAdmin) return true;
+        if (string.IsNullOrEmpty(idChuyenNganh)) return true;
+        if (!CanActOnCN(action, idChuyenNganh))
+            return false;
+        if (!string.IsNullOrEmpty(maChucNang)
+            && FunctionActionsPerCN.TryGetValue(idChuyenNganh, out var perFunc)
+            && perFunc.TryGetValue(maChucNang, out var funcActions))
+        {
+            return funcActions.Contains(action);
+        }
+        return true;
     }
 
     /// <summary>
@@ -185,7 +207,7 @@ public sealed class AccessGate
         if (!CanCallFunc(maChucNang, action)) return false;
 
         // Chiều 2: quyền trên CN cụ thể
-        if (!CanActOnCN(action, idChuyenNganh)) return false;
+        if (!CanActOnCN(maChucNang, action, idChuyenNganh)) return false;
 
         return true;
     }
@@ -202,7 +224,7 @@ public sealed class AccessGate
         if (IsSuperAdmin) return true;
         if (!CanAccessModule(maPhanHe)) return false;
         if (!CanCallFunc(maChucNang, action)) return false;
-        if (!CanActOnCN(action, idChuyenNganh)) return false;
+        if (!CanActOnCN(maChucNang, action, idChuyenNganh)) return false;
         return true;
     }
 

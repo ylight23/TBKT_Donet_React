@@ -68,9 +68,11 @@ const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'comp
     }
 };
 
+const PERMISSION_CODE = 'trangbilog.dieu_dong';
+
 const DieuDong: React.FC = () => {
     const location = useLocation();
-    const { canCnAction } = useMyPermissions();
+    const { canCnAction, canFunc, loaded: permissionLoaded } = useMyPermissions();
     const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
     const [loading, setLoading] = useState(false);
@@ -87,6 +89,9 @@ const DieuDong: React.FC = () => {
     const [readOnlyDialog, setReadOnlyDialog] = useState(false);
     const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
     const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
+    const canCreateSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, 'add');
+    const canDeleteSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, 'delete');
+    const canSaveSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, editingSchedule?.id ? 'edit' : 'add');
 
     const loadEquipmentPool = useCallback(async () => {
         setEquipmentLoading(true);
@@ -253,12 +258,13 @@ const DieuDong: React.FC = () => {
     }, [equipmentPool, filteredSchedules, resolveStatus]);
 
     const openCreateDialog = useCallback(() => {
+        if (!canCreateSchedule) return;
         setEditingSchedule(null);
         setReadOnlyDialog(false);
         setMemberParametersByKey({});
         setDetailEquipment(null);
         setDialogOpen(true);
-    }, []);
+    }, [canCreateSchedule]);
 
     const openEditDialog = useCallback(async (schedule: TransferSchedule, options?: { readOnly?: boolean }) => {
         setSaving(true);
@@ -311,6 +317,7 @@ const DieuDong: React.FC = () => {
     }, [filteredSchedules, openEditDialog, schedules]);
 
     const handleDeleteSchedule = useCallback(async (schedule: TransferSchedule) => {
+        if (!canDeleteSchedule) return;
         if (!window.confirm('Bạn có chắc muốn xóa lịch này?')) return;
         const sourceScheduleId = schedule.parameters?.__schedule_id;
         const targetSchedule = sourceScheduleId
@@ -326,7 +333,7 @@ const DieuDong: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    }, [filteredSchedules, loadSchedules, schedules]);
+    }, [canDeleteSchedule, filteredSchedules, loadSchedules, schedules]);
 
     const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payload: LocalDieuDongScheduleItem = {
@@ -354,13 +361,14 @@ const DieuDong: React.FC = () => {
         };
         // CN authorization check (UX gate — backend enforces authoritatively)
         const cnAction = editingSchedule?.id ? 'edit' : 'add';
+        if (!canFunc(PERMISSION_CODE, cnAction)) return;
         if (selectedEquipment.some(eq => eq.idChuyenNganhKt && !canCnAction(cnAction, eq.idChuyenNganhKt))) return;
 
         await saveDieuDongSchedule({ item: payload, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         setDetailEquipment(null);
         await loadSchedules();
-    }, [canCnAction, editingSchedule, loadSchedules, memberParametersByKey]);
+    }, [canCnAction, canFunc, editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};
@@ -401,7 +409,7 @@ const DieuDong: React.FC = () => {
                         </Typography>
                         <Typography variant="body2" color="text.secondary">Quản lý theo dõi trang bị và lịch điều động.</Typography>
                     </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Thêm kế hoạch</Button>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog} disabled={!canCreateSchedule}>Thêm kế hoạch</Button>
                 </Stack>
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
@@ -471,8 +479,8 @@ const DieuDong: React.FC = () => {
                         </Stack>
                         <Box sx={{ flex: 1, minHeight: 0 }}>
                             {activeTab === 'theo_doi_trang_bi'
-                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
-                                : <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />}
+                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={canDeleteSchedule ? handleDeleteSchedule : undefined} />
+                                : <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={canDeleteSchedule ? handleDeleteSchedule : undefined} />}
                         </Box>
                     </Box>
                     <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
@@ -490,7 +498,7 @@ const DieuDong: React.FC = () => {
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
                     editingId={editingSchedule?.id}
-                readOnly={readOnlyDialog}
+                readOnly={readOnlyDialog || !canSaveSchedule}
                     equipmentPool={equipmentPool}
                     equipmentLoading={equipmentLoading}
                     title={editingSchedule?.id ? 'Cập nhật kế hoạch điều động' : 'Thêm kế hoạch điều động'}

@@ -15,6 +15,7 @@ public sealed class ChuyenCapChatLuongScheduleServiceImpl(
     : ChuyenCapChatLuongScheduleService.ChuyenCapChatLuongScheduleServiceBase
 {
     private const string CollectionName = "ChuyenCapChatLuongSchedule";
+    private const string PermissionCode = "tech.quality";
     private const string TrangBiNhom1Collection = "TrangBiNhom1";
     private const string TrangBiNhom2Collection = "TrangBiNhom2";
 
@@ -33,6 +34,8 @@ public sealed class ChuyenCapChatLuongScheduleServiceImpl(
         var response = new GetListChuyenCapChatLuongScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -69,6 +72,8 @@ public sealed class ChuyenCapChatLuongScheduleServiceImpl(
         var response = new GetChuyenCapChatLuongScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -111,6 +116,8 @@ public sealed class ChuyenCapChatLuongScheduleServiceImpl(
         var response = new SaveChuyenCapChatLuongScheduleResponse();
         try
         {
+            context.RequireCreateOrEdit(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -198,6 +205,8 @@ public sealed class ChuyenCapChatLuongScheduleServiceImpl(
         var response = new DeleteBaseResponse();
         try
         {
+            context.RequireDelete(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -261,6 +270,8 @@ public sealed class ChuyenCapChatLuongScheduleServiceImpl(
         var response = new GetListChuyenCapChatLuongScheduleByTrangBiResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {

@@ -13,7 +13,7 @@ namespace Backend.Services;
 
 public class DynamicMenuService(ILogger<DynamicMenuService> logger)
 {
-    private const string PermissionCode = "thamso_dynamicmenu";
+    private const string PermissionCode = "config.menu";
     private static readonly HashSet<string> ReservedAuditKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "CreateDate",

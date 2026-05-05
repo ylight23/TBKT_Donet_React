@@ -2,14 +2,22 @@ import React, { useCallback, useEffect, useState } from 'react';
 import TrangBiDataGrid from '../../components/TrangBiDataGrid';
 import trangBiKiThuatApi, { type TrangBiNhom2GridItem } from '../../apis/trangBiKiThuatApi';
 import type { OfficeNode } from '../Office/subComponent/OfficeDictionary';
+import { useMyPermissions } from '../../hooks/useMyPermissions';
 
 const TrangBiNhom2: React.FC = () => {
   const [data, setData] = useState<TrangBiNhom2GridItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedOffice, setSelectedOffice] = useState<OfficeNode | null>(null);
+  const { canFunc, loaded: permissionLoaded } = useMyPermissions();
+  const canViewTrangBiNhom2 = canFunc('equipment.group2', 'view');
 
   const loadData = useCallback(async () => {
+    if (!permissionLoaded || !canViewTrangBiNhom2) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setErrorMessage('');
     try {
@@ -23,11 +31,17 @@ const TrangBiNhom2: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedOffice]);
+  }, [selectedOffice, permissionLoaded, canViewTrangBiNhom2]);
 
   useEffect(() => {
+    if (!permissionLoaded) return;
+    if (!canViewTrangBiNhom2) {
+      setData([]);
+      setErrorMessage('Khong co quyen xem trang bi nhom 2');
+      return;
+    }
     void loadData();
-  }, [loadData]);
+  }, [loadData, permissionLoaded, canViewTrangBiNhom2]);
 
   return (
     <TrangBiDataGrid

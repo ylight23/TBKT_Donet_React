@@ -24,6 +24,7 @@ import SortIcon from '@mui/icons-material/Sort';
 import type { Role, PermissionUserRow, ScopeType, GroupScopeConfig, PhamViChuyenNganhConfig } from '../../../types/permission';
 import { scopeLookup } from '../data/permissionData';
 import AssignUserDialog, { type AssignUserDialogValue } from './AssignUserDialog';
+import { useMyPermissions } from '../../../hooks/useMyPermissions';
 
 const scopeMap = scopeLookup;
 
@@ -77,6 +78,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
     const theme = useTheme();
     const isSystem = selectedRole?.type === 'SYSTEM';
     const roleColor = selectedRole?.color || theme.palette.primary.main;
+    const { canFunc, loaded: permissionLoaded } = useMyPermissions();
 
     const [assignOpen, setAssignOpen] = useState(false);
     const [editState, setEditState] = useState<EditState | null>(null);
@@ -84,6 +86,10 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
     const [scopeFilter, setScopeFilter] = useState<'ALL' | string>('ALL');
     const [cnFilter, setCnFilter] = useState<'ALL' | 'WITH_CN' | 'NO_CN'>('ALL');
     const [sortMode, setSortMode] = useState<SortMode>('name_asc');
+
+    const canAssignUser = !isSystem && permissionLoaded && canFunc('config.role', 'add');
+    const canEditUser = !isSystem && permissionLoaded && canFunc('config.role', 'edit');
+    const canRemoveUser = !isSystem && permissionLoaded && canFunc('config.role', 'delete');
 
     const summary = useMemo(() => {
         const now = Date.now();
@@ -192,15 +198,29 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                 </Box>
 
                 {!isSystem && (
-                    <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<AssignmentIndIcon sx={{ fontSize: '16px !important' }} />}
-                        onClick={() => setAssignOpen(true)}
-                        sx={{ px: 2, py: 0.75, borderRadius: 2, fontSize: 12, fontWeight: 700, textTransform: 'none' }}
+                    <Tooltip
+                        title={
+                            !permissionLoaded
+                                ? 'Dang tai quyen thao tac'
+                                : canAssignUser
+                                    ? 'Gan user vao role'
+                                    : 'Ban khong co quyen them nguoi dung vao role nay'
+                        }
+                        arrow
                     >
-                        Gan user
-                    </Button>
+                        <span>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AssignmentIndIcon sx={{ fontSize: '16px !important' }} />}
+                                onClick={() => setAssignOpen(true)}
+                                disabled={!canAssignUser}
+                                sx={{ px: 2, py: 0.75, borderRadius: 2, fontSize: 12, fontWeight: 700, textTransform: 'none' }}
+                            >
+                                Gan user
+                            </Button>
+                        </span>
+                    </Tooltip>
                 )}
             </Box>
 
@@ -466,43 +486,67 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
 
                                 {!isSystem && (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: { xs: 'flex-start', lg: 'flex-end' } }}>
-                                        <Tooltip title="Chinh pham vi" arrow>
-                                            <IconButton
-                                                size="small"
-                                                aria-label={`Chinh pham vi cua ${user.name}`}
-                                                onClick={() => handleOpenEdit(user)}
-                                                sx={{
-                                                    color: 'text.secondary',
-                                                    border: `1px solid ${theme.palette.divider}`,
-                                                    borderRadius: 1.5,
-                                                    '&:hover': {
-                                                        bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                                        borderColor: alpha(theme.palette.primary.main, 0.3),
-                                                        color: 'primary.main',
-                                                    },
-                                                }}
-                                            >
-                                                <ManageAccountsIcon sx={{ fontSize: 16 }} />
-                                            </IconButton>
+                                        <Tooltip
+                                            title={
+                                                !permissionLoaded
+                                                    ? 'Dang tai quyen thao tac'
+                                                    : canEditUser
+                                                        ? 'Chinh pham vi'
+                                                        : 'Ban khong co quyen sua phan quyen nguoi dung'
+                                            }
+                                            arrow
+                                        >
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    aria-label={`Chinh pham vi cua ${user.name}`}
+                                                    onClick={() => handleOpenEdit(user)}
+                                                    disabled={!canEditUser}
+                                                    sx={{
+                                                        color: 'text.secondary',
+                                                        border: `1px solid ${theme.palette.divider}`,
+                                                        borderRadius: 1.5,
+                                                        '&:hover': {
+                                                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                                                            color: 'primary.main',
+                                                        },
+                                                    }}
+                                                >
+                                                    <ManageAccountsIcon sx={{ fontSize: 16 }} />
+                                                </IconButton>
+                                            </span>
                                         </Tooltip>
-                                        <Tooltip title="Xoa khoi nhom" arrow>
-                                            <IconButton
-                                                size="small"
-                                                aria-label={`Xoa ${user.name} khoi nhom`}
-                                                onClick={() => user.idAssignment && onRemoveUser(user.idAssignment)}
-                                                sx={{
-                                                    color: 'text.secondary',
-                                                    border: `1px solid ${theme.palette.divider}`,
-                                                    borderRadius: 1.5,
-                                                    '&:hover': {
-                                                        bgcolor: alpha(theme.palette.error.main, 0.08),
-                                                        borderColor: alpha(theme.palette.error.main, 0.3),
-                                                        color: 'error.main',
-                                                    },
-                                                }}
-                                            >
-                                                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                                            </IconButton>
+                                        <Tooltip
+                                            title={
+                                                !permissionLoaded
+                                                    ? 'Dang tai quyen thao tac'
+                                                    : canRemoveUser
+                                                        ? 'Xoa khoi nhom'
+                                                        : 'Ban khong co quyen xoa nguoi dung khoi role'
+                                            }
+                                            arrow
+                                        >
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    aria-label={`Xoa ${user.name} khoi nhom`}
+                                                    onClick={() => user.idAssignment && onRemoveUser(user.idAssignment)}
+                                                    disabled={!canRemoveUser || !user.idAssignment}
+                                                    sx={{
+                                                        color: 'text.secondary',
+                                                        border: `1px solid ${theme.palette.divider}`,
+                                                        borderRadius: 1.5,
+                                                        '&:hover': {
+                                                            bgcolor: alpha(theme.palette.error.main, 0.08),
+                                                            borderColor: alpha(theme.palette.error.main, 0.3),
+                                                            color: 'error.main',
+                                                        },
+                                                    }}
+                                                >
+                                                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                                                </IconButton>
+                                            </span>
                                         </Tooltip>
                                     </Box>
                                 )}

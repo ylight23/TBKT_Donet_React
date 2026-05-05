@@ -20,6 +20,8 @@ public class PhanQuyenServiceImpl(
     RebuildQueue    rebuildQueue)
     : PhanQuyenService.PhanQuyenServiceBase
 {
+    private const string PermissionCode = "config.role";
+
     // Read-model classification:
     // - Cache/read-model: GetMyPermissions
     // - Aggregate read-model: ListGroupUsers, ListAllAssignments
@@ -32,6 +34,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<GetPermissionCatalogResponse> GetPermissionCatalog(
         GetPermissionCatalogRequest request, ServerCallContext context)
     {
+        context.RequireView(PermissionCode);
+
         var collection = Global.CollectionPermissionCatalog;
         var response = new GetPermissionCatalogResponse();
         if (collection == null)
@@ -167,6 +171,21 @@ public class PhanQuyenServiceImpl(
                     var actionArr = entry.ArrayOr("Actions");
                     if (actionArr != null)
                         cnAccess.Actions.AddRange(actionArr.Strings().Where(a => !string.IsNullOrEmpty(a)));
+                    var functionActions = entry.ArrayOr("FunctionActions");
+                    if (functionActions != null)
+                    {
+                        foreach (var funcDoc in functionActions.Documents())
+                        {
+                            var code = funcDoc.StringOr("MaChucNang");
+                            if (string.IsNullOrWhiteSpace(code))
+                                continue;
+                            var protoFunc = new protos.ChuyenNganhFunctionActions { MaChucNang = code };
+                            var funcActions = funcDoc.ArrayOr("Actions");
+                            if (funcActions != null)
+                                protoFunc.Actions.AddRange(funcActions.Strings().Where(a => !string.IsNullOrWhiteSpace(a)));
+                            cnAccess.FunctionActions.Add(protoFunc);
+                        }
+                    }
                     response.ActionsPerCn.Add(cnAccess);
                 }
             }
@@ -201,6 +220,27 @@ public class PhanQuyenServiceImpl(
 
     private static void MergeActions(ActionsMap? target, ActionsMap source)
         => PermissionActionHelpers.MergeActions(target, source);
+
+    private static BsonDocument ActionsMapToBson(ActionsMap? actions)
+    {
+        if (actions == null)
+            return new BsonDocument { { "view", true } };
+
+        return new BsonDocument
+        {
+            { "view", actions.View },
+            { "add", actions.Add },
+            { "edit", actions.Edit },
+            { "delete", actions.Delete },
+            { "approve", actions.Approve },
+            { "unapprove", actions.Unapprove },
+            { "download", actions.Download },
+            { "print", actions.Print },
+        };
+    }
+
+    private static bool HasAnyAction(BsonDocument actions)
+        => actions.Elements.Any(element => element.Value.IsBoolean && element.Value.AsBoolean);
 
     // ── Const for NhomNguoiDung collection ─────────────────────────
 
@@ -260,25 +300,23 @@ public class PhanQuyenServiceImpl(
     {
         public string? id { get; set; }
         public List<string>? actions { get; set; }
+        public Dictionary<string, List<string>>? functionActions { get; set; }
     }
 
     private static List<string> NormalizePhamViActions(IEnumerable<string>? rawActions, bool isOwn)
     {
-        if (isOwn)
-            return OwnCnFullActions.ToList();
-
         var set = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in rawActions ?? Array.Empty<string>())
         {
             if (string.IsNullOrWhiteSpace(action))
                 continue;
             var normalized = action.Trim();
-            if (!BlockedCrossCnActions.Contains(normalized))
+            if (isOwn || !BlockedCrossCnActions.Contains(normalized))
                 set.Add(normalized);
         }
 
         if (set.Count == 0)
-            set.UnionWith(["view", "download"]);
+            set.UnionWith(isOwn ? ["view"] : ["view", "download"]);
 
         return OwnCnFullActions.Where(set.Contains).ToList();
     }
@@ -302,7 +340,27 @@ public class PhanQuyenServiceImpl(
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var entries = new BsonArray();
 
-        void AddEntry(string id, IEnumerable<string>? actions, bool isOwn)
+        static BsonArray ToFunctionActionsBson(IEnumerable<protos.ChuyenNganhFunctionActions> functionActions, bool isOwn)
+        {
+            var arr = new BsonArray();
+            foreach (var item in functionActions)
+            {
+                var code = item.MaChucNang?.Trim().ToLowerInvariant() ?? "";
+                if (string.IsNullOrWhiteSpace(code))
+                    continue;
+                var actions = NormalizePhamViActions(item.Actions, isOwn);
+                if (actions.Count == 0)
+                    continue;
+                arr.Add(new BsonDocument
+                {
+                    { "MaChucNang", code },
+                    { "Actions", new BsonArray(actions) },
+                });
+            }
+            return arr;
+        }
+
+        void AddEntry(string id, IEnumerable<string>? actions, bool isOwn, IEnumerable<protos.ChuyenNganhFunctionActions>? functionActions)
         {
             if (string.IsNullOrWhiteSpace(id))
                 return;
@@ -311,19 +369,24 @@ public class PhanQuyenServiceImpl(
                 return;
 
             var normalizedActions = NormalizePhamViActions(actions, isOwn);
-            entries.Add(new BsonDocument
+            var doc = new BsonDocument
             {
                 { "Id", normalizedId },
                 { "Actions", new BsonArray(normalizedActions) },
-            });
+            };
+            var functionActionArr = ToFunctionActionsBson(functionActions ?? [], isOwn);
+            if (functionActionArr.Count > 0)
+                doc["FunctionActions"] = functionActionArr;
+            entries.Add(doc);
         }
 
-        AddEntry(ownId, proto.IdChuyenNganhDoc.FirstOrDefault(entry => entry.Id == ownId)?.Actions, true);
+        var ownEntry = proto.IdChuyenNganhDoc.FirstOrDefault(entry => entry.Id == ownId);
+        AddEntry(ownId, ownEntry?.Actions, true, ownEntry?.FunctionActions);
         foreach (var entry in proto.IdChuyenNganhDoc)
-            AddEntry(entry.Id, entry.Actions, entry.Id == ownId);
+            AddEntry(entry.Id, entry.Actions, entry.Id == ownId, entry.FunctionActions);
 
         if (entries.Count == 0)
-            AddEntry(ownId, OwnCnFullActions, true);
+            AddEntry(ownId, OwnCnFullActions, true, []);
 
         return new BsonDocument
         {
@@ -354,6 +417,21 @@ public class PhanQuyenServiceImpl(
                 var actions = entry.ArrayOr("Actions");
                 if (actions != null)
                     protoEntry.Actions.AddRange(actions.Strings().Where(action => !string.IsNullOrWhiteSpace(action)));
+                var functionActions = entry.ArrayOr("FunctionActions");
+                if (functionActions != null)
+                {
+                    foreach (var funcDoc in functionActions.Documents())
+                    {
+                        var code = funcDoc.StringOr("MaChucNang");
+                        if (string.IsNullOrWhiteSpace(code))
+                            continue;
+                        var protoFunc = new protos.ChuyenNganhFunctionActions { MaChucNang = code };
+                        var funcActions = funcDoc.ArrayOr("Actions");
+                        if (funcActions != null)
+                            protoFunc.Actions.AddRange(funcActions.Strings().Where(action => !string.IsNullOrWhiteSpace(action)));
+                        protoEntry.FunctionActions.Add(protoFunc);
+                    }
+                }
                 proto.IdChuyenNganhDoc.Add(protoEntry);
             }
         }
@@ -512,6 +590,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<ListNhomNguoiDungResponse> ListNhomNguoiDung(
         ListNhomNguoiDungRequest request, ServerCallContext context)
     {
+        context.RequireView(PermissionCode);
+
         var db = Global.MongoDB!;
         var nhomCol   = db.GetCollection<BsonDocument>(PermissionCollectionNames.Roles);
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserRoleAssignments);
@@ -554,6 +634,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<NhomNguoiDung> SaveNhomNguoiDung(
         SaveNhomNguoiDungRequest request, ServerCallContext context)
     {
+        context.RequireCreateOrEdit(PermissionCode);
+
         var db       = Global.MongoDB!;
         var nhomCol  = db.GetCollection<BsonDocument>(PermissionCollectionNames.Roles);
         var userName = context.GetUserName() ?? "";
@@ -571,6 +653,7 @@ public class PhanQuyenServiceImpl(
                 { "Color",        request.Color },
                 { "Loai",         string.IsNullOrEmpty(request.Loai) ? "Custom" : request.Loai },
                 { "ClonedFromId", request.ClonedFromId },
+                { "MaPhanHe",     Global.UnifiedMaPhanHe },
                 { "ScopeType",    "SUBTREE" },
                 { "IsDefault",    false },
                 { "NguoiTao",     userName },
@@ -603,6 +686,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<DeleteResponse> DeleteNhomNguoiDung(
         DeleteRequest request, ServerCallContext context)
     {
+        context.RequireDelete(PermissionCode);
+
         var db      = Global.MongoDB!;
         var nhomCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.Roles);
 
@@ -641,6 +726,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<GetGroupPermissionsResponse> GetGroupPermissions(
         GetGroupPermissionsRequest request, ServerCallContext context)
     {
+        context.RequireView(PermissionCode);
+
         var db          = Global.MongoDB!;
         var pqCol       = db.GetCollection<BsonDocument>(PermissionCollectionNames.RolePermissions);
         var phanHeNhom  = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupSubsystemPermissions);
@@ -650,7 +737,7 @@ public class PhanQuyenServiceImpl(
         // Fire both queries in parallel with projection
         var docsTask = pqCol.Find(
             Builders<BsonDocument>.Filter.Eq("IdNhomNguoiDung", request.IdNhom))
-            .Project(P.Include("MaChucNang"))
+            .Project(P.Include("MaChucNang").Include("MaPhanHe").Include("Actions"))
             .ToListAsync();
         var nhomTask = db.GetCollection<BsonDocument>(PermissionCollectionNames.Roles)
             .Find(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.IdNhom)))
@@ -667,8 +754,16 @@ public class PhanQuyenServiceImpl(
         foreach (var doc in docsTask.Result)
         {
             var code = doc.StringOr("MaChucNang");
-            if (!string.IsNullOrEmpty(code))
-                response.CheckedCodes.Add(code);
+            if (string.IsNullOrEmpty(code))
+                continue;
+
+            response.CheckedCodes.Add(code);
+            response.ChucNang.Add(new ChucNangAccess
+            {
+                MaChucNang = code,
+                MaPhanHe = Global.NormalizeMaPhanHe(doc.StringOr("MaPhanHe")),
+                Actions = ParseActions(doc),
+            });
         }
 
         var nhomDoc = nhomTask.Result;
@@ -687,6 +782,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<DeleteResponse> SaveGroupPermissions(
         SaveGroupPermissionsRequest request, ServerCallContext context)
     {
+        context.RequireCreateOrEdit(PermissionCode);
+
         var db          = Global.MongoDB!;
         var pqCol       = db.GetCollection<BsonDocument>(PermissionCollectionNames.RolePermissions);
         var phanHeNhom  = db.GetCollection<BsonDocument>(PermissionCollectionNames.GroupSubsystemPermissions);
@@ -706,7 +803,36 @@ public class PhanQuyenServiceImpl(
         if (nhomDoc == null)
             throw new RpcException(new Grpc.Core.Status(StatusCode.InvalidArgument, "Khong tim thay role"));
         var nhomMaPhanHe = Global.NormalizeMaPhanHe(nhomDoc.StringOr("MaPhanHe"));
+        // Nhóm cũ tạo trước khi có MaPhanHe field → fallback về unified
+        if (string.IsNullOrEmpty(nhomMaPhanHe))
+            nhomMaPhanHe = Global.UnifiedMaPhanHe;
         var nhomTen = nhomDoc.StringOr("Ten");
+
+        var requestedPermissions = new Dictionary<string, BsonDocument>(StringComparer.OrdinalIgnoreCase);
+        if (request.ChucNang.Count > 0)
+        {
+            foreach (var item in request.ChucNang)
+            {
+                var code = (item.MaChucNang ?? string.Empty).Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(code))
+                    continue;
+
+                var actions = ActionsMapToBson(item.Actions);
+                if (HasAnyAction(actions))
+                    requestedPermissions[code] = actions;
+            }
+        }
+        else
+        {
+            foreach (var rawCode in request.CheckedCodes)
+            {
+                var code = (rawCode ?? string.Empty).Trim().ToLowerInvariant();
+                if (!string.IsNullOrWhiteSpace(code))
+                    requestedPermissions[code] = new BsonDocument { { "view", true } };
+            }
+        }
+
+        var requestedCodes = requestedPermissions.Keys.ToList();
 
         // Atomic BulkWrite: delete old codes not in new set + upsert new codes
         var bulkOps = new List<WriteModel<BsonDocument>>();
@@ -714,10 +840,10 @@ public class PhanQuyenServiceImpl(
         // 1) Delete all existing codes for this group that are NOT in the new set
         bulkOps.Add(new DeleteManyModel<BsonDocument>(
             F.And(F.Eq("IdNhomNguoiDung", request.IdNhom),
-                  F.Nin("MaChucNang", request.CheckedCodes))));
+                  F.Nin("MaChucNang", requestedCodes))));
 
         // 2) Upsert each new code (preserve existing _id; only create a new one on insert)
-        foreach (var code in request.CheckedCodes)
+        foreach (var (code, actions) in requestedPermissions)
         {
             var filter = F.And(
                 F.Eq("IdNhomNguoiDung", request.IdNhom),
@@ -729,7 +855,7 @@ public class PhanQuyenServiceImpl(
                 .Set("IdNhomNguoiDung", request.IdNhom)
                 .Set("MaChucNang", code)
                 .Set("MaPhanHe", nhomMaPhanHe)
-                .Set("Actions", new BsonDocument { { "view", true } })
+                .Set("Actions", actions)
                 .Set("NguoiSua", userName)
                 .Set("NgaySua", now)
                 .Unset("IdCapTren");
@@ -797,7 +923,14 @@ public class PhanQuyenServiceImpl(
             .Select(d => d.StringOr("IdNguoiDung"))
             .Where(s => !string.IsNullOrEmpty(s))
             .ToList();
-        rebuildQueue.EnqueueGroup(affectedUserIds);
+        await Parallel.ForEachAsync(
+            affectedUserIds.Distinct(StringComparer.Ordinal),
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = 5,
+                CancellationToken = context.CancellationToken,
+            },
+            async (uid, _) => await rebuildService.RebuildForUser(uid));
 
         return new DeleteResponse { Success = true };
     }
@@ -807,6 +940,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<ListGroupUsersResponse> ListGroupUsers(
         ListGroupUsersRequest request, ServerCallContext context)
     {
+        context.RequireView(PermissionCode);
+
         var db        = Global.MongoDB!;
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserRoleAssignments);
 
@@ -909,6 +1044,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<ListAllAssignmentsResponse> ListAllAssignments(
         ListAllAssignmentsRequest request, ServerCallContext context)
     {
+        context.RequireView(PermissionCode);
+
         var db        = Global.MongoDB!;
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserRoleAssignments);
         var validAssignmentFilter = Builders<BsonDocument>.Filter.Nin("IdNguoiDung", new BsonArray { BsonNull.Value, "" });
@@ -1038,6 +1175,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<NguoiDungNhomNguoiDung> AssignUserToGroup(
         AssignUserRequest request, ServerCallContext context)
     {
+        context.RequireCreateOrEdit(PermissionCode);
+
         if (string.IsNullOrWhiteSpace(request.IdNguoiDung))
             throw new RpcException(new Grpc.Core.Status(StatusCode.InvalidArgument, "IdNguoiDung khong duoc de trong"));
 
@@ -1114,8 +1253,7 @@ public class PhanQuyenServiceImpl(
             await memberCol.InsertOneAsync(doc);
         }
 
-        // Trigger rebuild for this user
-        rebuildQueue.Enqueue(request.IdNguoiDung);
+        await rebuildService.RebuildForUser(request.IdNguoiDung);
 
         return new NguoiDungNhomNguoiDung
         {
@@ -1132,6 +1270,8 @@ public class PhanQuyenServiceImpl(
     public override async Task<DeleteResponse> RemoveUserFromGroup(
         RemoveUserRequest request, ServerCallContext context)
     {
+        context.RequireDelete(PermissionCode);
+
         var db = Global.MongoDB!;
         var memberCol = db.GetCollection<BsonDocument>(PermissionCollectionNames.UserRoleAssignments);
 
@@ -1144,9 +1284,8 @@ public class PhanQuyenServiceImpl(
         var result = await memberCol
             .DeleteOneAsync(Builders<BsonDocument>.Filter.Eq("_id", ParseId(request.IdAssignment)));
 
-        // Trigger rebuild
         if (result.DeletedCount > 0 && assignDoc != null)
-            rebuildQueue.Enqueue(assignDoc.StringOr("IdNguoiDung"));
+            await rebuildService.RebuildForUser(assignDoc.StringOr("IdNguoiDung"));
 
         return new DeleteResponse
         {
@@ -1193,7 +1332,7 @@ public class PhanQuyenServiceImpl(
             await responseStream.WriteAsync(evt, context.CancellationToken);
         }
 
-        await WriteAsync("STARTED", "Bat dau rebuild permission cache");
+        await WriteAsync("STARTED", "Bắt đầu phân quyền");
 
         var db = Global.MongoDB!;
         var userIds = NormalizeStringList(request.UserIds);
@@ -1214,7 +1353,7 @@ public class PhanQuyenServiceImpl(
         {
             await WriteAsync(
                 stage: "FAILED",
-                message: "Khong co user nao de rebuild",
+                message: "Không có user nào để phân quyền",
                 done: true,
                 success: false);
             return;
@@ -1222,7 +1361,7 @@ public class PhanQuyenServiceImpl(
 
         await WriteAsync(
             stage: "RESOLVED",
-            message: $"Da xac dinh {userIds.Count} user can rebuild",
+            message: $"Đã xác định {userIds.Count} user cần phân quyền",
             total: userIds.Count);
 
         var processed = 0;
@@ -1232,7 +1371,7 @@ public class PhanQuyenServiceImpl(
 
             await WriteAsync(
                 stage: "REBUILDING",
-                message: $"Dang rebuild cho {uid}",
+                message: $"Đang phân quyền cho {uid}",
                 processed: processed,
                 total: userIds.Count,
                 currentUserId: uid);
@@ -1258,7 +1397,7 @@ public class PhanQuyenServiceImpl(
             processed++;
             await WriteAsync(
                 stage: "PROGRESS",
-                message: $"Da rebuild {processed}/{userIds.Count} user",
+                message: $"Đã phân quyền {processed}/{userIds.Count} user",
                 processed: processed,
                 total: userIds.Count,
                 currentUserId: uid);
@@ -1267,8 +1406,8 @@ public class PhanQuyenServiceImpl(
         await WriteAsync(
             stage: "COMPLETED",
             message: warnings.Count == 0
-                ? $"Rebuild thanh cong {processed} user"
-                : $"Rebuild hoan tat voi {warnings.Count} canh bao",
+                ? $"Phân quyền thành công {processed} user"
+                : $"Phân quyền hoàn tất với {warnings.Count} cảnh báo",
             processed: processed,
             total: userIds.Count,
             done: true,

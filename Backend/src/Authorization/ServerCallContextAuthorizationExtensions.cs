@@ -115,11 +115,41 @@ public static class ServerCallContextAuthorizationExtensions
     public static bool CanView(this ServerCallContext? context, string funcName) =>
         context.CanAccessModuleAction(funcName: funcName, "view");
 
+    public static void RequireView(this ServerCallContext? context, string funcName)
+    {
+        if (context.CanView(funcName))
+            return;
+
+        throw new RpcException(new Status(
+            StatusCode.PermissionDenied,
+            $"Khong co quyen xem chuc nang '{funcName}'."));
+    }
+
     public static bool CanCreateOrEdit(this ServerCallContext? context, string funcName) =>
         context.CanAccessModuleAction(funcName: funcName, "edit", "add");
 
+    public static void RequireCreateOrEdit(this ServerCallContext? context, string funcName)
+    {
+        if (context.CanCreateOrEdit(funcName))
+            return;
+
+        throw new RpcException(new Status(
+            StatusCode.PermissionDenied,
+            $"Khong co quyen them/sua chuc nang '{funcName}'."));
+    }
+
     public static bool CanDelete(this ServerCallContext? context, string funcName) =>
         context.CanAccessModuleAction(funcName: funcName, "delete");
+
+    public static void RequireDelete(this ServerCallContext? context, string funcName)
+    {
+        if (context.CanDelete(funcName))
+            return;
+
+        throw new RpcException(new Status(
+            StatusCode.PermissionDenied,
+            $"Khong co quyen xoa chuc nang '{funcName}'."));
+    }
 
     public static bool CanApprove(this ServerCallContext? context, string funcName) =>
         context.CanAccessModuleAction(funcName: funcName, "approve");

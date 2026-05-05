@@ -14,7 +14,7 @@ namespace Backend.Services;
 
 public class ProtoSchemaDiscoveryService(ILogger<ProtoSchemaDiscoveryService> logger)
 {
-    private const string DynamicMenuDataSourcePermissionCode = "thamso_dynamicmenu_datasource";
+    private const string DynamicMenuDataSourcePermissionCode = "config.datasource";
     private const string ProtoManagementMode = "proto";
 
     private static readonly HashSet<string> ExcludedProtoFiles = new(StringComparer.OrdinalIgnoreCase)

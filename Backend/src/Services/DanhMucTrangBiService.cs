@@ -15,6 +15,9 @@ public sealed class DanhMucTrangBiServiceImpl(
     ILogger<DanhMucTrangBiServiceImpl> logger,
     FieldSetService fieldSetService) : DanhMucTrangBiService.DanhMucTrangBiServiceBase
 {
+    private const string PermissionTrangBiNhom1 = "equipment.group1";
+    private const string PermissionTrangBiNhom2 = "equipment.group2";
+
     private static IMongoCollection<BsonDocument>? GetCollection()
         => Global.MongoDB?.GetCollection<BsonDocument>("DanhMucTrangBi");
 
@@ -1001,6 +1004,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         var response = new SaveTrangBiNhom1Response();
         try
         {
+            context.RequireCreateOrEdit(PermissionTrangBiNhom1);
+
             var collection = GetTrangBiCollection();
             if (collection == null)
             {
@@ -1020,7 +1025,7 @@ public sealed class DanhMucTrangBiServiceImpl(
 
             if (string.IsNullOrWhiteSpace(itemId))
             {
-                ServiceMutationPolicy.RequireActOnCN(context, "add", targetCn, true);
+                ServiceMutationPolicy.RequireAction(context, PermissionTrangBiNhom1, "add", targetCn);
                 itemId = Guid.NewGuid().ToString();
 
                 var doc = BuildTrangBiInstanceDocument(
@@ -1055,11 +1060,11 @@ public sealed class DanhMucTrangBiServiceImpl(
             }
 
             var existingCn = existingDoc.StringOr("IdChuyenNganhKT");
-            ServiceMutationPolicy.RequireActOnCN(context, "edit",
-                string.IsNullOrWhiteSpace(existingCn) ? null : existingCn, true);
+            ServiceMutationPolicy.RequireAction(context, PermissionTrangBiNhom1, "edit",
+                string.IsNullOrWhiteSpace(existingCn) ? null : existingCn);
             if (!string.Equals(existingCn, targetCn, StringComparison.OrdinalIgnoreCase))
             {
-                ServiceMutationPolicy.RequireActOnCN(context, "edit", targetCn, true);
+                ServiceMutationPolicy.RequireAction(context, PermissionTrangBiNhom1, "edit", targetCn);
             }
 
             var ngayTao = existingDoc.TimestampOr("NgayTao") ?? now;
@@ -1112,6 +1117,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         var response = new GetListTrangBiNhom1Response();
         try
         {
+            context.RequireView(PermissionTrangBiNhom1);
+
             var collection = GetTrangBiCollection();
             if (collection == null)
             {
@@ -1146,6 +1153,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         var response = new GetTrangBiNhom1Response();
         try
         {
+            context.RequireView(PermissionTrangBiNhom1);
+
             if (string.IsNullOrWhiteSpace(request.Id))
             {
                 response.Success = false;
@@ -1171,11 +1180,11 @@ public sealed class DanhMucTrangBiServiceImpl(
             }
 
             var cnId = doc.StringOr("IdChuyenNganhKT");
-            ServiceMutationPolicy.RequireActOnCN(
+            ServiceMutationPolicy.RequireAction(
                 context,
+                PermissionTrangBiNhom1,
                 "view",
-                string.IsNullOrWhiteSpace(cnId) ? null : cnId,
-                true);
+                string.IsNullOrWhiteSpace(cnId) ? null : cnId);
 
             response.Item = DocToTrangBiNhom1EditorItem(doc);
             response.Success = true;
@@ -1196,6 +1205,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         var response = new SaveTrangBiNhom2Response();
         try
         {
+            context.RequireCreateOrEdit(PermissionTrangBiNhom2);
+
             var collection = GetTrangBiNhom2Collection();
             if (collection == null)
             {
@@ -1215,7 +1226,7 @@ public sealed class DanhMucTrangBiServiceImpl(
 
             if (string.IsNullOrWhiteSpace(itemId))
             {
-                ServiceMutationPolicy.RequireActOnCN(context, "add", targetCn, true);
+                ServiceMutationPolicy.RequireAction(context, PermissionTrangBiNhom2, "add", targetCn);
                 itemId = Guid.NewGuid().ToString();
                 var doc = BuildTrangBiInstanceDocument(
                     itemId,
@@ -1248,11 +1259,11 @@ public sealed class DanhMucTrangBiServiceImpl(
             }
 
             var existingCn = existingDoc.StringOr("IdChuyenNganhKT");
-            ServiceMutationPolicy.RequireActOnCN(context, "edit",
-                string.IsNullOrWhiteSpace(existingCn) ? null : existingCn, true);
+            ServiceMutationPolicy.RequireAction(context, PermissionTrangBiNhom2, "edit",
+                string.IsNullOrWhiteSpace(existingCn) ? null : existingCn);
             if (!string.Equals(existingCn, targetCn, StringComparison.OrdinalIgnoreCase))
             {
-                ServiceMutationPolicy.RequireActOnCN(context, "edit", targetCn, true);
+                ServiceMutationPolicy.RequireAction(context, PermissionTrangBiNhom2, "edit", targetCn);
             }
 
             var ngayTao = existingDoc.TimestampOr("NgayTao") ?? now;
@@ -1306,6 +1317,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         var response = new GetListTrangBiNhom2Response();
         try
         {
+            context.RequireView(PermissionTrangBiNhom2);
+
             var collection = GetTrangBiNhom2Collection();
             if (collection == null)
             {
@@ -1341,6 +1354,8 @@ public sealed class DanhMucTrangBiServiceImpl(
         var response = new GetTrangBiNhom2Response();
         try
         {
+            context.RequireView(PermissionTrangBiNhom2);
+
             if (string.IsNullOrWhiteSpace(request.Id))
             {
                 response.Success = false;
@@ -1366,11 +1381,11 @@ public sealed class DanhMucTrangBiServiceImpl(
             }
 
             var cnId = doc.StringOr("IdChuyenNganhKT");
-            ServiceMutationPolicy.RequireActOnCN(
+            ServiceMutationPolicy.RequireAction(
                 context,
+                PermissionTrangBiNhom2,
                 "view",
-                string.IsNullOrWhiteSpace(cnId) ? null : cnId,
-                true);
+                string.IsNullOrWhiteSpace(cnId) ? null : cnId);
 
             response.Item = DocToTrangBiNhom2EditorItem(doc);
             response.Success = true;

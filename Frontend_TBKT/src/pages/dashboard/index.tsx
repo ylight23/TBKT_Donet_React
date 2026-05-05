@@ -298,7 +298,7 @@ const Dashboard: React.FC = () => {
     { title: 'Trang bị niêm cất/bảo quản', value: dashboardStats.niemCat, icon: <InventoryIcon />, color: militaryColors.navy, subtitle: 'Theo tình trạng sử dụng' },
     { title: 'Trang bị chờ thanh lý', value: dashboardStats.choThanhLy, icon: <HourglassEmptyIcon />, color: '#f57c00', subtitle: 'Theo tình trạng sử dụng' },
     { title: 'Trang bị đã thanh lý', value: dashboardStats.daThanhLy, icon: <DeleteSweepIcon />, color: militaryColors.error, subtitle: 'Theo tình trạng sử dụng' },
-    { title: 'Hệ số kỹ thuật (Kkt)', value: `${(dashboardStats.heSoKyThuat * 100).toFixed(1)}%`, icon: <PercentIcon />, color: '#1565c0', subtitle: 'ốt/Kha trên tổng số' },
+    { title: 'Hệ số kỹ thuật', value: `${(dashboardStats.heSoKyThuat * 100).toFixed(1)}%`, icon: <PercentIcon />, color: '#1565c0', subtitle: 'Tốt/Kha trên tổng số' },
   ];
 
   return (
@@ -338,28 +338,28 @@ const Dashboard: React.FC = () => {
         onApply={() => undefined}
         endActions={(
           <Button variant="contained" startIcon={<SearchIcon />} disabled={loading} sx={{ borderRadius: 2.5, px: 3, height: 40, textTransform: 'none', fontWeight: 700 }}>
-            Cap nhat
+            Cập nhật
           </Button>
         )}
       >
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>DON VI</Typography>
+            <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>ĐƠN VỊ</Typography>
             <TextField select fullWidth size="small" value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}>
-              <MenuItem value="">Tat ca</MenuItem>
+              <MenuItem value="">Tất cả</MenuItem>
               {unitOptions.map((unit) => <MenuItem key={unit} value={unit}>{unit}</MenuItem>)}
             </TextField>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NHOM</Typography>
+            <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NHÓM</Typography>
             <TextField select fullWidth size="small" value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)}>
-              <MenuItem value="all">Tat ca</MenuItem>
-              <MenuItem value="n1">Nhom 1</MenuItem>
-              <MenuItem value="n2">Nhom 2</MenuItem>
+              <MenuItem value="all">Tất cả</MenuItem>
+              <MenuItem value="n1">Nhóm 1</MenuItem>
+              <MenuItem value="n2">Nhóm 2</MenuItem>
             </TextField>
           </Grid>
           <Grid size={{ xs: 12 }}>
-            <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NGAY BAO CAO</Typography>
+            <Typography variant="caption" fontWeight={800} sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>NGÀY BÁO CÁO</Typography>
             <TextField type="date" fullWidth size="small" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
           </Grid>
         </Grid>
@@ -377,7 +377,7 @@ const Dashboard: React.FC = () => {
         <Grid size={{ xs: 12, lg: 7 }}>
           <Card elevation={3} sx={{ borderRadius: 2.5, height: 460 }}>
             <CardContent sx={{ height: '100%' }}>
-              <Typography variant="h6" fontWeight={800} gutterBottom>Phan bo theo don vi</Typography>
+              <Typography variant="h6" fontWeight={800} gutterBottom>Phân bổ theo đơn vị</Typography>
               <Box sx={{ height: 380 }}>
                 {phanVungDonViData.length > 0 ? (
                   <ResponsivePie

@@ -14,7 +14,7 @@ public class DynamicMenuDataSourceService(
     ILogger<DynamicMenuDataSourceService> logger,
     ProtoSchemaDiscoveryService protoSchemaDiscoveryService)
 {
-    private const string PermissionCode = "thamso_dynamicmenu_datasource";
+    private const string PermissionCode = "config.datasource";
     private const string ManualManagementMode = "manual";
     private const string ProtoManagementMode = "proto";
 

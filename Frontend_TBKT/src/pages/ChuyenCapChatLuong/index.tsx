@@ -67,9 +67,11 @@ const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'comp
     }
 };
 
+const PERMISSION_CODE = 'trangbilog.chuyen_cap_chat_luong';
+
 const ChuyenCapChatLuong: React.FC = () => {
     const location = useLocation();
-    const { canCnAction } = useMyPermissions();
+    const { canCnAction, canFunc, loaded: permissionLoaded } = useMyPermissions();
     const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
     const [loading, setLoading] = useState(false);
@@ -86,6 +88,9 @@ const ChuyenCapChatLuong: React.FC = () => {
     const [readOnlyDialog, setReadOnlyDialog] = useState(false);
     const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
     const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
+    const canCreateSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, 'add');
+    const canDeleteSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, 'delete');
+    const canSaveSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, editingSchedule?.id ? 'edit' : 'add');
 
     const loadEquipmentPool = useCallback(async () => {
         setEquipmentLoading(true);
@@ -255,12 +260,13 @@ const ChuyenCapChatLuong: React.FC = () => {
     }, [equipmentPool, filteredSchedules, resolveStatus]);
 
     const openCreateDialog = useCallback(() => {
+        if (!canCreateSchedule) return;
         setEditingSchedule(null);
         setReadOnlyDialog(false);
         setMemberParametersByKey({});
         setDetailEquipment(null);
         setDialogOpen(true);
-    }, []);
+    }, [canCreateSchedule]);
 
     const openEditDialog = useCallback(async (schedule: UpgradeSchedule, options?: { readOnly?: boolean }) => {
         setSaving(true);
@@ -313,6 +319,7 @@ const ChuyenCapChatLuong: React.FC = () => {
     }, [filteredSchedules, openEditDialog, schedules]);
 
     const handleDeleteSchedule = useCallback(async (schedule: UpgradeSchedule) => {
+        if (!canDeleteSchedule) return;
         if (!window.confirm('Bạn có chắc muốn xóa lịch này?')) return;
         const sourceScheduleId = schedule.parameters?.__schedule_id;
         const targetSchedule = sourceScheduleId
@@ -328,7 +335,7 @@ const ChuyenCapChatLuong: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    }, [filteredSchedules, loadSchedules, schedules]);
+    }, [canDeleteSchedule, filteredSchedules, loadSchedules, schedules]);
 
     const handleSave = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const payload: LocalChuyenCapChatLuongScheduleItem = {
@@ -354,13 +361,14 @@ const ChuyenCapChatLuong: React.FC = () => {
         };
         // CN authorization check (UX gate — backend enforces authoritatively)
         const cnAction = editingSchedule?.id ? 'edit' : 'add';
+        if (!canFunc(PERMISSION_CODE, cnAction)) return;
         if (selectedEquipment.some(eq => eq.idChuyenNganhKt && !canCnAction(cnAction, eq.idChuyenNganhKt))) return;
 
         await saveChuyenCapChatLuongSchedule({ item: payload, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         setDetailEquipment(null);
         await loadSchedules();
-    }, [canCnAction, editingSchedule, loadSchedules, memberParametersByKey]);
+    }, [canCnAction, canFunc, editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};
@@ -401,7 +409,7 @@ const ChuyenCapChatLuong: React.FC = () => {
                         </Typography>
                         <Typography variant="body2" color="text.secondary">Quản lý theo dõi trang bị và kết quả chuyển cấp chất lượng.</Typography>
                     </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Thêm kế hoạch</Button>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog} disabled={!canCreateSchedule}>Thêm kế hoạch</Button>
                 </Stack>
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
@@ -471,8 +479,8 @@ const ChuyenCapChatLuong: React.FC = () => {
                         </Stack>
                         <Box sx={{ flex: 1, minHeight: 0 }}>
                             {activeTab === 'theo_doi_trang_bi'
-                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
-                                : <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />}
+                                ? <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={canDeleteSchedule ? handleDeleteSchedule : undefined} />
+                                : <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" onViewSchedule={handleViewSchedule} onDeleteSchedule={canDeleteSchedule ? handleDeleteSchedule : undefined} />}
                         </Box>
                     </Box>
                     <Box sx={{ gridArea: 'right', minWidth: 0, minHeight: { xs: 220, lg: 0 } }}>
@@ -490,7 +498,7 @@ const ChuyenCapChatLuong: React.FC = () => {
                     initialData={dialogInitialData}
                     initialEquipment={dialogInitialEquipment}
                     editingId={editingSchedule?.id}
-                readOnly={readOnlyDialog}
+                readOnly={readOnlyDialog || !canSaveSchedule}
                     equipmentPool={equipmentPool}
                     equipmentLoading={equipmentLoading}
                     title={editingSchedule?.id ? 'Cập nhật chuyển cấp chất lượng' : 'Thêm chuyển cấp chất lượng'}

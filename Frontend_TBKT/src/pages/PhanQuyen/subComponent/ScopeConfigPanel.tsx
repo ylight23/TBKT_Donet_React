@@ -16,11 +16,11 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import CheckBoxIcon from '@mui/icons-material/CheckBox';
-import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import { alpha, useTheme } from '@mui/material/styles';
 import { getStripedHoverBackground, getStripedRowBackground } from '../../../utils/stripedSurface';
 
@@ -30,11 +30,12 @@ import type {
     ChuyenNganhDocScope,
     GroupScopeConfig,
     PermissionAction,
+    PermissionGroup,
     PhamViChuyenNganhConfig,
     Role,
     ScopeType,
 } from '../../../types/permission';
-import { SCOPE_TYPES, ALL_SCOPE_TYPES } from '../data/permissionData';
+import { SCOPE_TYPES } from '../data/permissionData';
 
 type OfficeOption = {
     id: string;
@@ -51,8 +52,6 @@ type ChuyenNganhOption = {
 };
 
 const ACTIONS_ALL: PermissionAction[] = ['view', 'add', 'edit', 'delete', 'approve', 'unapprove', 'download', 'print'];
-const ACTIONS_OWN_FULL: PermissionAction[] = [...ACTIONS_ALL];
-const ACTIONS_CROSS_DEFAULT: PermissionAction[] = ['view', 'download'];
 const BLOCKED_CROSS_ACTIONS = new Set<PermissionAction>(['delete', 'approve', 'unapprove']);
 
 const ACTION_LABELS: Record<PermissionAction, string> = {
@@ -83,24 +82,47 @@ function toDepth(id?: string): number {
 }
 
 function getMode(scopeType: ScopeType) {
-    const scope = ALL_SCOPE_TYPES.find((item) => item.value === scopeType) ?? SCOPE_TYPES[0];
+    const normalizedScopeType = (scopeType === 'ALL' || scopeType === 'SUBTREE' || scopeType === 'DELEGATED')
+        ? scopeType
+        : 'SUBTREE';
+    const scope = SCOPE_TYPES.find((item) => item.value === normalizedScopeType) ?? SCOPE_TYPES[0];
     return {
         ...scope,
-        needsAnchor: ['NODE_ONLY', 'NODE_AND_CHILDREN', 'SUBTREE', 'SIBLINGS', 'BRANCH', 'DELEGATED'].includes(scopeType),
-        needsMultiNode: scopeType === 'MULTI_NODE',
+        needsAnchor: ['SUBTREE', 'DELEGATED'].includes(normalizedScopeType),
+        // needsAnchor: ['NODE_ONLY', 'NODE_AND_CHILDREN', 'SUBTREE', 'SIBLINGS', 'BRANCH', 'DELEGATED'].includes(scopeType),
+        needsMultiNode: false,
+        // needsMultiNode: scopeType === 'MULTI_NODE',
     };
 }
 
-function sanitizeActions(actions: PermissionAction[], isOwn: boolean): PermissionAction[] {
-    if (isOwn) return [...ACTIONS_OWN_FULL];
-    const set = new Set(actions.filter((action) => !BLOCKED_CROSS_ACTIONS.has(action)));
-    if (set.size === 0) ACTIONS_CROSS_DEFAULT.forEach((action) => set.add(action));
+function uniqueActions(actions: Iterable<PermissionAction>): PermissionAction[] {
+    const set = new Set(actions);
     return ACTIONS_ALL.filter((action) => set.has(action));
+}
+
+function buildFunctionActions(actionPermissions: Record<string, PermissionAction[]>): Record<string, PermissionAction[]> {
+    return Object.fromEntries(
+        Object.entries(actionPermissions)
+            .map(([code, actions]) => [code.trim().toLowerCase(), uniqueActions(actions)] as const)
+            .filter(([code, actions]) => Boolean(code) && actions.length > 0),
+    );
+}
+
+function buildCnActions(functionActions: Record<string, PermissionAction[]>): PermissionAction[] {
+    const union = Object.values(functionActions).flat();
+    return uniqueActions(union.length > 0 ? union : ['view']);
+}
+
+function sanitizeActions(actions: PermissionAction[]): PermissionAction[] {
+    const normalized = uniqueActions(actions);
+    return normalized.length > 0 ? normalized : ['view'];
 }
 
 function normalizePhamVi(
     phamVi: PhamViChuyenNganhConfig | undefined,
     chuyenNganhOptions: ChuyenNganhOption[],
+    cnActions: PermissionAction[],
+    cnFunctionActions: Record<string, PermissionAction[]>,
 ): PhamViChuyenNganhConfig | undefined {
     if (!phamVi) return undefined;
     if (!chuyenNganhOptions.length && !phamVi) return undefined;
@@ -111,13 +133,13 @@ function normalizePhamVi(
     const ownEntry = entries.find((entry) => entry.id === ownId);
     if (!ownId) return undefined;
     const normalized: ChuyenNganhDocScope[] = [
-        { id: ownId, actions: sanitizeActions(ownEntry?.actions ?? ACTIONS_OWN_FULL, true) },
+        { id: ownId, actions: sanitizeActions(cnActions), functionActions: cnFunctionActions },
     ];
     const seen = new Set<string>([ownId]);
     for (const entry of entries) {
         if (!entry.id || seen.has(entry.id)) continue;
         seen.add(entry.id);
-        normalized.push({ id: entry.id, actions: sanitizeActions(entry.actions, false) });
+        normalized.push({ id: entry.id, actions: sanitizeActions(cnActions), functionActions: cnFunctionActions });
     }
     return { idChuyenNganh: ownId, idChuyenNganhDoc: normalized };
 }
@@ -125,23 +147,25 @@ function normalizePhamVi(
 function getAffectedOffices(offices: OfficeOption[], scope: GroupScopeConfig): OfficeOption[] {
     const anchor = offices.find((item) => item.id === scope.anchorNodeId);
     switch (scope.scopeType) {
-        case 'NODE_ONLY':
-            return anchor ? [anchor] : [];
-        case 'NODE_AND_CHILDREN':
-            return anchor ? offices.filter((item) => item.id === anchor.id || item.parentId === anchor.id) : [];
+        // case 'NODE_ONLY':
+        //     return anchor ? [anchor] : [];
+        // case 'NODE_AND_CHILDREN':
+        //     return anchor ? offices.filter((item) => item.id === anchor.id || item.parentId === anchor.id) : [];
         case 'SUBTREE':
         case 'DELEGATED':
             return anchor ? offices.filter((item) => item.id === anchor.id || item.path.startsWith(anchor.path)) : [];
-        case 'SIBLINGS':
-            return anchor ? offices.filter((item) => item.parentId === anchor.parentId && item.depth === anchor.depth) : [];
-        case 'BRANCH':
-            return anchor
-                ? anchor.id.split('.').map((_, idx, parts) => parts.slice(0, idx + 1).join('.'))
-                    .map((id) => offices.find((item) => item.id === id))
-                    .filter((item): item is OfficeOption => Boolean(item))
-                : [];
-        case 'MULTI_NODE':
-            return offices.filter((item) => scope.multiNodeIds.some((nodeId) => item.id === nodeId || item.path.startsWith(toPath(nodeId))));
+        // case 'SIBLINGS':
+        //     return anchor ? offices.filter((item) => item.parentId === anchor.parentId && item.depth === anchor.depth) : [];
+        // case 'BRANCH':
+        //     return anchor
+        //         ? anchor.id.split('.').map((_, idx, parts) => parts.slice(0, idx + 1).join('.'))
+        //             .map((id) => offices.find((item) => item.id === id))
+        //             .filter((item): item is OfficeOption => Boolean(item))
+        //         : [];
+        // case 'MULTI_NODE':
+        //     return offices.filter((item) => scope.multiNodeIds.some((nodeId) => item.id === nodeId || item.path.startsWith(toPath(nodeId))));
+        case 'ALL':
+            return offices;
         default:
             return [];
     }
@@ -154,16 +178,16 @@ function buildQuery(
     cnMap: Map<string, ChuyenNganhOption>,
 ): string[] {
     const anchor = offices.find((item) => item.id === scope.anchorNodeId);
-    const parent = anchor ? offices.find((item) => item.id === anchor.parentId) : undefined;
+    // const parent = anchor ? offices.find((item) => item.id === anchor.parentId) : undefined;
     const unitQuery = (() => {
         switch (scope.scopeType) {
-            case 'SELF': return 'WHERE CreatedBy = @userId';
-            case 'NODE_ONLY': return `WHERE IDDonVi = '${scope.anchorNodeId || '?'}'`;
-            case 'NODE_AND_CHILDREN': return `WHERE IDDonVi = '${scope.anchorNodeId || '?'}' OR IDCapTren = '${scope.anchorNodeId || '?'}'`;
+            // case 'SELF': return 'WHERE CreatedBy = @userId';
+            // case 'NODE_ONLY': return `WHERE IDDonVi = '${scope.anchorNodeId || '?'}'`;
+            // case 'NODE_AND_CHILDREN': return `WHERE IDDonVi = '${scope.anchorNodeId || '?'}' OR IDCapTren = '${scope.anchorNodeId || '?'}'`;
             case 'SUBTREE': return `WHERE IDDonVi LIKE '${scope.anchorNodeId || '?'}%'`;
-            case 'SIBLINGS': return `WHERE IDCapTren = '${parent?.id || '?'}' AND Depth = ${anchor?.depth ?? '?'}`;
-            case 'BRANCH': return anchor ? `WHERE IDDonVi IN (${anchor.id.split('.').map((_, idx, parts) => `'${parts.slice(0, idx + 1).join('.')}'`).join(', ')})` : 'WHERE IDDonVi IN (?)';
-            case 'MULTI_NODE': return scope.multiNodeIds.length > 0 ? `WHERE ${scope.multiNodeIds.map((id) => `IDDonVi LIKE '${id}%'`).join(' OR ')}` : 'WHERE IDDonVi LIKE ?';
+            // case 'SIBLINGS': return `WHERE IDCapTren = '${parent?.id || '?'}' AND Depth = ${anchor?.depth ?? '?'}`;
+            // case 'BRANCH': return anchor ? `WHERE IDDonVi IN (${anchor.id.split('.').map((_, idx, parts) => `'${parts.slice(0, idx + 1).join('.')}'`).join(', ')})` : 'WHERE IDDonVi IN (?)';
+            // case 'MULTI_NODE': return scope.multiNodeIds.length > 0 ? `WHERE ${scope.multiNodeIds.map((id) => `IDDonVi LIKE '${id}%'`).join(' OR ')}` : 'WHERE IDDonVi LIKE ?';
             case 'ALL': return '-- Khong ap WHERE IDDonVi';
             case 'DELEGATED': return `WHERE IDDonVi LIKE '${scope.anchorNodeId || '?'}%'`;
             default: return '-- Khong ap WHERE IDDonVi';
@@ -175,10 +199,10 @@ function buildQuery(
         ? `AND IDChuyenNganh IN [${cnIds.map((id) => `'${id}'`).join(', ')}]`
         : '-- Khong loc chuyen nganh (toan bo du lieu trong don vi)';
     const own = phamVi?.idChuyenNganhDoc.find((item) => item.id === phamVi.idChuyenNganh);
-    const ownText = own ? `Actions(Chuyen nganh goc ${cnMap.get(own.id)?.label || own.id}): ${own.actions.join(', ')}` : '-- Chua cau hinh actions Chuyen nganh goc';
+    const ownText = own ? `Chuyen nganh goc ${cnMap.get(own.id)?.label || own.id}: full thao tac` : '-- Chua cau hinh Chuyen nganh goc';
     const cross = (phamVi?.idChuyenNganhDoc ?? []).filter((item) => item.id !== phamVi?.idChuyenNganh);
     const crossText = cross.length > 0
-        ? cross.map((item) => `Actions(${cnMap.get(item.id)?.label || item.id}): ${item.actions.join(', ')}`).join(' | ')
+        ? cross.map((item) => `${cnMap.get(item.id)?.label || item.id}: full thao tac`).join(' | ')
         : '-- Chua mo rong Chuyen nganh phu';
 
     return [unitQuery, cnQuery, ownText, crossText];
@@ -530,10 +554,12 @@ function OfficeTree({
 interface ScopeConfigPanelProps {
     selectedRole: Role | undefined;
     scopeConfig?: GroupScopeConfig;
+    actionPermissions?: Record<string, PermissionAction[]>;
+    permissionGroups?: PermissionGroup[];
     onScopeChange: (scopeConfig: GroupScopeConfig) => void;
 }
 
-const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scopeConfig = DEFAULT_SCOPE_CONFIG, onScopeChange }) => {
+const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scopeConfig = DEFAULT_SCOPE_CONFIG, actionPermissions = {}, permissionGroups = [], onScopeChange }) => {
     const theme = useTheme();
     const config = {
         ...DEFAULT_SCOPE_CONFIG,
@@ -546,6 +572,12 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     const [offices, setOffices] = useState<OfficeOption[]>([]);
     const [chuyenNganhOptions, setChuyenNganhOptions] = useState<ChuyenNganhOption[]>([]);
     const [crossSearch, setCrossSearch] = useState('');
+    const cnFunctionActions = useMemo(() => buildFunctionActions(actionPermissions), [actionPermissions]);
+    const cnScopeActions = useMemo(() => buildCnActions(cnFunctionActions), [cnFunctionActions]);
+    const functionPermissionItems = useMemo(
+        () => permissionGroups.flatMap((group) => group.permissions),
+        [permissionGroups],
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -589,8 +621,8 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     }, []);
 
     const normalizedPhamVi = useMemo(
-        () => normalizePhamVi(config.phamViChuyenNganh, chuyenNganhOptions),
-        [config.phamViChuyenNganh, chuyenNganhOptions],
+        () => normalizePhamVi(config.phamViChuyenNganh, chuyenNganhOptions, cnScopeActions, cnFunctionActions),
+        [config.phamViChuyenNganh, chuyenNganhOptions, cnScopeActions, cnFunctionActions],
     );
 
     useEffect(() => {
@@ -634,9 +666,12 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
             ...patch,
             multiNodeIds: patch.multiNodeIds ?? current.multiNodeIds,
         };
-        if (next.scopeType === 'MULTI_NODE') next.anchorNodeId = '';
-        else next.multiNodeIds = [];
-        if (next.scopeType === 'SELF' || next.scopeType === 'ALL') next.anchorNodeId = '';
+        // Legacy MULTI_NODE is disabled by the new data-scope model.
+        // if (next.scopeType === 'MULTI_NODE') next.anchorNodeId = '';
+        next.multiNodeIds = [];
+        // Legacy SELF is disabled by the new data-scope model.
+        // if (next.scopeType === 'SELF' || next.scopeType === 'ALL') next.anchorNodeId = '';
+        if (next.scopeType === 'ALL') next.anchorNodeId = '';
         onScopeChange(next);
     }, [onScopeChange]);
 
@@ -657,16 +692,36 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
         });
     }, [patchConfig]);
 
+    const toggleAction = useCallback((entry: ChuyenNganhDocScope, action: PermissionAction) => {
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions, cnScopeActions, cnFunctionActions);
+        if (!current) return;
+        patchPhamVi({
+            ...current,
+            idChuyenNganhDoc: current.idChuyenNganhDoc.map((item) => {
+                if (item.id !== entry.id) return item;
+                const actions = item.actions.includes(action)
+                    ? item.actions.filter((value) => value !== action)
+                    : [...item.actions, action];
+                return {
+                    ...item,
+                    actions: sanitizeActions(actions),
+                    functionActions: cnFunctionActions,
+                };
+            }),
+        });
+    }, [chuyenNganhOptions, cnFunctionActions, cnScopeActions, normalizedPhamVi, patchPhamVi]);
+
     const changeCnGoc = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions, cnScopeActions, cnFunctionActions);
         const source = current?.idChuyenNganhDoc ?? [];
         const next: PhamViChuyenNganhConfig = {
             idChuyenNganh: id,
             idChuyenNganhDoc: [
-                { id, actions: [...ACTIONS_OWN_FULL] },
+                { id, actions: sanitizeActions(cnScopeActions), functionActions: cnFunctionActions },
                 ...source.filter((entry) => entry.id !== id).map((entry) => ({
                     id: entry.id,
-                    actions: sanitizeActions(entry.actions, false),
+                    actions: sanitizeActions(cnScopeActions),
+                    functionActions: cnFunctionActions,
                 })),
             ],
         };
@@ -674,39 +729,24 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
     };
 
     const addCrossCn = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions, cnScopeActions, cnFunctionActions);
         if (!current) return;
         if (current.idChuyenNganhDoc.some((entry) => entry.id === id)) return;
         patchPhamVi({
             ...current,
-            idChuyenNganhDoc: [...current.idChuyenNganhDoc, { id, actions: [...ACTIONS_CROSS_DEFAULT] }],
+            idChuyenNganhDoc: [
+                ...current.idChuyenNganhDoc,
+                { id, actions: sanitizeActions(cnScopeActions), functionActions: cnFunctionActions },
+            ],
         });
     };
 
     const removeCrossCn = (id: string) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
+        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions, cnScopeActions, cnFunctionActions);
         if (!current || current.idChuyenNganh === id) return;
         patchPhamVi({
             ...current,
             idChuyenNganhDoc: current.idChuyenNganhDoc.filter((entry) => entry.id !== id),
-        });
-    };
-
-    const toggleAction = (entry: ChuyenNganhDocScope, action: PermissionAction) => {
-        const current = normalizePhamVi(normalizedPhamVi, chuyenNganhOptions);
-        if (!current) return;
-        const isOwn = entry.id === current.idChuyenNganh;
-        if (!isOwn && BLOCKED_CROSS_ACTIONS.has(action)) return;
-        const hasAction = entry.actions.includes(action);
-        const nextActionsRaw = hasAction
-            ? entry.actions.filter((item) => item !== action)
-            : [...entry.actions, action];
-        const nextActions = sanitizeActions(nextActionsRaw, isOwn);
-        patchPhamVi({
-            ...current,
-            idChuyenNganhDoc: current.idChuyenNganhDoc.map((item) => (
-                item.id === entry.id ? { ...item, actions: nextActions } : item
-            )),
         });
     };
 
@@ -751,13 +791,13 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                             )}
                             label={(
                                 <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary' }}>
-                                    Truy cap phan he
+                                    Truy cập phân hệ
                                 </Typography>
                             )}
                         />
                     </Box>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHIEU 1 - PHAM VI DON VI
+                        CHIỀU 1 - PHẠM VI ĐƠN VỊ
                     </Typography>
                     <ScopeTypeSelector 
                         config={config} 
@@ -768,9 +808,9 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHON DON VI / NHANH
+                        CHỌN ĐƠN VỊ / NHÁNH
                     </Typography>
-                    {(officeLoading || nhomLoading) && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}><CircularProgress size={18} /><Typography variant="body2">Dang tai du lieu...</Typography></Box>}
+                    {(officeLoading || nhomLoading) && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}><CircularProgress size={18} /><Typography variant="body2">Đang tải dữ liệu...</Typography></Box>}
                     {!officeLoading && mode.needsAnchor && (
                         <OfficeTree 
                             offices={offices} 
@@ -788,13 +828,13 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                     )}
                     {!mode.needsAnchor && !mode.needsMultiNode && (
                         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
-                            Scope nay khong can anchor node. Delegated se bo sung nguoi uy quyen va ngay het han o luc gan user cu the.
+                            Phạm vi đơn vị không xác định hoặc không yêu cầu chọn đơn vị
                         </Typography>
                     )}
                     {config.scopeType === 'DELEGATED' && (
                         <Box sx={{ mt: 1.25, p: 1.25, borderRadius: 2, border: `1px solid ${alpha(theme.palette.warning.main, 0.45)}`, bgcolor: alpha(theme.palette.warning.main, 0.08) }}>
                             <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'warning.main', mb: 0.5 }}>
-                                Kiem tra bat buoc cho Uy quyen
+                                Kiểm tra bắt buộc cho Ủy quyền
                             </Typography>
                             <Typography sx={{ fontSize: 11.5, color: 'text.secondary', lineHeight: 1.6 }}>
                                 Don vi dang quan tri: lay theo IDQuanTriDonVi cua tung user khi gan.
@@ -808,13 +848,13 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>
-                        CHIEU 2 - PHAM VI CHUYEN NGANH
+                        CHIỀU 2 - PHẠM VI CHUYÊN NGÀNH
                     </Typography>
                     <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mb: 1 }}>
-                        Chon chuyen nganh chinh truoc, sau do moi chon cac chuyen nganh phu can truy cap cheo.
+                        Chọn chuyên ngành chính trước, sau đó mới chọn các chuyên ngành phụ cần truy cập chéo.
                     </Typography>
                     <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: 'text.primary', mb: 0.8 }}>
-                        1. Chon chuyen nganh chinh
+                        1. Chọn chuyên ngành chính
                     </Typography>
 
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.8, mb: 1.5 }}>
@@ -845,32 +885,37 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                         <Box sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${alpha(cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main, 0.45)}`, bgcolor: alpha(cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main, 0.08), mb: 1.5 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, gap: 0.75, flexWrap: 'wrap' }}>
                                 <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
-                                    Chuc nang chuyen nganh chinh: {cnMap.get(ownCnEntry.id)?.label || ownCnEntry.id}
+                                    Chức năng chuyên ngành chính: {cnMap.get(ownCnEntry.id)?.label || ownCnEntry.id}
                                 </Typography>
-                                <Chip size="small" label="Chinh" sx={{ height: 18, fontSize: 10 }} />
+                                <Chip size="small" label="Chính" sx={{ height: 18, fontSize: 10 }} />
                             </Box>
-                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.65 }}>
-                                {ACTIONS_ALL.map((action) => {
-                                    const checked = ownCnEntry.actions.includes(action);
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                {functionPermissionItems.map((permission) => {
+                                    const functionActions = ownCnEntry.functionActions?.[permission.code] ?? cnFunctionActions[permission.code] ?? [];
+                                    if (functionActions.length === 0) return null;
                                     const color = cnMap.get(ownCnEntry.id)?.color || theme.palette.primary.main;
                                     return (
-                                        <ButtonBase
-                                            key={`${ownCnEntry.id}-${action}`}
-                                            onClick={() => toggleAction(ownCnEntry, action)}
-                                            sx={{
-                                                justifyContent: 'flex-start',
-                                                textAlign: 'left',
-                                                px: 0.75,
-                                                py: 0.6,
-                                                borderRadius: 1,
-                                                border: `1px solid ${checked ? alpha(color, 0.55) : theme.palette.divider}`,
-                                                bgcolor: checked ? alpha(color, 0.12) : 'background.paper',
-                                                gap: 0.5,
-                                            }}
-                                        >
-                                            {checked ? <CheckBoxIcon sx={{ fontSize: 14 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 14 }} />}
-                                            <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>{ACTION_LABELS[action]}</Typography>
-                                        </ButtonBase>
+                                        <Box key={`${ownCnEntry.id}-${permission.code}`} sx={{ p: 0.9, borderRadius: 1.5, border: `1px solid ${alpha(color, 0.24)}`, bgcolor: 'background.paper' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.6 }}>
+                                                <CheckBoxIcon sx={{ fontSize: 15, color }} />
+                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.primary', lineHeight: 1.25 }}>{permission.name}</Typography>
+                                                    <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>{permission.code}</Typography>
+                                                </Box>
+                                                <Chip size="small" label={`${functionActions.length} thao tác`} sx={{ height: 18, fontSize: 10, bgcolor: alpha(color, 0.12), color }} />
+                                            </Box>
+                                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.55 }}>
+                                                {ACTIONS_ALL.map((action) => {
+                                                    const checked = functionActions.includes(action);
+                                                    return (
+                                                        <Box key={`${permission.code}-${action}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.45, px: 0.6, py: 0.45, borderRadius: 1, bgcolor: checked ? alpha(color, 0.1) : alpha(theme.palette.action.disabled, 0.08), color: checked ? 'text.primary' : 'text.disabled' }}>
+                                                            {checked ? <CheckBoxIcon sx={{ fontSize: 13, color }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 13 }} />}
+                                                            <Typography sx={{ fontSize: 10.5 }}>{ACTION_LABELS[action]}</Typography>
+                                                        </Box>
+                                                    );
+                                                })}
+                                            </Box>
+                                        </Box>
                                     );
                                 })}
                             </Box>
@@ -882,18 +927,18 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                         <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: 'text.primary' }}>
-                            2. Chon chuyen nganh phu
+                            2. Chọn chuyên ngành phụ
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
                             <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
-                                Danh sach chuyen nganh phu
+                                Danh sách chuyên ngành phụ
                             </Typography>
-                            <Chip size="small" label={`${crossEntries.length} Chuyen nganh phu`} sx={{ height: 18, fontSize: 10 }} />
+                            <Chip size="small" label={`${crossEntries.length} Chuyên ngành phụ`} sx={{ height: 18, fontSize: 10 }} />
                         </Box>
 
                         <TextField
                             size="small"
-                            placeholder="Tim chuyen nganh phu de chon"
+                            placeholder="Tìm chuyên ngành phụ để chọn"
                             value={crossSearch}
                             onChange={(event) => setCrossSearch(event.target.value)}
                             sx={{
@@ -922,7 +967,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                         >
                             {filteredAvailableToAdd.length === 0 ? (
                                 <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>
-                                    Khong tim thay chuyen nganh phu phu hop.
+                                    Không tìm thấy chuyên ngành phụ phù hợp.
                                 </Typography>
                             ) : (
                                 filteredAvailableToAdd.map((cn) => (
@@ -949,7 +994,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
                         {crossEntries.length === 0 ? (
                             <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>
-                                Chua co chuyen nganh phu nao duoc chon.
+                                Chưa có chuyên ngành phụ nào được chọn.
                             </Typography>
                         ) : (
                             crossEntries.map((entry) => {
@@ -961,36 +1006,40 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                                             <Typography sx={{ fontWeight: 700, fontSize: 12.5 }}>
                                                 {option?.label || entry.id}
                                             </Typography>
-                                            <Chip size="small" label="Phu" sx={{ ml: 1, height: 18, fontSize: 10 }} />
-                                            <Tooltip title="Xoa chuyen nganh phu khoi pham vi">
+                                            <Chip size="small" label="Phụ" sx={{ ml: 1, height: 18, fontSize: 10 }} />
+                                            <Tooltip title="Xóa chuyên ngành phụ khỏi phạm vi">
                                                 <IconButton size="small" onClick={() => removeCrossCn(entry.id)} sx={{ ml: 'auto' }}>
                                                     <CloseIcon sx={{ fontSize: 16 }} />
                                                 </IconButton>
                                             </Tooltip>
                                         </Box>
-                                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.65 }}>
-                                            {ACTIONS_ALL.map((action) => {
-                                                const checked = entry.actions.includes(action);
-                                                const disabled = BLOCKED_CROSS_ACTIONS.has(action);
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                            {functionPermissionItems.map((permission) => {
+                                                const functionActions = entry.functionActions?.[permission.code] ?? cnFunctionActions[permission.code] ?? [];
+                                                const visibleActions = functionActions.filter((action) => !BLOCKED_CROSS_ACTIONS.has(action));
+                                                if (visibleActions.length === 0) return null;
                                                 return (
-                                                    <ButtonBase
-                                                        key={`${entry.id}-${action}`}
-                                                        onClick={() => !disabled && toggleAction(entry, action)}
-                                                        sx={{
-                                                            justifyContent: 'flex-start',
-                                                            textAlign: 'left',
-                                                            px: 0.75,
-                                                            py: 0.6,
-                                                            borderRadius: 1,
-                                                            border: `1px solid ${checked ? alpha(color, 0.55) : theme.palette.divider}`,
-                                                            bgcolor: disabled ? alpha(theme.palette.action.disabled, 0.12) : checked ? alpha(color, 0.12) : 'background.paper',
-                                                            opacity: disabled ? 0.5 : 1,
-                                                            gap: 0.5,
-                                                        }}
-                                                    >
-                                                        {checked ? <CheckBoxIcon sx={{ fontSize: 14 }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 14 }} />}
-                                                        <Typography sx={{ fontSize: 10.5, color: 'text.secondary' }}>{ACTION_LABELS[action]}</Typography>
-                                                    </ButtonBase>
+                                                    <Box key={`${entry.id}-${permission.code}`} sx={{ p: 0.9, borderRadius: 1.5, border: `1px solid ${alpha(color, 0.24)}`, bgcolor: 'background.paper' }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.6 }}>
+                                                            <CheckBoxIcon sx={{ fontSize: 15, color }} />
+                                                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.primary', lineHeight: 1.25 }}>{permission.name}</Typography>
+                                                                <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>{permission.code}</Typography>
+                                                            </Box>
+                                                            <Chip size="small" label={`${visibleActions.length} thao tác`} sx={{ height: 18, fontSize: 10, bgcolor: alpha(color, 0.12), color }} />
+                                                        </Box>
+                                                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.55 }}>
+                                                            {ACTIONS_ALL.map((action) => {
+                                                                const checked = visibleActions.includes(action);
+                                                                return (
+                                                                    <Box key={`${permission.code}-${action}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.45, px: 0.6, py: 0.45, borderRadius: 1, bgcolor: checked ? alpha(color, 0.1) : alpha(theme.palette.action.disabled, 0.08), color: checked ? 'text.primary' : 'text.disabled' }}>
+                                                                        {checked ? <CheckBoxIcon sx={{ fontSize: 13, color }} /> : <CheckBoxOutlineBlankIcon sx={{ fontSize: 13 }} />}
+                                                                        <Typography sx={{ fontSize: 10.5 }}>{ACTION_LABELS[action]}</Typography>
+                                                                    </Box>
+                                                                );
+                                                            })}
+                                                        </Box>
+                                                    </Box>
                                                 );
                                             })}
                                         </Box>
@@ -1004,19 +1053,19 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRUOC CAU HINH</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRƯỚC CẤU HÌNH</Typography>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.25 }}>
                         <Chip label={mode.label} />
                         {config.anchorNodeId && <Chip label={`Anchor: ${config.anchorNodeId}`} />}
                         {config.multiNodeIds.length > 0 && <Chip label={`${config.multiNodeIds.length} node`} />}
-                        {normalizedPhamVi?.idChuyenNganh && <Chip color="secondary" label={`Chuyen nganh goc: ${cnMap.get(normalizedPhamVi.idChuyenNganh)?.label || normalizedPhamVi.idChuyenNganh}`} />}
-                        {crossCount > 0 && <Chip color="warning" label={`Chuyen nganh phu: ${crossCount}`} />}
+                        {normalizedPhamVi?.idChuyenNganh && <Chip color="secondary" label={`Chuyên ngành gốc: ${cnMap.get(normalizedPhamVi.idChuyenNganh)?.label || normalizedPhamVi.idChuyenNganh}`} />}
+                        {crossCount > 0 && <Chip color="warning" label={`Chuyên ngành phụ: ${crossCount}`} />}
                     </Box>
-                    <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{mode.example || 'Khong co mo ta bo sung.'}</Typography>
+                    <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{mode.example || 'Không có mô tả bổ sung.'}</Typography>
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRUOC TRUY VAN</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>XEM TRƯỚC TRUY VẤN</Typography>
                     {queryLines.map((line, idx) => (
                         <React.Fragment key={idx}>
                             <Typography sx={{ fontFamily: "inherit", fontSize: 11.5, lineHeight: 1.8, color: idx < 2 ? 'text.primary' : 'text.secondary' }}>
@@ -1028,7 +1077,7 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHAM VI CHUYEN NGANH (DOCUMENT)</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>PHẠM VI CHUYÊN NGÀNH (DOCUMENT)</Typography>
                     <Box component="pre" sx={{ m: 0, p: 1.25, borderRadius: 2, bgcolor: 'background.default', border: `1px solid ${theme.palette.divider}`, fontSize: 11, lineHeight: 1.6, overflow: 'auto', fontFamily: "inherit" }}>
                         {JSON.stringify(normalizedPhamVi ?? null, null, 2)}
                     </Box>
@@ -1037,31 +1086,35 @@ const ScopeConfigPanel: React.FC<ScopeConfigPanelProps> = ({ selectedRole, scope
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`, bgcolor: alpha(theme.palette.warning.main, 0.06) }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.6 }}>
                         <WarningAmberIcon sx={{ fontSize: 17, color: 'warning.main' }} />
-                        <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'warning.main' }}>CAN NHAC THAY DOI SCHEMA</Typography>
+                        <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: 'warning.main' }}>CÂN NHẮC THAY ĐỔI SCHEMA</Typography>
                     </Box>
                     <Typography sx={{ fontSize: 12, lineHeight: 1.7, color: 'text.secondary' }}>
-                        Neu bo truong IDChuyenNganh tren entity trang bi, he thong mat kha nang loc chinh xac theo tung CN. Nen giu IDChuyenNganh va bo sung them IDChuyenNganhKT de loc chi tiet.
+                        Nếu bỏ trường IDChuyenNganh trên entity trang bị, hệ thống mất khả năng lọc chính xác theo từng CN. Nên giữ IDChuyenNganh và bổ sung thêm IDChuyenNganhKT để lọc chi tiết.
                     </Typography>
                 </Box>
 
                 <Box sx={{ p: 2.25, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>VUNG DON VI BI ANH HUONG</Typography>
-                    {config.scopeType === 'SELF' || config.scopeType === 'ALL' ? (
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', color: 'text.secondary', mb: 1.25 }}>VÙNG ĐƠN VỊ BỊ ẢNH HƯỞNG</Typography>
+                    {/* Legacy SELF preview is disabled by the new data-scope model. */}
+                    {/* {config.scopeType === 'SELF' || config.scopeType === 'ALL' ? ( */}
+                    {config.scopeType === 'ALL' ? (
                         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
-                            {config.scopeType === 'SELF' ? 'SELF loc theo CreatedBy, khong theo Office list.' : 'ALL bo qua gioi han don vi. Chieu 2 van co hieu luc neu da cau hinh pham vi chuyen nganh.'}
+                            Admin bỏ qua giới hạn đơn vị. Chiều 2 vẫn có hiệu lực nếu đã cấu hình phạm vi chuyên ngành.
+                            {/* Legacy SELF text:
+                            {config.scopeType === 'SELF' ? 'SELF lọc theo CreatedBy, không theo Office list.' : 'ALL bỏ qua giới hạn đơn vị. Chiều 2 vẫn có hiệu lực nếu đã cấu hình phạm vi chuyên ngành.'} */}
                         </Typography>
                     ) : affectedOffices.length > 0 ? (
                         <>
-                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary', mb: 1 }}>{affectedOffices.length} don vi du kien</Typography>
+                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'text.primary', mb: 1 }}>{affectedOffices.length} đơn vị dự kiến</Typography>
                             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                                 {affectedOffices.slice(0, 24).map((office) => (
                                     <Chip key={office.id} label={`${office.id} - ${office.label}`} size="small" />
                                 ))}
-                                {affectedOffices.length > 24 && <Chip label={`+${affectedOffices.length - 24} don vi`} size="small" />}
+                                {affectedOffices.length > 24 && <Chip label={`+${affectedOffices.length - 24} đơn vị`} size="small" />}
                             </Box>
                         </>
                     ) : (
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Chua co du lieu preview. Hay chon anchor node hoac multi-node phu hop.</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Chưa có dữ liệu preview. Hãy chọn anchor node hoặc multi-node phù hợp.</Typography>
                     )}
                 </Box>
             </Box>

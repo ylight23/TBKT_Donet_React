@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ComputerIcon from '@mui/icons-material/Computer';
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
@@ -97,7 +97,6 @@ const toMenuEntry = (item: PermissionManifestMenuItem): MenuEntry => {
 
 const menu: MenuEntry[] = [
     ...permissionManifest.staticMenus.map(toMenuEntry),
-    { title: 'Nhân Viên', path: '/employee', icon: <AssessmentIcon />, active: 'employee' },
 ];
 
 export default menu;

@@ -15,6 +15,7 @@ public sealed class DieuDongScheduleServiceImpl(
     : DieuDongScheduleService.DieuDongScheduleServiceBase
 {
     private const string CollectionName = "DieuDongSchedule";
+    private const string PermissionCode = "trangbilog.dieu_dong";
     private const string TrangBiNhom1Collection = "TrangBiNhom1";
     private const string TrangBiNhom2Collection = "TrangBiNhom2";
 
@@ -33,6 +34,8 @@ public sealed class DieuDongScheduleServiceImpl(
         var response = new GetListDieuDongScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -69,6 +72,8 @@ public sealed class DieuDongScheduleServiceImpl(
         var response = new GetDieuDongScheduleResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -111,6 +116,8 @@ public sealed class DieuDongScheduleServiceImpl(
         var response = new SaveDieuDongScheduleResponse();
         try
         {
+            context.RequireCreateOrEdit(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -200,6 +207,8 @@ public sealed class DieuDongScheduleServiceImpl(
         var response = new DeleteBaseResponse();
         try
         {
+            context.RequireDelete(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {
@@ -263,6 +272,8 @@ public sealed class DieuDongScheduleServiceImpl(
         var response = new GetListDieuDongScheduleByTrangBiResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null)
             {

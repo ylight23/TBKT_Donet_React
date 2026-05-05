@@ -23,12 +23,22 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import TuneIcon from '@mui/icons-material/Tune';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 
-import type { Role, Permission, PermissionGroup } from '../../../types/permission';
+import type { Role, Permission, PermissionAction, PermissionGroup } from '../../../types/permission';
+
+const ACTION_LABELS: Array<{ action: PermissionAction; label: string }> = [
+    { action: 'view', label: 'Xem' },
+    { action: 'add', label: 'Thêm' },
+    { action: 'edit', label: 'Sửa' },
+    { action: 'delete', label: 'Xóa' },
+    { action: 'approve', label: 'Duyệt' },
+    { action: 'unapprove', label: 'Hủy duyệt' },
+    { action: 'download', label: 'Tải' },
+    { action: 'print', label: 'In' },
+];
 
 const GROUP_ICON_MAP: Record<string, React.ElementType> = {
     'Trang bi ky thuat': BuildIcon,
@@ -59,23 +69,23 @@ function isSensitivePermission(permission: Permission): boolean {
 
 interface PermissionRowProps {
     permission: Permission;
-    checked: boolean;
+    actions: PermissionAction[];
     disabled: boolean;
     roleColor: string;
     showCode: boolean;
-    onToggle: (code: string) => void;
+    onToggleAction: (code: string, action: PermissionAction) => void;
 }
 
 function PermissionRow({
     permission,
-    checked,
+    actions,
     disabled,
     roleColor,
     showCode,
-    onToggle,
+    onToggleAction,
 }: PermissionRowProps) {
     const theme = useTheme();
-    const isView = isDefaultViewPermission(permission);
+    const checked = actions.length > 0;
 
     return (
         <Box
@@ -91,48 +101,12 @@ function PermissionRow({
                     : `inset 0 0 0 1px ${alpha(theme.palette.grey[500], 0.1)}`,
             }}
         >
-            <FormControlLabel
-                sx={{
-                    m: 0,
-                    width: '100%',
-                    alignItems: 'flex-start',
-                    '.MuiFormControlLabel-label': {
-                        width: '100%',
-                    },
-                }}
-                control={(
-                    <Checkbox
-                        size="small"
-                        checked={checked}
-                        disabled={disabled || isView}
-                        onChange={() => onToggle(permission.code)}
-                        sx={{
-                            py: 0.25,
-                            color: alpha(theme.palette.success.dark, 0.35),
-                            '&.Mui-checked': { color: theme.palette.success.dark },
-                        }}
-                    />
-                )}
-                label={(
-                    <Box sx={{ minWidth: 0, pt: 0.4 }}>
+            <Box sx={{ minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                             <Typography sx={{ fontSize: 13, fontWeight: checked ? 700 : 500, color: 'text.primary' }}>
                                 {permission.name}
                             </Typography>
-                            {isView && (
-                                <Chip
-                                    size="small"
-                                    icon={<VisibilityIcon />}
-                                    label="Mac dinh"
-                                    sx={{
-                                        height: 18,
-                                        bgcolor: alpha(roleColor, 0.12),
-                                        color: roleColor,
-                                        '& .MuiChip-label': { px: 0.75, fontSize: 10, fontWeight: 700 },
-                                        '& .MuiChip-icon': { fontSize: 12 },
-                                    }}
-                                />
-                            )}
+                            {checked && <Chip size="small" label={`${actions.length} thao tác`} sx={{ height: 18, bgcolor: alpha(roleColor, 0.12), color: roleColor, '& .MuiChip-label': { px: 0.75, fontSize: 10, fontWeight: 700 } }} />}
                         </Box>
                         {showCode && (
                             <Typography
@@ -147,9 +121,35 @@ function PermissionRow({
                                 {permission.code}
                             </Typography>
                         )}
-                    </Box>
-                )}
-            />
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0.4, mt: 0.8 }}>
+                    {ACTION_LABELS.map(({ action, label }) => {
+                        const actionChecked = actions.includes(action);
+                        return (
+                            <FormControlLabel
+                                key={action}
+                                sx={{
+                                    m: 0,
+                                    '& .MuiFormControlLabel-label': {
+                                        fontSize: 10.5,
+                                        fontWeight: actionChecked ? 700 : 500,
+                                        color: actionChecked ? theme.palette.success.dark : theme.palette.text.secondary,
+                                    },
+                                }}
+                                control={(
+                                    <Checkbox
+                                        size="small"
+                                        checked={actionChecked}
+                                        disabled={disabled}
+                                        onChange={() => onToggleAction(permission.code, action)}
+                                        sx={{ p: 0.25, '& .MuiSvgIcon-root': { fontSize: 15 } }}
+                                    />
+                                )}
+                                label={label}
+                            />
+                        );
+                    })}
+                </Box>
+            </Box>
         </Box>
     );
 }
@@ -162,7 +162,8 @@ interface PermissionGroupCardProps {
     expanded: boolean;
     showCode: boolean;
     onToggleExpand: () => void;
-    onTogglePerm: (code: string) => void;
+    actionPermissions: Record<string, PermissionAction[]>;
+    onTogglePermissionAction: (code: string, action: PermissionAction) => void;
     onToggleGroup: (groupName: string) => void;
 }
 
@@ -174,7 +175,8 @@ function PermissionGroupCard({
     expanded,
     showCode,
     onToggleExpand,
-    onTogglePerm,
+    actionPermissions,
+    onTogglePermissionAction,
     onToggleGroup,
 }: PermissionGroupCardProps) {
     const theme = useTheme();
@@ -185,7 +187,7 @@ function PermissionGroupCard({
         [group.permissions],
     );
     const actionablePermissions = useMemo(
-        () => group.permissions.filter((permission) => !isDefaultViewPermission(permission)),
+        () => group.permissions,
         [group.permissions],
     );
 
@@ -195,12 +197,11 @@ function PermissionGroupCard({
         () => groupCodes.filter((code) => checkedCodes.includes(code)).length,
         [checkedCodes, groupCodes],
     );
-    const actionableCheckedCount = useMemo(
-        () => actionableCodes.filter((code) => checkedCodes.includes(code)).length,
-        [actionableCodes, checkedCodes],
-    );
     const totalCount = groupCodes.length;
-    const allActionableChecked = actionableCodes.length > 0 && actionableCheckedCount === actionableCodes.length;
+    const allActionableChecked = actionableCodes.length > 0 && actionableCodes.every((code) => {
+        const actions = actionPermissions[code] ?? [];
+        return ACTION_LABELS.every((item) => actions.includes(item.action));
+    });
     return (
         <Box
             sx={{
@@ -359,11 +360,11 @@ function PermissionGroupCard({
                                 <PermissionRow
                                     key={permission.code}
                                     permission={permission}
-                                    checked={checkedCodes.includes(permission.code)}
+                                    actions={actionPermissions[permission.code] ?? []}
                                     disabled={isSystem}
                                     roleColor={roleColor}
                                     showCode={showCode}
-                                    onToggle={onTogglePerm}
+                                    onToggleAction={onTogglePermissionAction}
                                 />
                             ))}
                         </Box>
@@ -378,7 +379,8 @@ interface RolePermissionPanelProps {
     selectedRole: Role | undefined;
     permissionGroups: PermissionGroup[];
     checkedPermissions: string[];
-    onTogglePermission: (code: string) => void;
+    actionPermissions: Record<string, PermissionAction[]>;
+    onTogglePermissionAction: (code: string, action: PermissionAction) => void;
     onToggleGroup: (groupName: string) => void;
 }
 
@@ -386,7 +388,8 @@ const RolePermissionPanel: React.FC<RolePermissionPanelProps> = ({
     selectedRole,
     permissionGroups,
     checkedPermissions,
-    onTogglePermission,
+    actionPermissions,
+    onTogglePermissionAction,
     onToggleGroup,
 }) => {
     const theme = useTheme();
@@ -609,7 +612,8 @@ const RolePermissionPanel: React.FC<RolePermissionPanelProps> = ({
                                 ...current,
                                 [group.group]: !(current[group.group] ?? true),
                             }))}
-                            onTogglePerm={onTogglePermission}
+                            actionPermissions={actionPermissions}
+                            onTogglePermissionAction={onTogglePermissionAction}
                             onToggleGroup={onToggleGroup}
                         />
                     ))}

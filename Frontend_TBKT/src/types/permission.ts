@@ -8,14 +8,14 @@
 // ── Scope Types ────────────────────────────────────────────────────────────────
 
 export type ScopeType =
-    | 'SELF'               // Chỉ data cá nhân
-    | 'NODE_ONLY'          // Chỉ node được gán
-    | 'NODE_AND_CHILDREN'  // Node + con trực tiếp
+    // | 'SELF'               // Legacy: Chỉ data cá nhân
+    // | 'NODE_ONLY'          // Legacy: Chỉ node được gán
+    // | 'NODE_AND_CHILDREN'  // Legacy: Node + con trực tiếp
     | 'SUBTREE'            // Toàn bộ cây con
-    | 'SIBLINGS'           // Anh-em cùng cha, cùng cấp
-    | 'BRANCH'             // Chi nhánh (ancestor lên root)
-    | 'MULTI_NODE'         // Nhiều node độc lập
-    | 'ALL'                // Toàn hệ thống (HIGH RISK)
+    // | 'SIBLINGS'           // Legacy: Anh-em cùng cha, cùng cấp
+    // | 'BRANCH'             // Legacy: Chi nhánh (ancestor lên root)
+    // | 'MULTI_NODE'         // Legacy: Nhiều node độc lập
+    | 'ALL'                // Admin/toàn hệ thống (HIGH RISK)
     | 'DELEGATED';         // Ủy quyền (có delegator + expiresAt)
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -73,6 +73,7 @@ export type PermissionAction =
 export interface ChuyenNganhDocScope {
     id: string;
     actions: PermissionAction[];
+    functionActions?: Record<string, PermissionAction[]>;
 }
 
 export interface PhamViChuyenNganhConfig {
@@ -94,6 +95,7 @@ export interface GroupScopeConfig {
 export interface ChuyenNganhAccessEntry {
     idChuyenNganh: string;
     actions: PermissionAction[];
+    functionActions?: Record<string, PermissionAction[]>;
 }
 
 export interface PermissionUserRow {

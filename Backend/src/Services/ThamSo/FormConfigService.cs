@@ -14,7 +14,7 @@ namespace Backend.Services;
 
 public class FormConfigService(ILogger<FormConfigService> logger)
 {
-    private const string PermissionCode = "thamso_formconfig";
+    private const string PermissionCode = "config.param";
     private static readonly Regex MultiDashRegex = new("-{2,}", RegexOptions.Compiled);
 
     private static void ApplyAuditMetadata(FormConfig item, BsonDocument itemBson)

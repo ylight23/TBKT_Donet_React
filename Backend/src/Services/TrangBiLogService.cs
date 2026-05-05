@@ -16,6 +16,7 @@ public sealed class TrangBiLogServiceImpl(
     : TrangBiLogService.TrangBiLogServiceBase
 {
     private const string CollectionName = "TrangBiLog";
+    private const string PermissionCode = "trangbilog.view";
     private static string MapLoaiNghiepVuToFieldSetKey(string? value)
         => (value ?? string.Empty).Trim().ToLowerInvariant() switch
         {
@@ -86,6 +87,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetListTrangBiLogResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -161,6 +164,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetTrangBiLogResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -195,6 +200,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new SaveTrangBiLogResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -285,6 +292,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new DeleteBaseResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -314,6 +323,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new StatusResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -344,6 +355,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetFieldSetsByLogTypeResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             // Lay tat ca FieldSet (da bao gom DynamicField)
             var allResponse = await fieldSetService.GetListFieldSetsAsync(new GetListFieldSetsRequest());
             if (allResponse.Items.Count == 0)
@@ -381,6 +394,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetCalendarLogResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -416,6 +431,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetKTVWorkloadResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -471,6 +488,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetLogStatsResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -527,6 +546,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetQuarterGanttResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 
@@ -586,6 +607,8 @@ public sealed class TrangBiLogServiceImpl(
         var response = new GetLogHistoryByTrangBiResponse();
         try
         {
+            context.RequireView(PermissionCode);
+
             var coll = GetCollection();
             if (coll == null) return response;
 

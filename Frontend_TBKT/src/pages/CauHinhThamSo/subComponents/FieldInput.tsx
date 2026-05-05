@@ -223,6 +223,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, error, useMuiLabe
                         }
 
                         const serialized = serializeProtoObject(res) as any;
+                        //setDisplayLabel(serialized.ten || serialized.tenDayDu || serialized.label || serialized.name || currentValue);
                         setDisplayLabel(serialized.ten || serialized.tenDayDu || serialized.label || serialized.name || currentValue);
                         return;
                     }

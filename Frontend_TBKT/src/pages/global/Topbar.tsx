@@ -15,16 +15,47 @@ import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
 import ExitToApp from "@mui/icons-material/ExitToApp";
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import type { UserProfile } from "oidc-client-ts";
-import { AppDispatch } from '../../store';
+import { AppDispatch, RootState } from '../../store';
 import { clearPermissions } from "../../store/reducer/permissionReducer";
+import { setUserProfile, clearUserProfile } from '../../store/reducer/userReducer';
 
 interface RouteNameMap {
     [key: string]: string;
 }
+
+const readStringClaim = (rawProfile: Record<string, unknown>, ...keys: string[]): string => {
+    for (const key of keys) {
+        const value = rawProfile[key];
+        if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+    return '';
+};
+
+const readStringArrayClaim = (rawProfile: Record<string, unknown>, ...keys: string[]): string[] => {
+    const values = new Set<string>();
+    for (const key of keys) {
+        const value = rawProfile[key];
+        if (Array.isArray(value)) {
+            value.forEach((item) => {
+                if (typeof item === 'string' && item.trim().length > 0) values.add(item.trim());
+            });
+            continue;
+        }
+
+        if (typeof value === 'string' && value.trim().length > 0) {
+            value
+                .split(/[,\s]+/)
+                .map((item) => item.trim())
+                .filter(Boolean)
+                .forEach((item) => values.add(item));
+        }
+    }
+    return [...values];
+};
 
 const Topbar: React.FC = () => {
     const theme = useTheme();
@@ -36,39 +67,63 @@ const Topbar: React.FC = () => {
     const location = useLocation();
     const auth = useAuth();
     const profileLoggedRef = useRef(false);
-    const profile = auth.user?.profile as UserProfile | undefined;
-    const rawProfile = profile as Record<string, unknown> | undefined;
-    const readClaim = (...keys: string[]): string => {
-        if (!rawProfile) return '';
-        for (const key of keys) {
-            const value = rawProfile[key];
-            if (typeof value === 'string' && value.trim().length > 0) return value.trim();
-        }
-        return '';
-    };
-    const firstName = readClaim('given_name', 'givenname', 'http://wso2.org/claims/givenname');
-    const lastName = readClaim('family_name', 'lastname', 'http://wso2.org/claims/lastname');
-    const firstLastName = `${firstName} ${lastName}`.trim();
-    const fullName = readClaim(
-        'name',
-        'http://wso2.org/claims/fullname',
-        'display_name',
-        'http://wso2.org/claims/displayName'
-    );
-    const preferredUsername = readClaim('preferred_username', 'http://wso2.org/claims/displayName');
-    const fallbackUsername = readClaim('username', 'http://wso2.org/claims/username');
-    const greetingName =
-        (firstLastName.length > 0 && firstLastName) ||
-        (fullName.length > 0 && fullName) ||
-        preferredUsername ||
-        fallbackUsername ||
-        'bạn';
+    const greetingName = useSelector((state: RootState) => state.userReducer.greetingName) || 'bạn';
 
     useEffect(() => {
-        if (!auth.isAuthenticated || !auth.user?.profile || profileLoggedRef.current) return;
-        profileLoggedRef.current = true;
-        console.log("[Topbar] OIDC profile claims:", auth.user.profile);
-    }, [auth.isAuthenticated, auth.user]);
+        if (auth.isLoading) return;
+
+        if (!auth.isAuthenticated || !auth.user?.profile) {
+            profileLoggedRef.current = false;
+            dispatch(clearUserProfile());
+            return;
+        }
+
+        if (!profileLoggedRef.current) {
+            profileLoggedRef.current = true;
+            console.log("[Topbar] OIDC profile claims:", auth.user.profile);
+        }
+
+        const rawProfile = auth.user.profile as Record<string, unknown>;
+        const sub = readStringClaim(rawProfile, 'sub');
+        const firstName = readStringClaim(rawProfile, 'given_name', 'givenname', 'http://wso2.org/claims/givenname');
+        const lastName = readStringClaim(rawProfile, 'family_name', 'lastname', 'http://wso2.org/claims/lastname');
+        const firstLastName = `${firstName} ${lastName}`.trim();
+        const fullName = readStringClaim(
+            rawProfile,
+            'name',
+            'http://wso2.org/claims/fullname',
+            'display_name',
+            'http://wso2.org/claims/displayName'
+        );
+        const preferredUsername = readStringClaim(rawProfile, 'preferred_username', 'http://wso2.org/claims/displayName');
+        const fallbackUsername = readStringClaim(rawProfile, 'username', 'http://wso2.org/claims/username');
+        const username = preferredUsername || fallbackUsername;
+        const email = readStringClaim(rawProfile, 'email', 'http://wso2.org/claims/emailaddress');
+        const roles = readStringArrayClaim(
+            rawProfile,
+            'roles',
+            'role',
+            'groups',
+            'http://wso2.org/claims/role',
+            'http://wso2.org/claims/groups'
+        );
+        const resolvedGreetingName =
+            (firstLastName.length > 0 && firstLastName) ||
+            (fullName.length > 0 && fullName) ||
+            username ||
+            '';
+
+        dispatch(setUserProfile({
+            userId: sub || username,
+            sub,
+            username,
+            preferredUsername,
+            fullName,
+            greetingName: resolvedGreetingName,
+            email,
+            roles,
+        }));
+    }, [auth.isLoading, auth.isAuthenticated, auth.user?.profile, dispatch]);
 
     const handleLogout = async (): Promise<void> => {
         try {
@@ -81,6 +136,7 @@ const Topbar: React.FC = () => {
             } catch {}
 
             dispatch(clearPermissions());
+            dispatch(clearUserProfile());
 
             await auth.signoutRedirect({
                 post_logout_redirect_uri: window.location.origin + "/login",
@@ -98,7 +154,7 @@ const Topbar: React.FC = () => {
         'employee': 'Quản lý Cán bộ',
         'office': 'Quản lý Đơn vị',
         'catalog': 'Danh mục',
-        'settings': 'ài đặt',
+        'settings': 'Cài đặt',
         'trang-bi-nhom-1': 'Trang bị Nhóm 1',
         'trang-bi-nhom-2': 'Trang bị Nhóm 2',
         'tinh-trang-ky-thuat': 'Tình trạng Kỹ thuật',
@@ -172,7 +228,7 @@ const Topbar: React.FC = () => {
                         onClick={() => navigate('/')}
                     >
                         <HomeIcon fontSize="small" />
-                        Trang chu
+                        Trang chủ 
                     </Link>
                     {pathnames.map((value, index) => {
                         const last = index === pathnames.length - 1;

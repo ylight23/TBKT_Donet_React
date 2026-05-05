@@ -43,9 +43,7 @@ export const FALLBACK_ROLE_DEFAULTS: Record<string, string[]> = {
         'report.view', 'report.export', 'report.schedule', 'report.classify',
         'office.view', 'office.create', 'office.edit', 'office.delete', 'office.export',
         'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
-        'config.view', 'config.param', 'config.role', 'config.template', 'config.menu', 'config.audit',
-        'thamso_dynamicfield', 'thamso_fieldset', 'thamso_formconfig',
-        'thamso_dynamicmenu', 'thamso_dynamicmenu_datasource', 'thamso_templatelayout',
+        'config.view', 'config.param', 'config.role', 'config.template', 'config.datasource', 'config.menu', 'config.audit',
         'thamso_restore',
     ],
     'sr-2': [
@@ -56,8 +54,6 @@ export const FALLBACK_ROLE_DEFAULTS: Record<string, string[]> = {
         'office.view', 'office.edit',
         'employee.view', 'employee.create', 'employee.edit',
         'config.view',
-        'thamso_dynamicfield', 'thamso_fieldset', 'thamso_formconfig',
-        'thamso_dynamicmenu', 'thamso_dynamicmenu_datasource', 'thamso_templatelayout',
     ],
     'sr-3': [
         // Cán bộ kỹ thuật: nghiệp vụ đầy đủ, không quản lý đơn vị / nhân sự
@@ -98,21 +94,24 @@ export const FALLBACK_ROLE_DEFAULTS: Record<string, string[]> = {
 export const SCOPE_TYPES: ScopeConfig[] = [
     { value: 'SUBTREE',    label: 'Trực thuộc',      desc: 'Toàn bộ nhánh từ đơn vị mình trở xuống — mặc định cho mọi user',   color: deepArmyGreen[400], risk: 'MEDIUM',   icon: '🌲', needsAnchor: true },
     { value: 'DELEGATED',  label: 'Ủy quyền',         desc: 'Nhận ủy quyền từ chỉ huy cấp trên, có thời hạn',                  color: statusColors.maintenance.main, risk: 'HIGH', icon: '🤝', needsDelegated: true, needsAnchor: true },
-    { value: 'ALL',        label: 'Toàn hệ thống',    desc: 'Không giới hạn phạm vi — chỉ dành cho admin/cấp tổng cục',         color: statusColors.critical.main,    risk: 'CRITICAL', icon: '🌐' },
+    { value: 'ALL',        label: 'Admin',            desc: 'Không giới hạn phạm vi — chỉ dành cho admin/cấp tổng cục',         color: statusColors.critical.main,    risk: 'CRITICAL', icon: '🌐' },
 ];
 
 // ── Advanced Scope Options (ẩn mặc định, dùng cho lookup/backward compat) ──────
 export const SCOPE_TYPES_ADVANCED: ScopeConfig[] = [
-    { value: 'SELF',              label: 'Cá nhân',          desc: 'Chỉ dữ liệu do chính user tạo ra',                          color: steelGray[400],         risk: 'LOW',    icon: '👤' },
-    { value: 'NODE_ONLY',         label: 'Node đơn',         desc: 'Chỉ đơn vị được gán, không bao gồm cấp con',                color: deepArmyGreen[600],     risk: 'LOW',    icon: '📍', needsAnchor: true },
-    { value: 'NODE_AND_CHILDREN', label: 'Node + Con',       desc: 'Đơn vị gán và toàn bộ cấp con trực tiếp',                   color: deepArmyGreen[500],     risk: 'MEDIUM', icon: '🔽', needsAnchor: true },
-    { value: 'SIBLINGS',          label: 'Anh-em',           desc: 'Các đơn vị cùng cha và cùng cấp với node gán',               color: armyOlive[600],         risk: 'MEDIUM', icon: '↔️', needsAnchor: true },
-    { value: 'BRANCH',            label: 'Toàn nhánh',       desc: 'Từ node gán ngược lên đến root (chuỗi tổ tiên)',             color: armyOlive[500],         risk: 'MEDIUM', icon: '🔼', needsAnchor: true },
-    { value: 'MULTI_NODE',        label: 'Đa chọn',          desc: 'Chọn thủ công nhiều đơn vị độc lập trên cây',                color: militaryGold[500],       risk: 'HIGH',   icon: '🔗', needsMultiNode: true },
+    // Legacy scopes are disabled by the new data-scope model.
+    // { value: 'SELF',              label: 'Cá nhân',          desc: 'Chỉ dữ liệu do chính user tạo ra',                          color: steelGray[400],         risk: 'LOW',    icon: '👤' },
+    // { value: 'NODE_ONLY',         label: 'Node đơn',         desc: 'Chỉ đơn vị được gán, không bao gồm cấp con',                color: deepArmyGreen[600],     risk: 'LOW',    icon: '📍', needsAnchor: true },
+    // { value: 'NODE_AND_CHILDREN', label: 'Node + Con',       desc: 'Đơn vị gán và toàn bộ cấp con trực tiếp',                   color: deepArmyGreen[500],     risk: 'MEDIUM', icon: '🔽', needsAnchor: true },
+    // { value: 'SIBLINGS',          label: 'Anh-em',           desc: 'Các đơn vị cùng cha và cùng cấp với node gán',               color: armyOlive[600],         risk: 'MEDIUM', icon: '↔️', needsAnchor: true },
+    // { value: 'BRANCH',            label: 'Toàn nhánh',       desc: 'Từ node gán ngược lên đến root (chuỗi tổ tiên)',             color: armyOlive[500],         risk: 'MEDIUM', icon: '🔼', needsAnchor: true },
+    // { value: 'MULTI_NODE',        label: 'Đa chọn',          desc: 'Chọn thủ công nhiều đơn vị độc lập trên cây',                color: militaryGold[500],       risk: 'HIGH',   icon: '🔗', needsMultiNode: true },
 ];
 
 // ── Full scope map (all types) — dùng cho lookup badge/label/color ─────────────
-export const ALL_SCOPE_TYPES: ScopeConfig[] = [...SCOPE_TYPES, ...SCOPE_TYPES_ADVANCED];
+// Legacy SCOPE_TYPES_ADVANCED is kept for reference only, not active in lookup/runtime.
+// export const ALL_SCOPE_TYPES: ScopeConfig[] = [...SCOPE_TYPES, ...SCOPE_TYPES_ADVANCED];
+export const ALL_SCOPE_TYPES: ScopeConfig[] = [...SCOPE_TYPES];
 export const scopeLookup = new Map(ALL_SCOPE_TYPES.map(s => [s.value, s]));
 
 // ── Default Scopes per Role ────────────────────────────────────────────────────
@@ -120,10 +119,13 @@ export const scopeLookup = new Map(ALL_SCOPE_TYPES.map(s => [s.value, s]));
 export const DEFAULT_SCOPES: Record<string, string> = {
     'sr-1': 'ALL',
     'sr-2': 'SUBTREE',
-    'sr-3': 'NODE_AND_CHILDREN',
-    'sr-4': 'SELF',
+    // 'sr-3': 'NODE_AND_CHILDREN',
+    'sr-3': 'SUBTREE',
+    // 'sr-4': 'SELF',
+    'sr-4': 'SUBTREE',
     'cr-1': 'SUBTREE',
-    'cr-2': 'NODE_AND_CHILDREN',
+    // 'cr-2': 'NODE_AND_CHILDREN',
+    'cr-2': 'SUBTREE',
 };
 
 // ── Color palette for new roles ────────────────────────────────────────────────
@@ -167,7 +169,8 @@ export const SAMPLE_ASSIGNMENTS: Assignment[] = [
         userOffice: 'Phòng Kỹ thuật',
         roleId: 'sr-3', roleName: 'Cán bộ kỹ thuật', roleColor: deepArmyGreen[500],
         anchorNodeId: 'kt', anchorNodeName: 'Phòng Kỹ thuật', anchorNodePath: '/root/dv1/kt/',
-        scopeType: 'NODE_AND_CHILDREN', createdAt: '2025-03-01T10:00:00Z',
+        // scopeType: 'NODE_AND_CHILDREN',
+        scopeType: 'SUBTREE', createdAt: '2025-03-01T10:00:00Z',
         approvalStatus: 'APPROVED',
     },
     {
@@ -186,7 +189,8 @@ export const SAMPLE_ASSIGNMENTS: Assignment[] = [
         userOffice: 'Đơn vị cơ sở 1',
         roleId: 'sr-4', roleName: 'Nhân viên', roleColor: steelGray[400],
         anchorNodeId: 'cs1', anchorNodeName: 'Đơn vị cơ sở 1', anchorNodePath: '/root/dv1/kt/cs1/',
-        scopeType: 'SELF', createdAt: '2025-03-15T08:30:00Z',
+        // scopeType: 'SELF',
+        scopeType: 'SUBTREE', createdAt: '2025-03-15T08:30:00Z',
         approvalStatus: 'APPROVED',
     },
 ];

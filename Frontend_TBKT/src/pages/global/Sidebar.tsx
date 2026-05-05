@@ -124,7 +124,8 @@ const Sidebar: React.FC = () => {
 
     // Lọc menu tĩnh theo quyền chức năng
     const visibleMenu = useMemo<MenuEntry[]>(() => {
-        if (!permLoaded || isAdmin) return menu; // chưa load xong hoặc admin → hiện tất cả
+        if (!permLoaded) return menu.filter(entry => !entry.maChucNang);
+        if (isAdmin) return menu;
         return menu.filter(entry => {
             return canAccessMenuCode(entry.maChucNang);
         }).map(entry => {
@@ -140,7 +141,8 @@ const Sidebar: React.FC = () => {
     const visibleDynamicMenu = useMemo(() => {
         return dynamicMenuItems.filter((item) => {
             if (!item.enabled) return false;
-            if (!permLoaded || isAdmin) return true;
+            if (!permLoaded) return false;
+            if (isAdmin) return true;
             if (item.permissionCode) return canFunc(item.permissionCode, 'view');
             return canPhanHe(item.dataSource || '');
         });

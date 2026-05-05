@@ -17,7 +17,7 @@ public class TemplateExportService(
     IWebHostEnvironment env,
     ILogger<TemplateExportService> logger)
 {
-    private const string PermissionCode = "thamso_templatelayout";
+    private const string PermissionCode = "config.template";
 
     private readonly string _outputDir = string.IsNullOrWhiteSpace(config["TemplateExportPath"])
         ? Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "Frontend_TBKT", "public", "templates"))

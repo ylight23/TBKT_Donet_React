@@ -1,67 +1,131 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import type { PermissionAction } from '../types/permission';
 
+type PermissionCheckInput = string | string[] | undefined | null;
+
+const normalizeMaPhanHe = (maPhanHe?: string | null) => String(maPhanHe || '').trim();
+const normalizePermissionCode = (maChucNang?: string | null) => String(maChucNang || '').trim().toLowerCase();
+const normalizeCnId = (cnId?: string | null) => String(cnId || '').trim();
+
 export const useMyPermissions = () => {
     const permissions = useSelector((s: RootState) => s.permissionReducer);
     const isAdmin = permissions.scopeType === 'admin';
-    const normalizeMaPhanHe = (maPhanHe: string) => maPhanHe?.trim() ? 'TBKT.ThongTin' : '';
 
-    // Debug log khi state thay đổi
-    useEffect(() => {
-        console.log('[useMyPermissions] state:', {
-            loaded:    permissions.loaded,
-            isAdmin,
-            scopeType: permissions.scopeType,
-            phanHe:    permissions.phanHe.length,
-            chucNang:  permissions.chucNang.length,
-        });
-    }, [permissions.loaded, permissions.scopeType, isAdmin, permissions.phanHe.length, permissions.chucNang.length]);
+    const functionActionMap = useMemo(() => {
+        const map = new Map<string, Record<string, boolean>>();
+        for (const item of permissions.chucNang) {
+            const code = normalizePermissionCode(item.maChucNang);
+            if (!code) continue;
+            const existing = map.get(code);
+            if (!existing) {
+                map.set(code, item.actions);
+                continue;
+            }
+            map.set(code, {
+                view: existing.view || item.actions.view,
+                add: existing.add || item.actions.add,
+                edit: existing.edit || item.actions.edit,
+                delete: existing.delete || item.actions.delete,
+                approve: existing.approve || item.actions.approve,
+                unapprove: existing.unapprove || item.actions.unapprove,
+                download: existing.download || item.actions.download,
+                print: existing.print || item.actions.print,
+            });
+        }
+        return map;
+    }, [permissions.chucNang]);
+
+    const moduleAccessMap = useMemo(() => {
+        const map = new Map<string, boolean>();
+        for (const item of permissions.phanHe) {
+            const code = normalizeMaPhanHe(item.maPhanHe);
+            if (code) map.set(code, item.duocTruyCap);
+        }
+        return map;
+    }, [permissions.phanHe]);
+
+    const cnActionMap = useMemo(() => {
+        const map = new Map<string, Set<PermissionAction>>();
+        for (const item of permissions.actionsPerCn) {
+            const cnId = normalizeCnId(item.idChuyenNganh);
+            if (cnId) map.set(cnId, new Set(item.actions));
+        }
+        return map;
+    }, [permissions.actionsPerCn]);
+
+    const cnFunctionActionMap = useMemo(() => {
+        const map = new Map<string, Map<string, Set<PermissionAction>>>();
+        for (const item of permissions.actionsPerCn) {
+            const cnId = normalizeCnId(item.idChuyenNganh);
+            if (!cnId) continue;
+            const perFunc = new Map<string, Set<PermissionAction>>();
+            for (const [code, actions] of Object.entries(item.functionActions ?? {})) {
+                const normalizedCode = normalizePermissionCode(code);
+                if (normalizedCode) perFunc.set(normalizedCode, new Set(actions));
+            }
+            if (perFunc.size > 0) map.set(cnId, perFunc);
+        }
+        return map;
+    }, [permissions.actionsPerCn]);
+
     const canFunc = useCallback(
-        (maChucNang: string, action = 'view') => {
+        (maChucNang: string, action: PermissionAction = 'view') => {
             if (isAdmin) return true;
-            return permissions.chucNang.some(
-                cn => cn.maChucNang === maChucNang && cn.actions[action]
-            );
+            const normalizedTarget = normalizePermissionCode(maChucNang);
+            if (!normalizedTarget) return false;
+            return functionActionMap.get(normalizedTarget)?.[action] === true;
         },
-        [isAdmin, permissions.chucNang]
+        [isAdmin, functionActionMap],
+    );
+
+    const canAnyFunc = useCallback(
+        (maChucNang: PermissionCheckInput, action: PermissionAction = 'view') => {
+            if (!maChucNang) return true;
+            const codes = Array.isArray(maChucNang) ? maChucNang : [maChucNang];
+            return codes.some((code) => canFunc(code, action));
+        },
+        [canFunc],
     );
 
     const canPhanHe = useCallback(
         (maPhanHe: string) => {
             if (isAdmin) return true;
             const normalized = normalizeMaPhanHe(maPhanHe);
-            return permissions.phanHe.some(ph => normalizeMaPhanHe(ph.maPhanHe) === normalized && ph.duocTruyCap);
+            if (!normalized) return false;
+            return moduleAccessMap.get(normalized) === true;
         },
-        [isAdmin, permissions.phanHe]
+        [isAdmin, moduleAccessMap],
     );
 
     const canCnAction = useCallback(
-        (action: PermissionAction, cnId?: string | null) => {
+        (action: PermissionAction, cnId?: string | null, maChucNang?: string | null) => {
             if (isAdmin) return true;
-            const normalizedCnId = String(cnId || '').trim();
+            const normalizedCnId = normalizeCnId(cnId);
             if (!normalizedCnId) return true;
-            if (permissions.actionsPerCn.length === 0) return true;
-
-            const matched = permissions.actionsPerCn.find(
-                (entry) => entry.idChuyenNganh === normalizedCnId,
-            );
-            if (!matched) return false;
-            return matched.actions.includes(action);
+            if (cnActionMap.size > 0 && cnActionMap.get(normalizedCnId)?.has(action) !== true) return false;
+            const normalizedCode = normalizePermissionCode(maChucNang);
+            if (normalizedCode) {
+                const functionActions = cnFunctionActionMap.get(normalizedCnId);
+                const actions = functionActions?.get(normalizedCode);
+                if (actions) return actions.has(action);
+            }
+            return true;
         },
-        [isAdmin, permissions.actionsPerCn],
+        [isAdmin, cnActionMap, cnFunctionActionMap],
     );
 
     return {
         canFunc,
+        canAnyFunc,
         canCnAction,
         canPhanHe,
         isAdmin,
-        loaded:       permissions.loaded,
-        scopeType:    permissions.scopeType,
+        loaded: permissions.loaded,
+        scopeType: permissions.scopeType,
         anchorNodeId: permissions.anchorNodeId,
-        visibleCNs:   permissions.visibleCNs,
+        visibleCNs: permissions.visibleCNs,
         actionsPerCn: permissions.actionsPerCn,
     };
 };

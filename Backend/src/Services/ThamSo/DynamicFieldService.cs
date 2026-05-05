@@ -12,7 +12,7 @@ namespace Backend.Services;
 
 public class DynamicFieldService(ILogger<DynamicFieldService> logger)
 {
-    private const string PermissionCode = "thamso_dynamicfield";
+    private const string PermissionCode = "config.param";
     private static readonly System.Text.RegularExpressions.Regex ValidFieldKeyRegex =
         new("^[a-z0-9_]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
 

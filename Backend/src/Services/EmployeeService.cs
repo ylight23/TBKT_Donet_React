@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Backend.Authorization;
 using Backend.utils;
 using Backend.Common.Protobuf;
 using Grpc.Core;
@@ -17,6 +18,8 @@ namespace Backend.Services;
 public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEnvironment environment) :
    EmployeeService.EmployeeServiceBase
 {
+    private const string PermissionCode = "employee.view";
+
     private static string NormalizeEmployeeName(string? value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
 
@@ -34,6 +37,8 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
 
         try
         {
+            context.RequireView(PermissionCode);
+
             var builder = Builders<BsonDocument>.Filter;
             var defaultFilter = builder.Ne(x => x["Delete"], true);
 
@@ -192,6 +197,8 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
 
         try
         {
+            context.RequireView(PermissionCode);
+
             if (request.Id == null || string.IsNullOrEmpty(request.Id))
             {
                 response.Success = false;
@@ -251,6 +258,8 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
         try
         {
             // Tạo danh sách IDs từ cả Id single và Ids array
+            context.RequireView(PermissionCode);
+
             var idsToDelete = new List<string>();
 
             // Thêm single Id nếu có
@@ -315,6 +324,8 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
         ServerCallContext context)
     {
         var jobId = Guid.NewGuid().ToString();
+        context.RequireView(PermissionCode);
+
         var total = request.Items.Count;
         var succeeded = 0;
         var failed = 0;
@@ -459,6 +470,8 @@ public class EmployeeServiceImpl(ILogger<EmployeeServiceImpl> logger, IWebHostEn
 
         try
         {
+            context.RequireView(PermissionCode);
+
             logger.LogInformation($"=== START SaveEmployee: IsNew={request.IsNew} ===");
 
             var item = request.Item;

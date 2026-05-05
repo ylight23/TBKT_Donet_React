@@ -57,6 +57,7 @@ type PreservationSchedule = {
 
 type BaoQuanGanttTab = 'tien_do_trang_bi' | 'lich_bao_quan';
 
+const PERMISSION_CODE = 'trangbilog.bao_quan';
 const buildEquipmentKey = (id: string, nhom: number): string => `${nhom}:${id}`;
 const normalizeForSearch = (value: string): string =>
     value
@@ -77,7 +78,7 @@ const getStatusPriority = (status: 'overdue' | 'inprogress' | 'upcoming' | 'comp
 
 const BaoQuan: React.FC = () => {
     const location = useLocation();
-    const { canCnAction } = useMyPermissions();
+    const { canCnAction, canFunc, loaded: permissionLoaded } = useMyPermissions();
     const selectedTrangBiId = useMemo(() => new URLSearchParams(location.search).get('idTrangBi') || '', [location.search]);
 
     const [loading, setLoading] = useState(false);
@@ -96,6 +97,9 @@ const BaoQuan: React.FC = () => {
     const [readOnlyDialog, setReadOnlyDialog] = useState(false);
     const [memberParametersByKey, setMemberParametersByKey] = useState<Record<string, Record<string, string>>>({});
     const [detailEquipment, setDetailEquipment] = useState<EquipmentOption | null>(null);
+    const canCreateSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, 'add');
+    const canDeleteSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, 'delete');
+    const canSaveSchedule = !permissionLoaded || canFunc(PERMISSION_CODE, editingSchedule?.id ? 'edit' : 'add');
 
     const loadEquipmentPool = useCallback(async () => {
         setEquipmentLoading(true);
@@ -297,12 +301,13 @@ const BaoQuan: React.FC = () => {
     }, [equipmentPool, filteredSchedules, resolveStatus]);
 
     const openCreateDialog = useCallback(() => {
+        if (!canCreateSchedule) return;
         setEditingSchedule(null);
         setReadOnlyDialog(false);
         setMemberParametersByKey({});
         setDetailEquipment(null);
         setDialogOpen(true);
-    }, []);
+    }, [canCreateSchedule]);
 
     const openEditDialog = useCallback(async (schedule: PreservationSchedule, options?: { readOnly?: boolean }) => {
         setSaving(true);
@@ -356,6 +361,7 @@ const BaoQuan: React.FC = () => {
     }, [filteredSchedules, openEditDialog, schedules]);
 
     const handleDeleteSchedule = useCallback(async (schedule: PreservationSchedule) => {
+        if (!canDeleteSchedule) return;
         if (!window.confirm('Bạn có chắc muốn xóa lịch này?')) return;
         const sourceScheduleId = schedule.parameters?.__schedule_id;
         const targetSchedule = sourceScheduleId
@@ -371,7 +377,7 @@ const BaoQuan: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    }, [filteredSchedules, loadSchedules, schedules]);
+    }, [canDeleteSchedule, filteredSchedules, loadSchedules, schedules]);
 
     const handleSaveSchedule = useCallback(async ({ formData, selectedEquipment }: { formData: Record<string, string>; selectedEquipment: EquipmentOption[]; }) => {
         const tenBaoQuan = pickScheduleValue(formData, ['ten_bao_quan', 'ten_lich_bao_quan']).trim();
@@ -408,13 +414,14 @@ const BaoQuan: React.FC = () => {
 
         // CN authorization check (UX gate — backend enforces authoritatively)
         const cnAction = editingSchedule?.id ? 'edit' : 'add';
+        if (!canFunc(PERMISSION_CODE, cnAction)) return;
         if (selectedEquipment.some(eq => eq.idChuyenNganhKt && !canCnAction(cnAction, eq.idChuyenNganhKt))) return;
 
         await saveBaoQuanSchedule({ item: payloadItem, expectedVersion: editingSchedule?.version });
         setDialogOpen(false);
         setDetailEquipment(null);
         await loadSchedules();
-    }, [canCnAction, editingSchedule, loadSchedules, memberParametersByKey]);
+    }, [canCnAction, canFunc, editingSchedule, loadSchedules, memberParametersByKey]);
 
     const dialogInitialData = useMemo<Record<string, string>>(() => {
         if (!editingSchedule) return {};
@@ -516,7 +523,7 @@ const BaoQuan: React.FC = () => {
                         Quản lý lịch bảo quản.
                     </Typography>
                 </Box>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog} disabled={!canCreateSchedule}>
                     Thêm kế hoạch
                 </Button>
             </Stack>
@@ -591,9 +598,9 @@ const BaoQuan: React.FC = () => {
                     </Stack>
                     <Box sx={{ flex: 1, minHeight: 0 }}>
                         {ganttTab === 'tien_do_trang_bi' ? (
-                            <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
+                            <GanttView schedules={ganttByEquipment} onScheduleClick={handleEquipmentGanttClick} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} onViewSchedule={handleViewSchedule} onDeleteSchedule={canDeleteSchedule ? handleDeleteSchedule : undefined} />
                         ) : (
-                            <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} onViewSchedule={handleViewSchedule} onDeleteSchedule={handleDeleteSchedule} />
+                            <GanttView schedules={filteredSchedules} onScheduleClick={handleViewSchedule} loading={loading || saving} panelHeight="100%" tableColumns={baoQuanTableColumns} onViewSchedule={handleViewSchedule} onDeleteSchedule={canDeleteSchedule ? handleDeleteSchedule : undefined} />
                         )}
                     </Box>
                 </Box>
@@ -612,7 +619,7 @@ const BaoQuan: React.FC = () => {
                 initialData={dialogInitialData}
                 initialEquipment={dialogInitialEquipment}
                 editingId={editingSchedule?.id}
-                readOnly={readOnlyDialog}
+                readOnly={readOnlyDialog || !canSaveSchedule}
                 equipmentPool={equipmentPool}
                 equipmentLoading={equipmentLoading}
                 title={editingSchedule?.id ? 'Cập nhật kế hoạch bảo quản' : 'Thêm kế hoạch bảo quản'}

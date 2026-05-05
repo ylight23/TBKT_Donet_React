@@ -41,6 +41,7 @@ message ActionsMap {
   bool approve = 5;
   bool download = 6;
   bool print = 7;
+  bool unapprove = 8;
 }
 
 message ChucNangAccess {
@@ -54,11 +55,18 @@ message ChucNangAccess {
 message ChuyenNganhAccess {
   string id_chuyen_nganh = 1;
   repeated string actions = 2;
+  repeated ChuyenNganhFunctionActions function_actions = 3;
+}
+
+message ChuyenNganhFunctionActions {
+  string ma_chuc_nang = 1;
+  repeated string actions = 2;
 }
 
 message ChuyenNganhDocScope {
   string id = 1;
   repeated string actions = 2;
+  repeated ChuyenNganhFunctionActions function_actions = 3;
 }
 
 message PhamViChuyenNganh {
@@ -250,6 +258,7 @@ message GetGroupPermissionsResponse {
   bool duoc_truy_cap = 6;
   reserved 7;
   PhamViChuyenNganh pham_vi_chuyen_nganh = 8;
+  repeated ChucNangAccess chuc_nang = 9;
 }
 
 message SaveGroupPermissionsRequest {
@@ -262,6 +271,7 @@ message SaveGroupPermissionsRequest {
   bool duoc_truy_cap = 7;
   reserved 8;
   PhamViChuyenNganh pham_vi_chuyen_nganh = 9;
+  repeated ChucNangAccess chuc_nang = 10;
 }
 
 message ListGroupUsersRequest {

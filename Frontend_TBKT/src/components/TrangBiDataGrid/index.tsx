@@ -33,6 +33,7 @@ import AddTrangBiDialog from './AddTrangBiDialog';
 import LazyDataGrid from '../LazyDataGrid';
 import { useMyPermissions } from '../../hooks/useMyPermissions';
 import { findManualOption } from '../../utils/manualOptionConfig';
+import type { PermissionAction } from '../../types/permission';
 
 const trangThaiColor: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
   [TrangThaiTrangBi.HoatDong]: 'success',
@@ -99,6 +100,18 @@ const isTrangBiGroupMenu = (value?: string): value is 'tbNhom1' | 'tbNhom2' => (
   value === 'tbNhom1' || value === 'tbNhom2'
 );
 
+type TrangBiGridAction = 'view' | 'add' | 'edit' | 'delete' | 'print' | 'export';
+
+const resolveTrangBiPermissionCode = (activeMenu?: string): string => {
+  if (activeMenu === 'tbNhom1') return 'equipment.group1';
+  if (activeMenu === 'tbNhom2') return 'equipment.group2';
+  return 'equipment.view';
+};
+
+const mapGridActionToPermissionAction = (action: TrangBiGridAction): PermissionAction => (
+  action === 'export' ? 'download' : action
+);
+
 const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   title,
   subtitle,
@@ -110,8 +123,9 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   selectedOffice: controlledSelectedOffice,
   onOfficeSelect,
 }) => {
-  const { canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
+  const { canFunc, canCnAction, visibleCNs, loaded: permissionLoaded } = useMyPermissions();
   const activeMenuForDialog = isTrangBiGroupMenu(activeMenu) ? activeMenu : undefined;
+  const permissionCode = useMemo(() => resolveTrangBiPermissionCode(activeMenu), [activeMenu]);
 
   const [filterValues, setFilterValues] = useState<FilterTrangBiValues | null>(null);
   const [internalSelectedOffice, setInternalSelectedOffice] = useState<OfficeNode | null>(null);
@@ -144,11 +158,20 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
     setFilterValues(values);
   }, []);
 
+  const canCreateInCurrentScope = useCallback(() => (
+    permissionLoaded
+    && canFunc(permissionCode, 'add')
+    && (visibleCNs.length === 0
+      ? canCnAction('add', null, permissionCode)
+      : visibleCNs.some((cnId) => canCnAction('add', cnId, permissionCode)))
+  ), [canCnAction, canFunc, permissionCode, permissionLoaded, visibleCNs]);
+
   const handleOpenCreateDialog = useCallback(() => {
+    if (!canCreateInCurrentScope()) return;
     setEditingRecordId(null);
     setDialogReadOnly(false);
     setOpenAdd(true);
-  }, []);
+  }, [canCreateInCurrentScope]);
 
   const handleCloseDialog = useCallback(() => {
     setOpenAdd(false);
@@ -238,39 +261,48 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
   }, [data, filterValues, selectedOffice]);
 
   const handleExport = useCallback(() => {
+    if (!canFunc(permissionCode, 'download')) return;
     alert(`[Gia lap] Xuat ${filtered.length} ban ghi ra Excel`);
-  }, [filtered.length]);
+  }, [canFunc, filtered.length, permissionCode]);
 
   const resolveTrangBiCnId = useCallback((row: TrangBiGridRow): string => (
     String(row.idChuyenNganhKt || '').trim()
   ), []);
 
-  const isRowActionDisabled = useCallback(
-    (action: 'view' | 'edit' | 'delete' | 'print' | 'export', row: TrangBiGridRow): boolean => {
+  const canPerformGridAction = useCallback(
+    (action: TrangBiGridAction, cnId?: string | null): boolean => {
       if (!permissionLoaded) return false;
+      const permissionAction = mapGridActionToPermissionAction(action);
+      if (!canFunc(permissionCode, permissionAction)) return false;
+      return canCnAction(permissionAction, cnId, permissionCode);
+    },
+    [canCnAction, canFunc, permissionCode, permissionLoaded],
+  );
+
+  const isRowActionDisabled = useCallback(
+    (action: Exclude<TrangBiGridAction, 'add'>, row: TrangBiGridRow): boolean => {
       const cnId = resolveTrangBiCnId(row);
       if (!cnId) return true;
-      const mappedAction = action === 'export' ? 'download' : action;
-      return !canCnAction(mappedAction, cnId);
+      return !canPerformGridAction(action, cnId);
     },
-    [canCnAction, permissionLoaded, resolveTrangBiCnId],
+    [canPerformGridAction, resolveTrangBiCnId],
   );
 
   const canAddAny = useMemo(() => {
-    if (!permissionLoaded) return true;
-    if (visibleCNs.length === 0) return true;
-    return visibleCNs.some((cnId) => canCnAction('add', cnId));
-  }, [canCnAction, permissionLoaded, visibleCNs]);
+    return canCreateInCurrentScope();
+  }, [canCreateInCurrentScope]);
 
   const canExportAny = useMemo(() => {
-    if (!permissionLoaded) return true;
+    if (!permissionLoaded) return false;
+    if (!canFunc(permissionCode, 'download')) return false;
     return filtered.some((row) => {
       const cnId = resolveTrangBiCnId(row);
-      return cnId ? canCnAction('download', cnId) : false;
+      return cnId ? canCnAction('download', cnId, permissionCode) : false;
     });
-  }, [canCnAction, filtered, permissionLoaded, resolveTrangBiCnId]);
+  }, [canCnAction, canFunc, filtered, permissionCode, permissionLoaded, resolveTrangBiCnId]);
 
   const handleEditRow = useCallback((row: TrangBiGridRow) => {
+    if (!canPerformGridAction('edit', resolveTrangBiCnId(row))) return;
     if (activeMenuForDialog) {
       setEditingRecordId(row.id);
       setDialogReadOnly(false);
@@ -279,9 +311,10 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
     }
 
     alert(`Sua: ${row.maDanhMuc}`);
-  }, [activeMenuForDialog]);
+  }, [activeMenuForDialog, canPerformGridAction, resolveTrangBiCnId]);
 
   const handleViewRow = useCallback((row: TrangBiGridRow) => {
+    if (!canPerformGridAction('view', resolveTrangBiCnId(row))) return;
     if (activeMenuForDialog) {
       setEditingRecordId(row.id);
       setDialogReadOnly(true);
@@ -290,7 +323,17 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
     }
 
     alert(`Xem: ${row.maDanhMuc}`);
-  }, [activeMenuForDialog]);
+  }, [activeMenuForDialog, canPerformGridAction, resolveTrangBiCnId]);
+
+  const handlePrintRow = useCallback((row: TrangBiGridRow) => {
+    if (!canPerformGridAction('print', resolveTrangBiCnId(row))) return;
+    alert(`In: ${row.maDanhMuc}`);
+  }, [canPerformGridAction, resolveTrangBiCnId]);
+
+  const handleDeleteRow = useCallback((row: TrangBiGridRow) => {
+    if (!canPerformGridAction('delete', resolveTrangBiCnId(row))) return;
+    alert(`Xoa: ${row.maDanhMuc}`);
+  }, [canPerformGridAction, resolveTrangBiCnId]);
 
   const fallbackColumns = useMemo<GridColDef<TrangBiGridRow>[]>(() => [
     {
@@ -439,7 +482,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           <Tooltip title="In chi tiết">
             <IconButton
               size="small"
-              onClick={() => alert(`In: ${params.row.maDanhMuc}`)}
+              onClick={() => handlePrintRow(params.row)}
               disabled={isRowActionDisabled('print', params.row)}
               sx={{ color: militaryColors.success }}
             >
@@ -450,7 +493,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           <Tooltip title="Xóa trang bị">
             <IconButton
               size="small"
-              onClick={() => alert(`Xoa: ${params.row.maDanhMuc}`)}
+              onClick={() => handleDeleteRow(params.row)}
               disabled={isRowActionDisabled('delete', params.row)}
               sx={{ color: militaryColors.error }}
             >
@@ -460,7 +503,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
         </Stack>
       ),
     },
-  ], [handleEditRow, handleViewRow, isRowActionDisabled]);
+  ], [handleDeleteRow, handleEditRow, handlePrintRow, handleViewRow, isRowActionDisabled]);
 
   const dynamicColumns = useMemo<GridColDef<TrangBiGridRow>[]>(() => {
     const enabledFields = gridFieldConfigs
@@ -640,7 +683,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           <Tooltip title="In chi tiết">
             <IconButton
               size="small"
-              onClick={() => alert(`In: ${params.row.maDanhMuc}`)}
+              onClick={() => handlePrintRow(params.row)}
               disabled={isRowActionDisabled('print', params.row)}
               sx={{ color: militaryColors.success }}
             >
@@ -651,7 +694,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
           <Tooltip title="Xóa trang bị">
             <IconButton
               size="small"
-              onClick={() => alert(`Xoa: ${params.row.maDanhMuc}`)}
+              onClick={() => handleDeleteRow(params.row)}
               disabled={isRowActionDisabled('delete', params.row)}
               sx={{ color: militaryColors.error }}
             >
@@ -663,7 +706,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
     };
 
     return [sttColumn, ...runtimeGridColumns, actionColumn];
-  }, [data, gridFieldConfigs, handleEditRow, handleViewRow, isRowActionDisabled]);
+  }, [data, gridFieldConfigs, handleDeleteRow, handleEditRow, handlePrintRow, handleViewRow, isRowActionDisabled]);
 
   const columns = useMemo<GridColDef<TrangBiGridRow>[]>(() => {
     const preferred = dynamicColumns.length > 0 ? dynamicColumns : fallbackColumns;

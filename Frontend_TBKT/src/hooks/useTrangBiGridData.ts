@@ -3,6 +3,7 @@ import trangBiKiThuatApi, {
     type TrangBiNhom1GridItem,
     type TrangBiNhom2GridItem,
 } from '../apis/trangBiKiThuatApi';
+import { useMyPermissions } from './useMyPermissions';
 
 export type TrangBiGridItem = (TrangBiNhom1GridItem | TrangBiNhom2GridItem) & {
     nhomTrangBi?: 1 | 2;
@@ -19,6 +20,7 @@ export default function useTrangBiGridData(enabled = true): UseTrangBiGridDataRe
     const [data, setData] = useState<TrangBiGridItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const { canFunc, loaded: permLoaded } = useMyPermissions();
 
     const loadData = useCallback(async () => {
         if (!enabled) {
@@ -32,9 +34,12 @@ export default function useTrangBiGridData(enabled = true): UseTrangBiGridDataRe
         setErrorMessage('');
 
         try {
+            const canNhom1 = canFunc('equipment.group1', 'view');
+            const canNhom2 = canFunc('equipment.group2', 'view');
+
             const [nhom1, nhom2] = await Promise.all([
-                trangBiKiThuatApi.getListTrangBiNhom1(),
-                trangBiKiThuatApi.getListTrangBiNhom2(),
+                canNhom1 ? trangBiKiThuatApi.getListTrangBiNhom1() : Promise.resolve([] as TrangBiNhom1GridItem[]),
+                canNhom2 ? trangBiKiThuatApi.getListTrangBiNhom2() : Promise.resolve([] as TrangBiNhom2GridItem[]),
             ]);
             setData([
                 ...nhom1.map((item) => ({ ...item, nhomTrangBi: 1 as const })),
@@ -47,11 +52,12 @@ export default function useTrangBiGridData(enabled = true): UseTrangBiGridDataRe
         } finally {
             setLoading(false);
         }
-    }, [enabled]);
+    }, [enabled, canFunc]);
 
     useEffect(() => {
+        if (!permLoaded) return;
         void loadData();
-    }, [loadData]);
+    }, [loadData, permLoaded]);
 
     return {
         data,

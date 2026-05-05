@@ -19,7 +19,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import Alert from '@mui/material/Alert';
 
-import type { Role, ScopeType, PermissionTabKey, PermissionAssignmentRow, PermissionUserRow, GroupScopeConfig, PermissionGroup } from '../../types/permission';
+import type { Role, ScopeType, PermissionTabKey, PermissionAssignmentRow, PermissionUserRow, GroupScopeConfig, PermissionGroup, PermissionAction } from '../../types/permission';
 import {
     getPermissionCatalog,
     listNhomNguoiDung,
@@ -122,12 +122,15 @@ function assignmentDetailToRow(a: AssignmentDetailInfo): PermissionAssignmentRow
 }
 
 function scopeNeedsAnchor(scopeType: ScopeType): boolean {
-    return ['NODE_ONLY', 'NODE_AND_CHILDREN', 'SUBTREE', 'SIBLINGS', 'BRANCH', 'DELEGATED'].includes(scopeType);
+    // Legacy scopes are disabled by the new data-scope model:
+    // return ['NODE_ONLY', 'NODE_AND_CHILDREN', 'SUBTREE', 'SIBLINGS', 'BRANCH', 'DELEGATED'].includes(scopeType);
+    return ['SUBTREE', 'DELEGATED'].includes(scopeType);
 }
 
 function isScopeConfigReady(scopeConfig: GroupScopeConfig): boolean {
     if (scopeNeedsAnchor(scopeConfig.scopeType) && !scopeConfig.anchorNodeId) return false;
-    if (scopeConfig.scopeType === 'MULTI_NODE' && scopeConfig.multiNodeIds.length === 0) return false;
+    // Legacy MULTI_NODE is disabled by the new data-scope model.
+    // if (scopeConfig.scopeType === 'MULTI_NODE' && scopeConfig.multiNodeIds.length === 0) return false;
     return true;
 }
 
@@ -140,13 +143,14 @@ function getScopeSummary(scopeConfig: GroupScopeConfig): string {
                 return scopeConfig.anchorNodeId ? `Delegated @ ${scopeConfig.anchorNodeId}` : 'Delegated';
             case 'ALL':
                 return 'All units';
-            case 'MULTI_NODE':
-                return scopeConfig.multiNodeIds.length > 0 ? `MultiNode (${scopeConfig.multiNodeIds.length} anchors)` : 'MultiNode';
-            case 'NODE_ONLY':
-            case 'NODE_AND_CHILDREN':
-            case 'SIBLINGS':
-            case 'BRANCH':
-                return scopeConfig.anchorNodeId ? `${scopeConfig.scopeType} @ ${scopeConfig.anchorNodeId}` : scopeConfig.scopeType;
+            // Legacy scopes are disabled by the new data-scope model.
+            // case 'MULTI_NODE':
+            //     return scopeConfig.multiNodeIds.length > 0 ? `MultiNode (${scopeConfig.multiNodeIds.length} anchors)` : 'MultiNode';
+            // case 'NODE_ONLY':
+            // case 'NODE_AND_CHILDREN':
+            // case 'SIBLINGS':
+            // case 'BRANCH':
+            //     return scopeConfig.anchorNodeId ? `${scopeConfig.scopeType} @ ${scopeConfig.anchorNodeId}` : scopeConfig.scopeType;
             default:
                 return scopeConfig.scopeType;
         }
@@ -159,20 +163,25 @@ function getScopeSummary(scopeConfig: GroupScopeConfig): string {
 
 // ── Main Page Component ───────────────────────────────────────────────────────
 
-function isDefaultViewPermission(code: string, name?: string): boolean {
-    return code.endsWith('.view') || Boolean(name?.toLowerCase().startsWith('xem '));
+function buildCheckedCodesFromActions(actionPermissions: Record<string, PermissionAction[]>): string[] {
+    return Object.entries(actionPermissions)
+        .filter(([, actions]) => actions.length > 0)
+        .map(([code]) => code);
 }
 
-function normalizeCheckedPermissions(codes: string[], permissionGroups: PermissionGroup[]): string[] {
-    const normalized = new Set(codes);
-    permissionGroups.forEach((group) => {
-        group.permissions.forEach((permission) => {
-            if (isDefaultViewPermission(permission.code, permission.name)) {
-                normalized.add(permission.code);
-            }
-        });
-    });
-    return Array.from(normalized);
+const ALL_PERMISSION_ACTIONS: PermissionAction[] = [
+    'view',
+    'add',
+    'edit',
+    'delete',
+    'approve',
+    'unapprove',
+    'download',
+    'print',
+];
+
+function isDefaultViewPermission(code: string, name?: string): boolean {
+    return code.endsWith('.view') || Boolean(name?.toLowerCase().startsWith('xem '));
 }
 
 const PhanQuyenPage: React.FC = () => {
@@ -183,6 +192,7 @@ const PhanQuyenPage: React.FC = () => {
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [selectedRoleId, setSelectedRoleId] = useState('');
     const [checkedPerms, setCheckedPerms] = useState<string[]>([]);
+    const [actionPermissions, setActionPermissions] = useState<Record<string, PermissionAction[]>>({});
     const [currentScopeConfig, setCurrentScopeConfig] = useState<GroupScopeConfig>({
         scopeType: 'SUBTREE',
         anchorNodeId: '',
@@ -208,6 +218,7 @@ const PhanQuyenPage: React.FC = () => {
     // ── Derived state ──────────────────────────────────────────────────────────
     const allRoles = useMemo(() => groups.map(nhomToRole), [groups]);
     const selectedRole = useMemo(() => allRoles.find(r => r.id === selectedRoleId), [allRoles, selectedRoleId]);
+    const hasSelectedRole = Boolean(selectedRole);
     const isSystem = selectedRole?.type === 'SYSTEM';
     const userRows = useMemo(() => usersInGroupToRows(usersInGroup), [usersInGroup]);
     const assignmentRows = useMemo(() => assignments.map(assignmentDetailToRow), [assignments]);
@@ -263,7 +274,9 @@ const PhanQuyenPage: React.FC = () => {
                 const list = await listNhomNguoiDung();
                 if (cancelled) return;
                 setGroups(list);
-                if (list.length > 0) setSelectedRoleId(list[0].id);
+                console.info('[PhanQuyen] Loaded roles; waiting for explicit selection', {
+                    roleCount: list.length,
+                });
             } catch (e) {
                 console.error('[PhanQuyen] loadGroups error:', e);
             } finally {
@@ -307,6 +320,11 @@ const PhanQuyenPage: React.FC = () => {
                 ]);
                 if (cancelled) return;
                 setCheckedPerms(perms.checkedCodes);
+                setActionPermissions(
+                    Object.keys(perms.actionPermissions).length > 0
+                        ? perms.actionPermissions
+                        : Object.fromEntries(perms.checkedCodes.map((code) => [code, ['view' as PermissionAction]])),
+                );
                 setCurrentScopeConfig({
                     scopeType: (perms.scopeType || 'SUBTREE') as ScopeType,
                     anchorNodeId: perms.anchorNodeId || '',
@@ -342,34 +360,41 @@ const PhanQuyenPage: React.FC = () => {
         setScopeReviewed(false);
     }, []);
 
-    const handleTogglePermission = useCallback((code: string) => {
+    const handleTogglePermissionAction = useCallback((code: string, action: PermissionAction) => {
         if (isSystem) return;
-        const matchedPermission = permissionGroups
-            .flatMap(group => group.permissions)
-            .find(permission => permission.code === code);
-        if (isDefaultViewPermission(code, matchedPermission?.name)) return;
-        setCheckedPerms(prev =>
-            prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code],
-        );
+        setActionPermissions((prev) => {
+            const current = new Set(prev[code] ?? []);
+            if (current.has(action)) current.delete(action);
+            else current.add(action);
+
+            const next = { ...prev };
+            if (current.size === 0) delete next[code];
+            else next[code] = [...current];
+            setCheckedPerms(buildCheckedCodesFromActions(next));
+            return next;
+        });
         setUnsaved(true);
-    }, [isSystem, permissionGroups]);
+    }, [isSystem]);
 
     const handleToggleGroup = useCallback((groupName: string) => {
         if (isSystem) return;
         const groupPermissions = permissionGroups.find(g => g.group === groupName)?.permissions ?? [];
         const groupCodes = groupPermissions.map(p => p.code);
-        const baselineCodes = groupPermissions
-            .filter(permission => isDefaultViewPermission(permission.code, permission.name))
-            .map(permission => permission.code);
-        const togglableCodes = groupPermissions
-            .filter(permission => !isDefaultViewPermission(permission.code, permission.name))
-            .map(permission => permission.code);
-        setCheckedPerms(prev => {
-            const normalizedPrev = new Set([...prev, ...baselineCodes]);
-            const allChecked = groupCodes.every(c => normalizedPrev.has(c));
-            return allChecked
-                ? Array.from(normalizedPrev).filter(c => !togglableCodes.includes(c))
-                : Array.from(new Set([...normalizedPrev, ...togglableCodes]));
+        setActionPermissions((prev) => {
+            const allActionsChecked = groupCodes.every((code) => {
+                const actions = prev[code] ?? [];
+                return ALL_PERMISSION_ACTIONS.every((action) => actions.includes(action));
+            });
+            const next = { ...prev };
+            for (const code of groupCodes) {
+                if (allActionsChecked) {
+                    delete next[code];
+                } else {
+                    next[code] = [...ALL_PERMISSION_ACTIONS];
+                }
+            }
+            setCheckedPerms(buildCheckedCodesFromActions(next));
+            return next;
         });
         setUnsaved(true);
     }, [isSystem, permissionGroups]);
@@ -379,8 +404,8 @@ const PhanQuyenPage: React.FC = () => {
         [permissionGroups],
     );
     const normalizedCheckedPerms = useMemo(
-        () => normalizeCheckedPermissions(checkedPerms, permissionGroups),
-        [checkedPerms, permissionGroups],
+        () => buildCheckedCodesFromActions(actionPermissions),
+        [actionPermissions],
     );
     const allPermissionCodeSet = useMemo(() => new Set(allPermissionCodes), [allPermissionCodes]);
     const visibleCheckedPermCount = useMemo(
@@ -401,22 +426,6 @@ const PhanQuyenPage: React.FC = () => {
         setActiveTab('permissions');
     }, [scopeReady]);
 
-    const handleSave = useCallback(async () => {
-        if (!selectedRoleId) return;
-        setSaving(true);
-        try {
-            await saveGroupPermissions(selectedRoleId, normalizedCheckedPerms, currentScopeConfig);
-            setCheckedPerms(normalizedCheckedPerms);
-            setUnsaved(false);
-            setSavedFlash(true);
-            setTimeout(() => setSavedFlash(false), 1800);
-        } catch (e) {
-            console.error('[PhanQuyen] save error:', e);
-        } finally {
-            setSaving(false);
-        }
-    }, [selectedRoleId, normalizedCheckedPerms, currentScopeConfig]);
-
     const handleRebuildPermissions = useCallback(async () => {
         if (!selectedRoleId) return;
         setRebuilding(true);
@@ -433,13 +442,41 @@ const PhanQuyenPage: React.FC = () => {
         }
     }, [selectedRoleId]);
 
+    const handleSave = useCallback(async () => {
+        if (!selectedRoleId) return;
+        setSaving(true);
+        try {
+            console.info('[PhanQuyen] Saving permissions for role', {
+                roleId: selectedRoleId,
+                roleName: selectedRole?.name,
+                permissionCount: normalizedCheckedPerms.length,
+                hasEquipmentGroup1: normalizedCheckedPerms.includes('equipment.group1'),
+                hasEquipmentGroup2: normalizedCheckedPerms.includes('equipment.group2'),
+                equipmentGroup1Actions: actionPermissions['equipment.group1'] ?? [],
+                equipmentGroup2Actions: actionPermissions['equipment.group2'] ?? [],
+            });
+            await saveGroupPermissions(selectedRoleId, normalizedCheckedPerms, currentScopeConfig, actionPermissions);
+            setCheckedPerms(normalizedCheckedPerms);
+            setUnsaved(false);
+            setSavedFlash(true);
+            setTimeout(() => setSavedFlash(false), 1800);
+        } catch (e) {
+            console.error('[PhanQuyen] save error:', e);
+            return;
+        } finally {
+            setSaving(false);
+        }
+        // Tự động rebuild cache sau khi lưu để cập nhật quyền hiệu lực ngay
+        await handleRebuildPermissions();
+    }, [actionPermissions, selectedRoleId, selectedRole?.name, normalizedCheckedPerms, currentScopeConfig, handleRebuildPermissions]);
+
     const handleDeleteRole = useCallback(async (roleId: string) => {
         const res = await deleteNhomNguoiDung(roleId);
         if (res.success) {
             setGroups(prev => {
                 const next = prev.filter(g => g.id !== roleId);
-                if (selectedRoleId === roleId && next.length > 0)
-                    setSelectedRoleId(next[0].id);
+                if (selectedRoleId === roleId)
+                    setSelectedRoleId('');
                 return next;
             });
         }
@@ -530,7 +567,7 @@ const PhanQuyenPage: React.FC = () => {
                         QUẢN LÝ PHÂN QUYỀN
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        Hệ thống phân quyền RBAC + ABAC — quản lý role, quyền hạn và phạm vi dữ liệu theo cây đơn vị
+                        Hệ thống phân quyền người dùng theo vai trò, quyền hạn và phạm vi dữ liệu theo cây đơn vị
                     </Typography>
                 </Box>
             </Box>
@@ -557,6 +594,42 @@ const PhanQuyenPage: React.FC = () => {
 
                     {/* Content column */}
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+                        {!hasSelectedRole ? (
+                            <Box
+                                sx={{
+                                    flex: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    p: 3,
+                                    bgcolor: 'background.default',
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        width: '100%',
+                                        maxWidth: 720,
+                                        p: 4,
+                                        borderRadius: 3,
+                                        bgcolor: 'background.paper',
+                                        border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                                        boxShadow: `0 16px 40px ${alpha(theme.palette.common.black, 0.06)}`,
+                                    }}
+                                >
+                                    <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', mb: 1 }}>
+                                        Chọn một role trước khi cấu hình quyền
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, mb: 2 }}>
+                                        Trang này không còn tự chọn role đầu tiên. Mọi thao tác lưu quyền, cấu hình phạm vi dữ liệu và gán người dùng
+                                        chỉ áp dụng cho role bạn chọn rõ ràng ở cột bên trái.
+                                    </Typography>
+                                    <Alert severity="info" sx={{ borderRadius: 2 }}>
+                                        Điều này tránh trường hợp lưu nhầm vào role đầu danh sách khi backend trả thứ tự role không cố định.
+                                    </Alert>
+                                </Box>
+                            </Box>
+                        ) : (<>
 
                         {/* ── Role info + tabs ── */}
                         <Box
@@ -608,7 +681,7 @@ const PhanQuyenPage: React.FC = () => {
                                     {visibleCheckedPermCount}/{allPermissionCodes.length} quyền
                                     · {selectedRole?.userCount ?? 0} người dùng
                                     {!isSystem && selectedRole?.clonedFrom && (
-                                        <> · Clone từ <Typography component="span" sx={{ color: 'primary.main', fontSize: 'inherit' }}>
+                                        <> · Sao chép từ <Typography component="span" sx={{ color: 'primary.main', fontSize: 'inherit' }}>
                                             {allRoles.find(r => r.id === selectedRole.clonedFrom)?.name}
                                         </Typography></>
                                     )}
@@ -641,15 +714,6 @@ const PhanQuyenPage: React.FC = () => {
                                         }}
                                     />
                                 )}
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={handleRebuildPermissions}
-                                    disabled={rebuilding || !selectedRoleId}
-                                    sx={{ px: 2, py: 0.75, borderRadius: 2, fontSize: 13, fontWeight: 700, textTransform: 'none' }}
-                                >
-                                    {rebuilding ? 'Dang rebuild...' : 'Rebuild cache'}
-                                </Button>
                                 {!isSystem && (
                                     <Button
                                         variant="contained"
@@ -771,6 +835,8 @@ const PhanQuyenPage: React.FC = () => {
                                     <ScopeConfigPanel
                                         selectedRole={selectedRole}
                                         scopeConfig={currentScopeConfig}
+                                        actionPermissions={actionPermissions}
+                                        permissionGroups={permissionGroups}
                                         onScopeChange={handleScopeChange}
                                     />
                                 </Box>
@@ -909,7 +975,8 @@ const PhanQuyenPage: React.FC = () => {
                                                     selectedRole={selectedRole}
                                                     permissionGroups={permissionGroups}
                                                     checkedPermissions={checkedPerms}
-                                                    onTogglePermission={handleTogglePermission}
+                                                    actionPermissions={actionPermissions}
+                                                    onTogglePermissionAction={handleTogglePermissionAction}
                                                     onToggleGroup={handleToggleGroup}
                                                 />
                                             </Box>
@@ -994,6 +1061,7 @@ const PhanQuyenPage: React.FC = () => {
                                                         phamVi={currentScopeConfig.phamViChuyenNganh!}
                                                         checkedCodes={checkedPerms}
                                                         permissionGroups={permissionGroups}
+                                                        actionPermissions={actionPermissions}
                                                     />
                                                 </Box>
                                             </Box>
@@ -1048,6 +1116,8 @@ const PhanQuyenPage: React.FC = () => {
                                 />
                             )}
                         </Box>
+                        </>
+                        )}
                     </Box>
                 </Box>
             )}

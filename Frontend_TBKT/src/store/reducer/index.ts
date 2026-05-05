@@ -5,6 +5,7 @@ import officeReducer from './office';
 import thamSoReducer from './thamSo';
 import permissionReducer from './permissionReducer';
 import templateRuntimeActionReducer from './templateRuntimeAction';
+import userReducer from './userReducer';
 
 const reducers = combineReducers({
     employeeReducer,
@@ -12,6 +13,7 @@ const reducers = combineReducers({
     thamSoReducer,
     permissionReducer,
     templateRuntimeActionReducer,
+    userReducer,
     // dummy: (state = {}) => state
 });
 

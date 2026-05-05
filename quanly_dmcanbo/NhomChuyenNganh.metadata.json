@@ -1,1 +1,1 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"DanhSachCn":{"$numberInt":"1"}},"name":"idx_nhom_chuyen_nganh_danhsachcn"}],"uuid":"18d1876ada3f4f4da24073ed2187607f","collectionName":"NhomChuyenNganh","type":"collection"}
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"DanhSachCn":{"$numberInt":"1"}},"name":"idx_nhom_chuyen_nganh_danhsachcn"}],"uuid":"85f52260c8854794a8e197952a59f919","collectionName":"NhomChuyenNganh","type":"collection"}

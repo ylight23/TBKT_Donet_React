@@ -12,7 +12,7 @@ namespace Backend.Services;
 
 public class TemplateLayoutService(ILogger<TemplateLayoutService> logger)
 {
-    private const string PermissionCode = "thamso_templatelayout";
+    private const string PermissionCode = "config.template";
 
     private static TemplateLayout ToTemplateLayout(BsonDocument itemBson)
     {

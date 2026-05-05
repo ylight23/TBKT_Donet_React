@@ -82,14 +82,19 @@ const PermissionDenied: React.FC = () => (
     <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh" px={3}>
         <Box maxWidth={520} width="100%">
             <Alert severity="warning" sx={{ mb: 2 }}>
-                Ban khong co quyen truy cap duong dan nay.
+                Bạn không có quyền truy cập đường dẫn này.
             </Alert>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Route nay duoc guard bang cung mot manifest dung de render menu va catalog quyen.
+                Nếu bạn vừa được cấp quyền, hãy tải lại trang để cập nhật.
             </Typography>
-            <Button variant="contained" href="/">
-                Ve trang chu
-            </Button>
+            <Box display="flex" gap={1}>
+                <Button variant="contained" onClick={() => window.location.reload()}>
+                    Tải lại trang
+                </Button>
+                <Button variant="outlined" href="/">
+                    Về trang chủ
+                </Button>
+            </Box>
         </Box>
     </Box>
 );
@@ -131,7 +136,14 @@ const ManifestRouteGuard: React.FC<{
     }
 
     if (requiredCodes.length > 0) {
-        return requiredCodes.some((code) => canFunc(code, 'view')) ? <>{children}</> : <PermissionDenied />;
+        const matched = requiredCodes.some((code) => canFunc(code, 'view'));
+        if (!matched) {
+            console.warn('[ManifestRouteGuard] Permission denied for route', {
+                pathname: location.pathname,
+                requiredCodes,
+            });
+        }
+        return matched ? <>{children}</> : <PermissionDenied />;
     }
 
     return <>{children}</>;

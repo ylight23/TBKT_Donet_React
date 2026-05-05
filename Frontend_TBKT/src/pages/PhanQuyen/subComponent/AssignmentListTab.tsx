@@ -28,6 +28,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import type { PermissionAssignmentRow, ScopeConfig } from '../../../types/permission';
 import { scopeLookup } from '../data/permissionData';
 import CompareScopeDialog from './CompareScopeDialog';
+import { useMyPermissions } from '../../../hooks/useMyPermissions';
 
 // ── Lookup map (Rule: js-index-maps) ──────────────────────────────────────────
 const scopeMap = scopeLookup;
@@ -52,9 +53,11 @@ interface AssignmentRowProps {
     assignment: PermissionAssignmentRow;
     onView: (assignment: PermissionAssignmentRow) => void;
     onDelete: (assignmentId: string) => void;
+    canDelete: boolean;
+    permissionLoaded: boolean;
 }
 
-const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, onDelete }: AssignmentRowProps) {
+const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, onDelete, canDelete, permissionLoaded }: AssignmentRowProps) {
     const theme = useTheme();
     const scopeInfo = scopeMap.get(assignment.scopeType as import('../../../types/permission').ScopeType);
     const expired = isExpired(assignment.expiresAt);
@@ -225,23 +228,35 @@ const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, on
                         <AccountTreeIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                 </Tooltip>
-                <Tooltip title="Xóa assignment" arrow>
-                    <IconButton
-                        size="small"
-                        onClick={() => onDelete(assignment.id)}
-                        sx={{
-                            color: 'text.secondary',
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1.5,
-                            '&:hover': {
-                                bgcolor: alpha(theme.palette.error.main, 0.08),
-                                borderColor: alpha(theme.palette.error.main, 0.3),
-                                color: theme.palette.error.main,
-                            },
-                        }}
-                    >
-                        <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
+                <Tooltip
+                    title={
+                        !permissionLoaded
+                            ? 'Dang tai quyen thao tac'
+                            : canDelete
+                                ? 'Xóa assignment'
+                                : 'Ban khong co quyen xoa assignment'
+                    }
+                    arrow
+                >
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={() => onDelete(assignment.id)}
+                            disabled={!canDelete}
+                            sx={{
+                                color: 'text.secondary',
+                                border: `1px solid ${theme.palette.divider}`,
+                                borderRadius: 1.5,
+                                '&:hover': {
+                                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                                    borderColor: alpha(theme.palette.error.main, 0.3),
+                                    color: theme.palette.error.main,
+                                },
+                            }}
+                        >
+                            <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                    </span>
                 </Tooltip>
             </Box>
         </Box>
@@ -264,9 +279,11 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
     onCompareUsers,
 }) => {
     const theme = useTheme();
+    const { canFunc, loaded: permissionLoaded } = useMyPermissions();
     const [search, setSearch] = useState('');
     const [viewAssignment, setViewAssignment] = useState<PermissionAssignmentRow | null>(null);
     const [compareOpen, setCompareOpen] = useState(false);
+    const canDeleteAssignment = permissionLoaded && canFunc('config.role', 'delete');
 
     const handleView = (assignment: PermissionAssignmentRow) => {
         setViewAssignment(assignment);
@@ -347,6 +364,8 @@ const AssignmentListTab: React.FC<AssignmentListTabProps> = ({
                         assignment={assignment}
                         onView={handleView}
                         onDelete={onDeleteAssignment}
+                        canDelete={canDeleteAssignment}
+                        permissionLoaded={permissionLoaded}
                     />
                 ))}
             </Box>

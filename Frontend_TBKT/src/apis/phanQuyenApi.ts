@@ -39,6 +39,7 @@ export interface NhomNguoiDungInfo {
 
 export interface GroupPermissions {
     checkedCodes: string[];
+    actionPermissions: Record<string, PermissionAction[]>;
     scopeType: string;
     anchorNodeId?: string;
     multiNodeIds: string[];
@@ -131,13 +132,21 @@ function mapRebuildProgress(event: any): RebuildPermissionsProgress {
 
 function mapPhamViFromProto(raw?: {
     idChuyenNganh?: string;
-    idChuyenNganhDoc?: Array<{ id?: string; actions?: string[] }>;
+    idChuyenNganhDoc?: Array<{ id?: string; actions?: string[]; functionActions?: Array<{ maChucNang?: string; actions?: string[] }> }>;
 } | null): PhamViChuyenNganhConfig | undefined {
     if (!raw?.idChuyenNganh) return undefined;
     const entries = (raw.idChuyenNganhDoc ?? [])
         .map((entry) => ({
             id: entry.id?.trim() ?? '',
             actions: (entry.actions ?? []).filter((action): action is PermissionAction => typeof action === 'string' && action.length > 0),
+            functionActions: Object.fromEntries(
+                (entry.functionActions ?? [])
+                    .map((item) => [
+                        String(item.maChucNang || '').trim().toLowerCase(),
+                        (item.actions ?? []).filter((action): action is PermissionAction => typeof action === 'string' && action.length > 0),
+                    ])
+                    .filter(([code, actions]) => Boolean(code) && (actions as PermissionAction[]).length > 0),
+            ) as Record<string, PermissionAction[]>,
         }))
         .filter((entry) => entry.id.length > 0);
     return {
@@ -153,13 +162,38 @@ function mapPhamViToProto(phamVi?: PhamViChuyenNganhConfig) {
         idChuyenNganhDoc: phamVi.idChuyenNganhDoc.map((entry) => ({
             id: entry.id,
             actions: [...entry.actions],
+            functionActions: Object.entries(entry.functionActions ?? {})
+                .filter(([code, actions]) => Boolean(code) && actions.length > 0)
+                .map(([maChucNang, actions]) => ({ maChucNang, actions })),
         })),
+    };
+}
+
+const PERMISSION_ACTIONS: PermissionAction[] = ['view', 'add', 'edit', 'delete', 'approve', 'unapprove', 'download', 'print'];
+
+function actionsMapToList(actions?: Partial<Record<PermissionAction, boolean>> | null): PermissionAction[] {
+    if (!actions) return [];
+    return PERMISSION_ACTIONS.filter((action) => actions[action] === true);
+}
+
+function actionListToProtoActions(actions: PermissionAction[]) {
+    const set = new Set(actions);
+    return {
+        view: set.has('view'),
+        add: set.has('add'),
+        edit: set.has('edit'),
+        delete: set.has('delete'),
+        approve: set.has('approve'),
+        unapprove: set.has('unapprove'),
+        download: set.has('download'),
+        print: set.has('print'),
     };
 }
 
 // ── getMyPermissions ──────────────────────────────────────────────────────────
 
 export async function getMyPermissions() {
+    const normalizePermissionCode = (value: string | undefined | null) => String(value || '').trim().toLowerCase();
     const req = create(GetMyPermissionsRequestSchema, {});
     console.log('[phanQuyenApi] Calling getMyPermissions...');
     const res = await phanQuyenClient.getMyPermissions(req);
@@ -175,25 +209,68 @@ export async function getMyPermissions() {
         duocTruyCap: ph.duocTruyCap,
     }));
 
-    const chucNang: ChucNangPermission[] = res.chucNang.map(cn => ({
-        maChucNang: cn.maChucNang,
-        maPhanHe:   cn.maPhanHe,
-        actions: {
+    const chucNangMap = new Map<string, ChucNangPermission>();
+    for (const cn of res.chucNang) {
+        const maChucNang = normalizePermissionCode(cn.maChucNang);
+        if (!maChucNang) continue;
+        const nextActions = {
             view:     cn.actions?.view     ?? false,
             add:      cn.actions?.add      ?? false,
             edit:     cn.actions?.edit     ?? false,
             delete:   cn.actions?.delete   ?? false,
             approve:  cn.actions?.approve  ?? false,
+            unapprove: cn.actions?.unapprove ?? false,
             download: cn.actions?.download ?? false,
             print:    cn.actions?.print    ?? false,
-        },
-    }));
+        };
+        const existing = chucNangMap.get(maChucNang);
+        if (existing) {
+            existing.actions = {
+                view: existing.actions.view || nextActions.view,
+                add: existing.actions.add || nextActions.add,
+                edit: existing.actions.edit || nextActions.edit,
+                delete: existing.actions.delete || nextActions.delete,
+                approve: existing.actions.approve || nextActions.approve,
+                unapprove: existing.actions.unapprove || nextActions.unapprove,
+                download: existing.actions.download || nextActions.download,
+                print: existing.actions.print || nextActions.print,
+            };
+        } else {
+            chucNangMap.set(maChucNang, {
+                maChucNang,
+                maPhanHe: cn.maPhanHe,
+                actions: nextActions,
+            });
+        }
+    }
+    const chucNang: ChucNangPermission[] = [...chucNangMap.values()];
+
+    console.log('[phanQuyenApi] Normalized permission codes:', chucNang.map((cn) => cn.maChucNang));
+    console.log('[phanQuyenApi] Equipment permission actions:', chucNang
+        .filter((cn) => cn.maChucNang.startsWith('equipment.'))
+        .map((cn) => ({ code: cn.maChucNang, actions: cn.actions })));
 
     // Parse ActionsPerCN (B3 — AccessGate)
     const actionsPerCn = (res.actionsPerCn ?? []).map(entry => ({
         idChuyenNganh: entry.idChuyenNganh,
         actions: [...entry.actions] as import('../types/permission').PermissionAction[],
+        functionActions: Object.fromEntries(
+            (entry.functionActions ?? [])
+                .map((item) => [
+                    String(item.maChucNang || '').trim().toLowerCase(),
+                    [...item.actions] as import('../types/permission').PermissionAction[],
+                ])
+                .filter(([code, actions]) => Boolean(code) && (actions as PermissionAction[]).length > 0),
+        ) as Record<string, PermissionAction[]>,
     }));
+
+    console.log('[phanQuyenApi] Equipment CN function actions:', actionsPerCn.map((entry) => ({
+        idChuyenNganh: entry.idChuyenNganh,
+        actions: entry.actions,
+        equipmentFunctionActions: Object.fromEntries(
+            Object.entries(entry.functionActions).filter(([code]) => code.startsWith('equipment.')),
+        ),
+    })));
 
     return {
         phanHe,
@@ -269,8 +346,15 @@ export async function deleteNhomNguoiDung(id: string): Promise<{ success: boolea
 export async function getGroupPermissions(idNhom: string): Promise<GroupPermissions> {
     const req = create(GetGroupPermissionsRequestSchema, { idNhom });
     const res = await phanQuyenClient.getGroupPermissions(req);
+    const actionPermissions = Object.fromEntries(
+        (res.chucNang ?? [])
+            .map((item) => [item.maChucNang, actionsMapToList(item.actions)])
+            .filter(([code, actions]) => Boolean(code) && (actions as PermissionAction[]).length > 0),
+    ) as Record<string, PermissionAction[]>;
+
     return {
-        checkedCodes: [...res.checkedCodes],
+        checkedCodes: Object.keys(actionPermissions).length > 0 ? Object.keys(actionPermissions) : [...res.checkedCodes],
+        actionPermissions,
         scopeType: res.scopeType || 'SUBTREE',
         anchorNodeId: res.anchorNodeId || '',
         multiNodeIds: [...res.multiNodeIds],
@@ -285,10 +369,24 @@ export async function saveGroupPermissions(
     idNhom: string,
     checkedCodes: string[],
     scopeConfig: GroupScopeConfig,
+    actionPermissions: Record<string, PermissionAction[]> = {},
 ): Promise<void> {
+    const chucNang = Object.entries(actionPermissions)
+        .filter(([, actions]) => actions.length > 0)
+        .map(([maChucNang, actions]) => ({
+            maChucNang,
+            maPhanHe: 'TBKT.ThongTin',
+            actions: actionListToProtoActions(actions),
+        }));
+
+    console.log('[phanQuyenApi] SaveGroupPermissions equipment action payload:', chucNang
+        .filter((item) => item.maChucNang.startsWith('equipment.'))
+        .map((item) => ({ code: item.maChucNang, actions: item.actions })));
+
     const req = create(SaveGroupPermissionsRequestSchema, {
         idNhom,
         checkedCodes,
+        chucNang,
         scopeType: scopeConfig.scopeType,
         anchorNodeId: scopeConfig.anchorNodeId ?? '',
         multiNodeIds: scopeConfig.multiNodeIds ?? [],

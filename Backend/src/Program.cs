@@ -191,6 +191,65 @@ app.MapGet("/", () => "gRPC Server is running");
 
 app.UseTBKTServices(builder.Configuration, "v1");
 
+// ── Startup migration: backfill MaPhanHe for legacy NhomNguoiDung docs ────────
+{
+    var db = Backend.Services.Global.MongoDB;
+    if (db != null)
+    {
+        var nhomCol     = db.GetCollection<MongoDB.Bson.BsonDocument>(PermissionCollectionNames.Roles);
+        var phanHeNhomCol = db.GetCollection<MongoDB.Bson.BsonDocument>(PermissionCollectionNames.GroupSubsystemPermissions);
+
+        var F = MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter;
+        var U = MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Update;
+
+        // 1. Patch NhomNguoiDung: any doc missing MaPhanHe field
+        var missingMaPhanHe = F.Or(
+            F.Exists("MaPhanHe", false),
+            F.Eq("MaPhanHe", MongoDB.Bson.BsonNull.Value),
+            F.Eq("MaPhanHe", ""));
+        var patchResult = await nhomCol.UpdateManyAsync(
+            missingMaPhanHe,
+            U.Set("MaPhanHe", Backend.Services.Global.UnifiedMaPhanHe));
+
+        if (patchResult.ModifiedCount > 0)
+            logger.LogInformation("[StartupMigration] Patched {Count} NhomNguoiDung docs with MaPhanHe", patchResult.ModifiedCount);
+
+        // 2. Patch GroupSubsystemPermissions: same condition
+        var phanHeNhomPatch = await phanHeNhomCol.UpdateManyAsync(
+            missingMaPhanHe,
+            U.Set("MaPhanHe", Backend.Services.Global.UnifiedMaPhanHe));
+
+        if (phanHeNhomPatch.ModifiedCount > 0)
+            logger.LogInformation("[StartupMigration] Patched {Count} GroupSubsystemPermissions docs with MaPhanHe", phanHeNhomPatch.ModifiedCount);
+
+        // 3. Enqueue rebuild for all users in affected groups (nếu có patch)
+        if (patchResult.ModifiedCount > 0 || phanHeNhomPatch.ModifiedCount > 0)
+        {
+            using var scope = app.Services.CreateScope();
+            var rebuildSvc = scope.ServiceProvider.GetRequiredService<Backend.Services.RebuildService>();
+
+            var affectedIds = await db.GetCollection<MongoDB.Bson.BsonDocument>(PermissionCollectionNames.UserRoleAssignments)
+                .Find(MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter.Empty)
+                .Project(MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Projection.Include("IdNguoiDung"))
+                .ToListAsync();
+
+            var uniqueUserIds = affectedIds
+                .Select(d => d.GetValue("IdNguoiDung", MongoDB.Bson.BsonNull.Value).ToString() ?? "")
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            logger.LogInformation("[StartupMigration] Rebuilding cache for {Count} affected users", uniqueUserIds.Count);
+
+            await Parallel.ForEachAsync(uniqueUserIds, new ParallelOptions { MaxDegreeOfParallelism = 4 },
+                async (uid, _) => await rebuildSvc.RebuildForUser(uid));
+
+            logger.LogInformation("[StartupMigration] Rebuild complete");
+        }
+    }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 if (args.Any(a => string.Equals(a, "--rebuild-permissions-all", StringComparison.OrdinalIgnoreCase)))
 {
     using var scope = app.Services.CreateScope();

@@ -1038,10 +1038,12 @@ public static class Global
                     new CreateIndexOptions { Name = "ux_permission_catalog_code", Unique = true }));
 
             var bulkOps = new List<WriteModel<BsonDocument>>();
+            var activeCodes = new List<string>();
             foreach (var group in PermissionCatalogSeed.Groups)
             {
                 foreach (var permission in group.Permissions)
                 {
+                    activeCodes.Add(permission.Code);
                     bulkOps.Add(new UpdateOneModel<BsonDocument>(
                         Builders<BsonDocument>.Filter.Eq("Code", permission.Code),
                         Builders<BsonDocument>.Update
@@ -1051,9 +1053,19 @@ public static class Global
                             .Set("Icon", group.Icon)
                             .Set("GroupOrder", group.Order)
                             .Set("Order", permission.Order)
-                            .Set("Active", true))
+                            .Set("Active", true)
+                            .Set("Source", "static-menu"))
                     { IsUpsert = true });
                 }
+            }
+
+            if (activeCodes.Count > 0)
+            {
+                bulkOps.Add(new UpdateManyModel<BsonDocument>(
+                    Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("Source", "static-menu"),
+                        Builders<BsonDocument>.Filter.Nin("Code", activeCodes)),
+                    Builders<BsonDocument>.Update.Set("Active", false)));
             }
 
             if (bulkOps.Count > 0)

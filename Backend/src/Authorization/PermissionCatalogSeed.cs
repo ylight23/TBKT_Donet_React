@@ -14,19 +14,51 @@ internal sealed record PermissionCatalogSeedItem(
 internal static class PermissionCatalogSeed
 {
     public static IReadOnlyList<PermissionCatalogSeedGroup> Groups { get; } =
-        PermissionManifestProvider.LoadManifest()
-            .PermissionGroups
-            .OrderBy(group => group.Order)
-            .Select(group => new PermissionCatalogSeedGroup(
-                group.Group,
-                group.Icon,
-                group.Order,
-                group.Permissions
-                    .OrderBy(permission => permission.Order)
-                    .Select(permission => new PermissionCatalogSeedItem(
-                        permission.Code,
-                        permission.Name,
-                        permission.Order))
-                    .ToList()))
-            .ToList();
+        BuildFromStaticMenus(PermissionManifestProvider.LoadManifest().StaticMenus);
+
+    private static IReadOnlyList<PermissionCatalogSeedGroup> BuildFromStaticMenus(
+        IReadOnlyList<PermissionManifestMenuItem> menus)
+    {
+        var permissions = new List<PermissionCatalogSeedItem>();
+        var order = 10;
+
+        foreach (var menu in menus)
+            AddMenuPermission(menu, permissions, ref order);
+
+        return
+        [
+            new PermissionCatalogSeedGroup(
+                "Menu chức năng",
+                "Menu",
+                10,
+                permissions)
+        ];
+    }
+
+    private static void AddMenuPermission(
+        PermissionManifestMenuItem menu,
+        List<PermissionCatalogSeedItem> permissions,
+        ref int order)
+    {
+        var codes = menu.PermissionCodes?
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? [];
+
+        for (var index = 0; index < codes.Count; index++)
+        {
+            var code = codes[index];
+            permissions.Add(new PermissionCatalogSeedItem(
+                code,
+                codes.Count == 1 ? menu.Title : $"{menu.Title} - {code}",
+                order++));
+        }
+
+        if (menu.Children == null)
+            return;
+
+        foreach (var child in menu.Children)
+            AddMenuPermission(child, permissions, ref order);
+    }
 }

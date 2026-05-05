@@ -52,6 +52,65 @@ public sealed class RebuildService
             var visibleCNs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             // Merged CN actions from ALL groups (union) — replaces single bestPhamViDoc
             var mergedCnActions = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var mergedCnFunctionActions = new Dictionary<string, Dictionary<string, HashSet<string>>>(StringComparer.OrdinalIgnoreCase);
+
+            void MergePhamViDoc(BsonDocument? phamViDoc)
+            {
+                if (phamViDoc == null)
+                    return;
+
+                var phamViEntries = phamViDoc.ArrayOr("IdChuyenNganhDoc");
+                if (phamViEntries == null)
+                    return;
+
+                foreach (var entry in phamViEntries.Documents())
+                {
+                    var id = entry.StringOr("Id");
+                    if (string.IsNullOrEmpty(id)) continue;
+                    visibleCNs.Add(id);
+
+                    if (!mergedCnActions.TryGetValue(id, out var actionSet))
+                    {
+                        actionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        mergedCnActions[id] = actionSet;
+                    }
+
+                    var actionArr = entry.ArrayOr("Actions");
+                    if (actionArr != null)
+                        foreach (var a in actionArr.Strings())
+                            if (!string.IsNullOrEmpty(a)) actionSet.Add(a);
+
+                    var functionActionArr = entry.ArrayOr("FunctionActions");
+                    if (functionActionArr == null)
+                        continue;
+
+                    if (!mergedCnFunctionActions.TryGetValue(id, out var perFunction))
+                    {
+                        perFunction = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+                        mergedCnFunctionActions[id] = perFunction;
+                    }
+
+                    foreach (var functionAction in functionActionArr.Documents())
+                    {
+                        var maChucNang = functionAction.StringOr("MaChucNang")?.Trim().ToLowerInvariant();
+                        if (string.IsNullOrWhiteSpace(maChucNang))
+                            continue;
+
+                        if (!perFunction.TryGetValue(maChucNang, out var functionActionSet))
+                        {
+                            functionActionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            perFunction[maChucNang] = functionActionSet;
+                        }
+
+                        var actions = functionAction.ArrayOr("Actions");
+                        if (actions == null)
+                            continue;
+                        foreach (var action in actions.Strings())
+                            if (!string.IsNullOrWhiteSpace(action))
+                                functionActionSet.Add(action.Trim());
+                    }
+                }
+            }
 
             foreach (var doc in memberDocs)
             {
@@ -92,27 +151,8 @@ public sealed class RebuildService
                 if (!string.IsNullOrEmpty(dvs))
                     donViScope = dvs;
 
-                var phamViDoc = doc.DocOr("PhamViChuyenNganh") ?? roleScopeDoc?.DocOr("PhamViChuyenNganh");
-                var phamViEntries = phamViDoc.ArrayOr("IdChuyenNganhDoc");
-                if (phamViEntries != null)
-                {
-                    foreach (var entry in phamViEntries.Documents())
-                    {
-                        var id = entry.StringOr("Id");
-                        if (string.IsNullOrEmpty(id)) continue;
-                        visibleCNs.Add(id);
-                        // Merge actions from all groups (union)
-                        if (!mergedCnActions.TryGetValue(id, out var actionSet))
-                        {
-                            actionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            mergedCnActions[id] = actionSet;
-                        }
-                        var actionArr = entry.ArrayOr("Actions");
-                        if (actionArr != null)
-                            foreach (var a in actionArr.Strings())
-                                if (!string.IsNullOrEmpty(a)) actionSet.Add(a);
-                    }
-                }
+                MergePhamViDoc(roleScopeDoc?.DocOr("PhamViChuyenNganh"));
+                MergePhamViDoc(doc.DocOr("PhamViChuyenNganh"));
 
             }
 
@@ -308,11 +348,23 @@ public sealed class RebuildService
                 var idChuyenNganhDocArr = new BsonArray();
                 foreach (var kv in mergedCnActions)
                 {
-                    idChuyenNganhDocArr.Add(new BsonDocument
+                    var entryDoc = new BsonDocument
                     {
                         { "Id", kv.Key },
                         { "Actions", new BsonArray(kv.Value) },
-                    });
+                    };
+
+                    if (mergedCnFunctionActions.TryGetValue(kv.Key, out var perFunction) && perFunction.Count > 0)
+                    {
+                        entryDoc["FunctionActions"] = new BsonArray(
+                            perFunction.Select(item => new BsonDocument
+                            {
+                                { "MaChucNang", item.Key },
+                                { "Actions", new BsonArray(item.Value) },
+                            }));
+                    }
+
+                    idChuyenNganhDocArr.Add(entryDoc);
                 }
 
                 // Primary CN: prefer per-user assignment override → then group default

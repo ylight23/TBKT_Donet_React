@@ -63,6 +63,26 @@ function codeToAction(code: string): PermissionAction | null {
     return SUFFIX_TO_CN_ACTION[suffix] ?? null;
 }
 
+function getBaseActions(code: string, actionPermissions: Record<string, PermissionAction[]>): PermissionAction[] {
+    const explicitActions = actionPermissions[code] ?? [];
+    if (explicitActions.length > 0)
+        return explicitActions;
+    const inferred = codeToAction(code);
+    return inferred ? [inferred] : [];
+}
+
+function getEffectiveActions(
+    code: string,
+    baseActions: PermissionAction[],
+    actionSet: Set<PermissionAction>,
+    functionActionSet: Map<string, Set<PermissionAction>>,
+): PermissionAction[] {
+    const scopedActions = functionActionSet.get(code);
+    return baseActions.filter((action) =>
+        actionSet.has(action) && (scopedActions ? scopedActions.has(action) : true),
+    );
+}
+
 // ── Action label ──────────────────────────────────────────────────
 
 const ACTION_VI: Record<PermissionAction, string> = {
@@ -101,6 +121,7 @@ interface CnGroupedPermissionViewProps {
     phamVi: PhamViChuyenNganhConfig;
     checkedCodes: string[];
     permissionGroups: PermissionGroup[];
+    actionPermissions?: Record<string, PermissionAction[]>;
 }
 
 // ── Component ─────────────────────────────────────────────────────
@@ -109,6 +130,7 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
     phamVi,
     checkedCodes,
     permissionGroups,
+    actionPermissions = {},
 }) => {
     const theme = useTheme();
     const checkedSet = useMemo(() => new Set(checkedCodes), [checkedCodes]);
@@ -119,6 +141,9 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
             ...entry,
             isOwn: entry.id === phamVi.idChuyenNganh,
             actionSet: new Set(entry.actions),
+            functionActionSet: new Map(
+                Object.entries(entry.functionActions ?? {}).map(([code, actions]) => [code, new Set(actions)]),
+            ),
         }));
     }, [phamVi]);
 
@@ -288,18 +313,18 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
                         const cnColor = getCnColor(cnEntry.id);
                         const isExpanded = expandedCns[cnEntry.id] ?? true;
 
-                        // Count effective permissions across all groups for this CN
+                        // Count effective action slots across all groups for this CN.
                         let effectiveCount = 0;
                         for (const group of permissionGroups) {
                             for (const perm of group.permissions) {
-                                const action = codeToAction(perm.code);
-                                if (action !== null) {
-                                    if (checkedSet.has(perm.code) && cnEntry.actionSet.has(action)) {
-                                        effectiveCount++;
-                                    }
-                                } else if (checkedSet.has(perm.code)) {
-                                    effectiveCount++;
-                                }
+                                if (!checkedSet.has(perm.code)) continue;
+                                const baseActions = getBaseActions(perm.code, actionPermissions);
+                                effectiveCount += getEffectiveActions(
+                                    perm.code,
+                                    baseActions,
+                                    cnEntry.actionSet,
+                                    cnEntry.functionActionSet,
+                                ).length;
                             }
                         }
 
@@ -406,10 +431,17 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
                                             {permissionGroups.map((group) => {
                                                 const GIcon = GROUP_ICON_MAP[group.group];
                                                 const permStatuses = group.permissions.map(perm => {
-                                                    const action = codeToAction(perm.code);
                                                     const isChecked = checkedSet.has(perm.code);
-                                                    let status: PermStatus = !isChecked ? 'not-granted' : (action === null || cnEntry.actionSet.has(action) ? 'effective' : 'blocked-by-cn');
-                                                    return { ...perm, status, action };
+                                                    const baseActions = getBaseActions(perm.code, actionPermissions);
+                                                    const effectiveActions = isChecked
+                                                        ? getEffectiveActions(perm.code, baseActions, cnEntry.actionSet, cnEntry.functionActionSet)
+                                                        : [];
+                                                    const status: PermStatus = !isChecked || baseActions.length === 0
+                                                        ? 'not-granted'
+                                                        : effectiveActions.length > 0
+                                                            ? 'effective'
+                                                            : 'blocked-by-cn';
+                                                    return { ...perm, status, baseActions, effectiveActions };
                                                 });
                                                 const groupEffective = permStatuses.filter(p => p.status === 'effective').length;
                                                 const groupBlocked = permStatuses.filter(p => p.status === 'blocked-by-cn').length;
@@ -436,6 +468,30 @@ const CnGroupedPermissionView: React.FC<CnGroupedPermissionViewProps> = ({
                                                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                                                             <Typography sx={{ fontSize: 12, fontWeight: sC.fontWeight, color: sC.textColor, lineHeight: 1.3, textDecoration: perm.status === 'blocked-by-cn' ? 'line-through' : 'none' }}>{perm.name}</Typography>
                                                                             <Typography sx={{ fontSize: 9.5, color: 'text.disabled', fontFamily: "inherit" }}>{perm.code}</Typography>
+                                                                            {perm.baseActions.length > 0 && (
+                                                                                <Box sx={{ display: 'flex', gap: 0.35, flexWrap: 'wrap', mt: 0.45 }}>
+                                                                                    {perm.baseActions.map((action) => {
+                                                                                        const allowed = perm.effectiveActions.includes(action);
+                                                                                        return (
+                                                                                            <Box
+                                                                                                key={`${perm.code}-${action}`}
+                                                                                                component="span"
+                                                                                                sx={{
+                                                                                                    px: 0.45,
+                                                                                                    py: 0.1,
+                                                                                                    borderRadius: 0.75,
+                                                                                                    fontSize: 9,
+                                                                                                    fontWeight: 700,
+                                                                                                    bgcolor: allowed ? alpha('#22c55e', 0.12) : alpha('#f59e0b', 0.1),
+                                                                                                    color: allowed ? '#15803d' : '#92400e',
+                                                                                                }}
+                                                                                            >
+                                                                                                {ACTION_VI[action]}
+                                                                                            </Box>
+                                                                                        );
+                                                                                    })}
+                                                                                </Box>
+                                                                            )}
                                                                         </Box>
                                                                     </Box>
                                                                 );

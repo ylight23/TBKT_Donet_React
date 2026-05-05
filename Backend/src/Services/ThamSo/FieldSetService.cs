@@ -12,7 +12,7 @@ namespace Backend.Services;
 
 public class FieldSetService(ILogger<FieldSetService> logger)
 {
-    private const string PermissionCode = "thamso_fieldset";
+    private const string PermissionCode = "config.param";
     private static readonly HashSet<string> AllowedFieldSetKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "trang_bi.thong_tin_chung",

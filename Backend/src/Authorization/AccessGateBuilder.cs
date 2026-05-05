@@ -51,7 +51,7 @@ public static class AccessGateBuilder
     public static AccessGate BuildFromDocument(string userId, BsonDocument doc)
     {
         var funcActions = ParseFuncActions(doc);
-        var (visibleCNs, actionsPerCN) = ParseChuyenNganhScope(doc);
+        var (visibleCNs, actionsPerCN, functionActionsPerCN) = ParseChuyenNganhScope(doc);
         var serviceScopes = ParseServiceScopes(doc);
 
         return new AccessGate
@@ -63,6 +63,7 @@ public static class AccessGateBuilder
             FuncActions = funcActions,
             VisibleCNs = visibleCNs,
             ActionsPerCN = actionsPerCN,
+            FunctionActionsPerCN = functionActionsPerCN,
             ServiceScopes = serviceScopes,
         };
     }
@@ -111,10 +112,15 @@ public static class AccessGateBuilder
 
     // ── Chiều 3: Parse NganhDocIds + PhamViChuyenNganh ──────────────
 
-    private static (List<string> visibleCNs, Dictionary<string, HashSet<string>> actionsPerCN) ParseChuyenNganhScope(BsonDocument doc)
+    private static (
+        List<string> visibleCNs,
+        Dictionary<string, HashSet<string>> actionsPerCN,
+        Dictionary<string, Dictionary<string, HashSet<string>>> functionActionsPerCN
+    ) ParseChuyenNganhScope(BsonDocument doc)
     {
         var visibleCNs = new List<string>();
         var actionsPerCN = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var functionActionsPerCN = new Dictionary<string, Dictionary<string, HashSet<string>>>(StringComparer.OrdinalIgnoreCase);
 
         // 1. Flat list NganhDocIds — lớp 2 cũ (visibility only)
         var visibleArr = doc.ArrayOr("VisibleCNs");
@@ -167,11 +173,44 @@ public static class AccessGateBuilder
                     // Ensure visible
                     if (!visibleCNs.Contains(id))
                         visibleCNs.Add(id);
+
+                    var functionActions = entry.ArrayOr("FunctionActions");
+                    if (functionActions != null)
+                    {
+                        if (!functionActionsPerCN.TryGetValue(id, out var perFunc))
+                        {
+                            perFunc = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+                            functionActionsPerCN[id] = perFunc;
+                        }
+
+                        foreach (var funcDoc in functionActions.Documents())
+                        {
+                            var code = funcDoc.StringOr("MaChucNang");
+                            if (string.IsNullOrWhiteSpace(code))
+                                continue;
+
+                            if (!perFunc.TryGetValue(code, out var funcSet))
+                            {
+                                funcSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                perFunc[code] = funcSet;
+                            }
+
+                            var funcActionArr = funcDoc.ArrayOr("Actions");
+                            if (funcActionArr == null)
+                                continue;
+
+                            foreach (var action in funcActionArr.Strings())
+                            {
+                                if (!string.IsNullOrWhiteSpace(action))
+                                    funcSet.Add(action);
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        return (visibleCNs, actionsPerCN);
+        return (visibleCNs, actionsPerCN, functionActionsPerCN);
     }
 
     // ── Action names ────────────────────────────────────────────────
