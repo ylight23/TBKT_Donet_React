@@ -462,7 +462,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handleViewRow(params.row)}
               disabled={isRowActionDisabled('view', params.row)}
-              sx={{ color: militaryColors.navy }}
+              sx={{ color: militaryColors.navy, display: isRowActionDisabled('view', params.row) ? 'none' : 'inline-flex' }}
             >
               <VisibilityIcon fontSize="inherit" />
             </IconButton>
@@ -473,7 +473,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handleEditRow(params.row)}
               disabled={isRowActionDisabled('edit', params.row)}
-              sx={{ color: militaryColors.warning }}
+              sx={{ color: militaryColors.warning, display: isRowActionDisabled('edit', params.row) ? 'none' : 'inline-flex' }}
             >
               <EditIcon fontSize="inherit" />
             </IconButton>
@@ -484,7 +484,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handlePrintRow(params.row)}
               disabled={isRowActionDisabled('print', params.row)}
-              sx={{ color: militaryColors.success }}
+              sx={{ color: militaryColors.success, display: isRowActionDisabled('print', params.row) ? 'none' : 'inline-flex' }}
             >
               <PrintIcon fontSize="inherit" />
             </IconButton>
@@ -495,7 +495,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handleDeleteRow(params.row)}
               disabled={isRowActionDisabled('delete', params.row)}
-              sx={{ color: militaryColors.error }}
+              sx={{ color: militaryColors.error, display: isRowActionDisabled('delete', params.row) ? 'none' : 'inline-flex' }}
             >
               <DeleteIcon fontSize="inherit" />
             </IconButton>
@@ -663,7 +663,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handleViewRow(params.row)}
               disabled={isRowActionDisabled('view', params.row)}
-              sx={{ color: militaryColors.navy }}
+              sx={{ color: militaryColors.navy, display: isRowActionDisabled('view', params.row) ? 'none' : 'inline-flex' }}
             >
               <VisibilityIcon fontSize="inherit" />
             </IconButton>
@@ -674,7 +674,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handleEditRow(params.row)}
               disabled={isRowActionDisabled('edit', params.row)}
-              sx={{ color: militaryColors.warning }}
+              sx={{ color: militaryColors.warning, display: isRowActionDisabled('edit', params.row) ? 'none' : 'inline-flex' }}
             >
               <EditIcon fontSize="inherit" />
             </IconButton>
@@ -685,7 +685,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handlePrintRow(params.row)}
               disabled={isRowActionDisabled('print', params.row)}
-              sx={{ color: militaryColors.success }}
+              sx={{ color: militaryColors.success, display: isRowActionDisabled('print', params.row) ? 'none' : 'inline-flex' }}
             >
               <PrintIcon fontSize="inherit" />
             </IconButton>
@@ -696,7 +696,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
               size="small"
               onClick={() => handleDeleteRow(params.row)}
               disabled={isRowActionDisabled('delete', params.row)}
-              sx={{ color: militaryColors.error }}
+              sx={{ color: militaryColors.error, display: isRowActionDisabled('delete', params.row) ? 'none' : 'inline-flex' }}
             >
               <DeleteIcon fontSize="inherit" />
             </IconButton>
@@ -780,6 +780,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
                 onClick={handleOpenCreateDialog}
                 disabled={!canAddAny}
                 sx={{
+                  display: canAddAny ? 'inline-flex' : 'none',
                   bgcolor: militaryColors.navy,
                   '&:hover': { bgcolor: militaryColors.navy, filter: 'brightness(1.1)' },
                   '&.Mui-disabled': {
@@ -800,6 +801,7 @@ const TrangBiDataGrid: React.FC<TrangBiDataGridProps> = ({
                 onClick={handleExport}
                 disabled={!canExportAny}
                 sx={{
+                  display: canExportAny ? 'inline-flex' : 'none',
                   bgcolor: militaryColors.deepOlive,
                   '&:hover': { bgcolor: militaryColors.midOlive },
                   textTransform: 'none',

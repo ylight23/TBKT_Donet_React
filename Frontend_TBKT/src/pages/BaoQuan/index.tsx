@@ -523,9 +523,9 @@ const BaoQuan: React.FC = () => {
                         Quản lý lịch bảo quản.
                     </Typography>
                 </Box>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog} disabled={!canCreateSchedule}>
+                {canCreateSchedule && <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
                     Thêm kế hoạch
-                </Button>
+                </Button>}
             </Stack>
 
             {errorMessage && (

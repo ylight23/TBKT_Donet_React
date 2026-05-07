@@ -228,7 +228,7 @@ const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, on
                         <AccountTreeIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                 </Tooltip>
-                <Tooltip
+                {canDelete && <Tooltip
                     title={
                         !permissionLoaded
                             ? 'Dang tai quyen thao tac'
@@ -242,7 +242,6 @@ const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, on
                         <IconButton
                             size="small"
                             onClick={() => onDelete(assignment.id)}
-                            disabled={!canDelete}
                             sx={{
                                 color: 'text.secondary',
                                 border: `1px solid ${theme.palette.divider}`,
@@ -257,7 +256,7 @@ const AssignmentRow = React.memo(function AssignmentRow({ assignment, onView, on
                             <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                     </span>
-                </Tooltip>
+                </Tooltip>}
             </Box>
         </Box>
     );

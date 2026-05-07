@@ -310,15 +310,14 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
                     Chua co cau hinh tham so cho chuyen nganh <strong>{cnLabel}</strong> ({cn}).
                 </Alert>
                 <Stack direction="row" spacing={1.5}>
-                    <Button
+                    {canAddInCn && <Button
                         variant="contained"
                         size="small"
                         startIcon={<BuildIcon />}
                         onClick={() => setConfigDialogOpen(true)}
-                        disabled={!canAddInCn}
                     >
                         Tao cau hinh nhanh
-                    </Button>
+                    </Button>}
                 </Stack>
                 <TrangBiFormConfigDialog
                     open={configDialogOpen}
@@ -350,9 +349,9 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
                 sx={{ height: '100%', color: 'text.secondary' }}
             >
                 <Typography variant="body2">Chon mot trang bi tu cay ben trai de xem chi tiet.</Typography>
-                <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={handleNew} disabled={!canAddInCn}>
+                {canAddInCn && <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={handleNew}>
                     Them moi
-                </Button>
+                </Button>}
             </Stack>
         );
     }
@@ -367,16 +366,16 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
                             : (node?.tenDayDu ?? node?.ten ?? node?.id ?? '')}
                     </Typography>
                     <Stack direction="row" spacing={1}>
-                        <Button
+                        {canAddInCn && <Button
                             variant="outlined"
                             size="small"
                             startIcon={<AddIcon />}
                             onClick={handleNew}
-                            disabled={saving || !canAddInCn}
+                            disabled={saving}
                         >
                             Them moi
-                        </Button>
-                        <Button
+                        </Button>}
+                        {(isNew ? canAddInCn : canEditInCn) && <Button
                             variant="contained"
                             size="small"
                             startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
@@ -384,7 +383,7 @@ const TrangBiFormPanel: React.FC<TrangBiFormPanelProps> = ({ cn, cnLabel, cnOpti
                             disabled={saveDisabled}
                         >
                             Luu
-                        </Button>
+                        </Button>}
                     </Stack>
                 </Stack>
                 {node && !isNew && (

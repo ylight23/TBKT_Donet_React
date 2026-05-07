@@ -13,6 +13,7 @@ import KeyIcon from '@mui/icons-material/Key';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { tokens } from "../../theme";
+import { clearOidcUserSessionEntries } from "../../utils/oidc";
 
 const Login: React.FC = () => {
     const theme = useTheme();
@@ -23,7 +24,8 @@ const Login: React.FC = () => {
 
     const handleLogin = async (): Promise<void> => {
         try {
-            await auth.signinRedirect();
+            clearOidcUserSessionEntries();
+            await auth.signinRedirect({ prompt: "login" });
         } catch (error) {
             console.error("Login failed", error);
         }

@@ -18,6 +18,7 @@ export interface DataGridRowAction<R extends GridValidRowModel = GridValidRowMod
     onClick: (row: R) => void | Promise<void>;
     disabled?: boolean | ((row: R) => boolean);
     hidden?: boolean | ((row: R) => boolean);
+    hideWhenDisabled?: boolean;
 }
 
 export interface DataGridActionColumnOptions<R extends GridValidRowModel = GridValidRowModel> {
@@ -86,7 +87,11 @@ export const createDataGridActionColumn = <R extends GridValidRowModel = GridVal
                 if (typeof action.hidden === 'function') {
                     return !action.hidden(row);
                 }
-                return !action.hidden;
+                if (action.hidden) return false;
+                const disabled = typeof action.disabled === 'function'
+                    ? action.disabled(row)
+                    : Boolean(action.disabled);
+                return action.hideWhenDisabled === false || !disabled;
             });
 
             return (

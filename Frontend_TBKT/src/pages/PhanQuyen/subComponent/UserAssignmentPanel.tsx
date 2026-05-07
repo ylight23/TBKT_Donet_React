@@ -197,7 +197,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                     </Typography>
                 </Box>
 
-                {!isSystem && (
+                {!isSystem && canAssignUser && (
                     <Tooltip
                         title={
                             !permissionLoaded
@@ -214,7 +214,6 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                 size="small"
                                 startIcon={<AssignmentIndIcon sx={{ fontSize: '16px !important' }} />}
                                 onClick={() => setAssignOpen(true)}
-                                disabled={!canAssignUser}
                                 sx={{ px: 2, py: 0.75, borderRadius: 2, fontSize: 12, fontWeight: 700, textTransform: 'none' }}
                             >
                                 Gan user
@@ -486,7 +485,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
 
                                 {!isSystem && (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: { xs: 'flex-start', lg: 'flex-end' } }}>
-                                        <Tooltip
+                                        {canEditUser && <Tooltip
                                             title={
                                                 !permissionLoaded
                                                     ? 'Dang tai quyen thao tac'
@@ -501,7 +500,6 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                                     size="small"
                                                     aria-label={`Chinh pham vi cua ${user.name}`}
                                                     onClick={() => handleOpenEdit(user)}
-                                                    disabled={!canEditUser}
                                                     sx={{
                                                         color: 'text.secondary',
                                                         border: `1px solid ${theme.palette.divider}`,
@@ -516,8 +514,8 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                                     <ManageAccountsIcon sx={{ fontSize: 16 }} />
                                                 </IconButton>
                                             </span>
-                                        </Tooltip>
-                                        <Tooltip
+                                        </Tooltip>}
+                                        {canRemoveUser && user.idAssignment && <Tooltip
                                             title={
                                                 !permissionLoaded
                                                     ? 'Dang tai quyen thao tac'
@@ -532,7 +530,6 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                                     size="small"
                                                     aria-label={`Xoa ${user.name} khoi nhom`}
                                                     onClick={() => user.idAssignment && onRemoveUser(user.idAssignment)}
-                                                    disabled={!canRemoveUser || !user.idAssignment}
                                                     sx={{
                                                         color: 'text.secondary',
                                                         border: `1px solid ${theme.palette.divider}`,
@@ -547,7 +544,7 @@ const UserAssignmentPanel: React.FC<UserAssignmentPanelProps> = ({
                                                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                                                 </IconButton>
                                             </span>
-                                        </Tooltip>
+                                        </Tooltip>}
                                     </Box>
                                 )}
                             </Box>

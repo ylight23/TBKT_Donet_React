@@ -11,6 +11,8 @@ const REFRESH_INTERVAL_MS = 30000;
 const PermissionSync: React.FC = () => {
   const auth = useAuth();
   const dispatch = useDispatch<AppDispatch>();
+  const userSubject = typeof auth.user?.profile?.sub === "string" ? auth.user.profile.sub : "";
+  const accessToken = auth.user?.access_token ?? "";
 
   useEffect(() => {
     if (auth.isLoading) return;
@@ -24,6 +26,8 @@ const PermissionSync: React.FC = () => {
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let refreshInterval: ReturnType<typeof setInterval> | null = null;
     let requestInFlight = false;
+
+    dispatch(clearPermissions());
 
     const clearRetryTimer = () => {
       if (retryTimer) {
@@ -81,7 +85,7 @@ const PermissionSync: React.FC = () => {
       window.removeEventListener("focus", handleFocusRefresh);
       document.removeEventListener("visibilitychange", handleVisibilityRefresh);
     };
-  }, [auth.isAuthenticated, auth.isLoading, dispatch]);
+  }, [auth.isAuthenticated, auth.isLoading, userSubject, accessToken, dispatch]);
 
   return null;
 };

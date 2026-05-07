@@ -435,9 +435,9 @@ const BaoDuong: React.FC = () => {
                             Quản lý lịch bảo dưỡng theo kế hoạch.
                         </Typography>
                     </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog} disabled={!canCreateSchedule}>
+                    {canCreateSchedule && <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
                         Thêm kế hoạch
-                    </Button>
+                    </Button>}
                 </Stack>
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}

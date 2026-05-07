@@ -409,7 +409,7 @@ const DieuDong: React.FC = () => {
                         </Typography>
                         <Typography variant="body2" color="text.secondary">Quản lý theo dõi trang bị và lịch điều động.</Typography>
                     </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog} disabled={!canCreateSchedule}>Thêm kế hoạch</Button>
+                    {canCreateSchedule && <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>Thêm kế hoạch</Button>}
                 </Stack>
 
                 {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 1.5 }}>{errorMessage}</Alert>}
